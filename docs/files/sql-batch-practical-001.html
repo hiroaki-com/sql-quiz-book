@@ -185,6 +185,14 @@
   .anti-body strong { color: var(--red); }
   .anti-body code { font-size: 11px; }
 
+  .column-box {
+    background: #111520; border: 1px solid #2a1f45; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px; border-left: 3px solid var(--purple);
+  }
+  .column-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--purple); letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .column-title::before { content: '🏢'; font-size: 12px; }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+
   .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
   .nav-btn {
     background: var(--bg3); border: 1px solid var(--border); color: var(--text);
@@ -256,7 +264,7 @@ const QS = [
 <span class="kw">ORDER BY</span> col1;          <span class="cmt">-- 並び替え（ASCが省略されたデフォルト）</span></pre>
 <div class="callout"><strong>なぜCTEを使うか：</strong>通常 <code>WHERE SUM(...)</code> は書けないので HAVING が必要ですが、CTEに切り出すと集計後の値を普通の列として扱えます。バッチSQLが長くなるほどCTEで「処理ステップを名前付けして分割」するメリットが増します。</div>`,
   question: `<p>以下の <code>orders</code> テーブルから、<em>日付（order_date）ごとの売上合計・注文件数・平均注文額</em> を集計してください。</p>
-<p>さらに <em>合計売上が 50,000円以上の日のみ</em> を返し、合計売上の降順で並べること。<br>出力：order_date, total_sales, order_count, avg_order</p>
+<p>さらに <em>合計売上が 50,000円以上の日のみ</em> を返し、合計売上の降順で並べること。</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -366,6 +374,11 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE に集計関数を直接書く：</strong><code>WHERE SUM(amount) >= 50000</code> はエラーです。WHERE は GROUP BY より前に実行されるため集計値が存在しません。GROUP BY と同じクエリ内でフィルタするには <code>HAVING</code>、または今回のように CTE に切り出した外側の <code>WHERE</code> を使ってください。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY を CTE の中に書く：</strong>CTE内の ORDER BY は多くのDB（PostgreSQL等）では意味がないか無視されます。並び替えは必ず外側の本体 SELECT で行ってください。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">データ基盤の構築やダッシュボード用のデータマート作成では、集計クエリが数百〜数千行になることがあります。CTEを活用して「1.生データのクレンジング」「2.マスタ結合」「3.指標集計」「4.最終整形」とパイプライン的にSQLを組み立てることで、後任者が各ステップ単体で実行してデバッグしやすくなり、運用保守性が劇的に向上します。</div>
+</div>
 `
 },
 
@@ -384,7 +397,6 @@ const QS = [
 <p>引数は <code>LAG(列, オフセット, デフォルト値)</code>。オフセット省略時は1（1行前）、デフォルト値は前の行がない場合（先頭行）に使われます。</p>
 <div class="callout warn"><strong>OVER句とPARTITION BY：</strong>OVER()がウィンドウ関数を「行を消さずに計算する」のに必要。PARTITION BYを省略すると全行を1グループとして扱います。「カテゴリ別に前月比を計算したい」場合は <code>PARTITION BY category</code> のように指定します。</div>`,
   question: `<p>以下の <code>monthly_sales</code> テーブルから、各月の <em>前月売上・前月比の差額・前月比の増減率（%）</em> を計算してください。</p>
-<p>前月がない月（最初の月）は <code>prev_sales = 0</code>、<code>diff = NULL</code>、<code>growth_rate = NULL</code> とすること。<br>出力：month, sales, prev_sales, diff, growth_rate</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -502,6 +514,11 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY なしの LAG：</strong><code>LAG(sales) OVER ()</code> のように ORDER BY を省略すると「前の行」が不定になります。必ず <code>ORDER BY month</code> などで順序を明示してください。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>前月比の分母がゼロ：</strong>prev_sales が 0 の場合に割り算するとゼロ除算エラーになります。今回のように <code>CASE WHEN prev_sales = 0 THEN NULL</code> で必ずガードしてください。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">売上の前月比や前週比の監視（Anomaly Detection）は、ビジネスダッシュボードで最も需要の高い指標です。<code>LAG(sales, 1)</code> だけでなく、「前週の同じ曜日」と比較して曜日変動のノイズを消したい場合には <code>LAG(sales, 7)</code> が頻繁に使われます。</div>
+</div>
 `
 },
 
@@ -526,7 +543,6 @@ const QS = [
 ) <span class="kw">AS</span> moving_avg_3m</pre>
 <div class="callout"><strong>バッチ処理での使いどころ：</strong>「累計売上が目標値を超えた月を特定する」「直近3ヶ月の移動平均で異常を検知する」など、時系列の集計バッチで頻出します。GROUP BYでは行が圧縮されるため、行を残したまま集計するウィンドウ関数が必須です。</div>`,
   question: `<p>以下の <code>monthly_sales</code> テーブルから、各月の <em>累計売上（running_total）</em> と <em>直近3ヶ月の移動平均（moving_avg_3m）</em> を計算してください。</p>
-<p>移動平均は小数第1位まで。出力：month, sales, running_total, moving_avg_3m</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -592,13 +608,13 @@ const QS = [
 <div class="step-block">
 <div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>ROWS BETWEEN の範囲イメージ</strong></span></div>
 <div class="tbl-wrap"><table class="vtbl">
-<tr><th>月</th><th class="tc-g">sales</th><th class="tc-hi">累計のウィンドウ範囲</th><th class="tc-y">移動平均のウィンドウ範囲</th></tr>
-<tr><td>2024-01</td><td class="tc-g">80000</td><td class="tc-hi">01のみ</td><td class="tc-y">01のみ（1行）</td></tr>
-<tr><td>2024-02</td><td class="tc-g">120000</td><td class="tc-hi">01〜02</td><td class="tc-y">01〜02（2行）</td></tr>
-<tr><td>2024-03</td><td class="tc-g">100000</td><td class="tc-hi">01〜03</td><td class="tc-y">01〜03（3行）</td></tr>
-<tr><td>2024-04</td><td class="tc-g">150000</td><td class="tc-hi">01〜04</td><td class="tc-y">02〜04（3行）</td></tr>
-<tr><td>2024-05</td><td class="tc-g">130000</td><td class="tc-hi">01〜05</td><td class="tc-y">03〜05（3行）</td></tr>
-<tr><td>2024-06</td><td class="tc-g">170000</td><td class="tc-hi">01〜06</td><td class="tc-y">04〜06（3行）</td></tr>
+<tr><th>月</th><th class="tc-g">sales</th><th class="tc-hi">累計の計算範囲</th><th class="tc-y">移動平均の計算範囲 (3ヶ月)</th></tr>
+<tr><td>2024-01</td><td class="tc-g">80000</td><td class="tc-hi">[01]</td><td class="tc-y">[01]</td></tr>
+<tr><td>2024-02</td><td class="tc-g">120000</td><td class="tc-hi">[01, 02]</td><td class="tc-y">[01, 02]</td></tr>
+<tr><td>2024-03</td><td class="tc-g">100000</td><td class="tc-hi">[01, 02, 03]</td><td class="tc-y">[01, 02, 03]</td></tr>
+<tr><td>2024-04</td><td class="tc-g">150000</td><td class="tc-hi">[01, 02, 03, 04]</td><td class="tc-y">[02, 03, 04] ←窓がスライド</td></tr>
+<tr><td>2024-05</td><td class="tc-g">130000</td><td class="tc-hi">[01, 02, 03, 04, 05]</td><td class="tc-y">[03, 04, 05] ←窓がスライド</td></tr>
+<tr><td>2024-06</td><td class="tc-g">170000</td><td class="tc-hi">[01..06]</td><td class="tc-y">[04, 05, 06] ←窓がスライド</td></tr>
 </table></div>
 </div>
 
@@ -624,6 +640,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY なしの累計：</strong><code>SUM(sales) OVER ()</code> は全行の合計を各行に返すだけで、累計にはなりません。累計には必ず <code>ORDER BY</code> と <code>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code> が必要です。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">移動平均は「曜日のばらつき（土日は売上が下がる等）」や「突発的なキャンペーン」によるノイズを平滑化し、本質的なトレンドを捉えるために不可欠です。実務では「直近7日間の移動平均（7MA）」や「直近28日間の移動平均（28MA）」を計算し、API経由でチャート描画用データとしてフロントエンドに返すパターンが王道です。</div>
+</div>
 `
 },
 
@@ -648,7 +669,6 @@ const QS = [
 <span class="kw">WHERE</span>  rn <span class="op"><=</span> <span class="num">2</span>;   <span class="cmt">-- 各カテゴリの上位2件だけ取る</span></pre>
 <div class="callout warn"><strong>ROW_NUMBER / RANK / DENSE_RANK の違い：</strong>ROW_NUMBERは同率でも必ずユニークな連番。RANKは同率で同順位・次の番号をスキップ（1,1,3）。DENSE_RANKは同率で同順位・次の番号はスキップしない（1,1,2）。トップN抽出には ROW_NUMBER が件数を確定できて最も扱いやすいです。</div>`,
   question: `<p>以下の <code>product_sales</code> テーブルから、<em>カテゴリ（category）ごとに売上（sales）の上位2商品</em>を抽出してください。</p>
-<p>同率がある場合も ROW_NUMBER で強制的に2件に絞ること。出力：category, product_name, sales, rn</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -752,6 +772,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同じSELECT内でウィンドウ関数の結果をWHEREに使う：</strong><code>SELECT ..., ROW_NUMBER() OVER(...) AS rn FROM t WHERE rn &lt;= 2</code> はエラー。必ずCTEまたはサブクエリに切り出してください。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">「各カテゴリの人気商品トップ10API」などで活躍します。また <code>ORDER BY created_at DESC</code> で <code>WHERE rn = 1</code> と絞り込むことで、「ユーザー毎の最新のログイン履歴だけを取得する」という超定番の要件もこのパターンで実装します。最新状態だけを保持するマート作成時の必須テクニックです。</div>
+</div>
 `
 },
 
@@ -770,8 +795,7 @@ const QS = [
 <span class="kw">FROM</span>   <span class="tbl">tasks</span>
 <span class="kw">GROUP BY</span> category;</pre>
 <div class="callout"><strong>PostgreSQL では FILTER 句も使えます：</strong><code>COUNT(*) FILTER (WHERE status = '完了')</code> と書くと同じ結果になります。より読みやすいですが、BigQueryなどでは未対応の場合があるため CASE WHEN の方が汎用性が高いです。</div>`,
-  question: `<p>以下の <code>tasks</code> テーブルから、<em>担当者（assignee）ごとに</em>ステータス別の件数（完了・進行中・未着手）と合計件数を1行にまとめて出力してください。</p>
-<p>出力：assignee, done, in_progress, not_started, total</p>
+  question: `<p>以下の <code>tasks</code> テーブルから、担当者（assignee）ごとにステータス別の件数（完了・進行中・未着手）と合計件数を1行にまとめて出力してください。</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -865,6 +889,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE を省略する：</strong><code>CASE WHEN status = '完了' THEN 1 END</code> のように ELSE を省略すると、条件不一致の場合に NULL が返り、<code>SUM</code> が NULL を無視するため件数が少なくなります。必ず <code>ELSE 0</code> を明示してください。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">アプリケーション側（Python/Ruby等）やBIツール側でピボットする事も可能ですが、データベース側で集計済みのピボット結果を返すことで、ネットワーク転送量（I/O）とアプリ側のメモリ消費を大幅に削減できます。数百万件のログからダッシュボード用のサマリをAPIで返すような場面で、パフォーマンス改善の切り札になります。</div>
+</div>
 `
 },
 
@@ -890,7 +919,7 @@ const QS = [
 <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">step2</span>;</pre>
 <div class="callout"><strong>RFMとは：</strong>Recency（最終購買日）・Frequency（購買頻度）・Monetary（購買金額）の3指標でユーザーをスコアリングする手法。マーケティングのバッチ処理で非常に頻出です。</div>`,
   question: `<p>以下の <code>orders</code> テーブルから、各ユーザーの <em>R（最終購買からの日数）・F（購買回数）・M（購買金額合計）</em> を計算し、それぞれのスコア（1〜3）を付けて最終セグメントを分類してください。</p>
-<p>基準日：2024-05-01。R: 30日以内=3, 60日以内=2, それ以外=1。F: 3回以上=3, 2回=2, 1回=1。M: 100000以上=3, 50000以上=2, それ以外=1。<br>出力：user_id, r_score, f_score, m_score, total_score, segment（total_score 8以上=VIP, 6以上=優良, それ以外=一般）</p>
+<p>基準日：2024-05-01。R: 30日以内=3, 60日以内=2, それ以外=1。F: 3回以上=3, 2回=2, 1回=1。M: 100000以上=3, 50000以上=2, それ以外=1。<br>最終セグメントは合計スコア（total_score）が 8以上で「VIP」、6以上で「優良」、それ以外を「一般」とすること。</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1031,6 +1060,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTEの逆順参照：</strong>後で定義したCTEを前のCTEから参照することはできません。必ず「使われる側を先に定義」してください。循環参照も（再帰CTEを除いて）不可です。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">顧客のスコアリング（RFM分析）はCRM（顧客関係管理）の要です。実務ではこのセグメント結果を、夜間バッチでMA（マーケティングオートメーション）ツールに連携し、「VIPには限定先行オファー」「Rが低く離反しそうなユーザーには引き止めクーポン」といった自動施策のトリガーデータとして日々活用されます。</div>
+</div>
 `
 },
 
@@ -1047,8 +1081,7 @@ const QS = [
   <span class="fn">RANK</span>()        <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> score <span class="kw">DESC</span>) <span class="kw">AS</span> rnk,   <span class="cmt">-- 同率=同順位、次をスキップ</span>
   <span class="fn">DENSE_RANK</span>()  <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> score <span class="kw">DESC</span>) <span class="kw">AS</span> dr;    <span class="cmt">-- 同率=同順位、番号は飛ばさない</span></pre>
 <div class="callout warn"><strong>使い分け：</strong>「上位N件（件数固定）」→ ROW_NUMBER。「上位N位タイ全員」→ DENSE_RANK。「ランキング表示でスキップあり」→ RANK。APIの要件に合わせて使い分けてください。</div>`,
-  question: `<p>以下の <code>game_scores</code> テーブルから、ゲームごとに <em>DENSE_RANKを使った順位</em>を付け、<em>3位以内の全プレイヤー</em>を返してください。同率は同順位で全員表示すること。</p>
-<p>出力：game_id, player_name, score, rank（DENSE_RANK値）</p>
+  question: `<p>以下の <code>game_scores</code> テーブルから、ゲームごとにDENSE_RANKを使った順位を付け、3位以内の全プレイヤーを返してください。同率は同順位で全員表示すること。</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1158,6 +1191,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同率を考慮せずROW_NUMBERで上位N件を取る：</strong>「同率2位が2人いるのに1人しか表示されない」という問題が発生します。要件が「上位N位タイ全員」なら必ず DENSE_RANK か RANK を使ってください。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">ソーシャルゲームのランキング報酬配布バッチでは DENSE_RANK が必須です。同率スコアのユーザーが複数いる場合、「一方は報酬がもらえてもう一方はもらえない」という事態は深刻なクレームに繋がります。業務要件として「同率の扱いをどうするか（連番か、スキップか、同順位か）」は実装前に必ずステークホルダーと確認すべきポイントです。</div>
+</div>
 `
 },
 
@@ -1176,8 +1214,7 @@ const QS = [
 <span class="kw">LEFT JOIN</span>  <span class="tbl">sales_summary</span> s        <span class="cmt">-- 売上あり月のみ存在（NULLになる月あり）</span>
         <span class="kw">ON</span> m.month <span class="op">=</span> s.month;    <span class="cmt">-- 月で結合</span></pre>
 <div class="callout warn"><strong>LEFT JOIN vs INNER JOIN：</strong>INNER JOINは両テーブルに一致する行のみ返す（売上ない月が消える）。LEFT JOINは左テーブルの全行を保ちつつ、右テーブルに一致がない場合はNULLを返します。COALESCEでNULLを0に変換するのが売上0補完の定番イディオムです。</div>`,
-  question: `<p>2024年1月〜6月の全月について、<em>売上ゼロの月も含めて</em>月別集計レポートを作成してください。売上がない月は total_sales=0、order_count=0 とすること。</p>
-<p>出力：month, total_sales, order_count</p>
+  question: `<p>2024年1月〜6月の全月について、月別集計レポートを作成してください。売上がない月は total_sales=0、order_count=0 とすること。</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1290,6 +1327,11 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INNER JOINで「0件月が消える」バグ：</strong>売上のない月を含めてレポートしたいのにINNER JOINを使うと、その月のデータが結果から消えます。「全期間で集計」「欠損なし」が要件なら必ずLEFT JOINを使ってください。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NULLを0に変換し忘れる：</strong>LEFT JOIN後のNULLを変換せずに集計すると、SUM(NULL)=NULL、NULL+数値=NULLになりAPIが意図しないNULLを返すことがあります。COALESCE で必ずデフォルト値を設定してください。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">「売上ゼロの月（レコード自体が存在しない月）」をそのままAPIに返すと、フロントエンド側で折れ線グラフを描画する際に日付が飛んでしまい、表示バグの原因になります。バックエンドAPIの責務として、カレンダーマスタ（全日付を持ったテーブル）とLEFT JOINし、歯抜けのない連続した時系列データに補完して提供することが求められます。</div>
+</div>
 `
 },
 
@@ -1312,8 +1354,7 @@ const QS = [
   <span class="kw">ROWS BETWEEN</span> <span class="kw">UNBOUNDED PRECEDING</span> <span class="kw">AND</span> <span class="kw">UNBOUNDED FOLLOWING</span> <span class="cmt">-- 全行を見る※重要</span>
 ) <span class="kw">AS</span> last_product</pre>
 <div class="callout danger"><strong>LAST_VALUE の落とし穴：</strong>ROWS BETWEEN を省略すると「現在行まで」がデフォルトになり、最後の行以外では最新値が取れません。<code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> で「全行」を明示してください。</div>`,
-  question: `<p>以下の <code>purchase_history</code> テーブルから、各ユーザーごとに <em>初回購買日・初回購買商品・最終購買日・最終購買商品</em>を1行で取得してください。ユーザーごとに1行だけ返すこと。</p>
-<p>出力：user_id, first_date, first_product, last_date, last_product</p>
+  question: `<p>以下の <code>purchase_history</code> テーブルから、各ユーザーごとに初回購買日・初回購買商品・最終購買日・最終購買商品を1行で取得してください。ユーザーごとに1行だけ返すこと。</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1434,6 +1475,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LAST_VALUE に ROWS BETWEEN を付け忘れる：</strong>デフォルトのフレームは <code>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code> です。つまり「現在行が最後の行」になり、最終行以外では正しい最終値が取れません。LAST_VALUE を使う場合は必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> を明示してください。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">「ユーザーの初回購入商品と最新購入商品を並べて比較する」ことで、LTV（顧客生涯価値）の高いユーザーの行動パターンを分析します。例えば「お試しセット（初回）」から「定期便（最新）」へ移行したユーザーのコンバージョン率を測るためのデータマートを作る際、この FIRST_VALUE / LAST_VALUE の組み合わせがそのまま活用されます。</div>
+</div>
 `
 },
 
@@ -1462,8 +1508,7 @@ const QS = [
 )
 <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">tree</span>;</pre>
 <div class="callout warn"><strong>再帰の終了条件：</strong>再帰部で新たな行が生まれなくなった時点で再帰が終了します。循環参照（A→B→A...）があると無限ループになるため、実務では depth の上限チェックを設けることを推奨します。</div>`,
-  question: `<p>以下の <code>categories</code> テーブルは「商品カテゴリ」の親子関係を持ちます。<em>再帰CTEを使って全階層を展開し</em>、各カテゴリの depth（深さ）と階層パス（path）を表示してください。</p>
-<p>出力：id, name, depth, path（例：電化製品 > スマートフォン > Android）</p>
+  question: `<p>以下の <code>categories</code> テーブルは「商品カテゴリ」の親子関係を持ちます。<em>再帰CTEを使って全階層を展開し</em>、各カテゴリの depth（深さ）と階層パス（path、例：電化製品 > スマートフォン > Android）を表示してください。</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1586,6 +1631,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>UNION（重複除去あり）を使う：</strong>再帰部では <code>UNION ALL</code> を使ってください。<code>UNION</code>（重複除去）を使うとパフォーマンスが悪化し、一部のDBでは再帰が正しく動かないことがあります。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>循環参照データで深さ制限なしで実行する：</strong>データに循環（A→B→A）があると再帰が終了せず、タイムアウトやエラーになります。本番データを扱う場合は必ず <code>depth &lt; 最大階層数</code> の上限を設けてください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">ECサイトの「パンくずリスト」の生成や、人事システムの「指定した本部長の配下にいる全社員リストの抽出」などで利用します。階層の深さが固定ではない（3階層のものもあれば10階層のものもある）ツリー構造のデータをSQLだけで一発取得するには、実質的に再帰CTE一択となります。</div>
 </div>
 `
 }

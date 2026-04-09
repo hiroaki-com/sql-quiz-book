@@ -185,6 +185,16 @@
   .anti-body strong { color: var(--red); }
   .anti-body code { font-size: 11px; }
 
+  .column-box {
+    background: #0d141e; border: 1px solid #233447; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .column-title { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .column-title::before { content: '🏢'; font-size: 14px; }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--accent); }
+  .column-body em { color: var(--yellow); }
+
   .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
   .nav-btn {
     background: var(--bg3); border: 1px solid var(--border); color: var(--text);
@@ -351,6 +361,11 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE でウィンドウ関数の結果を直接絞る：</strong><code>WHERE RANK() OVER (...) &lt;= 3</code> はエラー。ウィンドウ関数はSELECTの評価後に確定するため、サブクエリかCTEで包んでから外側の WHERE で絞ること。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY の指定漏れ：</strong><code>OVER (PARTITION BY plan)</code> のように ORDER BY を省略すると、順位の根拠がなく結果が不定になる。RANK・ROW_NUMBER の OVER 内 ORDER BY は必須。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong>ランキングAPIの実装では、「同率順位の取り扱い」でビジネス要件（RANK、DENSE_RANK、ROW_NUMBERのどれを使うか）を正確に詰めることが重要です。また、数百万行のテーブルに対してリアルタイムでウィンドウ関数を実行すると重くなるため、高トラフィックなサービスでは、日次バッチで事前にランキングテーブルを作成しておくアーキテクチャが一般的です。</div>
+</div>
 `
 },
 
@@ -461,6 +476,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BY paid_at で月次集計しようとする：</strong><code>GROUP BY paid_at</code> は秒・ミリ秒まで含んだ値でグループ化するため、同じ日でも全行が別グループになり集計できない。必ず <code>DATE_TRUNC</code> や <code>TO_CHAR</code> で同じ粒度に変換してからGROUP BYすること。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>EXTRACT で月番号だけ GROUP BY する：</strong><code>GROUP BY EXTRACT(MONTH FROM paid_at)</code> は「月番号だけ」でグループ化するため、2023年1月と2024年1月が同じグループになる。年をまたいだデータには必ず年情報も含める（DATE_TRUNC か <code>EXTRACT(YEAR ...), EXTRACT(MONTH ...)</code> の複合）。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong>月次・日次集計において、実務で最もハマりやすいのが<strong>タイムゾーン</strong>です。グローバルなサービスでDBにUTCで保存されている場合、日本時間の月次集計を行うには <code>DATE_TRUNC('month', paid_at AT TIME ZONE 'Asia/Tokyo')</code> のように現地のタイムゾーンに変換してから切り捨てを行う必要があります。これを怠ると、月末・月初の日付がズレてしまいレポートの数字が合わなくなります。</div>
 </div>
 `
 },
@@ -576,6 +596,11 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>整数 / 整数 = 整数切り捨て：</strong><code>(120000 - 100000) / 100000 * 100</code> は PostgreSQL では整数除算になり <code>0</code> になる。<code>* 100.0</code>（末尾に .0）で浮動小数点演算にするか、<code>CAST(revenue AS NUMERIC)</code> でキャストすること。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>自己JOINで前月比を実装する：</strong>LAG を使わず <code>JOIN monthly_revenue prev ON prev.month = month - INTERVAL '1 month'</code> でも実現できるが、コードが冗長でパフォーマンスも劣る。時系列の前後行取得には迷わず LAG/LEAD を使う。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong>LAGやLEADを使って前月比を計算する際、実務で必須となるのが<strong>カレンダーテーブル（日付マスタ）とのLEFT JOIN</strong>です。もし売上が全く発生しなかった月があり、データ自体が存在しない（歯抜けになっている）場合、LAGは「前々月」のデータを「前月」として引っ張ってきてしまいます。時系列分析を行う場合は、あらかじめすべての日付・月が揃ったマスタを用意し、そこに実績データを結合してからウィンドウ関数を使うのがプロの鉄則です。</div>
+</div>
 `
 },
 
@@ -684,6 +709,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NULL比較に = を使う：</strong><code>WHERE bio = NULL</code> は常に偽（NULLは何とも等しくない）。NULLの有無を判定するには必ず <code>WHERE bio IS NULL</code> または <code>WHERE bio IS NOT NULL</code> を使うこと。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COALESCE の第1引数に式を書いて副作用を期待する：</strong>COALESCE は遅延評価ではなく全引数を評価するため、パフォーマンスを気にする場合は重い関数をすべての引数に書かないよう注意。ただし一般的なユースケースでは問題にならない。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong>APIレスポンスの設計において、DB側でCOALESCEを使って「絶対にNULLを返さない（デフォルト値を保証する）」設計にすることは、フロントエンドの堅牢性に直結します。TypeScriptなどの型定義で <code>null</code> の可能性を排除できれば、アプリ側の至る所に散らばるオプショナルチェーン（<code>?.</code>）やNULLチェックのロジックを大幅に削減でき、フロントエンドエンジニアから非常に喜ばれます。</div>
 </div>
 `
 },
@@ -809,6 +839,11 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LEFT JOIN しているのに WHERE で右テーブルの列を絞る：</strong><code>LEFT JOIN orders o ON ... WHERE o.status = 'completed'</code> は o.status が NULL の行（注文なしユーザー）も除外するため INNER JOIN と同じになる。右テーブルの条件は必ず ON 句に書く。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SUM の NULL を COALESCE で変換し忘れる：</strong>注文なしユーザーの SUM は NULL（0ではない）。COALESCE なしで返すと APIレスポンスで <code>"total_amount": null</code> になりフロントがクラッシュする原因になる。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong>ユーザー分析において「0件ユーザー（未購入者）」を母数に含めるかどうかは、KPIの数値を劇的に変える重要な要素です。例えば、ユーザーあたりの平均売上を算出する際、全体を対象とする <strong>ARPU</strong> と、課金ユーザーのみを対象とする <strong>ARPPU</strong> では意味が全く異なります。LEFT JOIN を用いて意図的に0件ユーザーを作り出し、要件に応じて正確に母数をコントロールするスキルは、データアナリストやバックエンドエンジニアの必須技能です。</div>
+</div>
 `
 },
 
@@ -919,6 +954,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>サブクエリの相関で累積を計算する：</strong><code>SELECT sale_date, (SELECT SUM(daily_amount) FROM daily_sales s2 WHERE s2.sale_date &lt;= s1.sale_date)</code> のような相関サブクエリは行ごとに全件スキャンが走りO(n²)になる。ウィンドウ関数は1パスで処理されるため大幅に高速。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY なしの SUM OVER：</strong><code>SUM(daily_amount) OVER ()</code> は全行の合計を全行に付与する（累積ではなく総合計）。累積には必ず <code>ORDER BY 日付列</code> が必要。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong>累積売上（ランニングトータル）は、ダッシュボードの目標達成率グラフや、月末の着地見込み（フォーキャスト）を計算する際のベースとなります。ただし、サービス開始時からの全データを毎回リアルタイム集計するとパフォーマンス上の懸念があるため、実務では「前月末までの確定累積値」をサマリーテーブルに保持しておき、当月の変動分だけを足し合わせるハイブリッドなクエリ設計が採用されることもあります。</div>
 </div>
 `
 },
@@ -1033,6 +1073,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ON CONFLICT の対象列が UNIQUE でない：</strong>ON CONFLICT の対象列には UNIQUE 制約または PRIMARY KEY が必要。UNIQUE 制約のない列を指定するとエラーになる。UPSERT を使いたい列には必ず UNIQUE 制約を付ける。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SELECT → INSERT の2段階で冪等性を担保しようとする：</strong>アプリ層で「SELECT で存在確認 → なければ INSERT, あれば UPDATE」の2段階実装は競合状態（レースコンディション）が発生するリスクがある。ON CONFLICT なら1クエリでアトミックに処理されるため安全。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong>マイクロサービス・アーキテクチャや分散イベントシステム（Kafka/SQSなど）では、ネットワークの遅延やリトライ機構により、同じメッセージが複数回届く「少なくとも1回（At-least-once）配送」が前提となります。そのような環境下において、DB側の <code>ON CONFLICT</code> を用いた<strong>冪等（べきとう）な書き込み処理</strong>は、重複イベントによるカウンターの二重加算や集計バグを防ぐための最も強力な最終防衛線として機能します。</div>
 </div>
 `
 },
@@ -1152,6 +1197,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>各 SELECT の中に ORDER BY を書く：</strong>UNION ALL の各 SELECT 内に ORDER BY を書いても意味がない（PostgreSQL では構文エラーになる場合もある）。ORDER BY は UNION ALL 全体の最後に一度だけ書く。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>重複が不要なのに UNION（重複除去）を使う：</strong>web_orders と app_orders は異なるテーブルで order_id も異なるため重複は発生しない。UNION（重複除去）を使うと内部でソートが走り不必要なオーバーヘッドになる。迷ったら UNION ALL を選ぶ。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong>システムのフルリプレイスやM&Aによるサービス統合の過渡期において、<code>UNION ALL</code> は非常に重宝されます。「旧システムの売上テーブル」と「新システムの売上テーブル」を UNION ALL で統合したビュー（View）を作成することで、APIやBIツール側は単一のテーブルとしてシームレスにデータを取得できます。完全移行が完了した際には、UNION ALL を外して新テーブルのみを参照するように切り替えるだけで済みます。</div>
 </div>
 `
 },
@@ -1294,6 +1344,11 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY なしの STRING_AGG：</strong><code>STRING_AGG(tag_name, ', ')</code> は連結順が保証されず、毎回異なる順序でタグが並ぶ可能性がある。フロントに表示する一覧でUIが変化してしまう。必ず <code>ORDER BY tag_name</code> を指定して順序を固定すること。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>tags と reviews を同時 LEFT JOIN するとカーテシアン積が発生：</strong>1商品に3タグ×2レビューがある場合、JOIN後の中間テーブルは6行になり集計値が狂う。tags と reviews を別CTEで集計してから products に JOIN するのがより安全な設計。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong><code>STRING_AGG</code> は、検索エンジンのインデックス構築や、Elasticsearchなどの全文検索基盤にデータを同期する際の前処理として大活躍します。商品に関連するカテゴリ、色、ブランド名などのメタデータをすべて JOIN し、カンマやスペース区切りの「1つの検索用テキスト」として束ねておくことで、シンプルなLIKE検索でもヒットしやすくなり、検索精度を高めるための簡易的なアプローチとして有効です。</div>
 </div>
 `
 },
@@ -1463,6 +1518,11 @@ with_type <span class="kw">AS</span> (
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTEを使わずサブクエリを多重ネストする：</strong>同じロジックをサブクエリで書くと <code>SELECT * FROM (SELECT * FROM (SELECT ...) sub1) sub2 WHERE ...</code> と右にどんどんネストして可読性が壊滅する。3ステップ以上の集計は必ずCTEで書くこと。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTEを1か所でしか使わないのに乱用する：</strong>1か所でしか参照しない簡単なサブクエリをすべてCTEにすると逆に冗長になる。CTEは「①同じ結果を複数箇所で再利用 ②可読性が明らかに上がる ③複雑な多段階集計」の場合に限って使うのが適切。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL SCENARIO</div>
+<div class="column-body"><strong>実務での活用シーン：</strong>数百行に及ぶ複雑なBI集計SQLは、レビューする側にとってもメンテナンスする側にとっても負担が大きくなります。CTEごとに「1. 生データのクレンジング」「2. KPIのベース計算」「3. 最終的なランキング付与」のように役割を分割し、CTE名の直前にコメントを付与することで、SQL全体を<strong>処理のパイプライン（データフロー）</strong>として表現できます。実務で「読まれるSQL」を書くための最も重要なテクニックです。</div>
 </div>
 `
 }

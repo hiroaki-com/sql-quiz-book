@@ -185,6 +185,19 @@
   .anti-body strong { color: var(--red); }
   .anti-body code { font-size: 11px; }
 
+  /* 実務コラム用スタイル */
+  .column-box {
+    background: #0d1520; border: 1px solid #1c3550; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+    border-left: 3px solid var(--fn);
+  }
+  .column-title { 
+    font-size: 11px; font-weight: 700; color: var(--fn); letter-spacing: 0.5px; 
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px; 
+  }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--fn); }
+
   .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
   .nav-btn {
     background: var(--bg3); border: 1px solid var(--border); color: var(--text);
@@ -312,7 +325,7 @@ const QS = [
 <div class="arrow">↓ <span class="arrow-text">SELECT で列を絞り → ORDER BY created_at DESC で並び替え</span></div>
 
 <div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>最終結果（created_at 降順）</strong></span></div>
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>最終結果（列が絞られ、created_at 降順にソート）</strong></span></div>
 <div class="tbl-wrap"><table class="vtbl">
 <tr><th>user_id</th><th>name</th><th>email</th><th class="tc-hi">created_at</th></tr>
 <tr class="tr-hi"><td>5</td><td>伊藤 三郎</td><td>ito@ex.com</td><td class="tc-hi">2024-05-15 ← 最新</td></tr>
@@ -334,6 +347,13 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NULL の比較に = を使う：</strong><code>WHERE deleted_at = NULL</code> は常にFALSEになり1行も取れない。NULL との比較は必ず <code>IS NULL</code> / <code>IS NOT NULL</code> を使うこと。NULLは「値が不明」なため = では判定できない。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY なしで「順序保証」を期待する：</strong>ORDER BY を省略するとRDBMSは任意の順序で返す。APIが常に同じ順序を返すことを保証するには必ず ORDER BY を明示すること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：論理削除とWHERE条件の抜け漏れ</div>
+<div class="column-body">
+実際のWebサービスでは、データが物理的に削除されることは少なく、<code>deleted_at</code> などの論理削除フラグが利用されます。そのため、<code>WHERE status = 'active'</code> だけでなく <code>AND deleted_at IS NULL</code> を付け忘れると、退会済みユーザーをAPIで誤って返してしまう事故に直結します。ORMのデフォルトスコープに頼らず生SQLを書く場合は、常に<strong>「論理削除の除外」</strong>を意識する癖をつけましょう。
+</div>
 </div>
 `
 },
@@ -411,12 +431,12 @@ const QS = [
 <div class="step-block">
 <div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>INNER JOIN — 両テーブルで user_id が一致する行を結合</strong></span></div>
 <div class="tbl-wrap"><table class="vtbl">
-<tr><th>o.order_id</th><th>o.user_id</th><th>o.status</th><th class="tc-g">u.name（結合結果）</th><th>結合?</th></tr>
-<tr><td>101</td><td>1</td><td>completed</td><td class="tc-g">田中 太郎</td><td class="tc-g">✓</td></tr>
-<tr><td>102</td><td>2</td><td>pending</td><td class="tc-g">佐藤 花子</td><td class="tc-g">✓</td></tr>
-<tr><td>103</td><td>1</td><td>completed</td><td class="tc-g">田中 太郎</td><td class="tc-g">✓</td></tr>
-<tr><td>104</td><td>3</td><td>completed</td><td class="tc-g">鈴木 一郎</td><td class="tc-g">✓</td></tr>
-<tr><td>105</td><td>4</td><td>cancelled</td><td class="tc-g">山田 次郎</td><td class="tc-g">✓</td></tr>
+<tr><th>o.order_id</th><th>o.user_id</th><th>o.status</th><th class="tc-g">u.name（結合結果）</th><th>結合判定</th></tr>
+<tr><td>101</td><td>1</td><td>completed</td><td class="tc-g">田中 太郎</td><td class="tc-g">✓ (usersのid:1と一致)</td></tr>
+<tr><td>102</td><td>2</td><td>pending</td><td class="tc-g">佐藤 花子</td><td class="tc-g">✓ (usersのid:2と一致)</td></tr>
+<tr><td>103</td><td>1</td><td>completed</td><td class="tc-g">田中 太郎</td><td class="tc-g">✓ (usersのid:1と一致)</td></tr>
+<tr><td>104</td><td>3</td><td>completed</td><td class="tc-g">鈴木 一郎</td><td class="tc-g">✓ (usersのid:3と一致)</td></tr>
+<tr><td>105</td><td>4</td><td>cancelled</td><td class="tc-g">山田 次郎</td><td class="tc-g">✓ (usersのid:4と一致)</td></tr>
 </table></div>
 </div>
 
@@ -445,6 +465,13 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ON 条件の書き忘れ（クロス結合）：</strong><code>FROM orders, users</code> や <code>JOIN users</code>（ON なし）は全行×全行のデカルト積（クロス結合）になる。ordersが100行・usersが1000行なら100,000行が生成されDBが応答不能になりうる。ON は必ず書くこと。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE で結合条件を書く古い記法：</strong><code>FROM orders o, users u WHERE o.user_id = u.user_id</code> という旧式の結合記法は、JOIN条件と絞り込み条件が混在して読みにくい。明示的な <code>INNER JOIN ... ON</code> を使うこと。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：N+1クエリ問題とAPIのレスポンスタイム</div>
+<div class="column-body">
+「注文一覧を取ってから、ループの中で1件ずつユーザー名を取得する」処理を書いてしまうと、注文が100件ある場合にDBへ101回のクエリ（N+1クエリ）が飛び、APIのレスポンスが極端に遅延します。実務では<strong>JOINを使って1回のクエリで必要な関連データを全て引き上げる</strong>のが絶対の基本です。ただし、結合するテーブルが多すぎると今度はメモリを圧迫するため、必要最小限の結合にとどめる設計バランスが求められます。
+</div>
 </div>
 `
 },
@@ -549,6 +576,13 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>HAVING に集計関数なし条件を書く：</strong><code>HAVING status = 'completed'</code> と書くのは動くが非推奨。集計前の行レベル条件は必ず WHERE に書く。WHERE に書くと集計対象行が減りパフォーマンスが向上する。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BY なしで集計関数と非集計列を混在：</strong><code>SELECT user_id, COUNT(*) FROM orders</code> のようにGROUP BY なしで集計関数と普通の列を混在させるとエラー。PostgreSQLは <em>「user_idをどう集約すればいいか不明」</em> と判断するため必ずGROUP BYに含めること。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：巨大テーブルの集計とパフォーマンス</div>
+<div class="column-body">
+数千万行規模のアクセスログなどを集計する際、いきなり <code>GROUP BY</code> をかけるとDBのメモリを食いつぶし、スロークエリやタイムアウトを引き起こします。実務では<strong>「まずは WHERE 句で対象期間（直近1週間など）を絞り込んでから GROUP BY する」</strong>のが鉄則です。絞り込みにより集約対象のデータ量が激減するため、安全かつ高速にKPIサマリAPIを返すことができます。
+</div>
+</div>
 `
 },
 
@@ -641,6 +675,13 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY なしの LIMIT：</strong><code>LIMIT 10</code> だけでは毎回異なる行が返る可能性がある。RDBMSは内部的に任意の順序で行を管理するため、ORDER BY なしの順序は保証されない。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>データ挿入中のOFFSET競合：</strong>ページ1を取得後に新規データがINSERTされると、ページ2でOFFSETがズレて同じ行が重複したり、スキップされる「ページスキップ問題」が発生する。リアルタイムデータにはカーソルベースが安全。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：OFFSETの罠とカーソルベースの台頭</div>
+<div class="column-body">
+<code>OFFSET 100000</code> のようにスキップ数が増えると、DBは先頭から10万行を読み込んで捨てるという無駄な処理を行うため、ページが深くなるほどAPIが遅くなります。これを防ぐため、モダンなAPI設計（TwitterやSlackなど）では、最後のIDを基準にする<strong>カーソルベースのページネーション</strong>（<code>WHERE id > :last_id LIMIT 10</code>）が主流になっています。データ量が増える見込みのあるシステムでは初期段階からカーソルベースを検討しましょう。
+</div>
+</div>
 `
 },
 
@@ -703,7 +744,7 @@ const QS = [
   実行順序（SQLの論理的な評価順）:
   1. INSERT INTO tasks (...)   → 【超基礎】テーブルに新しい行の領域を準備する
   2. VALUES (...)              → 【超基礎】指定された値を列に埋め込む
-  3. DBが BIGSERIAL列 に対して id=3 を自動採番する
+  3. DBが BIGSERIAL列 に対してシーケンスをインクリメントし、id=3 を自動採番する
   4. RETURNING id, created_at → 【超基礎】挿入が完了した行のデータを取得してアプリに返す
 */</span></pre>`,
   explain: `
@@ -752,6 +793,13 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INSERT後にSELECTで採番IDを取得する2クエリパターン：</strong>マルチスレッド環境では「INSERTしてからSELECT MAX(id)」で別スレッドのIDを取得してしまう競合が起きる。RETURNING を使えば1クエリで安全・確実にIDを取得できる。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>VALUES の列数と値の数を間違える：</strong><code>INSERT INTO tasks (title, status) VALUES ('test')</code> は列2つに対して値1つなのでエラー。列名リストと VALUES の要素数は必ず一致させること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：バルクインサートとRETURNINGの組み合わせ</div>
+<div class="column-body">
+バッチ処理で数千件のデータを登録する際、1件ずつINSERTすると通信オーバーヘッドで数分かかってしまいます。実務では <code>INSERT INTO tasks (...) VALUES (...), (...), (...)</code> のように複数行を1クエリで挿入する<strong>バルクインサート（一括挿入）</strong>を多用します。この際 <code>RETURNING id</code> を付ければ、挿入された数千件分のIDを一瞬でリストとして取得でき、後続の処理（別テーブルへの紐付けなど）が非常にスムーズになります。
+</div>
 </div>
 `
 },
@@ -852,6 +900,13 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE なし UPDATE：</strong><code>UPDATE subscriptions SET status='expired'</code> は全5件が expired になる。本番では絶対に起こしてはならないミス。UPDATE前には必ず <code>SELECT COUNT(*) FROM subscriptions WHERE ...</code> で対象件数を確認する習慣をつける。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SET の列名を間違える：</strong><code>SET stats = 'expired'</code>（status のタイポ）は列が存在しないためエラーになるが、テーブルに同名の別列があった場合は意図しない列を書き換えてしまう。SQL実行前にレビューを必ずすること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：バッチ処理の「冪等性（べきとうせい）」</div>
+<div class="column-body">
+夜間バッチはネットワークエラーなどで途中で落ち、再実行されることが日常茶飯事です。そのため、<strong>「何度実行しても結果が同じになる（＝冪等性がある）」</strong>設計が不可欠です。本問の <code>AND status = 'active'</code> のように、すでに処理済みのデータは対象外とする絞り込みを入れることで、2重実行されても安全なSQLになります。UPDATEバッチを書く時は「途中で止まって再実行されたらどうなるか？」を常に想像しましょう。
+</div>
 </div>
 `
 },
@@ -956,6 +1011,13 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE なし DELETE：</strong><code>DELETE FROM comments</code> は全行削除。誤ってWHEREを省略したときの被害を最小限にするため、本番環境ではDELETEを実行する前に必ず <code>SELECT COUNT(*) WHERE ...</code> で件数確認をする。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>deleted_at に boolean（is_deleted）を使う：</strong><code>is_deleted = true/false</code> では「いつ削除されたか」の情報が失われる。TIMESTAMPTZ型のdeleted_atにすれば「NULL=有効、日時=削除済み」の両方の情報が1列に収まり、削除日時による絞り込みも可能になる。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：論理削除とユニーク制約の衝突</div>
+<div class="column-body">
+論理削除を採用すると、「同じメールアドレスで再登録したい」というユーザーが現れた際、<code>email</code> 列のユニーク制約（重複禁止）に引っかかるという有名な問題が発生します。実務ではこれを回避するため、<strong>「email と deleted_at の複合ユニーク制約」</strong>にするか、削除時に email の末尾に <code>_deleted_タイムスタンプ</code> を付与して退避させるなど、スキーマレベルでの運用工夫がセットで必要になります。
+</div>
 </div>
 `
 },
@@ -1088,6 +1150,13 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>過度にネストしたサブクエリ：</strong><code>SELECT * FROM (SELECT * FROM (SELECT ...) sub1) sub2</code> のように3重・4重にネストするとどこで何をしているか全く読めなくなる。2段階以上になったらCTEへリファクタリングすること。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTEに不必要に全列を含める：</strong><code>SELECT * FROM orders</code> でCTEを作ると後続で不要な列まで抱えることになる。CTEでも必要な列だけ明示的に SELECT すること。パフォーマンスと可読性の両方に影響する。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：CTEのパフォーマンスとマテリアライズドビュー</div>
+<div class="column-body">
+CTEはSQLを劇的に読みやすくしますが、巨大なデータに対して何度も同じCTEを呼び出すと、内部的に毎回再計算が走りパフォーマンスが劣化することがあります（※DBのバージョンによる）。分析系バッチで1クエリが数分かかるような場合は、CTEの中間結果を実テーブルや <strong>マテリアライズドビュー（Materialized View）</strong> として物理的に保存し、それにインデックスを張るアプローチへの切り替えが検討されます。
+</div>
+</div>
 `
 },
 
@@ -1202,6 +1271,13 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NOT IN でのNULL問題：</strong><code>WHERE user_id NOT IN (SELECT user_id FROM orders)</code> は orders.user_id にNULLが1件でも含まれると全件 FALSE になり0件が返る。NOT IN はNULLに弱いため NOT EXISTS を使う方が安全。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>相関サブクエリで外側テーブルの参照を忘れる：</strong><code>WHERE EXISTS (SELECT 1 FROM orders)</code>（<code>WHERE o.user_id = u.user_id</code> なし）はordersに1行でもあれば全ユーザーがTRUEになる。外側テーブルとの結合条件は必須。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：アンチジョイン（NOT EXISTS vs LEFT JOIN）</div>
+<div class="column-body">
+「存在しないデータ」を探す手法（アンチジョイン）として、<code>NOT EXISTS</code> の他に <code>LEFT JOIN + IS NULL</code> を使う方法があります。実行計画（パフォーマンス）はデータベースエンジンによって同等に最適化されることが多いですが、<code>NOT EXISTS</code> の方が<strong>「存在チェックをしている」という意図がSQLから明確に読み取れる</strong>ため、チーム開発での可読性・メンテナンス性の観点から実務で好んで採用されます。
+</div>
 </div>
 `
 },
@@ -1325,6 +1401,13 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHEN の順序を間違える（検索CASEの落とし穴）：</strong><code>WHEN amount >= 5000 THEN 'standard' WHEN amount >= 10000 THEN 'premium'</code> と順番を逆にすると、12000は最初のWHEN（>=5000）で 'standard' に確定してしまい 'premium' に到達しない。上から順に評価される点を必ず意識すること。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>END を忘れる：</strong>CASE は必ず END で閉じなければならない。CASEのネストや複数CASE使用時に END の数が合わないとエラーになる。書いたCASEと同じ数のENDがあるか確認すること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：ビジネスロジックはアプリ側か？DB側か？</div>
+<div class="column-body">
+CASE WHEN を使えば複雑な条件分岐をSQL内で完結できますが、多用しすぎると「仕様変更のたびにSQLを修正する」ことになり、バックエンドコード（アプリ側）との二重管理になりがちです。実務でのベストプラクティスは、<strong>「データの絞り込み・集約に関する条件はDB（SQL）に任せ、表示用の単純なラベル変換や細かなフォーマット調整はアプリ側（フロントエンドやBFF）に任せる」</strong>という役割分担を明確にすることです。
+</div>
 </div>
 `
 }

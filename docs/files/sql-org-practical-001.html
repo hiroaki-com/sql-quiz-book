@@ -192,6 +192,16 @@
   .anti-body strong { color: var(--red); }
   .anti-body code { font-size: 11px; }
 
+  /* 実務想定コラム用CSS */
+  .column-box {
+    background: #0d151c; border: 1px dashed #2a3545; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .column-title { font-size: 11.5px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .column-title::before { content: '🏢'; font-size: 14px; }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--accent); }
+
   .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
   .nav-btn {
     background: var(--bg3); border: 1px solid var(--border); color: var(--text);
@@ -261,7 +271,6 @@ DENSE_RANK → 1, 1, 2, 3（同率あり・次を飛ばさない）</div>
 <p>組織ランキングでは <em>「3位は何人いるか」を正確に表したい</em> ので DENSE_RANK が最適です。RANK だと「2位が2人いると4位が続く」という直感に反する表示になります。</p>`,
   question: `<p>employees テーブルと sales_results テーブルを結合し、<em>各部署内での四半期売上ランキング</em>を DENSE_RANK で算出してください。</p>
 <p>各部署の上位3位以内の社員のみを出力し、同率の場合は全員含めます。</p>
-<p>出力：dept_name, emp_name, total_sales, dept_rank</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ）</div>
@@ -401,6 +410,10 @@ ranked <span class="kw">AS</span> (
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同じSELECT内のWHEREでウィンドウ関数の結果を使う：</strong><code>WHERE DENSE_RANK() OVER(...) &lt;= 3</code> はエラー。ウィンドウ関数は WHERE より後に評価されるため、必ずCTEかサブクエリでラップしてから WHERE で絞ります。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>RANK を使って同率を見落とす：</strong>同率3位が2人いると RANK では4位が表示されず「3人未満しか表示されないケース」が生じます。意図を確認してから関数を選ぶこと。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">人事評価や営業成績のダッシュボードでは、「同率タイ」の扱いがクレームに繋がることがあります。DENSE_RANKを使えば、同率2位が複数人いても次の人がちゃんと「3位」になるため、ユーザーの直感に合ったランキング表を提供できます。また、上位N名を抽出する「Top-N分析」でも標準的に使われます。</div>
 </div>`
 },
 
@@ -418,7 +431,6 @@ ranked <span class="kw">AS</span> (
 <div class="callout warn"><strong>LEFT JOIN を使う理由：</strong>トップ（CEO）は manager_id が NULL のため、INNER JOIN にするとトップが消えてしまいます。組織全員を出したいときは LEFT JOIN が必須です。</div>`,
   question: `<p>employees テーブルを SELF JOIN して、<em>全社員の情報と直属上司名</em>を一覧表示してください。</p>
 <p>トップ（manager_idがNULL）は manager_name に <code>'— (トップ)'</code> と表示します。</p>
-<p>出力：emp_id, emp_name, dept_name, job_title, manager_name</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ）</div>
@@ -508,6 +520,10 @@ ranked <span class="kw">AS</span> (
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INNER JOIN にしてしまう：</strong>CEOのように manager_id が NULL の社員は INNER JOIN だと結合失敗で行ごと消えます。組織全員を出したいときは必ず <strong>LEFT JOIN</strong>。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>エイリアスなしで曖昧な列参照：</strong>SELF JOINでは必ず <code>e</code> / <code>m</code> のようなエイリアスを付けて全列を修飾します。省略すると「どちらのemp_nameか」が不明でエラーになります。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">このような同一テーブル内で親子関係を持つ設計を「隣接リストモデル（Adjacency List）」と呼びます。従業員名簿やカテゴリ分類などで多用されます。BIツール（Tableau等）にデータを取り込む際は、予めSQL側でSELF JOINを用いて「部門長」「直属上司」などのフラットなカラムを展開しておくと、ユーザーが分析しやすくなります。</div>
 </div>`
 },
 
@@ -527,7 +543,6 @@ budget_amount <span class="op">-</span> actual_amount <span class="kw">AS</span>
 <div class="callout"><code>NULLIF(budget_amount, 0)</code> で予算額が 0 のときのゼロ除算を防ぎます。結果は NULL になるため注意。</div>`,
   question: `<p>budgets テーブルと actual_expenses テーブルを使い、<em>部署ごとの年間予算消化状況</em>を集計してください。</p>
 <p>消化率が 90% 以上なら <code>'要注意'</code>、100% 超なら <code>'超過'</code>、それ以外は <code>'正常'</code> のアラートを付与します。</p>
-<p>出力：dept_name, budget_amount, actual_amount, variance, usage_pct, alert</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ）</div>
@@ -661,6 +676,10 @@ variance_calc <span class="kw">AS</span> (
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COALESCE を忘れる：</strong>LEFT JOIN で NULL になった actual_amount をそのまま引き算すると <code>budget - NULL = NULL</code> になります。<code>COALESCE(actual_amount, 0)</code> で NULL を 0 に変換してから計算しましょう。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">予算差異（Budget Variance）は、経営企画や部門長が毎日確認する重要指標です。実務では「現時点の消化率」だけでなく、「このペースでいくと期末にいくら着地するか（ローリングフォーキャスト）」を予測するクエリと組み合わせて、ダッシュボードにアラートを点灯させることが多いです。</div>
 </div>`
 },
 
@@ -679,7 +698,6 @@ variance_calc <span class="kw">AS</span> (
 <div class="callout warn">最初の1〜2行は十分な過去データがないため LAG の結果が NULL になります。CASE でNULL対処を忘れると意図しない判定になるため注意。</div>`,
   question: `<p>performance_reviews テーブルを使い、<em>直近3期の評価スコアが連続下降している社員</em>に離職リスクフラグを立ててください。</p>
 <p>条件：今期 &lt; 1期前 かつ 1期前 &lt; 2期前 → <code>'高リスク'</code>、今期 &lt; 1期前のみ → <code>'要観察'</code>、それ以外 → <code>'正常'</code></p>
-<p>出力：emp_name, dept_name, eval_period, score, prev1_score, prev2_score, risk_flag</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ）</div>
@@ -796,6 +814,10 @@ scored <span class="kw">AS</span> (
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY なしでLAGを使う：</strong>省略すると全社員が1つのウィンドウになり、「田中の前の行が佐藤」という意味不明なLAG値になります。必ず PARTITION BY emp_id を指定します。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">HRアナリティクスにおける「退職予測モデル」の基礎となるアプローチです。実務では、評価スコアの下降だけでなく、「残業時間の急増（過去3ヶ月平均との比較）」「有給消化率の低下」など複数のトレンド指標を <code>LAG</code> や移動平均で算出し、複合的にリスクスコアを判定して人事介入のトリガーとします。</div>
 </div>`
 },
 
@@ -820,7 +842,6 @@ scored <span class="kw">AS</span> (
 <div class="callout danger"><strong>LAST_VALUE の落とし穴：</strong>デフォルトのフレームは <code>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code>（現在行まで）のため、フレーム指定なしでは「現在行の値」を返してしまいます。</div>`,
   question: `<p>job_history テーブルを使い、<em>各社員の入社時の役職と現在の役職を1行で比較</em>してください。</p>
 <p>役職が変わった社員には <code>true</code> フラグを立て、昇進までの日数も出力します。</p>
-<p>出力：emp_name, first_title, current_title, first_date, current_date, days_to_promote, is_promoted</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ）</div>
@@ -920,12 +941,12 @@ career <span class="kw">AS</span> (
   explain: `
 <div class="viz-flow">
 <div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>LAST_VALUE フレームの違い</strong> — 指定なしと指定ありで結果が全く異なる</span></div>
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>LAST_VALUE フレームの違いと ROW_NUMBER</strong></span></div>
 <div class="tbl-wrap"><table class="vtbl">
-<tr><th>行</th><th>emp_name</th><th>job_title</th><th>FIRST_VALUE</th><th class="tc-r">LAST_VALUE (デフォ)</th><th class="tc-hi">LAST_VALUE (フレーム指定)</th></tr>
-<tr><td>1</td><td>田中</td><td>担当</td><td class="tc-g">担当</td><td class="tc-r">担当（現在行まで）</td><td class="tc-hi">課長（全体末尾）</td></tr>
-<tr><td>2</td><td>田中</td><td>主任</td><td class="tc-g">担当</td><td class="tc-r">主任（現在行まで）</td><td class="tc-hi">課長（全体末尾）</td></tr>
-<tr><td>3</td><td>田中</td><td>課長</td><td class="tc-g">担当</td><td class="tc-r">課長（現在行まで）</td><td class="tc-hi">課長（全体末尾）</td></tr>
+<tr><th>emp_name</th><th>job_title</th><th>FIRST_VALUE</th><th class="tc-r">LAST_VALUE (デフォ)</th><th class="tc-hi">LAST_VALUE (フレーム指定)</th><th class="tc-p">rn</th></tr>
+<tr class="tr-hi2"><td>田中</td><td>担当</td><td class="tc-g">担当</td><td class="tc-r">担当（現在行まで）</td><td class="tc-hi">課長（全体末尾）</td><td class="tc-p">1 (残る)</td></tr>
+<tr><td>田中</td><td>主任</td><td class="tc-g">担当</td><td class="tc-r">主任（現在行まで）</td><td class="tc-hi">課長（全体末尾）</td><td class="tc-p">2</td></tr>
+<tr><td>田中</td><td>課長</td><td class="tc-g">担当</td><td class="tc-r">課長（現在行まで）</td><td class="tc-hi">課長（全体末尾）</td><td class="tc-p">3</td></tr>
 </table></div>
 </div>
 <div class="arrow">↓ <span class="arrow-text">WHERE rn=1 → 1社員1行に絞る → CASE で昇進フラグ付与</span></div>
@@ -948,6 +969,10 @@ career <span class="kw">AS</span> (
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LAST_VALUE をフレーム指定なしで使う：</strong>最も多い落とし穴。デフォルトでは各行が「自分自身の値」を返します。必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> を指定します。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">社員のキャリア変遷や、顧客のステータス変更履歴など、時系列のログデータから「最初と最後」を抽出する要件は頻出します。データエンジニアリングの世界では、これを <strong>SCD Type 2（ゆっくり変化する次元）</strong> と呼び、最新の役職フラグ（is_current）を持たせたデータマートを構築することで、BIツール側でのクエリを簡略化することが一般的です。</div>
 </div>`
 },
 
@@ -966,7 +991,6 @@ career <span class="kw">AS</span> (
     <span class="kw">AND</span> pm.project_id <span class="op">=</span> p.project_id  <span class="cmt">-- 外部クエリのプロジェクトと紐付け</span>
 )</pre>`,
   question: `<p>employees / projects / project_members テーブルを使い、<em>少なくとも1つ以上のプロジェクトに一度も参加したことがない社員</em>を抽出してください。</p>
-<p>出力：emp_name, dept_name, unassigned_project_names（カンマ区切り）, unassigned_count</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ）</div>
@@ -1098,6 +1122,10 @@ unassigned <span class="kw">AS</span> (
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NOT IN に NULL が混入：</strong><code>WHERE project_id NOT IN (SELECT project_id FROM ...)</code> は結果にNULLがあると全行FALSE。安全のため NOT EXISTS を優先します。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">「アサイン漏れ」「未受講コンプライアンス研修」「必須スキルを持たない社員」の抽出など、<strong>「あるべきデータが存在しない」状態（例外検知）</strong>を探す際に <code>NOT EXISTS</code> は威力を発揮します。監査レポートや、リソースの空き状況を可視化するダッシュボードの裏側で非常に多く稼働しているSQLパターンです。</div>
 </div>`
 },
 
@@ -1115,7 +1143,6 @@ unassigned <span class="kw">AS</span> (
 <span class="cmt">-- OVER() 空 = 全行の合計（全社合計）を各行に付与</span>
 <span class="fn">SUM</span>(sales) <span class="kw">OVER</span> () <span class="kw">AS</span> company_total</pre>`,
   question: `<p>sales_results・employees・departments テーブルを使い、<em>各社員の売上・部署内シェア・全社シェア・部署内ランク</em>を1クエリで取得してください。</p>
-<p>出力：dept_name, emp_name, sales, dept_total, dept_share_pct, company_share_pct, dept_rank</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ）</div>
@@ -1216,11 +1243,15 @@ unassigned <span class="kw">AS</span> (
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>SQLの割り算（<code>/</code>）では「整数 ÷ 整数 = 整数（小数点以下切り捨て）」になるRDBMSが多いです。そのため、<code>* 100.0</code> のように小数（浮動小数点）を掛けることで、結果を小数として取得する小技がよく使われます。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ウィンドウ関数の最大の強み：</strong>GROUP BY は「集約して行が減る」が、ウィンドウ関数は「行を残したまま計算する」。「個人詳細 + 部署合計 + 全社合計を同時に欲しい」には GROUP BY では対処できません。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>* 100.0 の重要性：</strong><code>sales * 100 / SUM(...)</code> は整数÷整数=切り捨てになります。必ず <code>* 100.0</code> か <code>CAST(sales AS NUMERIC)</code> で浮動小数点に変換してから割り算します。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>* 100.0 の重要性：</strong><code>sales * 100 / SUM(...)</code> は整数÷整数=切り捨てになります。必ず <code>* 100.0</code> か <code>CAST(sales AS NUMERIC)</code> で浮 মাস্টার小数点に変換してから割り算します。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>スカラーサブクエリで全社合計を毎回取る：</strong><code>SELECT sales / (SELECT SUM(sales) FROM ...)</code> は全行に対して毎回サブクエリが実行されます（非効率）。<strong>SUM() OVER ()</strong> なら全行一括計算で高速です。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">「個人の明細データ」と「全体に対するシェア」を同時に表示するダッシュボード要件で必須のテクニックです。さらに <code>ORDER BY</code> を加えて累計割合を算出すれば、売上の上位20%で全体売上の80%を占める顧客や商品を特定する <strong>ABC分析（パレート分析）</strong> もSQLだけで実装可能になります。</div>
 </div>`
 },
 
@@ -1249,7 +1280,6 @@ unassigned <span class="kw">AS</span> (
 <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> org_tree;</pre>
 <div class="callout"><strong>UNION ALL vs UNION：</strong>再帰CTEでは必ず <code>UNION ALL</code> を使います。<code>UNION</code>（重複除去あり）は各反復で重複チェックをするため非常に重くなります。</div>`,
   question: `<p>employees テーブルを再帰CTEで展開し、<em>各社員の階層深さ・トップからの経路・配下人数</em>を出力してください。</p>
-<p>出力：emp_id, emp_name, job_title, depth, path, subordinate_count</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ）</div>
@@ -1386,6 +1416,10 @@ sub_count <span class="kw">AS</span> (
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>UNION ALL でなく UNION を使う：</strong>再帰部分で <code>UNION</code>（重複除去あり）を使うと、反復ごとに全結果と重複チェックが走り非常に重くなります。再帰CTEでは必ず <code>UNION ALL</code>。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WITH RECURSIVE を WITH だけにする：</strong>PostgreSQL/BigQueryでは自己参照CTEには <code>WITH RECURSIVE</code> が必須。<code>WITH</code> だけだと「org_tree テーブルが存在しない」エラーになります。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">組織変更が多い大企業では、深さが不定の組織ツリーを展開する再帰CTEは欠かせません。このクエリで作った <code>path（経路）</code> 列をBIツールに読み込ませると、CEO → 部長 → 課長 とクリックでドリルダウンできる階層型マトリクスを簡単に作成できます。権限管理（自分の配下のデータだけ見せるRow-Level Security）の制御用データとしても使われます。</div>
 </div>`
 },
 
@@ -1403,7 +1437,6 @@ sub_count <span class="kw">AS</span> (
 <div class="callout"><strong>ELSE 0 の重要性：</strong>ELSE を省略すると条件が一致しない行は NULL になり、SUM(NULL) = NULL になってしまいます。<code>ELSE 0</code> にすることで、その期の実績がない行も 0 として加算されます。</div>`,
   question: `<p>sales_results テーブルを使い、<em>部署ごとの四半期別売上をクロス集計</em>（横持ち）してください。</p>
 <p>各行が1部署、各列が四半期（Q1〜Q4）の売上になるよう変換します。年間合計と最高四半期も付与してください。</p>
-<p>出力：dept_name, q1_sales, q2_sales, q3_sales, q4_sales, annual_total, best_quarter</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ）</div>
@@ -1526,6 +1559,10 @@ pivoted <span class="kw">AS</span> (
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE を省略する：</strong><code>SUM(CASE WHEN quarter='2024Q1' THEN total_sales END)</code> は ELSE なしだと一致しない行が NULL になる。SUM は NULL を無視するため偶然合計は合うが、<code>ELSE 0</code> を明示する方が意図が明確で安全です。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BY に集約対象外の列を入れ忘れる：</strong><code>SELECT dept_name, emp_name, SUM(...) GROUP BY dept_name</code> は、GROUP BY にない emp_name がエラーになります。SELECTに書いた非集計列は全てGROUP BYに含める必要があります。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">ビジネス現場では「横持ち（マトリクス表）」でのレポート出力が強く求められます。現代のデータ基盤（dbtやSnowflake等）では専用のPIVOT関数やマクロで自動化することも増えましたが、動的に列が変わる場合を除き、この <code>CASE</code> + <code>SUM</code> の手動PIVOTはあらゆるRDBMSで動く最も堅牢で高速な基本テクニックです。</div>
 </div>`
 },
 
@@ -1548,7 +1585,6 @@ pivoted <span class="kw">AS</span> (
 <div class="callout warn"><strong>成長率計算の注意：</strong>前月や前年が NULL（データなし）または 0 の場合、除算エラーになります。<code>NULLIF(prev, 0)</code> でゼロ除算を防ぎ、<code>NULL</code> の場合は成長率も NULL として扱います。</div>`,
   question: `<p>monthly_sales テーブルを使い、<em>部署ごとの月次売上・前月比成長率・前年同月比成長率</em>を算出してください。</p>
 <p>成長率は小数点1桁の % で表示し、前月・前年のデータがない場合は NULL とします。</p>
-<p>出力：dept_name, sale_month, monthly_sales, prev_month_sales, mom_growth_pct, prev_year_sales, yoy_growth_pct</p>
 
 <div class="data-section">
   <div class="data-label">使用テーブル（サンプルデータ / 一部抜粋）</div>
@@ -1708,6 +1744,10 @@ growth_calc <span class="kw">AS</span> (
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>前月が0のときNULLIFを忘れる：</strong>前月売上が0（新設部署など）の場合 <code>(今月 - 0) / 0</code> となりゼロ除算エラーになります。<code>NULLIF(prev_month_sales, 0)</code> で0をNULLに変換すれば、除算結果もNULLになり安全です。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY なしで LAG を使う：</strong>部署ごとに独立した時系列で比較したいのに PARTITION BY を省略すると、「営業部12月の次が開発部1月」として計算されてしまいます。必ず PARTITION BY dept_id を指定すること。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">MoM（前月比）やYoY（前年同月比）は業績レポートの必須項目です。ただし、実務では「前年同月と営業日数が違う」「うるう年」などの理由で単純比較がブレるため、<code>LAG</code> で取得した前年データに対して <strong>営業日数補正</strong> をかけたり、直近3ヶ月の移動平均同士を比較することで、季節変動のノイズを吸収する工夫が求められます。</div>
 </div>`
 }
 

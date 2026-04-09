@@ -185,6 +185,16 @@
   .anti-body strong { color: var(--red); }
   .anti-body code { font-size: 11px; }
 
+  .column-box {
+    background: #0d1a15; border: 1px solid #1a4a30; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .column-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--green); letter-spacing: 1px; margin-bottom: 10px; }
+  .column-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .column-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--green); }
+
   .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
   .nav-btn {
     background: var(--bg3); border: 1px solid var(--border); color: var(--text);
@@ -257,7 +267,6 @@ const QS = [
 <p>CTEは <em>SELECT / INSERT / UPDATE / DELETE すべてで使えます</em>。本クイズではSELECTのみ扱います。</p>`,
   question: `<p>以下の <code>orders</code> テーブルから、<em>月ごとの売上合計・注文件数・平均注文額</em>を集計するAPIを想定し、<strong>CTEを使って</strong>クエリを作成してください。</p>
 <p>さらに、平均注文額が <em>40,000円超の月のみ</em> を最終結果として返してください。</p>
-<p>出力：order_month, total_sales, order_count, avg_order</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -352,6 +361,10 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTEの途中にセミコロンを置く：</strong><code>WITH cte AS (...); SELECT ...</code> は文法エラー。WITHからSELECTの末尾まで1つのSQL文です。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>ダッシュボードでの集計処理：</strong>月次売上サマリAPIは、管理画面で最も頻繁に叩かれるエンドポイントの1つです。WITH句での集計対象（今回はorders全件）が数千万件など膨大になる場合、毎回リアルタイムで計算するとAPIが重くなります。実務では、このCTEにあたる集計処理を夜間バッチ等で「サマリーテーブル（データマート）」として事前に作成しておくアーキテクチャがよく採用されます。</div></div>
 </div>`
 },
 
@@ -379,7 +392,6 @@ const QS = [
 <div class="callout"><strong>NTILE(n)：</strong>行を n 等分してバケット番号（1〜n）を振るウィンドウ関数。NTILE(4) は上位25%が1、次の25%が2…と四分位に分類します。<em>顧客セグメント分析</em>で頻出です。</div>`,
   question: `<p>以下の <code>users</code> と <code>orders</code> テーブルを使って、<em>ユーザーごとの合計購入額を集計し、上位から4分位（NTILE）でランクを付ける</em>APIを作成してください。</p>
 <p>ランクは quartile=1 が最上位。最終出力には <code>users</code> テーブルから <code>user_name</code> も結合してください。</p>
-<p>出力：user_id, user_name, total_amount, quartile</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -499,6 +511,21 @@ const QS = [
 <tr class="tr-hi4"><td>U05</td><td class="tc-g">10000</td><td class="tc-hi">4</td><td>8位</td></tr>
 </table></div>
 </div>
+<div class="arrow">↓ <span class="arrow-text">INNER JOIN users u ON r.user_id = u.user_id で名前を付加し整列</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — usersと結合し名前を付加、quartile順にソート</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>user_name</th><th class="tc-g">total_amount</th><th class="tc-hi">quartile</th></tr>
+<tr class="tr-hi"><td>U03</td><td>Carol</td><td class="tc-g">200000</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi"><td>U01</td><td>Alice</td><td class="tc-g">170000</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi2"><td>U08</td><td>Hank</td><td class="tc-g">160000</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi2"><td>U06</td><td>Frank</td><td class="tc-g">115000</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi3"><td>U04</td><td>Dave</td><td class="tc-g">75000</td><td class="tc-hi">3</td></tr>
+<tr class="tr-hi3"><td>U07</td><td>Grace</td><td class="tc-g">40000</td><td class="tc-hi">3</td></tr>
+<tr class="tr-hi4"><td>U02</td><td>Bob</td><td class="tc-g">30000</td><td class="tc-hi">4</td></tr>
+<tr class="tr-hi4"><td>U05</td><td>Eve</td><td class="tc-g">10000</td><td class="tc-hi">4</td></tr>
+</table></div>
+</div>
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
@@ -508,6 +535,10 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>後のCTEが前のCTEを逆方向に参照：</strong>CTEは定義順にしか参照できません。<code>step2</code> の中で <code>step3</code> を使うことはできません（再帰CTEを除く）。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>CRMのセグメント配信：</strong>NTILEを使ったランク付けは、メルマガやPush通知のセグメント分け（上位25%には限定VIPオファー、下位25%には再訪を促すクーポンなど）でそのまま活用できます。実務では、計算リソースを節約するため、全期間の購入ではなく「直近1年間」のようにWHERE句で事前にデータを絞ってからNTILEにかけるのが一般的です。</div></div>
 </div>`
 },
 
@@ -532,7 +563,7 @@ const QS = [
 <span class="kw">WHERE</span>  rn <span class="op"><=</span> <span class="num">2</span>;   <span class="cmt">-- 各カテゴリの上位2件だけ取る</span></pre>
 <div class="callout warn"><strong>なぜCTEが必要か：</strong>ウィンドウ関数（ROW_NUMBER）の結果は SELECT 句で評価されます。WHERE はそれより前に評価されるため、<em>同じ SELECT 内では ROW_NUMBER の結果を WHERE に使えません</em>。CTEで一度外に出す必要があります。</div>`,
   question: `<p>以下の <code>product_sales</code> テーブルから、<em>カテゴリ（category）ごとに売上（sales）の上位2商品</em>を抽出してください。</p>
-<p>同率がある場合も ROW_NUMBER で強制的に2件に絞ること。出力は category, product_name, sales, rn の順。</p>
+<p>同率がある場合も ROW_NUMBER で強制的に2件に絞ること。</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -634,6 +665,10 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTEなしでROW_NUMBERをWHEREに使う：</strong><code>SELECT *, ROW_NUMBER() OVER(...) AS rn FROM t WHERE rn &lt;= 2</code> はエラー。必ずCTEかサブクエリを経由してください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>「各ジャンルの人気ランキング」API：</strong>トップN抽出は、ECサイトのトップページ等で「カテゴリ別おすすめ商品」を表示する際によく使われます。ユーザーからのリクエストのたびに全商品のROW_NUMBERを計算するのは非効率なため、実売上ではなく「直近1週間の売上」に絞ってCTE内で対象データを減らしておくなど、パフォーマンスチューニングが腕の見せ所になります。</div></div>
 </div>`
 },
 
@@ -652,7 +687,6 @@ const QS = [
 <p>前月比の計算式：<em>（今月 − 前月）÷ 前月 × 100</em>。前月がNULLまたは0の場合はゼロ除算が発生するため <code>NULLIF</code> で防ぎます。</p>`,
   question: `<p>以下の <code>monthly_sales</code> テーブルから、<em>各月の売上・前月売上・前月比（MoM成長率 %）</em>を計算するAPIを作成してください。</p>
 <p>前月がない最初の月は <code>prev_sales</code> を NULL、<code>mom_rate</code> も NULL として出力してください。</p>
-<p>出力：order_month, sales, prev_sales, mom_rate</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -753,6 +787,10 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY なしで LAG を使う：</strong>LAGはORDER BYで「前」を定義します。ORDER BYがないと結果が不安定です。必ず指定してください。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>整数同士の除算：</strong><code>(sales - prev_sales) / prev_sales</code> は整数÷整数 = 整数（切り捨て）になりゼロが返ります。<code>* 100.0</code> で先に浮動小数点に変換するのが必須です。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>時系列推移と前月比の可視化：</strong>MoM（月次成長率）やYoY（年次成長率）の計算は、BIツールやダッシュボードAPIの裏側で常に動いています。フロントエンドのグラフで「前月比↑15%」といった表示をするための必須データです。実務では、「前月が売上0だった場合（ゼロ除算）」や「前月が存在しない場合（NULL）」のエッジケースをいかに安全にハンドリングするかが品質を左右します。</div></div>
 </div>`
 },
 
@@ -781,7 +819,6 @@ const QS = [
 <div class="callout"><strong>再帰の終了条件：</strong>再帰メンバーが0行を返した時点で終了します。無限ループ防止のため <code>WHERE depth &lt; 10</code> のような深さ制限を実務では入れることを推奨します。</div>`,
   question: `<p>以下の <code>employees</code> テーブル（自己参照テーブル）から、<em>社長（manager_idがNULL）を起点に全従業員の階層を展開</em>してください。</p>
 <p>各従業員について depth（階層深さ：社長=0）と path（例: "社長→部長→係長"）も出力してください。</p>
-<p>出力：emp_id, name, manager_id, depth, path</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -887,6 +924,10 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>深さ制限なしで循環参照データに使う：</strong>A→B→A のような循環があると無限ループになります。<code>WHERE depth &lt; N</code> で必ず上限を設けてください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>階層データのツリー構造化：</strong>再帰CTEは組織図だけでなく、スレッド式のコメント機能（親コメントに対する返信のツリー）や、ファイルシステムのディレクトリ構造を取得するAPIなどで大活躍します。注意点として、実データの入力ミス等により「Aさんの上司がBさん、Bさんの上司がAさん」という循環参照が起こると無限ループに陥りDBのリソースを枯渇させます。そのため、<code>WHERE depth < 10</code> のような深さのフェールセーフ（安全装置）を必ず入れるのがプロの鉄則です。</div></div>
 </div>`
 },
 
@@ -909,7 +950,6 @@ const QS = [
 <div class="callout"><strong>なぜ LEFT JOIN が必要か：</strong>CROSS JOINで「全組み合わせ」を作り、実績テーブルを LEFT JOIN すると「売上がなかった組み合わせ」の売上列が NULL になります。その NULL を COALESCE で 0 に変換して完成です。</div>`,
   question: `<p>以下の <code>sales</code> テーブルと <code>products</code> テーブルから、<em>2024-01〜2024-03 の全月 × 全商品</em>の売上マトリックスを作成してください。</p>
 <p>売上がない組み合わせは <code>0</code> で埋めること。月一覧は CTE で生成してください。</p>
-<p>出力：sale_month, product_id, product_name, total_sales</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1032,6 +1072,10 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COALESCE を忘れる：</strong>LEFT JOINだけでは実績なし行のtotal_salesはNULLのままです。APIでNULLを返すとフロントエンドが undefined として扱い描画が崩れます。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>フロントエンド向けデータの「欠損埋め」：</strong>完全マトリックスを作成して0で埋める処理は、フロントエンドエンジニアから最も感謝される配慮の一つです。APIが「売上があった月・商品」のデータしか返さないと、グラフ描画ライブラリ（Chart.jsなど）でX軸の日付が飛んだりズレたりするバグの温床になります。サーバー側で欠損を0埋めした完全な時系列データを返すのが、堅牢なAPI設計の基本です。</div></div>
 </div>`
 },
 
@@ -1046,7 +1090,6 @@ const QS = [
 <div class="callout"><strong>HAVING：</strong>GROUP BY後のグループに対してフィルタをかける句。<code>COUNT(*) >= 2</code> のような集計関数を条件にする場合は必ず HAVING を使います。WHEREはグループ化前（行単位）、HAVINGはグループ化後（集計単位）です。</div>`,
   question: `<p>以下の <code>orders</code> と <code>users</code> テーブルから、次の<em>3つの条件をすべて満たすユーザー</em>を抽出するAPIを、<strong>CTEを使ってステップに分解</strong>して作成してください。</p>
 <p>条件①: <em>合計購入回数が2回以上</em><br>条件②: <em>合計購入額が50,000円以上</em><br>条件③: <em>最終購入日が 2024-03-01 以降</em></p>
-<p>出力：user_id, user_name, order_count, total_amount, last_order_date</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1154,6 +1197,15 @@ const QS = [
 <tr><td>U05</td><td class="tc-r">✗ 1回</td><td class="tc-r">✗ 12000</td><td class="tc-r">✗ 2/14</td><td class="tc-r">❌全条件NG</td></tr>
 </table></div>
 </div>
+<div class="arrow">↓ <span class="arrow-text">INNER JOIN users u ON q.user_id = u.user_id で名前を付加し整列</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — 条件を満たしたユーザーに名前を付加</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>user_name</th><th class="tc-hi">order_count</th><th class="tc-g">total_amount</th><th class="tc-y">last_order_date</th></tr>
+<tr class="tr-hi"><td>U01</td><td>Alice</td><td class="tc-hi">2</td><td class="tc-g">55000</td><td class="tc-y">2024-03-10</td></tr>
+<tr class="tr-hi2"><td>U04</td><td>Dave</td><td class="tc-hi">2</td><td class="tc-g">90000</td><td class="tc-y">2024-04-05</td></tr>
+</table></div>
+</div>
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
@@ -1163,6 +1215,10 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>集計関数を WHERE に書く：</strong><code>WHERE COUNT(*) >= 2</code> はエラー。GROUP BY 後の集計値でフィルタするには <code>HAVING</code> か、CTEを使った外側の <code>WHERE</code> を使ってください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>CRMの高度なセグメント検索API：</strong>マーケティング部門から「X回以上購入し、Y円以上使い、かつ直近1ヶ月以内にアクセスしたユーザーリストを出して」というような複合条件の要求は日常茶飯事です。条件ごとにCTEを分ける、または集計CTEを1つ作って外側でWHERE条件を並べる設計にしておくと、将来「平均購入単価がZ円以上」という新しい条件が追加された際のコード改修が劇的に簡単になり、保守性が高まります。</div></div>
 </div>`
 },
 
@@ -1182,7 +1238,6 @@ const QS = [
 <div class="callout"><strong>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW：</strong>「先頭行から現在行まで」を意味するフレーム指定です。ORDER BY だけでも累計は計算されますが、明示的に書くと意図が明確になります。<code>UNBOUNDED</code> は「制限なし（端まで）」という意味です。</div>`,
   question: `<p>以下の <code>monthly_sales</code> テーブルから、<em>月ごとの売上・累計売上・年間目標（800,000円）に対する達成率（%）</em>を計算するAPIを作成してください。</p>
 <p>CTEで月次集計を行い、外側のSELECTで累計と達成率を計算してください。</p>
-<p>出力：order_month, monthly_sales, cumulative_sales, achievement_rate</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1299,6 +1354,10 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ROWS BETWEEN を省略すると意図しない範囲になることがある：</strong>DBによっては ORDER BY だけ指定した場合のデフォルトフレームが「UNBOUNDED PRECEDING AND CURRENT ROW」でない場合があります。明示的に書くことで意図を明確にし、DB間の差異を防ぎます。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>KPI目標のバーンアップチャート：</strong>ランニングトータルの計算は「月間目標達成率」や「売上の進捗ゲージ」を表示するダッシュボードAPIで必須の処理です。月末にかけて数字がどう積み上がったかを可視化するのに役立ちます。また、ECサイトでは「ユーザーの生涯購入額（LTV）が特定の閾値（例: 累計10万円）を超えた瞬間にVIP会員に昇格させる」といったバッチ処理の判定ロジックとしても多用されます。</div></div>
 </div>`
 },
 
@@ -1318,7 +1377,6 @@ const QS = [
 <div class="callout"><strong>日付の差分計算：</strong>PostgreSQL では <code>date2 - date1</code> で日数差を INTEGER で取得できます。BigQuery では <code>DATE_DIFF(date2, date1, DAY)</code> を使います。NULLが含まれる日付差はNULLになります（NULL伝播）。</div>`,
   question: `<p>以下の <code>purchase_log</code> テーブルから、<em>各ユーザー・各購入ごとの次回購入日と購入間隔（日数）</em>を計算してください。</p>
 <p>最後の購入（次回購入なし）は <code>next_date</code> を NULL、<code>days_to_next</code> も NULL で出力してください。</p>
-<p>出力：user_id, order_date, next_date, days_to_next</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1424,6 +1482,10 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY を忘れる：</strong>PARTITION BY なしだと全行を1つのウィンドウとして扱うため、あるユーザーの最後の購入の「次の行」が別ユーザーの最初の購入になってしまいます。ユーザーごとに独立した分析には必ず PARTITION BY を指定してください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>チャーン（離脱）予測とLTV分析：</strong>LEADを使って「次回購入日」を算出し「購入間隔日数」を出す処理は、顧客分析の第一歩です。実務では、このクエリをさらに発展させ、「各ユーザーの平均購入間隔」を計算し、「最後の購入日から今日までの日数が、平均購入間隔の2倍以上空いているユーザー」をチャーン（離脱）の危険性が高いと判定して、自動で休眠復帰メールを送るシステムなどに組み込まれます。</div></div>
 </div>`
 },
 
@@ -1448,7 +1510,6 @@ R（Recency）: &lt;30日=3, &lt;90日=2, それ以外=1<br>
 F（Frequency）: ≥3回=3, ≥2回=2, それ以外=1<br>
 M（Monetary）: ≥100000=3, ≥50000=2, それ以外=1<br>
 セグメント: R+F+M が 8以上=VIP, 5以上=一般, それ以外=休眠</p>
-<p>出力：user_id, recency_days, frequency, monetary, r_score, f_score, m_score, total_score, segment</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1621,6 +1682,10 @@ M（Monetary）: ≥100000=3, ≥50000=2, それ以外=1<br>
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CASE WHEN の ELSE を省略する：</strong>ELSE を書かないと、どの条件にも合致しない行は NULL になります。スコアがNULLになると total_score も NULL になり、セグメントも判定できなくなります。必ず ELSE でデフォルト値を設定してください。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>基準日に CURRENT_DATE を使う：</strong>テスト・再現性のために基準日は固定値にするのが推奨です。CURRENT_DATEを使うと、同じSQLを別の日に実行すると結果が変わり、デバッグが困難になります。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">🏢 実務でのユースケース</div>
+<div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>顧客ターゲティングの自動化：</strong>RFM分析の結果を返すAPIは、マーケティングオートメーション（MA）ツールの根幹を担います。セグメントごとに異なる施策（VIPには限定イベント招待、休眠にはポイントプレゼントなど）を打ち出すためのリスト抽出に使われます。スコアリングの閾値（30日、90日、10万円など）は事業の成長フェーズによって見直されるため、実務ではCTEの中に数値を直書きするのではなく、パラメータとして外部から受け取る設計にするのがベストプラクティスです。</div></div>
 </div>`
 }
 

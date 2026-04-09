@@ -185,6 +185,16 @@
   .anti-body strong { color: var(--red); }
   .anti-body code { font-size: 11px; }
 
+  /* 実務コラム用スタイル */
+  .column-box {
+    background: #110e1a; border: 1px solid #3a2060; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px; border-left: 3px solid var(--purple);
+  }
+  .column-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--purple); letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .column-icon { font-size: 14px; flex-shrink: 0; }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--purple); font-weight: 700; margin-bottom: 4px; display: inline-block; }
+
   .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
   .nav-btn {
     background: var(--bg3); border: 1px solid var(--border); color: var(--text);
@@ -341,6 +351,14 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>UNIQUE制約なしで ON CONFLICT を使う：</strong>ON CONFLICT の対象列には UNIQUE制約またはUNIQUEインデックスが必須。なければ「ERROR: there is no unique or exclusion constraint」が発生する。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PKをDO UPDATE SETに含める：</strong><code>id = EXCLUDED.id</code> と書くと自動採番のPKを書き換えようとしてエラーになる。PKと external_id（競合キー）は SET に含めないこと。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>バッチの冪等性（べきとうせい）を担保する</strong><br>
+  実務のバッチ処理において、「途中でエラーになったからもう一度実行する」というシーンは日常茶飯事です。もし通常の <code>INSERT</code> しか使っていないと、再実行時に「既に存在するID」としてエラーになり、手動でデータを直す羽目になります。UPSERTをデフォルトの選択肢にしておくことで、「何度実行しても同じ正しい状態になる（冪等性）」という、運用に強いバッチを作ることができます。
+</div>
+</div>
 `
 },
 
@@ -407,7 +425,7 @@ const QS = [
   explain: `
 <div class="viz-flow">
 <div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>WHERE の結合条件で対象行を絞り込む</strong> — 内部的なJOINのイメージ</span></div>
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>WHERE によるテーブル結合のイメージ</strong></span></div>
 <div class="tbl-wrap"><table class="vtbl">
 <tr><th>products.product_id</th><th>products.price</th><th>pu.product_id</th><th>pu.new_price</th><th>結合成功?</th></tr>
 <tr class="tr-hi4"><td>101</td><td>1200</td><td class="tc-g">101</td><td class="tc-g">1380</td><td class="tc-g">✓ 更新対象</td></tr>
@@ -442,6 +460,14 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>FROM の結合条件を WHERE に書き忘れる：</strong><code>UPDATE products SET price = pu.new_price FROM price_updates pu;</code> — WHERE がないと price_updates の最初の1行の値で全productが更新される壊滅的バグ。必ず WHERE に結合条件を書くこと。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>MySQLで同じ構文を使う：</strong>MySQL は <code>UPDATE ... FROM</code> 非対応。<code>UPDATE products p JOIN price_updates pu ON p.product_id = pu.product_id SET p.price = pu.new_price</code> と書く。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>ロックの長時間化とチャンク分割</strong><br>
+  数十万件のレコードを1クエリで <code>UPDATE FROM</code> すると、対象のテーブルに長時間ロックがかかり、並行して動いているユーザー向けのAPIがタイムアウト（DB接続待ち）を起こす事故に繋がります。実務で大規模な更新を行う場合は、一度に数千〜数万件ずつ更新する「チャンク分割」を行い、間に少しスリープを挟むことで、オンライン処理への影響を抑えるのが鉄則です。
+</div>
 </div>
 `
 },
@@ -561,6 +587,14 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INSERT と DELETE の WHERE 条件がズレる：</strong>INSERTは「1月以前」でDELETEは「1月まで（<= '2024-01-31'）」のような微妙な差でデータが残ったり消えたりする。コピペして完全に同一にするか、CTEで一度だけ条件を書くこと。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>巨大テーブルを一度に全移送する：</strong>数百万件を1トランザクションで移送するとロックが長時間かかりAPIが詰まる。<code>WHERE order_id BETWEEN ? AND ?</code> でページング分割して小分けに実行すること。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>パーティショニングによるモダンな運用</strong><br>
+  毎月数千万件のデータが生まれるシステムでは、バッチによる <code>DELETE</code> や移送でさえDBの負荷になります。モダンな設計では、PostgreSQLなどの「テーブルパーティショニング（月ごとに物理的にファイルを分ける機能）」を使い、古い月のパーティションを <code>DROP TABLE</code> で一瞬で消し飛ばす、あるいはそのままアーカイブ用DBにアタッチする手法がとられます。
+</div>
+</div>
 `
 },
 
@@ -673,6 +707,14 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>DISTINCT で解決しようとする：</strong>DISTINCT は全列が同一の行しか除去できない。event_id が異なる「論理的重複」には使えない。ROW_NUMBER が正解。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>RANK を使うと同時刻で複数残る：</strong>created_at が完全に同じ行が2件あると RANK/DENSE_RANK では両方 rn=1 になってしまう。「必ず1件」保証したいなら ROW_NUMBER を使い、event_id などでORDERを追加する。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>分散システムと「At-Least-Once」配信</strong><br>
+  KafkaやSQSのようなメッセージキューを使ったイベント駆動アーキテクチャでは、ネットワークの瞬断などにより「同じイベントが複数回届く（At-Least-Once）」ことが仕様上避けられません。そのため、データレイクやDWHに取り込んだ後、分析や連携に使う前段階（クレンジング層）で、この <code>ROW_NUMBER</code> を使った重複排除バッチを噛ませるのが標準的なデータパイプラインの設計です。
+</div>
+</div>
 `
 },
 
@@ -784,6 +826,14 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>条件ごとに UPDATE を複数回に分ける：</strong>3パターンを3回の UPDATE で書くと（1）DBへのトリップが3回、（2）最初のUPDATEで変わった行が次のUPDATE条件に引っかかる可能性がある。1クエリ CASE WHEN が安全かつ高速。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>ステータス変更履歴（Audit Log）の同時保存</strong><br>
+  実務では「いつ、どのジョブが、なぜ失敗になったのか」を後から追跡できるようにすることが求められます。ステータスを <code>UPDATE</code> するだけでなく、同時に <code>job_history</code> のような監査テーブルへ「変更前・変更後・変更理由」を <code>INSERT</code> して履歴を残す設計にすると、運用時のトラブルシューティングが格段に楽になります。
+</div>
 </div>
 `
 },
@@ -905,6 +955,14 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>論理削除テーブルにインデックスがない：</strong><code>WHERE deleted_at IS NULL</code> は部分インデックス <code>CREATE INDEX ON users (user_id) WHERE deleted_at IS NULL</code> で劇的に高速化できる。有効行が少数なら特に効果大。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>last_login_at の NULL を WHERE で除外する：</strong>一度もログインしていないユーザーを除外するなら <code>AND last_login_at IS NOT NULL</code> を明示的に追加する。NULL < 日付 は PostgreSQL では FALSE になるのでバグに気づきにくい。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>論理削除テーブルの肥大化と定期クリーニング</strong><br>
+  論理削除は便利ですが、削除されたデータが残り続けるため、年単位で運用するとストレージ容量やインデックスサイズを圧迫し、クエリ性能が低下します。「論理削除されてから1年経過したデータは、夜間バッチでS3やコールドストレージに退避した上で物理削除する」といったライフサイクル管理をセットで設計するのが、長寿命なシステムの秘訣です。
+</div>
+</div>
 `
 },
 
@@ -1011,6 +1069,14 @@ const QS = [
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY を省略する：</strong>PARTITION BY を外すと全商品を一つのパーティションとして扱い「P01の最後の行」と「P02の最初の行」を比較してしまう。必ず product_id でPARTITION BY すること。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>浮動小数点の <> 比較：</strong>quantity が FLOAT 型の場合、丸め誤差で「実際には同じ値なのに <> が TRUE」になることがある。金額や在庫数など整数にできる値は INTEGER/NUMERIC 型を使うこと。</div></div>
 </div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>CDCツールの代替としてのSQL差分バッチ</strong><br>
+  システム間のリアルタイムなデータ同期には Debezium のようなCDC（Change Data Capture）ツールが理想ですが、インフラ構築や運用のハードルが高いです。「1日1回、昨日からの変化分だけを外部APIに送りたい」といった要件であれば、この <code>LAG</code> を使ったSQL差分検知は、追加インフラ不要で即座に実装できる非常にコストパフォーマンスの高い選択肢になります。
+</div>
+</div>
 `
 },
 
@@ -1089,22 +1155,26 @@ const QS = [
   explain: `
 <div class="viz-flow">
 <div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>OFFSET vs カーソル方式のスキャン比較</strong></span></div>
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>カーソルによるスキャン範囲の切り取り</strong> — LIMIT 5 の挙動</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>status</th><th>WHERE order_id > 1003</th><th>LIMIT 5 抽出</th></tr>
+<tr class="tr-dim"><td>1001</td><td>pending</td><td class="tc-r">✗ 対象外</td><td>—</td></tr>
+<tr class="tr-dim"><td>1003</td><td>pending</td><td class="tc-r">✗ カーソル位置（除外）</td><td>—</td></tr>
+<tr class="tr-hi2"><td>1004</td><td>pending</td><td class="tc-g">✓</td><td class="tc-hi">1件目</td></tr>
+<tr class="tr-hi2"><td>1005</td><td>pending</td><td class="tc-g">✓</td><td class="tc-hi">2件目</td></tr>
+<tr class="tr-hi2"><td>1006</td><td>pending</td><td class="tc-g">✓</td><td class="tc-hi">3件目</td></tr>
+<tr class="tr-hi2"><td>1008</td><td>pending</td><td class="tc-g">✓</td><td class="tc-hi">4件目（次カーソル）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">次リクエストでは WHERE order_id > 1008 と引き継ぐことでOFFSETを避ける</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>OFFSET vs カーソル方式のスキャン比較</strong></span></div>
 <div class="tbl-wrap"><table class="vtbl">
 <tr><th>方式</th><th>クエリ例</th><th>スキャン行数（100万件時・最終ページ）</th><th>速度</th></tr>
 <tr class="tr-hi4"><td class="tc-r">OFFSET</td><td><code>LIMIT 5 OFFSET 999995</code></td><td class="tc-r">1,000,000行</td><td class="tc-r">遅い</td></tr>
 <tr class="tr-hi2"><td class="tc-g">カーソル</td><td><code>WHERE id > :cursor LIMIT 5</code></td><td class="tc-g">5行（インデックス直アクセス）</td><td class="tc-g">常に高速</td></tr>
-</table></div>
-</div>
-
-<div class="arrow">↓ <span class="arrow-text">カーソル = 前回最後のID → 次のリクエストで WHERE id > カーソル と渡す</span></div>
-
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>APIのページネーションフロー</strong></span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>リクエスト</th><th>クエリのWHERE</th><th>取得行</th><th class="tc-hi">次回cursor</th></tr>
-<tr><td>1ページ目</td><td><code>order_id > 0</code>（なし）</td><td>1001, 1003, 1004, 1005, 1006</td><td class="tc-hi">1006</td></tr>
-<tr class="tr-hi2"><td>2ページ目</td><td><code>order_id > 1003</code></td><td>1004, 1005, 1006, 1008</td><td class="tc-hi">1008（4件 < 5 → 次なし）</td></tr>
 </table></div>
 </div>
 </div>
@@ -1120,6 +1190,14 @@ const QS = [
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY のない LIMIT：</strong>ORDER BY なしの LIMIT は毎回異なる行が返る可能性がある（DBの実行計画次第）。ページネーションには必ず ORDER BY で安定した順序を保証すること。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>カーソル列にインデックスがない：</strong>カーソル方式は <code>WHERE order_id > :cursor</code> がインデックスを使えてこそ高速。order_id（PK）や使用するカーソル列にインデックスが必要。インデックスなしでは OFFSET より遅くなることもある。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>カーソル値の隠蔽（Opaque Token）</strong><br>
+  公開APIでカーソルページネーションを実装する場合、<code>next_cursor: 1008</code> のようにDBの生の連番IDをそのまま露出させると、データ件数や成長速度を外部から推測されてしまいます。実務では <code>Base64(id)</code> のような不透明なトークン（Opaque Token）に変換してクライアントに渡し、リクエストを受け取ったサーバー側でデコードしてSQLに組み込む手法が一般的です。
+</div>
 </div>
 `
 },
@@ -1248,6 +1326,14 @@ diff_summary <span class="kw">AS</span> (
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>updated_at にインデックスを付けない：</strong>差分バッチの WHERE updated_at >= :last_run はインデックスがないとフルスキャンになる。大きなテーブルでは <code>CREATE INDEX ON orders (updated_at)</code> が必須。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>チェックポイントを処理前に更新する：</strong>バッチ処理が失敗しても last_run_at を更新してしまうと、次回バッチが失敗分をスキップする。チェックポイントは処理「完了後」に更新し、トランザクションで保護すること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>トランザクションとすり抜け（データロスト）の罠</strong><br>
+  <code>updated_at &gt;= last_run_at</code> の差分抽出には、実は「コミット前のトランザクション」がすり抜けるリスクがあります（他の処理が古い開始時刻でコミットを完了した場合、次回のバッチでそのデータが古いと判定されて拾われない問題）。これを完全に防ぐために、意図的に <code>NOW() - INTERVAL '1 minute'</code> を上限にしたり、前回の時刻から少し被らせて重複処理（冪等）させる防御的設計がとられます。
+</div>
 </div>
 `
 },
@@ -1398,6 +1484,14 @@ diff_summary <span class="kw">AS</span> (
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ended_at - started_at を直接 AVG する：</strong>AVG は INTERVAL 型に対応しているが ROUND が効かない。EXTRACT(EPOCH FROM ...) で秒数に変換してから AVG/ROUND するのが扱いやすい。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>直近N件をサブクエリのLIMITで取る：</strong><code>SELECT * FROM (SELECT * FROM job_runs ORDER BY started_at DESC LIMIT 5)</code> はジョブ名を区別せず全体の最新5件になってしまう。ジョブ別に直近5件が必要なら PARTITION BY を使った ROW_NUMBER が正解。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title"><span class="column-icon">🏢</span> 実務のリアルタイムコラム</div>
+<div class="column-body">
+  <strong>監視SaaS（Datadog / PagerDuty）との自動連携</strong><br>
+  このような監視クエリを人間が毎日手動で叩くことはありません。実務ではこのクエリを1分おきに実行する小さなプログラム（Agent）を動かし、結果をDatadogやMackerelといった監視SaaSの「カスタムメトリクス」として送信します。そこで「ストールが検知されたらSlackにアラート通知し、担当者の電話を鳴らす（PagerDuty）」という自動化フローを構築します。
+</div>
 </div>
 `
 }
