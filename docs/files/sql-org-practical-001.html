@@ -42,7 +42,6 @@
   }
   .header-text-wrap { flex: 1; }
   .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-  .header-sub { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; }
   .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
 
@@ -222,7 +221,6 @@
       <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">組織10</span></div>
       <div class="header-text-wrap">
         <div class="header-title">企業組織データで学ぶ SQL 応用10選（実務BI編）</div>
-        <div class="header-sub">DENSE_RANK / SELF JOIN / 予算差異 / LAG / FIRST_VALUE / NOT EXISTS / SUM OVER / RECURSIVE CTE / PIVOT / LEAD</div>
       </div>
     </div>
     <div class="header-tags">
@@ -311,34 +309,34 @@ DENSE_RANK → 1, 1, 2, 3（同率あり・次を飛ばさない）</div>
 <tr><td>営業二部</td><td>木村</td><td>880,000</td><td>2</td></tr>
 <tr><td>営業二部</td><td>高橋</td><td>640,000</td><td>3</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH</span>
+  answer: `<pre><span class="kw">WITH</span> <span class="cmt">-- 一時テーブル（CTE）を定義する構文。クエリを小分けにして読みやすくします</span>
 
 <span class="cmt">-- ① 部署内売上ランキングを算出する（CTEで一段ラップ）</span>
 ranked <span class="kw">AS</span> (
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span>                            <span class="cmt">-- 取得したい列（カラム）を指定する</span>
     d.dept_name,                    <span class="cmt">-- 部署名（departments テーブルから）</span>
     e.emp_name,                     <span class="cmt">-- 社員名（employees テーブルから）</span>
     s.total_sales,                  <span class="cmt">-- 四半期売上（sales_results テーブルから）</span>
-    <span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (
+    <span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (             <span class="cmt">-- 同率を考慮した順位を付けるウィンドウ関数</span>
       <span class="kw">PARTITION BY</span> e.dept_id         <span class="cmt">-- 部署ごとに独立してランク付け（部署が変わると1からリセット）</span>
-      <span class="kw">ORDER BY</span>    s.total_sales <span class="kw">DESC</span> <span class="cmt">-- 売上が高いほど小さい数字（1位）になる</span>
-    ) <span class="kw">AS</span> dept_rank
-  <span class="kw">FROM</span>       <span class="tbl">sales_results</span> s
-  <span class="kw">JOIN</span>       <span class="tbl">employees</span>     e  <span class="kw">ON</span> s.emp_id  <span class="op">=</span> e.emp_id   <span class="cmt">-- 社員IDで結合して名前・部署IDを取得</span>
-  <span class="kw">JOIN</span>       <span class="tbl">departments</span>   d  <span class="kw">ON</span> e.dept_id <span class="op">=</span> d.dept_id  <span class="cmt">-- 部署IDで結合して部署名を取得</span>
-  <span class="kw">WHERE</span>      s.quarter <span class="op">=</span> <span class="str">'2024Q1'</span>                          <span class="cmt">-- 対象四半期のみに絞る</span>
+      <span class="kw">ORDER BY</span>    s.total_sales <span class="kw">DESC</span> <span class="cmt">-- 売上が高いほど小さい数字（1位）になる。DESCは降順（大きい順）</span>
+    ) <span class="kw">AS</span> dept_rank                  <span class="cmt">-- 計算結果の列に AS で別名を付ける</span>
+  <span class="kw">FROM</span>       <span class="tbl">sales_results</span> s        <span class="cmt">-- データ取得元のメインテーブルを指定（s はエイリアス/別名）</span>
+  <span class="kw">JOIN</span>       <span class="tbl">employees</span>     e  <span class="kw">ON</span> s.emp_id  <span class="op">=</span> e.emp_id   <span class="cmt">-- 社員IDをキーにして社員テーブルを結合（紐付け）</span>
+  <span class="kw">JOIN</span>       <span class="tbl">departments</span>   d  <span class="kw">ON</span> e.dept_id <span class="op">=</span> d.dept_id  <span class="cmt">-- 部署IDをキーにして部署テーブルを結合</span>
+  <span class="kw">WHERE</span>      s.quarter <span class="op">=</span> <span class="str">'2024Q1'</span>                       <span class="cmt">-- 条件に合致する行だけを絞り込む</span>
 )
 
 <span class="cmt">-- ② CTEの結果から上位3位以内のみ取得（同率3位は全員含む）</span>
 <span class="cmt">-- ※ ウィンドウ関数の結果は同じSELECTのWHEREで使えないため CTEが必須</span>
-<span class="kw">SELECT</span>
+<span class="kw">SELECT</span>      <span class="cmt">-- CTE(ranked)から最終的なデータを取り出す</span>
   dept_name,
   emp_name,
   total_sales,
   dept_rank
-<span class="kw">FROM</span>  ranked
-<span class="kw">WHERE</span> dept_rank <span class="op">&lt;=</span> <span class="num">3</span>               <span class="cmt">-- 3位以内（同率3位が複数いれば全員出力）</span>
-<span class="kw">ORDER BY</span> dept_name, dept_rank;    <span class="cmt">-- 部署名の昇順 → 同部署内は順位の昇順で表示</span>
+<span class="kw">FROM</span>  ranked                       <span class="cmt">-- 上で作った一時テーブルからデータを取得</span>
+<span class="kw">WHERE</span> dept_rank <span class="op">&lt;=</span> <span class="num">3</span>               <span class="cmt">-- 3位以下（1, 2, 3位）に絞る（&lt;= は以下を表す比較演算子）</span>
+<span class="kw">ORDER BY</span> dept_name, dept_rank;    <span class="cmt">-- 並び替えの指定: 部署名の昇順 → 同部署内は順位の昇順</span>
 
 <span class="cmt">/*
   SQL実行順序:
@@ -394,14 +392,15 @@ ranked <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>WITH</code> 句は「共通テーブル式(CTE)」と呼ばれ、長いSQLを小さなブロックに分割して読みやすくする機能です。また <code>JOIN</code> は複数のテーブルを関連キー（<code>ON</code>）でガッチャンコして1つの表にする、SQLの最重要構文です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>DENSE_RANK を選ぶ判断基準：</strong>「3位タイが2人いるとき4位は存在するか？」→「しない」なら DENSE_RANK。組織の表彰・昇格ランキングでは DENSE_RANK が直感的です。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PARTITION BY の本質：</strong>「各グループで1から振り直す」という指定。省略すると全社員を1つのウィンドウとしてランク付けするため部署内ランキングにならない。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PARTITION BY の本質：</strong>「各グループで1から振り直す」という指定。省略すると全社員を1つのウィンドウとしてランク付けするため部署内ランキングになりません。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>実務Tips：</strong>「各部署のトップのみ抽出」なら <code>WHERE dept_rank = 1</code>。複数部署の最高成績者を一発で取れます。サブクエリで <code>MAX</code> を使うより可読性・パフォーマンス共に優れます。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同じSELECT内のWHEREでウィンドウ関数の結果を使う：</strong><code>WHERE DENSE_RANK() OVER(...) &lt;= 3</code> はエラー。ウィンドウ関数は WHERE より後に評価されるため、必ずCTEかサブクエリでラップしてから WHERE で絞る。</div></div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>RANK を使って同率を見落とす：</strong>同率3位が2人いると RANK では4位が表示されず「3人未満しか表示されないケース」が生じる。意図を確認してから関数を選ぶこと。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同じSELECT内のWHEREでウィンドウ関数の結果を使う：</strong><code>WHERE DENSE_RANK() OVER(...) &lt;= 3</code> はエラー。ウィンドウ関数は WHERE より後に評価されるため、必ずCTEかサブクエリでラップしてから WHERE で絞ります。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>RANK を使って同率を見落とす：</strong>同率3位が2人いると RANK では4位が表示されず「3人未満しか表示されないケース」が生じます。意図を確認してから関数を選ぶこと。</div></div>
 </div>`
 },
 
@@ -447,7 +446,7 @@ ranked <span class="kw">AS</span> (
 <tr><td>5</td><td>高橋</td><td>開発</td><td>リーダー</td><td>山田</td></tr>
 <tr><td>6</td><td>木村</td><td>営業</td><td>担当</td><td>鈴木</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                                         <span class="cmt">-- 取得したい列を指定する</span>
   e.emp_id,                                    <span class="cmt">-- 本人の社員ID</span>
   e.emp_name,                                  <span class="cmt">-- 本人の名前</span>
   e.dept_name,                                 <span class="cmt">-- 本人の部署名</span>
@@ -461,7 +460,7 @@ ranked <span class="kw">AS</span> (
 <span class="kw">LEFT JOIN</span> <span class="tbl">employees</span> m            <span class="cmt">-- 上司: 同じテーブルを別名 m で左結合</span>
   <span class="kw">ON</span> e.manager_id <span class="op">=</span> m.emp_id    <span class="cmt">-- 本人の manager_id = 上司の emp_id で照合</span>
                                   <span class="cmt">-- LEFT JOIN なので結合失敗（manager_id=NULL）でも e 側は残る</span>
-<span class="kw">ORDER BY</span> e.emp_id;               <span class="cmt">-- 社員IDの昇順で出力</span>
+<span class="kw">ORDER BY</span> e.emp_id;               <span class="cmt">-- 社員IDの昇順で出力（ORDER BY は最後に実行される並び替え）</span>
 
 <span class="cmt">/*
   SQL実行順序:
@@ -501,13 +500,14 @@ ranked <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCE の使い方：</strong><code>COALESCE(a, b)</code> は「aがNULLならbを返す」標準SQL関数。複数引数 <code>COALESCE(a, b, c)</code> で「最初の非NULLを返す」動作も可能。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>階層が深い場合：</strong>「上司の上司」まで取りたいなら SELF JOIN をさらに重ねるか、Q8で学ぶ <em>再帰CTE</em> を使う。SELF JOIN は最大で何階層取るか事前に決まっている場合に向いている。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>テーブル名の後ろに付ける <code>e</code> や <code>m</code> は「エイリアス（別名）」と呼びます。これがないと、同じテーブル同士の結合時に「どちらの emp_name か？」が分からずエラーになります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCE の使い方：</strong><code>COALESCE(a, b)</code> は「aがNULLならbを返す」標準SQL関数。複数引数 <code>COALESCE(a, b, c)</code> で「最初の非NULLを返す」動作も可能です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>階層が深い場合：</strong>「上司の上司」まで取りたいなら SELF JOIN をさらに重ねるか、Q8で学ぶ <em>再帰CTE</em> を使います。SELF JOIN は最大で何階層取るか事前に決まっている場合に向いています。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INNER JOIN にしてしまう：</strong>CEOのように manager_id が NULL の社員は INNER JOIN だと結合失敗で行ごと消える。組織全員を出したいときは必ず <strong>LEFT JOIN</strong>。</div></div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>エイリアスなしで曖昧な列参照：</strong>SELF JOINでは必ず <code>e</code> / <code>m</code> のようなエイリアスを付けて全列を修飾する。省略すると「どちらのemp_nameか」が不明でエラーになる。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INNER JOIN にしてしまう：</strong>CEOのように manager_id が NULL の社員は INNER JOIN だと結合失敗で行ごと消えます。組織全員を出したいときは必ず <strong>LEFT JOIN</strong>。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>エイリアスなしで曖昧な列参照：</strong>SELF JOINでは必ず <code>e</code> / <code>m</code> のようなエイリアスを付けて全列を修飾します。省略すると「どちらのemp_nameか」が不明でエラーになります。</div></div>
 </div>`
 },
 
@@ -564,16 +564,16 @@ budget_amount <span class="op">-</span> actual_amount <span class="kw">AS</span>
 <tr><td>営業部</td><td>5,000,000</td><td>4,750,000</td><td>250,000</td><td>95.0</td><td>要注意</td></tr>
 <tr><td>マーケ部</td><td>3,000,000</td><td>3,180,000</td><td>-180,000</td><td>106.0</td><td>超過</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH</span>
+  answer: `<pre><span class="kw">WITH</span> <span class="cmt">-- CTEを開始</span>
 
 <span class="cmt">-- ① 部署ごとの年間実績合計を集計する</span>
 actuals <span class="kw">AS</span> (
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span> <span class="cmt">-- 取得列を指定</span>
     dept_id,
     <span class="fn">SUM</span>(amount) <span class="kw">AS</span> actual_amount    <span class="cmt">-- 月次実績を年間合計に集約（SUM = 合計）</span>
-  <span class="kw">FROM</span>  <span class="tbl">actual_expenses</span>
-  <span class="kw">WHERE</span> <span class="fn">EXTRACT</span>(<span class="kw">YEAR FROM</span> expense_month) <span class="op">=</span> <span class="num">2024</span>  <span class="cmt">-- EXTRACT で日付から年を取り出して絞る</span>
-  <span class="kw">GROUP BY</span> dept_id                                <span class="cmt">-- 部署IDごとに1行に集約</span>
+  <span class="kw">FROM</span>  <span class="tbl">actual_expenses</span>             <span class="cmt">-- 取得元テーブル</span>
+  <span class="kw">WHERE</span> <span class="fn">EXTRACT</span>(<span class="kw">YEAR FROM</span> expense_month) <span class="op">=</span> <span class="num">2024</span>  <span class="cmt">-- EXTRACT で日付から「年」だけを取り出して絞る</span>
+  <span class="kw">GROUP BY</span> dept_id                                <span class="cmt">-- 部署IDごとにデータをグループ化（まとめて1行にする）</span>
 ),
 
 <span class="cmt">-- ② 予算テーブルと実績を結合して差異を計算する</span>
@@ -586,7 +586,7 @@ variance_calc <span class="kw">AS</span> (
     <span class="fn">ROUND</span>(
       <span class="fn">COALESCE</span>(a.actual_amount, <span class="num">0</span>) <span class="op">*</span> <span class="num">100.0</span>           <span class="cmt">-- * 100.0 で浮動小数点除算にする（整数除算防止）</span>
       <span class="op">/</span> <span class="fn">NULLIF</span>(b.budget_amount, <span class="num">0</span>)                    <span class="cmt">-- NULLIF: 予算0円でのゼロ除算を防いでNULLにする</span>
-    , <span class="num">1</span>) <span class="kw">AS</span> usage_pct                                 <span class="cmt">-- 小数点1桁に丸める</span>
+    , <span class="num">1</span>) <span class="kw">AS</span> usage_pct                                 <span class="cmt">-- ROUNDで小数点1桁に丸める</span>
   <span class="kw">FROM</span>      <span class="tbl">budgets</span>  b
   <span class="kw">LEFT JOIN</span> actuals a <span class="kw">ON</span> b.dept_id <span class="op">=</span> a.dept_id  <span class="cmt">-- LEFT JOIN: 実績がない部署も予算側は残す</span>
   <span class="kw">WHERE</span>     b.fiscal_year <span class="op">=</span> <span class="num">2024</span>                <span class="cmt">-- 対象年度を絞る</span>
@@ -599,7 +599,7 @@ variance_calc <span class="kw">AS</span> (
   actual_amount,
   variance,
   usage_pct,
-  <span class="kw">CASE</span>
+  <span class="kw">CASE</span> <span class="cmt">-- 条件分岐（if文のようなもの）の開始</span>
     <span class="cmt">-- 条件は上から評価されるため、より厳しい条件（超過）を先に書く</span>
     <span class="kw">WHEN</span> usage_pct <span class="op">&gt;</span>  <span class="num">100</span> <span class="kw">THEN</span> <span class="str">'超過'</span>    <span class="cmt">-- 100%超 = 予算オーバー</span>
     <span class="kw">WHEN</span> usage_pct <span class="op">&gt;=</span>  <span class="num">90</span> <span class="kw">THEN</span> <span class="str">'要注意'</span>  <span class="cmt">-- 90%以上（かつ100%以下）= 残り少ない</span>
@@ -654,12 +654,13 @@ variance_calc <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CASE の条件評価順：</strong>上から順に評価されて最初にTRUEになった条件で止まる。「超過」を先に書かないと106%も「要注意」になってしまう。<em>より厳しい条件を先に書く</em>のが鉄則。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULLIF の使い方：</strong><code>NULLIF(a, b)</code> は「a = b なら NULL を返す」関数。ゼロ除算防止の定番パターン。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>GROUP BY</code> は同じ値を持つ行をグループにまとめる構文です。これを書くことで、<code>SUM()</code> が「全体の合計」ではなく「グループ（部署）ごとの合計」になります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CASE の条件評価順：</strong>上から順に評価されて最初にTRUEになった条件で止まります。「超過」を先に書かないと106%も「要注意」になってしまいます。<em>より厳しい条件を先に書く</em>のが鉄則です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULLIF の使い方：</strong><code>NULLIF(a, b)</code> は「a = b なら NULL を返す」関数です。ゼロ除算防止の定番パターンです。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COALESCE を忘れる：</strong>LEFT JOIN で NULL になった actual_amount をそのまま引き算すると <code>budget - NULL = NULL</code> になる。<code>COALESCE(actual_amount, 0)</code> で NULL を 0 に変換してから計算すること。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COALESCE を忘れる：</strong>LEFT JOIN で NULL になった actual_amount をそのまま引き算すると <code>budget - NULL = NULL</code> になります。<code>COALESCE(actual_amount, 0)</code> で NULL を 0 に変換してから計算しましょう。</div></div>
 </div>`
 },
 
@@ -706,11 +707,11 @@ variance_calc <span class="kw">AS</span> (
 <tr><td>山田</td><td>営業部</td><td>2024Q1</td><td>79</td><td>85</td><td>90</td><td>高リスク</td></tr>
 <tr><td>佐藤</td><td>開発部</td><td>2024Q1</td><td>83</td><td>80</td><td>75</td><td>正常</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH</span>
+  answer: `<pre><span class="kw">WITH</span> <span class="cmt">-- 一時テーブル定義</span>
 
 <span class="cmt">-- ① 各社員の評価スコアに過去2期分を付与する</span>
 scored <span class="kw">AS</span> (
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span> <span class="cmt">-- 取得列指定</span>
     emp_id,
     emp_name,
     dept_name,
@@ -739,6 +740,7 @@ scored <span class="kw">AS</span> (
   prev2_score,
   <span class="kw">CASE</span>
     <span class="cmt">-- 今期 < 1期前 かつ 1期前 < 2期前 → 3期連続下降 = 高リスク</span>
+    <span class="cmt">-- AND は複数の条件が「すべて成り立つ」ことを指定する論理演算子</span>
     <span class="kw">WHEN</span> score <span class="op">&lt;</span> prev1_score <span class="kw">AND</span> prev1_score <span class="op">&lt;</span> prev2_score <span class="kw">THEN</span> <span class="str">'高リスク'</span>
     <span class="cmt">-- 今期 < 1期前のみ → 1期下降 = 要観察（prev2がNULLでも安全に評価される）</span>
     <span class="kw">WHEN</span> score <span class="op">&lt;</span> prev1_score                                  <span class="kw">THEN</span> <span class="str">'要観察'</span>
@@ -787,12 +789,13 @@ scored <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAG(col, N) の N 引数：</strong>N=1で「1行前」、N=2で「2行前」。ORDER BY の並び順に依存するため、時系列として正しい列でORDER BYすることが必須。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULL の三値論理：</strong>CASE の比較 <code>NULL &lt; 数値</code> は UNKNOWN（TRUEでもFALSEでもない）のため「高リスク」にはならず、意図通り「要観察」か「正常」に分類される。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>AND</code> は「A かつ B」を表す論理演算子です。両方の条件が成り立つときだけ TRUE となります。また、<code>=</code> ではなく <code>&lt;</code> などの比較演算子で大小を比較しています。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAG(col, N) の N 引数：</strong>N=1で「1行前」、N=2で「2行前」。ORDER BY の並び順に依存するため、時系列として正しい列でORDER BYすることが必須です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULL の三値論理：</strong>CASE の比較 <code>NULL &lt; 数値</code> は UNKNOWN（TRUEでもFALSEでもない）のため「高リスク」にはならず、意図通り「要観察」か「正常」に分類されます。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY なしでLAGを使う：</strong>省略すると全社員が1つのウィンドウになり、「田中の前の行が佐藤」という意味不明なLAG値になる。必ず PARTITION BY emp_id を指定する。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY なしでLAGを使う：</strong>省略すると全社員が1つのウィンドウになり、「田中の前の行が佐藤」という意味不明なLAG値になります。必ず PARTITION BY emp_id を指定します。</div></div>
 </div>`
 },
 
@@ -894,11 +897,10 @@ career <span class="kw">AS</span> (
   current_title,
   first_date,
   current_date,
-  <span class="cmt">-- 役職が変わった場合のみ昇進日数を計算（変化なしはNULL）</span>
-  <span class="kw">CASE</span>
-    <span class="kw">WHEN</span> first_title <span class="op">&lt;&gt;</span> current_title  <span class="cmt">-- &lt;&gt; は「等しくない」の比較演算子（!=と同義）</span>
-    <span class="kw">THEN</span> (current_date <span class="op">-</span> first_date)    <span class="cmt">-- 日付の差分（PostgreSQLでは整数=日数）</span>
-    <span class="kw">ELSE</span> <span class="kw">NULL</span>
+  <span class="kw">CASE</span> <span class="cmt">-- 条件分岐（if文のようなもの）の開始</span>
+    <span class="kw">WHEN</span> first_title <span class="op">&lt;&gt;</span> current_title  <span class="cmt">-- &lt;&gt; は「等しくない（ノットイコール）」を表す比較演算子</span>
+    <span class="kw">THEN</span> (current_date <span class="op">-</span> first_date)    <span class="cmt">-- 条件に合えば日付の差分（=日数）を計算</span>
+    <span class="kw">ELSE</span> <span class="kw">NULL</span>                          <span class="cmt">-- それ以外なら NULL（空）を返す</span>
   <span class="kw">END</span> <span class="kw">AS</span> days_to_promote,
   (first_title <span class="op">&lt;&gt;</span> current_title) <span class="kw">AS</span> is_promoted  <span class="cmt">-- 比較式 → TRUE/FALSE を返す</span>
 <span class="kw">FROM</span>  career
@@ -939,12 +941,13 @@ career <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAST_VALUE のフレーム指定を覚える：</strong>デフォルトフレームは <code>CURRENT ROW</code> まで。LAST_VALUE を使うときは必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> をセットで書くクセをつける。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>代替パターン：</strong><code>MAX(changed_at) OVER (PARTITION BY emp_id)</code> で最大日付を取り WHERE で絞る方法もある。フレーム指定が覚えられない場合の実用的な回避策。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>&lt;&gt;</code> や <code>!=</code> は「左右の値が等しくない」ことを意味する演算子です。また、PostgreSQL等では日付同士を引き算すると、その間の「日数」が整数で返ってきます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAST_VALUE のフレーム指定を覚える：</strong>デフォルトフレームは <code>CURRENT ROW</code> まで。LAST_VALUE を使うときは必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> をセットで書くクセをつけましょう。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>代替パターン：</strong><code>MAX(changed_at) OVER (PARTITION BY emp_id)</code> で最大日付を取り WHERE で絞る方法もあります。フレーム指定が覚えられない場合の実用的な回避策です。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LAST_VALUE をフレーム指定なしで使う：</strong>最も多い落とし穴。デフォルトでは各行が「自分自身の値」を返す。必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> を指定する。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LAST_VALUE をフレーム指定なしで使う：</strong>最も多い落とし穴。デフォルトでは各行が「自分自身の値」を返します。必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> を指定します。</div></div>
 </div>`
 },
 
@@ -1017,7 +1020,7 @@ all_combinations <span class="kw">AS</span> (
     p.project_id,
     p.project_name
   <span class="kw">FROM</span>       <span class="tbl">employees</span> e
-  <span class="kw">CROSS JOIN</span> <span class="tbl">projects</span>  p  <span class="cmt">-- 全組み合わせを生成（ONなし）</span>
+  <span class="kw">CROSS JOIN</span> <span class="tbl">projects</span>  p  <span class="cmt">-- 結合条件（ON）なしで全ての組み合わせを掛け合わせる（クロス結合）</span>
 ),
 
 <span class="cmt">-- ② 組み合わせのうち「参加記録がない」ものだけ残す</span>
@@ -1037,13 +1040,13 @@ unassigned <span class="kw">AS</span> (
 )
 
 <span class="cmt">-- ③ 社員ごとに未参加プロジェクトをカンマ結合して集約する</span>
-<span class="kw">SELECT</span>
+<span class="kw">SELECT</span> <span class="cmt">-- 最終的な取得処理</span>
   emp_name,
   dept_name,
-  <span class="cmt">-- STRING_AGG: 複数行の文字列を指定区切りで1行に連結する集計関数</span>
+  <span class="cmt">-- STRING_AGG: グループ化された複数行の文字列を、指定した区切り文字で1つの文字列に合体させる関数</span>
   <span class="fn">STRING_AGG</span>(project_name, <span class="str">', '</span> <span class="kw">ORDER BY</span> project_name)  <span class="cmt">-- カンマ区切りで連結、名前順</span>
     <span class="kw">AS</span> unassigned_project_names,
-  <span class="fn">COUNT</span>(<span class="op">*</span>)  <span class="kw">AS</span> unassigned_count        <span class="cmt">-- 未参加プロジェクト数を集計</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>)  <span class="kw">AS</span> unassigned_count        <span class="cmt">-- COUNT(*): グループ内の行数を数える集計関数</span>
 <span class="kw">FROM</span>  unassigned
 <span class="kw">GROUP BY</span> emp_id, emp_name, dept_name   <span class="cmt">-- 社員ごとに1行に集約</span>
 <span class="kw">ORDER BY</span> emp_name;                     <span class="cmt">-- 名前の50音順で出力</span>
@@ -1088,12 +1091,13 @@ unassigned <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CROSS JOINの使いどころ：</strong>「全組み合わせを基準にして、存在しないものを探す」逆引きパターンで使う。データ量が多い場合は組み合わせ爆発に注意（100社員×1000PJで10万行）。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NOT IN より NOT EXISTS が安全：</strong><code>NOT IN (SELECT ...)</code> はサブクエリにNULLが1件でもあると全行がFALSEになる（SQL三値論理）。NOT EXISTS はNULLに対して安全。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>COUNT(*)</code> は「行数」を数えますが、<code>COUNT(列名)</code> は「その列のNULL以外の行数」を数えるという違いがあります。また、外側のクエリの値（<code>ac.emp_id</code>など）を内側のサブクエリで使うことを「相関サブクエリ」と呼びます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CROSS JOINの使いどころ：</strong>「全組み合わせを基準にして、存在しないものを探す」逆引きパターンで使います。データ量が多い場合は組み合わせ爆発に注意（100社員×1000PJで10万行）。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NOT IN より NOT EXISTS が安全：</strong><code>NOT IN (SELECT ...)</code> はサブクエリにNULLが1件でもあると全行がFALSEになります（SQL三値論理）。NOT EXISTS はNULLに対して安全です。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NOT IN に NULL が混入：</strong><code>WHERE project_id NOT IN (SELECT project_id FROM ...)</code> は結果にNULLがあると全行FALSE。安全のため NOT EXISTS を優先する。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NOT IN に NULL が混入：</strong><code>WHERE project_id NOT IN (SELECT project_id FROM ...)</code> は結果にNULLがあると全行FALSE。安全のため NOT EXISTS を優先します。</div></div>
 </div>`
 },
 
@@ -1139,10 +1143,10 @@ unassigned <span class="kw">AS</span> (
 <tr><td>営業二部</td><td>木村</td><td>880,000</td><td>2,510,000</td><td>35.1</td><td>18.5</td><td>2</td></tr>
 <tr><td>営業二部</td><td>高橋</td><td>640,000</td><td>2,510,000</td><td>25.5</td><td>13.4</td><td>3</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                                                 <span class="cmt">-- 取得列の指定</span>
   d.dept_name,                                         <span class="cmt">-- 部署名</span>
   e.emp_name,                                          <span class="cmt">-- 社員名</span>
-  s.total_sales                          <span class="kw">AS</span> sales,     <span class="cmt">-- 個人売上</span>
+  s.total_sales                          <span class="kw">AS</span> sales,     <span class="cmt">-- ASで個人売上列に別名を付ける</span>
 
   <span class="cmt">-- ① 部署内合計: PARTITION BY dept_id → 部署ごとの合計が全行に付く（行は減らない）</span>
   <span class="fn">SUM</span>(s.total_sales) <span class="kw">OVER</span> (
@@ -1210,12 +1214,13 @@ unassigned <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ウィンドウ関数の最大の強み：</strong>GROUP BY は「集約して行が減る」が、ウィンドウ関数は「行を残したまま計算する」。「個人詳細 + 部署合計 + 全社合計を同時に欲しい」には GROUP BY では対処できない。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>* 100.0 の重要性：</strong><code>sales * 100 / SUM(...)</code> は整数÷整数=切り捨てになる。必ず <code>* 100.0</code> か <code>CAST(sales AS NUMERIC)</code> で浮動小数点に変換してから割り算する。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>SQLの割り算（<code>/</code>）では「整数 ÷ 整数 = 整数（小数点以下切り捨て）」になるRDBMSが多いです。そのため、<code>* 100.0</code> のように小数（浮動小数点）を掛けることで、結果を小数として取得する小技がよく使われます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ウィンドウ関数の最大の強み：</strong>GROUP BY は「集約して行が減る」が、ウィンドウ関数は「行を残したまま計算する」。「個人詳細 + 部署合計 + 全社合計を同時に欲しい」には GROUP BY では対処できません。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>* 100.0 の重要性：</strong><code>sales * 100 / SUM(...)</code> は整数÷整数=切り捨てになります。必ず <code>* 100.0</code> か <code>CAST(sales AS NUMERIC)</code> で浮動小数点に変換してから割り算します。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>スカラーサブクエリで全社合計を毎回取る：</strong><code>SELECT sales / (SELECT SUM(sales) FROM ...)</code> は全行に対して毎回サブクエリが実行される（非効率）。<strong>SUM() OVER ()</strong> なら全行一括計算で高速。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>スカラーサブクエリで全社合計を毎回取る：</strong><code>SELECT sales / (SELECT SUM(sales) FROM ...)</code> は全行に対して毎回サブクエリが実行されます（非効率）。<strong>SUM() OVER ()</strong> なら全行一括計算で高速です。</div></div>
 </div>`
 },
 
@@ -1272,7 +1277,7 @@ unassigned <span class="kw">AS</span> (
 <tr><td>5</td><td>高橋</td><td>開発リーダー</td><td>2</td><td>田中 → 山田 → 高橋</td><td>0</td></tr>
 <tr><td>6</td><td>木村</td><td>営業担当</td><td>3</td><td>田中 → 佐藤 → 鈴木 → 木村</td><td>0</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH RECURSIVE</span>
+  answer: `<pre><span class="kw">WITH RECURSIVE</span> <span class="cmt">-- 自分自身を呼び出す特殊なCTE（再帰CTE）の宣言</span>
 
 <span class="cmt">-- ① 再帰CTE: トップから1階層ずつ下に向かって全社員を展開する</span>
 org_tree <span class="kw">AS</span> (
@@ -1287,9 +1292,9 @@ org_tree <span class="kw">AS</span> (
     <span class="num">0</span>        <span class="kw">AS</span> depth,        <span class="cmt">-- トップは深さ 0</span>
     emp_name <span class="kw">AS</span> path           <span class="cmt">-- トップの経路 = 自分自身の名前</span>
   <span class="kw">FROM</span>   <span class="tbl">employees</span>
-  <span class="kw">WHERE</span>  manager_id <span class="kw">IS NULL</span>   <span class="cmt">-- manager_id が NULL = トップ（上司なし）</span>
+  <span class="kw">WHERE</span>  manager_id <span class="kw">IS NULL</span>   <span class="cmt">-- IS NULL: 値がNULL（空っぽ）であるかを判定（= NULL とは書けない）</span>
 
-  <span class="kw">UNION ALL</span>  <span class="cmt">-- 重複除去なしで結合（再帰CTEでは UNION ALL が必須）</span>
+  <span class="kw">UNION ALL</span>  <span class="cmt">-- 上のSELECT結果と下のSELECT結果を、重複チェックなしでそのまま縦に結合する</span>
 
   <span class="cmt">-- 再帰クエリ（Recursive Member）: 前の反復結果（org_tree）に子を結合する</span>
   <span class="cmt">-- 子が存在する限りこのクエリを繰り返す（結果が0行になったら停止）</span>
@@ -1372,14 +1377,15 @@ sub_count <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>再帰CTEの2部構成：</strong>「基底クエリ（起点を1行生成）」+ UNION ALL +「再帰クエリ（前の結果を参照して子を取得）」。子が0行になった時点で自動停止する。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>SELF JOINとの使い分け：</strong>SELF JOINは階層数が事前に決まっている場合に向く（2階層なら2回JOIN）。階層数が不定（ツリーの深さが可変）なら再帰CTEを使う。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>無限ループ対策：</strong>循環参照（A→B→A）があるデータでは再帰が終わらない。PostgreSQLでは <code>CYCLE emp_id SET is_cycle USING path</code> で検知できる。本番環境では <code>WHERE depth &lt; 20</code> など深さ上限を設けると安全。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>UNION</code> は2つの検索結果をくっつけますが、重複を取り除くため処理が重くなります。<code>UNION ALL</code> は重複を気にせずそのまま繋げるため高速です。また、NULLの判定には <code>= NULL</code> ではなく <code>IS NULL</code> を使います（NULLは未知の値であり、比較演算子が使えないため）。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>再帰CTEの2部構成：</strong>「基底クエリ（起点を1行生成）」+ UNION ALL +「再帰クエリ（前の結果を参照して子を取得）」。子が0行になった時点で自動停止します。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>SELF JOINとの使い分け：</strong>SELF JOINは階層数が事前に決まっている場合に向く（2階層なら2回JOIN）。階層数が不定（ツリーの深さが可変）なら再帰CTEを使います。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>無限ループ対策：</strong>循環参照（A→B→A）があるデータでは再帰が終わらない。PostgreSQLでは <code>CYCLE emp_id SET is_cycle USING path</code> で検知できる。本番環境では <code>WHERE depth &lt; 20</code> など深さ上限を設けると安全です。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>UNION ALL でなく UNION を使う：</strong>再帰部分で <code>UNION</code>（重複除去あり）を使うと、反復ごとに全結果と重複チェックが走り非常に重くなる。再帰CTEでは必ず <code>UNION ALL</code>。</div></div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WITH RECURSIVE を WITH だけにする：</strong>PostgreSQL/BigQueryでは自己参照CTEには <code>WITH RECURSIVE</code> が必須。<code>WITH</code> だけだと「org_tree テーブルが存在しない」エラーになる。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>UNION ALL でなく UNION を使う：</strong>再帰部分で <code>UNION</code>（重複除去あり）を使うと、反復ごとに全結果と重複チェックが走り非常に重くなります。再帰CTEでは必ず <code>UNION ALL</code>。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WITH RECURSIVE を WITH だけにする：</strong>PostgreSQL/BigQueryでは自己参照CTEには <code>WITH RECURSIVE</code> が必須。<code>WITH</code> だけだと「org_tree テーブルが存在しない」エラーになります。</div></div>
 </div>`
 },
 
@@ -1441,8 +1447,8 @@ pivoted <span class="kw">AS</span> (
     <span class="fn">SUM</span>(total_sales)  <span class="kw">AS</span> annual_total
 
   <span class="kw">FROM</span>     <span class="tbl">sales_results</span>
-  <span class="kw">WHERE</span>    quarter <span class="kw">LIKE</span> <span class="str">'2024%'</span>       <span class="cmt">-- LIKE '2024%': '2024'で始まるもの（% = 任意の文字列）</span>
-  <span class="kw">GROUP BY</span> dept_name                  <span class="cmt">-- 部署ごとに1行に集約（これがPIVOTの核心）</span>
+  <span class="kw">WHERE</span>    quarter <span class="kw">LIKE</span> <span class="str">'2024%'</span>       <span class="cmt">-- LIKE演算子: '2024'で始まる任意の文字列に一致（% は0文字以上のワイルドカード）</span>
+  <span class="kw">GROUP BY</span> dept_name                  <span class="cmt">-- 部署名が同じものを1行にまとめる（これがPIVOTの核心）</span>
 )
 
 <span class="cmt">-- ② 最も売上の高い四半期（best_quarter）を判定して出力する</span>
@@ -1512,14 +1518,14 @@ pivoted <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>手動PIVOTの考え方：</strong>「四半期という行のバリエーションを列に変換する」。GROUP BY で1行に集約しながら、CASE WHEN で各列に分岐する、という2つの動作が組み合わさっている。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>LIKE の使い方：</strong><code>LIKE '2024%'</code> の <code>%</code> は「0文字以上の任意の文字列」を意味するワイルドカード。<code>_</code>（アンダースコア）は「ちょうど1文字」。例：<code>LIKE '2024Q_'</code> で2024Qで始まる5文字の文字列に一致。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>GREATEST/LEAST 関数：</strong>複数値の最大・最小を返す関数。<code>GREATEST(a,b,c)</code> は引数がNULLだとNULLを返すので注意。COALESCE と組み合わせて <code>GREATEST(COALESCE(a,0), ...)</code> とすると安全。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>LIKE</code> 演算子はあいまい検索に使われます。<code>%</code> は「何文字でもOK」、<code>_</code>（アンダースコア）は「ちょうど1文字」を意味します。例：<code>LIKE '2024Q_'</code>。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>手動PIVOTの考え方：</strong>「四半期という行のバリエーションを列に変換する」。GROUP BY で1行に集約しながら、CASE WHEN で各列に分岐する、という2つの動作が組み合わさっています。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>GREATEST/LEAST 関数：</strong>複数値の最大・最小を返す関数。<code>GREATEST(a,b,c)</code> は引数がNULLだとNULLを返すので注意。COALESCE と組み合わせて <code>GREATEST(COALESCE(a,0), ...)</code> とすると安全です。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE を省略する：</strong><code>SUM(CASE WHEN quarter='2024Q1' THEN total_sales END)</code> は ELSE なしだと一致しない行が NULL になる。SUM は NULL を無視するため偶然合計は合うが、<code>ELSE 0</code> を明示する方が意図が明確で安全。</div></div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BY に集約対象外の列を入れ忘れる：</strong><code>SELECT dept_name, emp_name, SUM(...) GROUP BY dept_name</code> は、GROUP BY にない emp_name がエラーになる。SELECTに書いた非集計列は全てGROUP BYに含める必要がある。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE を省略する：</strong><code>SUM(CASE WHEN quarter='2024Q1' THEN total_sales END)</code> は ELSE なしだと一致しない行が NULL になる。SUM は NULL を無視するため偶然合計は合うが、<code>ELSE 0</code> を明示する方が意図が明確で安全です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BY に集約対象外の列を入れ忘れる：</strong><code>SELECT dept_name, emp_name, SUM(...) GROUP BY dept_name</code> は、GROUP BY にない emp_name がエラーになります。SELECTに書いた非集計列は全てGROUP BYに含める必要があります。</div></div>
 </div>`
 },
 
@@ -1574,11 +1580,11 @@ pivoted <span class="kw">AS</span> (
 <tr><td>開発部</td><td>2024-02</td><td>720,000</td><td>680,000</td><td>+5.9</td><td class="null">NULL</td><td class="null">NULL</td></tr>
 <tr><td>開発部</td><td>2024-03</td><td>700,000</td><td>720,000</td><td>-2.8</td><td class="null">NULL</td><td class="null">NULL</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH</span>
+  answer: `<pre><span class="kw">WITH</span> <span class="cmt">-- CTE定義</span>
 
 <span class="cmt">-- ① 月次売上に前月・前年同月の値を付与する</span>
 with_prev <span class="kw">AS</span> (
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span> <span class="cmt">-- 取得列の指定</span>
     dept_id,
     dept_name,
     sale_month,
@@ -1693,14 +1699,15 @@ growth_calc <span class="kw">AS</span> (
 </div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAG vs LEAD の使い分け：</strong>LAG は「過去の値を今に持ち込む」= 今と過去の比較に使う。LEAD は「未来の値を今に持ち込む」= 今と未来の差分（例：次月の予測との乖離）に使う。成長率計算には LAG が定番。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>前年同月比の落とし穴：</strong><code>LAG(sales, 12)</code> は「12行前」を取るため、月次データに欠損があると「12行前 ≠ 1年前」になる。欠損のあるデータでは日付列を使った計算（DATEADD/INTERVAL）+ SELF JOINで対応する。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>移動平均との組み合わせ：</strong>成長率のノイズを減らしたいとき <code>AVG(sales) OVER (PARTITION BY dept ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)</code> で3ヶ月移動平均を計算し、その値に対して前年比を取るパターンも実務でよく使われる。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>SQLでは四則演算（<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>）が可能です。カッコ <code>()</code> をつけると計算の優先順位が上がります。また、計算式の中に1つでも <code>NULL</code> が含まれていると、結果はすべて <code>NULL</code> になるという「三値論理」の性質があります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAG vs LEAD の使い分け：</strong>LAG は「過去の値を今に持ち込む」= 今と過去の比較に使う。LEAD は「未来の値を今に持ち込む」= 今と未来の差分（例：次月の予測との乖離）に使う。成長率計算には LAG が定番です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>前年同月比の落とし穴：</strong><code>LAG(sales, 12)</code> は「12行前」を取るため、月次データに欠損があると「12行前 ≠ 1年前」になります。欠損のあるデータでは日付列を使った計算（DATEADD/INTERVAL）+ SELF JOINで対応します。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>移動平均との組み合わせ：</strong>成長率のノイズを減らしたいとき <code>AVG(sales) OVER (PARTITION BY dept ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)</code> で3ヶ月移動平均を計算し、その値に対して前年比を取るパターンも実務でよく使われます。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>前月が0のときNULLIFを忘れる：</strong>前月売上が0（新設部署など）の場合 <code>(今月 - 0) / 0</code> となりゼロ除算エラー。<code>NULLIF(prev_month_sales, 0)</code> で0をNULLに変換すれば、除算結果もNULLになり安全。</div></div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY なしで LAG を使う：</strong>部署ごとに独立した時系列で比較したいのに PARTITION BY を省略すると、「営業部12月の次が開発部1月」として計算されてしまう。必ず PARTITION BY dept_id を指定すること。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>前月が0のときNULLIFを忘れる：</strong>前月売上が0（新設部署など）の場合 <code>(今月 - 0) / 0</code> となりゼロ除算エラーになります。<code>NULLIF(prev_month_sales, 0)</code> で0をNULLに変換すれば、除算結果もNULLになり安全です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY なしで LAG を使う：</strong>部署ごとに独立した時系列で比較したいのに PARTITION BY を省略すると、「営業部12月の次が開発部1月」として計算されてしまいます。必ず PARTITION BY dept_id を指定すること。</div></div>
 </div>`
 }
 
@@ -1735,11 +1742,11 @@ function buildAll() {
         <div class="q-title">${q.title}</div>
         <div class="q-tags">${tagHTML(q.tags)}</div>
       </div>
-      ${acc('📘','pill-blue','前提','基礎文法・概念',q.premise)}
-      ${acc('❓','pill-green','問題','テーブルデータ付き',q.question)}
-      ${acc('📊','pill-orange','出力例','期待する結果',q.output)}
-      ${acc('✅','pill-red','模範回答','SQL（コメント付き）',q.answer)}
-      ${acc('🔍','pill-purple','解説','変化の可視化＋学習ポイント',q.explain)}
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力例','期待出力',q.output)}
+      ${acc('✅','pill-red','模範回答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',q.explain)}
       <div class="nav-bar">
         <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
         <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>

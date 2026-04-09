@@ -42,7 +42,6 @@
   }
   .header-text-wrap { flex: 1; }
   .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-  .header-sub { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; }
   .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
 
@@ -215,7 +214,6 @@
       <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">BASIC</span></div>
       <div class="header-text-wrap">
         <div class="header-title">WebApp API・バッチ処理で学ぶ SQL 基礎文法10選（SELECT/WHERE/JOIN/GROUP BY/INSERT/UPDATE/DELETE/CTE/サブクエリ/CASE WHEN編）</div>
-        <div class="header-sub">SELECT+WHERE+ORDER BY / INNER JOIN / GROUP BY+HAVING / LIMIT+OFFSET / INSERT+RETURNING / UPDATE+WHERE / DELETE論理削除 / WITH CTE / EXISTS / CASE WHEN</div>
       </div>
     </div>
     <div class="header-tags">
@@ -276,26 +274,26 @@ const QS = [
 <tr class="tr-hi"><td>4</td><td>山田 次郎</td><td>yamada@ex.com</td><td class="tc-hi">2024-01-20</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ user_id:2(inactive)・3(free) は除外</p>`,
-  answer: `<pre><span class="kw">SELECT</span>
-  user_id,                          <span class="cmt">-- ユーザーID</span>
-  name,                             <span class="cmt">-- 氏名</span>
-  email,                            <span class="cmt">-- メールアドレス</span>
-  created_at                        <span class="cmt">-- 登録日時</span>
-<span class="kw">FROM</span>   <span class="tbl">users</span>                         <span class="cmt">-- 対象テーブル</span>
-<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'active'</span>           <span class="cmt">-- 条件①: active ユーザーのみ</span>
-  <span class="kw">AND</span>  plan   <span class="op">=</span> <span class="str">'premium'</span>          <span class="cmt">-- 条件②: AND で複数条件を AND 結合</span>
-<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>;          <span class="cmt">-- 登録日の新しい順（DESC=降順）</span>
+  answer: `<pre><span class="kw">SELECT</span>                            <span class="cmt">-- 【超基礎】データを取得する列を選択（射影）</span>
+  user_id,                          <span class="cmt">-- 取得する列: ユーザーID</span>
+  name,                             <span class="cmt">-- 取得する列: 氏名</span>
+  email,                            <span class="cmt">-- 取得する列: メールアドレス</span>
+  created_at                        <span class="cmt">-- 取得する列: 登録日時</span>
+<span class="kw">FROM</span>   <span class="tbl">users</span>                         <span class="cmt">-- 【超基礎】データを取得する対象のテーブルを指定</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'active'</span>           <span class="cmt">-- 【超基礎】行を絞り込む条件を指定（一致するか判定）</span>
+  <span class="kw">AND</span>  plan   <span class="op">=</span> <span class="str">'premium'</span>          <span class="cmt">-- 【超基礎】複数条件を「かつ(AND)」で結ぶ</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>;          <span class="cmt">-- 【超基礎】並び替え順序を指定（DESC=降順、ASC=昇順）</span>
 
 <span class="cmt">/*
   実行順序（SQLの論理的な評価順）:
-  1. FROM users          → テーブル全行を読み込む
+  1. FROM users          → 【超基礎】まず対象テーブルの全行を読み込む
   2. WHERE status='active' AND plan='premium'
-                         → 2条件をANDで絞り込む → 3行残る
+                         → 【超基礎】指定された条件で行を絞り込む（3行残る）
   3. SELECT user_id, name, email, created_at
-                         → 必要な列だけ射影（列を選択）する
+                         → 【超基礎】必要な列だけを選び取る
   4. ORDER BY created_at DESC
-                         → 登録日の降順に並び替える
-  ★ SELECT は FROM・WHERE より後に評価される（書く順番と実行順は異なる）
+                         → 【超基礎】最後に指定の順序に並び替える
+  ★ 実行順序は「FROM → WHERE → SELECT → ORDER BY」となります
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -326,6 +324,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>SELECT句はデータの出力列を決め、FROM句は対象のテーブルを指定し、WHERE句で行の絞り込みを行います。書く順番と異なり、実行順序は必ず FROM → WHERE → SELECT になることを意識しましょう。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>APIエンドポイントの定番パターン：</strong><code>GET /users?status=active&plan=premium</code> のようなクエリパラメータを WHERE 条件に変換するのが最頻出パターン。アプリ層でパラメータを受け取りバインド変数（プリペアドステートメント）で安全にSQL化する。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>AND / OR の優先順位：</strong>AND は OR より優先度が高い。<code>WHERE a=1 OR b=2 AND c=3</code> は <code>WHERE a=1 OR (b=2 AND c=3)</code> と解釈される。意図を明確にするため <strong>括弧を必ず書く</strong> 習慣が重要。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>SELECT * は本番NGの理由：</strong>列追加・削除でAPIレスポンス構造が変わりクライアントが壊れる可能性がある。必要な列を明示的に列挙すること。</div></div>
@@ -388,26 +387,24 @@ const QS = [
 <tr class="tr-hi2"><td>104</td><td class="tc-g">鈴木 一郎</td><td>1500</td><td class="tc-hi">2024-05-08</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ order_id:102(pending)・105(cancelled) は除外</p>`,
-  answer: `<pre><span class="kw">SELECT</span>
-  o.order_id,                       <span class="cmt">-- orders テーブルの order_id（テーブル名を明示）</span>
-  u.name   <span class="kw">AS</span> user_name,           <span class="cmt">-- AS でレスポンスの列名を変更（列の別名）</span>
+  answer: `<pre><span class="kw">SELECT</span>                            <span class="cmt">-- 【超基礎】取得する列を選択</span>
+  o.order_id,                       <span class="cmt">-- orders テーブルの order_id</span>
+  u.name   <span class="kw">AS</span> user_name,           <span class="cmt">-- 【超基礎】AS で出力時の列名（別名）を変更</span>
   o.amount,                         <span class="cmt">-- 注文金額</span>
   o.ordered_at                      <span class="cmt">-- 注文日時</span>
-<span class="kw">FROM</span>       <span class="tbl">orders</span> o                 <span class="cmt">-- orders テーブルに o というエイリアスを付ける</span>
-<span class="kw">INNER JOIN</span> <span class="tbl">users</span>  u                 <span class="cmt">-- users テーブルに u というエイリアスを付ける</span>
-  <span class="kw">ON</span>  o.user_id <span class="op">=</span> u.user_id         <span class="cmt">-- 結合条件: orders.user_id と users.user_id を紐付ける</span>
-<span class="kw">WHERE</span>  o.status <span class="op">=</span> <span class="str">'completed'</span>      <span class="cmt">-- 完了注文のみ絞り込み</span>
-<span class="kw">ORDER BY</span> o.ordered_at <span class="kw">DESC</span>;        <span class="cmt">-- 注文日の新しい順</span>
+<span class="kw">FROM</span>       <span class="tbl">orders</span> o                 <span class="cmt">-- 【超基礎】主テーブル（o はエイリアス/別名）</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">users</span>  u                 <span class="cmt">-- 【超基礎】内部結合（両方に存在するデータのみ結合）</span>
+  <span class="kw">ON</span>  o.user_id <span class="op">=</span> u.user_id         <span class="cmt">-- 【超基礎】結合する際のキーとなる一致条件</span>
+<span class="kw">WHERE</span>  o.status <span class="op">=</span> <span class="str">'completed'</span>      <span class="cmt">-- 【超基礎】結合後のデータから条件に合う行を絞り込む</span>
+<span class="kw">ORDER BY</span> o.ordered_at <span class="kw">DESC</span>;        <span class="cmt">-- 【超基礎】指定した列で降順に並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. FROM orders o                  → orders 全行読み込み
-  2. INNER JOIN users u ON ...      → user_id が一致する users 行と結合
-                                       → 両テーブルに存在する行だけ残る
-  3. WHERE o.status = 'completed'   → completed のみ絞り込む（3行）
-  4. SELECT o.order_id, u.name ...  → 必要な列を選択・列名変更
-  5. ORDER BY o.ordered_at DESC     → 降順に並び替え
-  ★ 同名列（user_id）は テーブル名.列名 で区別する（必須）
+  実行順序（SQLの論理的な評価順）:
+  1. FROM orders o                  → 【超基礎】orders テーブルを読み込む
+  2. INNER JOIN users u ON ...      → 【超基礎】user_id が一致する users 行と結合する
+  3. WHERE o.status = 'completed'   → 【超基礎】completed の行のみに絞り込む
+  4. SELECT o.order_id, u.name ...  → 【超基礎】必要な列を選択し、列名を変更する
+  5. ORDER BY o.ordered_at DESC     → 【超基礎】降順に並び替えを行う
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -438,6 +435,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>JOIN（結合）は、別々のテーブルを特定の共通キー（例: user_id）を使って横に繋ぎ合わせる操作です。テーブル同士の関連性を結びつける、リレーショナルデータベース(RDB)の根幹となる機能です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>N+1クエリ問題の回避：</strong>アプリ側で「注文ループの中でユーザー名を1件ずつ取得」するN+1はJOINで解決できる。1クエリで全データを取得することでDBへのラウンドトリップを最小化する。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>エイリアスの必要性：</strong>複数テーブルを結合すると同名列（例: user_id）が衝突する。<code>テーブル名.列名</code> または <code>エイリアス.列名</code> で必ず明示すること。エイリアスはクエリを短く読みやすくする。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>INNER / LEFT の選択基準：</strong>「全ユーザーとその注文数」→ LEFT JOIN（注文0件のユーザーも含める）。「注文があるユーザーだけ」→ INNER JOIN。データ要件から適切に選ぶことがAPIレスポンス設計の基本。</div></div>
@@ -494,26 +492,25 @@ const QS = [
 <tr class="tr-hi2"><td>U03</td><td class="tc-g">2</td><td class="tc-y">8500</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ U02は completed が1件のみ（order_id:3）なのでHAVINGで除外</p>`,
-  answer: `<pre><span class="kw">SELECT</span>
-  user_id,                          <span class="cmt">-- グループ化キー（GROUP BY と同じ列）</span>
-  <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count,     <span class="cmt">-- COUNT(*): グループ内の行数を数える</span>
-  <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount      <span class="cmt">-- SUM(amount): グループ内のamountを合計する</span>
-<span class="kw">FROM</span>   <span class="tbl">orders</span>                        <span class="cmt">-- 対象テーブル</span>
-<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'completed'</span>         <span class="cmt">-- 集計前の絞り込み（completed のみ対象）</span>
-<span class="kw">GROUP BY</span> user_id                      <span class="cmt">-- user_id の値ごとにグループ化</span>
-<span class="kw">HAVING</span>   <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="op">&gt;=</span> <span class="num">2</span>              <span class="cmt">-- 集計後の絞り込み（件数2件以上のグループのみ）</span>
-<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;         <span class="cmt">-- 合計金額の大きい順</span>
+  answer: `<pre><span class="kw">SELECT</span>                            <span class="cmt">-- 【超基礎】取得する列を選択</span>
+  user_id,                          <span class="cmt">-- グループ化の基準となる列</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count,     <span class="cmt">-- 【超基礎】集計関数: グループ内の行数をカウント</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount      <span class="cmt">-- 【超基礎】集計関数: グループ内の特定の列の値を合計</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>                        <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'completed'</span>         <span class="cmt">-- 【超基礎】集計「前」に対象行を絞り込む</span>
+<span class="kw">GROUP BY</span> user_id                      <span class="cmt">-- 【超基礎】指定した列の値が同じ行をグループにまとめる</span>
+<span class="kw">HAVING</span>   <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="op">&gt;=</span> <span class="num">2</span>              <span class="cmt">-- 【超基礎】集計「後」の結果に対して絞り込みを行う</span>
+<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;         <span class="cmt">-- 【超基礎】集計結果の合計金額で降順に並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. FROM orders               → 全行読み込み（8行）
-  2. WHERE status='completed'  → completed のみ残す（6行: order_id 1,2,3,5,7,8）
-  3. GROUP BY user_id          → user_id ごとにグループ化（U01:3行, U02:1行, U03:2行）
-  4. COUNT(*) / SUM(amount)    → 各グループを集計（1行に集約）
-  5. HAVING COUNT(*) >= 2      → 件数が2以上のグループのみ残す（U02除外）
-  6. SELECT user_id, ...       → 列を選択
-  7. ORDER BY total_amount DESC→ 降順に並び替え
-  ★ WHERE は集計前（行レベル）、HAVING は集計後（グループレベル）で機能する
+  実行順序（SQLの論理的な評価順）:
+  1. FROM orders               → 【超基礎】全行読み込み
+  2. WHERE status='completed'  → 【超基礎】集計前に completed のみ残す
+  3. GROUP BY user_id          → 【超基礎】user_id ごとにグループ化
+  4. COUNT(*) / SUM(amount)    → 【超基礎】各グループごとに集計を行う
+  5. HAVING COUNT(*) >= 2      → 【超基礎】集計後の結果から、件数が2以上のグループのみ残す
+  6. SELECT user_id, ...       → 【超基礎】列を選択
+  7. ORDER BY total_amount DESC→ 【超基礎】降順に並び替え
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -541,6 +538,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>GROUP BY は特定の列の値が同じ行を「1つのグループ」にまとめます。まとめた後は、COUNT（件数）やSUM（合計）などの集計関数を使って、グループ全体の情報を1行で表現します。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>KPI集計APIの基本形：</strong><code>GET /reports/users/summary</code> のような集計系エンドポイントはこのパターンが土台。WHERE で期間・ステータスを絞り、GROUP BY で集計軸を決め、HAVING で足切り条件を付ける。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>SELECT できる列の制約：</strong>GROUP BY を使うと SELECT に書ける列は「GROUP BY に含まれる列」か「集計関数の結果」だけ。<code>SELECT order_id, user_id, COUNT(*)</code> と書いてもorder_idはグループ内で複数値があるためエラーになる。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>HAVING vs WHERE の使い分けまとめ：</strong>「active なユーザーだけ集計したい」→ <code>WHERE status='active'</code> で事前に絞る（パフォーマンスが良い）。「集計後に件数が5以上だけ欲しい」→ <code>HAVING COUNT(*) >= 5</code>。集計関数を条件にするなら HAVING 一択。</div></div>
@@ -596,29 +594,22 @@ const QS = [
 <tr class="tr-hi4"><td></td><td>4</td><td>定規</td><td class="tc-y">150</td></tr>
 <tr class="tr-hi4"><td></td><td>2</td><td>ノート</td><td class="tc-y">200</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                            <span class="cmt">-- 【超基礎】列の選択</span>
   product_id,                       <span class="cmt">-- 商品ID</span>
   name,                             <span class="cmt">-- 商品名</span>
   price                             <span class="cmt">-- 価格</span>
-<span class="kw">FROM</span>   <span class="tbl">products</span>                      <span class="cmt">-- 対象テーブル</span>
-<span class="kw">ORDER BY</span> price <span class="kw">ASC</span>                  <span class="cmt">-- 価格の安い順（ORDER BYなしはページ内容が不定）</span>
-<span class="kw">LIMIT</span>  <span class="num">3</span>                             <span class="cmt">-- 1ページあたり3件</span>
-<span class="kw">OFFSET</span> <span class="num">3</span>;                            <span class="cmt">-- 2ページ目 = (2-1) * 3 = 3行スキップ</span>
-
-<span class="cmt">-- ページ番号から OFFSET を計算する汎用式
--- OFFSET = (page - 1) * per_page
--- page=1 → OFFSET 0（スキップなし）
--- page=2 → OFFSET 3
--- page=3 → OFFSET 6</span>
+<span class="kw">FROM</span>   <span class="tbl">products</span>                      <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">ORDER BY</span> price <span class="kw">ASC</span>                  <span class="cmt">-- 【超基礎】昇順（安い順）で並び替え（ASCは省略可能）</span>
+<span class="kw">LIMIT</span>  <span class="num">3</span>                             <span class="cmt">-- 【超基礎】取得する最大行数を指定（ここでは3件）</span>
+<span class="kw">OFFSET</span> <span class="num">3</span>;                            <span class="cmt">-- 【超基礎】取得を開始する位置（先頭から何行スキップするか）</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. FROM products             → 全7行読み込み
-  2. ORDER BY price ASC        → 価格昇順: 50,80,100,120,150,200,300
-  3. OFFSET 3                  → 先頭3行（50,80,100）をスキップ
-  4. LIMIT 3                   → その後3行（120,150,200）を返す
-  ★ ORDER BY は LIMIT/OFFSET の前に必ず評価される
-  ★ ORDER BY なしは毎回異なる行が返る可能性があり使い物にならない
+  実行順序（SQLの論理的な評価順）:
+  1. FROM products             → 【超基礎】全7行読み込み
+  2. ORDER BY price ASC        → 【超基礎】価格の昇順に並び替える
+  3. OFFSET 3                  → 【超基礎】並び替えた結果の先頭3行をスキップする
+  4. LIMIT 3                   → 【超基礎】スキップした位置から3行を返す
+  ★ ORDER BY は必ず LIMIT/OFFSET の前に評価されます
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -639,6 +630,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>LIMITは「最大何件取得するか」を指定し、OFFSETは「取得を始める前に先頭から何件読み飛ばすか」を指定します。この2つを組み合わせることで、大量のデータを少しずつ切り出すことができます。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>APIでの実装パターン：</strong><code>GET /products?page=2&per_page=3</code> を受け取ったら、サーバー側で <code>OFFSET = (page-1) * per_page = 3</code> を計算してSQLに渡す。総件数も <code>SELECT COUNT(*) FROM products</code> で別取得しレスポンスに含めるのが一般的。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>LIMIT のみでの先頭N件取得：</strong><code>LIMIT 1</code> で最新1件、<code>LIMIT 5</code> で上位5件を取得できる。ランキングAPIや「最新投稿を3件表示」といった用途に頻出。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>カーソルベースページネーション（大規模向け）：</strong>OFFSET が大きいと全件スキャンが発生して低速になる。代替として <code>WHERE id &gt; :last_id ORDER BY id LIMIT 10</code> のように最後のIDを条件にすることで、常に高速なインデックスアクセスが可能になる。</div></div>
@@ -695,26 +687,24 @@ const QS = [
 <tr class="tr-hi2"><td class="tc-g">3</td><td class="tc-hi">2024-06-01 14:30:00+09</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ id=3 は DBが自動採番（アプリ側で指定不要）</p>`,
-  answer: `<pre><span class="kw">INSERT INTO</span> <span class="tbl">tasks</span> (                  <span class="cmt">-- 挿入先テーブル（id は BIGSERIAL のため列名に含めない）</span>
-  title,                            <span class="cmt">-- タスク名</span>
-  status,                           <span class="cmt">-- 初期ステータス</span>
-  created_at                        <span class="cmt">-- 作成日時</span>
+  answer: `<pre><span class="kw">INSERT INTO</span> <span class="tbl">tasks</span> (                  <span class="cmt">-- 【超基礎】テーブルに新しい行を追加する命令</span>
+  title,                            <span class="cmt">-- 値を入れる列名</span>
+  status,                           <span class="cmt">-- 値を入れる列名</span>
+  created_at                        <span class="cmt">-- 値を入れる列名</span>
 )
-<span class="kw">VALUES</span> (
-  <span class="str">'バッチ処理の実装'</span>,               <span class="cmt">-- title の値（列名と同じ順番で指定）</span>
-  <span class="str">'pending'</span>,                       <span class="cmt">-- status の値</span>
-  <span class="fn">NOW</span>()                            <span class="cmt">-- NOW(): 現在のタイムスタンプを取得する組み込み関数</span>
+<span class="kw">VALUES</span> (                             <span class="cmt">-- 【超基礎】挿入する値を列の順番に合わせて指定する</span>
+  <span class="str">'バッチ処理の実装'</span>,               <span class="cmt">-- title 列に入る文字列</span>
+  <span class="str">'pending'</span>,                       <span class="cmt">-- status 列に入る文字列</span>
+  <span class="fn">NOW</span>()                            <span class="cmt">-- 【超基礎】現在のシステム日時を取得する関数</span>
 )
-<span class="kw">RETURNING</span> id, created_at;          <span class="cmt">-- 挿入した行の id と created_at を返す</span>
+<span class="kw">RETURNING</span> id, created_at;          <span class="cmt">-- 【応用】挿入された行の特定の列の値をそのまま返す（PostgreSQL等）</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. INSERT INTO tasks (...)   → テーブルに行を追加する
-  2. VALUES (...)              → 挿入する値を指定（id は自動採番のため省略）
-  3. BIGSERIAL が id=3 を自動採番する
-  4. RETURNING id, created_at → 挿入後の行から指定列を SELECT して返す
-  ★ RETURNING は INSERT/UPDATE/DELETE すべてに付けられる（PostgreSQL）
-  ★ id を RETURNING で受け取ることで「挿入 → IDでGET」の2往復が1往復に減る
+  実行順序（SQLの論理的な評価順）:
+  1. INSERT INTO tasks (...)   → 【超基礎】テーブルに新しい行の領域を準備する
+  2. VALUES (...)              → 【超基礎】指定された値を列に埋め込む
+  3. DBが BIGSERIAL列 に対して id=3 を自動採番する
+  4. RETURNING id, created_at → 【超基礎】挿入が完了した行のデータを取得してアプリに返す
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -752,6 +742,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>INSERT INTO はテーブルに新しいデータを「行単位」で追加します。列の順番とVALUESの中のデータの順番は必ず一致させる必要があります。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>POST APIの典型フロー：</strong>クライアントがPOSTリクエスト → サーバーがINSERT + RETURNING → 採番されたIDをレスポンスに含める → クライアントはそのIDでGETして詳細を取得。RETURNING がなければINSERT後に別のSELECTが必要になる。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>BIGSERIAL とは：</strong>内部的には <code>BIGINT + シーケンス(SEQUENCE)</code> の糖衣構文。INSERTのたびにシーケンスが自動インクリメントされる。SERIAL は INT（約21億上限）、BIGSERIALはBIGINT（約922京上限）なので大規模サービスではBIGSERIALを推奨。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>RETURNING * で全列取得：</strong><code>RETURNING *</code> で挿入行の全列を返せる。DBのデフォルト値（<code>DEFAULT</code>）が入った列も返ってくるため、INSERT後のレスポンスとして使いやすい。</div></div>
@@ -804,26 +795,21 @@ const QS = [
 <tr class="tr-hi"><td>3</td><td class="tc-r">expired</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ id:2・5は end_date が未来 / id:4はすでに expired のため除外</p>`,
-  answer: `<pre><span class="kw">UPDATE</span> <span class="tbl">subscriptions</span>               <span class="cmt">-- 更新対象テーブル</span>
-<span class="kw">SET</span>
-  status     <span class="op">=</span> <span class="str">'expired'</span>,           <span class="cmt">-- ステータスを 'expired' に変更</span>
-  updated_at <span class="op">=</span> <span class="fn">NOW</span>()                <span class="cmt">-- 更新日時を現在時刻に更新</span>
-<span class="kw">WHERE</span>
-  end_date <span class="op">&lt;=</span> <span class="fn">CURRENT_DATE</span>          <span class="cmt">-- 条件①: 期限日が今日以前（CURRENT_DATE = 今日の日付）</span>
-  <span class="kw">AND</span> status <span class="op">=</span> <span class="str">'active'</span>            <span class="cmt">-- 条件②: まだ active な契約のみ（expired をさらに更新しない）</span>
-<span class="kw">RETURNING</span> subscription_id, status;  <span class="cmt">-- 更新された行の subscription_id と status を返す</span>
+  answer: `<pre><span class="kw">UPDATE</span> <span class="tbl">subscriptions</span>               <span class="cmt">-- 【超基礎】既存の行のデータを更新する命令</span>
+<span class="kw">SET</span>                                  <span class="cmt">-- 【超基礎】変更したい列と新しい値を指定する</span>
+  status     <span class="op">=</span> <span class="str">'expired'</span>,           <span class="cmt">-- ステータスを文字列で上書き</span>
+  updated_at <span class="op">=</span> <span class="fn">NOW</span>()                <span class="cmt">-- 更新日時を現在日時に上書き</span>
+<span class="kw">WHERE</span>                                <span class="cmt">-- 【超基礎】更新対象の行を絞り込む（絶対に忘れないこと！）</span>
+  end_date <span class="op">&lt;=</span> <span class="fn">CURRENT_DATE</span>          <span class="cmt">-- 条件: 期限が今日以前</span>
+  <span class="kw">AND</span> status <span class="op">=</span> <span class="str">'active'</span>            <span class="cmt">-- 条件: 現在有効なものだけ（無駄な更新を防ぐ）</span>
+<span class="kw">RETURNING</span> subscription_id, status;  <span class="cmt">-- 【応用】更新された行のIDと新しいステータスを返す</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. FROM subscriptions        → 全行読み込み（5行）
-  2. WHERE end_date <= CURRENT_DATE AND status='active'
-                               → id:1,3 が条件を満たす（id:2・5は未来、id:4はexpired済み）
-  3. SET status='expired', updated_at=NOW()
-                               → 条件を満たした行の列値を書き換える
-  4. RETURNING subscription_id, status
-                               → 更新後の値を返す
-  ★ AND status='active' で「べき等性」を保証: 何度実行しても同じ結果になる
-  ★ RETURNING は UPDATE でも使える（PostgreSQL）
+  実行順序（SQLの論理的な評価順）:
+  1. FROM subscriptions        → 【超基礎】対象テーブルを読み込む
+  2. WHERE end_date <= ...     → 【超基礎】条件に合致する行のみを特定する
+  3. SET status='expired'...   → 【超基礎】特定した行の列の値を書き換える
+  4. RETURNING ...             → 【超基礎】書き換え後の値を返す
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -856,6 +842,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>UPDATE はすでにテーブルに存在する行のデータを書き換えます。WHEREを指定しないと「テーブルの全行」が書き換わってしまうため、UPDATEとWHEREは必ずセットで考える癖をつけましょう。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>バッチ期限切れ処理の定番パターン：</strong>深夜バッチで <code>WHERE end_date &lt;= CURRENT_DATE AND status='active'</code> を毎晩実行する設計が最頻出。CRON + このUPDATE + RETURNINGで更新件数をログに記録するのが実務標準。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>べき等性（Idempotency）の確保：</strong><code>AND status='active'</code> の条件を付けることで「何度実行しても結果が変わらない」べき等なバッチになる。バッチが2重実行されても問題が起きない設計が重要。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>CURRENT_DATE と NOW() の違い：</strong><code>CURRENT_DATE</code> は日付のみ（時刻なし）、<code>NOW()</code> はタイムスタンプ（日付+時刻）。日付比較には <code>CURRENT_DATE</code>、更新日時の記録には <code>NOW()</code> を使い分ける。</div></div>
@@ -911,32 +898,26 @@ const QS = [
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ id:3(今回削除) / id:4(既に削除済み) は除外</p>`,
   answer: `<pre><span class="cmt">-- ① 論理削除: comment_id=3 の deleted_at に現在時刻を記録</span>
-<span class="kw">UPDATE</span> <span class="tbl">comments</span>
-<span class="kw">SET</span>    deleted_at <span class="op">=</span> <span class="fn">NOW</span>()           <span class="cmt">-- NULL → 現在時刻 に更新（これが「削除」を意味する）</span>
-<span class="kw">WHERE</span>  comment_id <span class="op">=</span> <span class="num">3</span>              <span class="cmt">-- 対象を特定のIDに限定（必須）</span>
-  <span class="kw">AND</span>  deleted_at <span class="kw">IS NULL</span>;         <span class="cmt">-- 未削除の行のみ対象（二重削除防止・べき等性）</span>
+<span class="kw">UPDATE</span> <span class="tbl">comments</span>                    <span class="cmt">-- 【超基礎】データを更新する命令（DELETE文は使わない）</span>
+<span class="kw">SET</span>    deleted_at <span class="op">=</span> <span class="fn">NOW</span>()           <span class="cmt">-- 【超基礎】削除日時列に現在時刻をセットすることで「削除」とみなす</span>
+<span class="kw">WHERE</span>  comment_id <span class="op">=</span> <span class="num">3</span>              <span class="cmt">-- 【超基礎】更新対象を主キーで一意に特定</span>
+  <span class="kw">AND</span>  deleted_at <span class="kw">IS NULL</span>;         <span class="cmt">-- 【超基礎】NULL判定（未削除の行のみ更新する）</span>
 
 <span class="cmt">-- ② 有効コメント一覧取得: deleted_at が NULL の行のみ返す</span>
-<span class="kw">SELECT</span>
+<span class="kw">SELECT</span>                             <span class="cmt">-- 【超基礎】列の選択</span>
   comment_id,                       <span class="cmt">-- コメントID</span>
   post_id,                          <span class="cmt">-- 投稿ID</span>
-  body                              <span class="cmt">-- コメント本文（deleted_at 列はAPIレスポンスに含めない）</span>
-<span class="kw">FROM</span>   <span class="tbl">comments</span>
-<span class="kw">WHERE</span>  deleted_at <span class="kw">IS NULL</span>          <span class="cmt">-- 論理削除されていない行のみ（NULL = 有効）</span>
-<span class="kw">ORDER BY</span> comment_id <span class="kw">ASC</span>;          <span class="cmt">-- IDの昇順で返す</span>
+  body                              <span class="cmt">-- コメント本文</span>
+<span class="kw">FROM</span>   <span class="tbl">comments</span>                      <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">WHERE</span>  deleted_at <span class="kw">IS NULL</span>          <span class="cmt">-- 【超基礎】NULL(空)であるかどうかを判定（= NULL はエラーになる）</span>
+<span class="kw">ORDER BY</span> comment_id <span class="kw">ASC</span>;          <span class="cmt">-- 【超基礎】IDの昇順（小さい順）に並び替え</span>
 
 <span class="cmt">/*
-  実行順序（①論理削除）:
-  1. FROM comments             → 全行読み込み
-  2. WHERE comment_id=3 AND deleted_at IS NULL
-                               → id:3 かつ未削除 → 1行ヒット
-  3. SET deleted_at = NOW()    → その1行の deleted_at を更新
-
-  実行順序（②一覧取得）:
-  1. FROM comments             → 全行読み込み（4行）
-  2. WHERE deleted_at IS NULL  → NULL の行のみ残す（id:1,2 の2行）
-  3. SELECT comment_id, ...    → 列を選択
-  4. ORDER BY comment_id ASC   → IDの昇順に並び替え
+  実行順序（SQLの論理的な評価順 / ②の一覧取得）:
+  1. FROM comments             → 【超基礎】全行読み込み
+  2. WHERE deleted_at IS NULL  → 【超基礎】NULL(未削除) の行のみ残す
+  3. SELECT comment_id, ...    → 【超基礎】列を選択
+  4. ORDER BY comment_id ASC   → 【超基礎】昇順に並び替え
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -965,6 +946,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>DELETE文はデータをディスクから完全に消し去ります。一方、論理削除はUPDATE文で「削除フラグ（削除日時）」を更新するだけで、データ自体は残すという「システム上の運用の工夫」です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>論理削除が実務標準の理由：</strong>①削除取り消し（undo）が可能 ②「いつ誰が削除したか」の監査証跡になる ③外部テーブルから参照している場合に参照整合性エラーが発生しない。特にユーザーや注文データは論理削除が原則。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>全クエリに deleted_at IS NULL を付ける：</strong>論理削除を採用すると全てのSELECT/UPDATE/DELETEに <code>WHERE deleted_at IS NULL</code> が必要になる。ORMのデフォルトスコープやビュー（VIEW）で自動適用するのが実務上のベストプラクティス。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>物理削除が適切なケース：</strong>GDPRなどの法的な「忘れられる権利」対応、PII（個人情報）の完全消去が必要な場合は物理削除が必須。論理削除ではデータが残り続けるため法的要件を満たせない場合がある。</div></div>
@@ -1034,41 +1016,40 @@ const QS = [
 <tr class="tr-hi3"><td>U02</td><td class="tc-g">佐藤 花子</td><td class="tc-p">2</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ U03は過去30日の注文が0件のため除外</p>`,
-  answer: `<pre><span class="kw">WITH</span>
+  answer: `<pre><span class="kw">WITH</span>                               <span class="cmt">-- 【超基礎】共通テーブル式(CTE)の開始宣言</span>
   <span class="cmt">-- CTE①: 過去30日以内の注文をユーザーごとに集計</span>
-  recent_orders <span class="kw">AS</span> (
+  recent_orders <span class="kw">AS</span> (               <span class="cmt">-- 【超基礎】一時的なテーブル(recent_orders)を定義</span>
     <span class="kw">SELECT</span>
       user_id,                      <span class="cmt">-- グループ化キー</span>
-      <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> order_count        <span class="cmt">-- 過去30日の注文件数を集計</span>
-    <span class="kw">FROM</span>   <span class="tbl">orders</span>
-    <span class="kw">WHERE</span>  ordered_at <span class="op">&gt;=</span> <span class="fn">CURRENT_DATE</span> <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'30 days'</span>  <span class="cmt">-- 現在日から30日前以降</span>
-    <span class="kw">GROUP BY</span> user_id                <span class="cmt">-- ユーザーIDごとにグループ化</span>
+      <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> order_count        <span class="cmt">-- 件数を集計</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span>                    <span class="cmt">-- 【超基礎】対象テーブル</span>
+    <span class="kw">WHERE</span>  ordered_at <span class="op">&gt;=</span> <span class="fn">CURRENT_DATE</span> <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'30 days'</span>  <span class="cmt">-- 日付計算</span>
+    <span class="kw">GROUP BY</span> user_id                <span class="cmt">-- 【超基礎】ユーザーごとにグループ化</span>
   ),
-  <span class="cmt">-- CTE②: 2件以上のユーザーだけに絞り込む（VIPの定義）</span>
-  vip_users <span class="kw">AS</span> (
+  <span class="cmt">-- CTE②: 2件以上のユーザーだけに絞り込む</span>
+  vip_users <span class="kw">AS</span> (                   <span class="cmt">-- 【超基礎】さらに別の一時テーブルを定義（カンマで繋ぐ）</span>
     <span class="kw">SELECT</span> user_id, order_count     <span class="cmt">-- CTE①の結果を参照</span>
-    <span class="kw">FROM</span>   recent_orders            <span class="cmt">-- CTE①の名前でテーブルのように参照</span>
-    <span class="kw">WHERE</span>  order_count <span class="op">&gt;=</span> <span class="num">2</span>        <span class="cmt">-- VIP条件: 2件以上</span>
+    <span class="kw">FROM</span>   recent_orders            <span class="cmt">-- 【超基礎】上で定義したCTEをテーブルとして参照</span>
+    <span class="kw">WHERE</span>  order_count <span class="op">&gt;=</span> <span class="num">2</span>        <span class="cmt">-- 【超基礎】VIP条件で絞り込み</span>
   )
-<span class="cmt">-- 本体クエリ: VIPユーザーをusersテーブルとJOINして名前を付加</span>
-<span class="kw">SELECT</span>
+<span class="cmt">-- 本体クエリ: 最終的な取得処理</span>
+<span class="kw">SELECT</span>                             <span class="cmt">-- 【超基礎】最終的に出力する列</span>
   v.user_id,                        <span class="cmt">-- VIPユーザーID</span>
-  u.name,                           <span class="cmt">-- ユーザー名（usersテーブルから）</span>
-  v.order_count                     <span class="cmt">-- 注文件数（CTE②から）</span>
-<span class="kw">FROM</span>       vip_users v              <span class="cmt">-- CTE②をメインテーブルとして使う</span>
-<span class="kw">INNER JOIN</span> <span class="tbl">users</span>    u              <span class="cmt">-- usersテーブルと結合</span>
-  <span class="kw">ON</span>  v.user_id <span class="op">=</span> u.user_id         <span class="cmt">-- 結合条件</span>
-<span class="kw">ORDER BY</span> v.order_count <span class="kw">DESC</span>;       <span class="cmt">-- 注文件数の多い順</span>
+  u.name,                           <span class="cmt">-- ユーザー名</span>
+  v.order_count                     <span class="cmt">-- 注文件数</span>
+<span class="kw">FROM</span>       vip_users v              <span class="cmt">-- 【超基礎】CTE②をメインテーブルとして利用</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">users</span>    u              <span class="cmt">-- 【超基礎】実テーブル(users)と内部結合</span>
+  <span class="kw">ON</span>  v.user_id <span class="op">=</span> u.user_id         <span class="cmt">-- 【超基礎】結合条件</span>
+<span class="kw">ORDER BY</span> v.order_count <span class="kw">DESC</span>;       <span class="cmt">-- 【超基礎】注文件数で降順に並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. CTE① recent_orders       → orders から過去30日分を GROUP BY で集計
-  2. CTE② vip_users           → recent_orders から order_count >= 2 に絞る
-  3. FROM vip_users v          → CTE②を起点にする
-  4. INNER JOIN users u        → users テーブルと結合して名前を取得
-  5. SELECT v.user_id, ...     → 必要な列を選択
-  6. ORDER BY order_count DESC → 降順に並び替え
-  ★ CTE はサブクエリをネストせずに「上から順番に読める」設計にできる
+  実行順序（SQLの論理的な評価順）:
+  1. CTE① recent_orders       → 【超基礎】orders から一時テーブルを作成
+  2. CTE② vip_users           → 【超基礎】recent_orders を元にさらに絞り込んだ一時テーブルを作成
+  3. FROM vip_users v          → 【超基礎】CTE②を起点にして読み込む
+  4. INNER JOIN users u        → 【超基礎】users テーブルと結合する
+  5. SELECT v.user_id, ...     → 【超基礎】必要な列を選択
+  6. ORDER BY order_count DESC → 【超基礎】降順に並び替え
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1096,6 +1077,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>WITH句(CTE)は、クエリの最初に「一時的な名前付きのテーブル」を作って、後からそれを通常のテーブルのように何度も呼び出して使えるようにする機能です。長くて複雑なSQLを整理するために使います。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CTEの命名で意図を伝える：</strong><code>recent_orders</code>（最近の注文）、<code>vip_users</code>（VIPユーザー）のように意味のある名前をつけることで、SQLを読んだ人が「何をしているか」を即座に理解できる。コメントの代わりになる。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CTEは同じ結果を複数回参照できる：</strong>同じサブクエリを2回書く必要があるときにCTEで1回定義すれば複数箇所から参照できる。コードの重複排除とメンテナンス性向上に効果的。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>バッチSQL設計の定番構成：</strong>CTEで①データ抽出・②絞り込み・③集計、の各ステップを分けて定義し、本体クエリで最終形を作る構成がバッチSQL設計の王道パターン。デバッグ時はCTEを1段ずつ単独でSELECTして中間結果を確認できる。</div></div>
@@ -1161,35 +1143,25 @@ const QS = [
 <tr class="tr-hi2"><td>5</td><td class="tc-g">伊藤 三郎</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ user_id:1(2件) / user_id:3(1件) は orders に存在するため除外</p>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                             <span class="cmt">-- 【超基礎】列の選択</span>
   u.user_id,                        <span class="cmt">-- ユーザーID</span>
   u.name                            <span class="cmt">-- ユーザー名</span>
-<span class="kw">FROM</span>  <span class="tbl">users</span> u                       <span class="cmt">-- 外側（メイン）クエリのテーブル</span>
-<span class="kw">WHERE</span> <span class="kw">NOT EXISTS</span> (                  <span class="cmt">-- orders にレコードが存在しない場合にTRUE</span>
-  <span class="kw">SELECT</span> <span class="num">1</span>                          <span class="cmt">-- SELECT 1 でよい（列の中身は評価されない）</span>
-  <span class="kw">FROM</span>   <span class="tbl">orders</span> o                  <span class="cmt">-- サブクエリのテーブル</span>
-  <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id      <span class="cmt">-- 外側の u.user_id と一致するか確認（相関サブクエリ）</span>
+<span class="kw">FROM</span>  <span class="tbl">users</span> u                       <span class="cmt">-- 【超基礎】メインとなる対象テーブル</span>
+<span class="kw">WHERE</span> <span class="kw">NOT EXISTS</span> (                  <span class="cmt">-- 【超基礎】カッコ内のクエリ結果が「0件」ならTRUEになる条件式</span>
+  <span class="kw">SELECT</span> <span class="num">1</span>                          <span class="cmt">-- EXISTS内は値は何でも良いので、慣例的に「1」を返す</span>
+  <span class="kw">FROM</span>   <span class="tbl">orders</span> o                  <span class="cmt">-- 【超基礎】チェック対象のテーブル</span>
+  <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id      <span class="cmt">-- 【超基礎】外側のクエリの行と関連付ける条件（相関サブクエリ）</span>
 )
-<span class="kw">ORDER BY</span> u.user_id <span class="kw">ASC</span>;            <span class="cmt">-- ユーザーIDの昇順</span>
-
-<span class="cmt">-- 参考: LEFT JOIN + IS NULL でも同じ結果が得られる（どちらも実務で使われる）
--- SELECT u.user_id, u.name
--- FROM   users u
--- LEFT JOIN orders o ON o.user_id = u.user_id
--- WHERE  o.order_id IS NULL          -- JOINが成立しなかった行（NULL）= 注文なし
--- ORDER BY u.user_id ASC;</span>
+<span class="kw">ORDER BY</span> u.user_id <span class="kw">ASC</span>;            <span class="cmt">-- 【超基礎】昇順並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. FROM users u              → users の各行に対して
-  2. NOT EXISTS (サブクエリ)   → orders に u.user_id が存在するか確認
-     - user_id=1 → orders に存在する → NOT EXISTS = FALSE → 除外
-     - user_id=2 → orders に存在しない → NOT EXISTS = TRUE → 残る
-     - user_id=3 → orders に存在する → NOT EXISTS = FALSE → 除外
-     - user_id=4 → orders に存在しない → NOT EXISTS = TRUE → 残る
-     - user_id=5 → orders に存在しない → NOT EXISTS = TRUE → 残る
-  3. SELECT u.user_id, u.name  → 残った行の列を選択
-  4. ORDER BY u.user_id ASC    → 昇順に並び替え
+  実行順序（SQLの論理的な評価順）:
+  1. FROM users u              → 【超基礎】users テーブルの各行に対して順に処理
+  2. NOT EXISTS (サブクエリ)   → 【超基礎】orders に u.user_id が存在するか確認する
+     - 存在すれば FALSE (除外)
+     - 存在しなければ TRUE (残る)
+  3. SELECT u.user_id, u.name  → 【超基礎】残った行から列を選択
+  4. ORDER BY u.user_id ASC    → 【超基礎】昇順に並び替え
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1220,6 +1192,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>サブクエリ（副問合せ）とは、SQL文の中に別のSELECT文を入れ込む書き方です。EXISTSは、そのサブクエリが「1件でもデータを返せばTRUEになる」という判定を行うための命令です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>バッチ処理での活用例：</strong>「まだメールを送っていないユーザーを取得」<code>NOT EXISTS (SELECT 1 FROM email_logs WHERE user_id = u.user_id)</code>、「未課金ユーザーへのリマインダー送信」など、処理済み/未処理を管理するバッチに頻出。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>SELECT 1 の理由：</strong>EXISTS はサブクエリが1行でも返せばTRUEになる。SELECT している列の値は評価されないため、<code>SELECT 1</code>（定数）で書くのが慣例。<code>SELECT *</code> でも動くが意図が伝わりにくい。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>LEFT JOIN + IS NULL との使い分け：</strong>両者は同じ結果を返すがクエリプランナーによってパフォーマンスが異なる場合がある。PostgreSQLでは両者を同等に最適化することが多い。可読性から NOT EXISTS の方が意図が明確なのでこちらを推奨。</div></div>
@@ -1281,40 +1254,35 @@ const QS = [
 <tr class="tr-hi4"><td>4</td><td>500</td><td class="tc-y">basic</td><td class="tc-g">完了</td></tr>
 <tr class="tr-hi4"><td>5</td><td>5000</td><td class="tc-hi">standard</td><td class="tc-g">処理中</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                             <span class="cmt">-- 【超基礎】列の選択</span>
   order_id,                         <span class="cmt">-- 注文ID</span>
   amount,                           <span class="cmt">-- 注文金額</span>
 
-  <span class="cmt">-- 購買ランクの条件分岐（検索CASE: 上から順に評価）</span>
-  <span class="kw">CASE</span>
-    <span class="kw">WHEN</span> amount <span class="op">&gt;=</span> <span class="num">10000</span> <span class="kw">THEN</span> <span class="str">'premium'</span>   <span class="cmt">-- 10000以上は premium</span>
-    <span class="kw">WHEN</span> amount <span class="op">&gt;=</span>  <span class="num">5000</span> <span class="kw">THEN</span> <span class="str">'standard'</span>  <span class="cmt">-- 5000以上（10000未満）は standard</span>
-    <span class="kw">ELSE</span>                       <span class="str">'basic'</span>     <span class="cmt">-- それ未満は basic（ELSE は省略するとNULLになる）</span>
-  <span class="kw">END</span> <span class="kw">AS</span> rank_label,                <span class="cmt">-- CASE の結果に列名 rank_label を付ける</span>
+  <span class="cmt">-- 購買ランクの条件分岐</span>
+  <span class="kw">CASE</span>                               <span class="cmt">-- 【超基礎】条件分岐の開始</span>
+    <span class="kw">WHEN</span> amount <span class="op">&gt;=</span> <span class="num">10000</span> <span class="kw">THEN</span> <span class="str">'premium'</span>   <span class="cmt">-- 【超基礎】条件式がTRUEなら指定の値を返す</span>
+    <span class="kw">WHEN</span> amount <span class="op">&gt;=</span>  <span class="num">5000</span> <span class="kw">THEN</span> <span class="str">'standard'</span>  <span class="cmt">-- 上から順に評価される</span>
+    <span class="kw">ELSE</span>                       <span class="str">'basic'</span>     <span class="cmt">-- 【超基礎】どの条件にも合致しない場合のデフォルト値</span>
+  <span class="kw">END</span> <span class="kw">AS</span> rank_label,                <span class="cmt">-- 【超基礎】分岐を終了(END)し、出力列名を付ける(AS)</span>
 
-  <span class="cmt">-- status を日本語ラベルに変換（単純CASE: 値を列挙）</span>
-  <span class="kw">CASE</span> status                       <span class="cmt">-- status 列の値を順番に比較</span>
-    <span class="kw">WHEN</span> <span class="str">'completed'</span> <span class="kw">THEN</span> <span class="str">'完了'</span>      <span class="cmt">-- 'completed' のとき '完了' を返す</span>
-    <span class="kw">WHEN</span> <span class="str">'pending'</span>   <span class="kw">THEN</span> <span class="str">'処理中'</span>    <span class="cmt">-- 'pending' のとき '処理中' を返す</span>
-    <span class="kw">WHEN</span> <span class="str">'cancelled'</span> <span class="kw">THEN</span> <span class="str">'キャンセル'</span> <span class="cmt">-- 'cancelled' のとき 'キャンセル' を返す</span>
-    <span class="kw">ELSE</span> <span class="str">'不明'</span>                       <span class="cmt">-- 想定外の値は '不明'（安全のため常にELSEを書く）</span>
-  <span class="kw">END</span> <span class="kw">AS</span> status_label                <span class="cmt">-- 列名 status_label を付ける</span>
+  <span class="cmt">-- status を日本語ラベルに変換</span>
+  <span class="kw">CASE</span> status                       <span class="cmt">-- 【超基礎】特定の列の値を直接判定する書き方</span>
+    <span class="kw">WHEN</span> <span class="str">'completed'</span> <span class="kw">THEN</span> <span class="str">'完了'</span>      
+    <span class="kw">WHEN</span> <span class="str">'pending'</span>   <span class="kw">THEN</span> <span class="str">'処理中'</span>    
+    <span class="kw">WHEN</span> <span class="str">'cancelled'</span> <span class="kw">THEN</span> <span class="str">'キャンセル'</span> 
+    <span class="kw">ELSE</span> <span class="str">'不明'</span>                       <span class="cmt">-- 想定外の値への備え</span>
+  <span class="kw">END</span> <span class="kw">AS</span> status_label                
 
-<span class="kw">FROM</span>   <span class="tbl">orders</span>                        <span class="cmt">-- 対象テーブル</span>
-<span class="kw">ORDER BY</span> ordered_at <span class="kw">DESC</span>;           <span class="cmt">-- 注文日の新しい順</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>                        <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">ORDER BY</span> ordered_at <span class="kw">DESC</span>;           <span class="cmt">-- 【超基礎】降順並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. FROM orders               → 全5行読み込み
-  2. CASE（rank_label）        → 各行の amount を評価してランクを決定
-     - 12000 >= 10000 → 'premium'
-     - 4800  < 5000   → ELSE → 'basic'
-     - 7500  >= 5000  → 'standard'（最初に一致したWHENで確定、以降は評価しない）
-     - 500   < 5000   → ELSE → 'basic'
-     - 5000  >= 5000  → 'standard'
-  3. CASE（status_label）      → status を日本語に変換
-  4. SELECT order_id, ...      → 列を選択（CASE の結果も列として含む）
-  5. ORDER BY ordered_at DESC  → 降順に並び替え
+  実行順序（SQLの論理的な評価順）:
+  1. FROM orders               → 【超基礎】全行読み込み
+  2. CASE（rank_label）        → 【超基礎】各行の amount を評価してランクを決定する
+  3. CASE（status_label）      → 【超基礎】status の値に応じて日本語に変換する
+  4. SELECT order_id, ...      → 【超基礎】CASEの結果を含めて列を選択する
+  5. ORDER BY ordered_at DESC  → 【超基礎】降順に並び替え
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1347,6 +1315,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>CASE WHEN は、SQLの中で使える「If-Else文（条件分岐）」です。条件に合致したときに返す値を指定でき、データの表示名を変えたり、グループ分けをしたりする際にとても便利です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>APIレスポンスの変換層として活用：</strong>DBにはコード値（'completed'）を保存し、APIレスポンスはCASE WHENでラベル変換して返すパターンが実務標準。アプリ側で変換するより1クエリで完結するため効率的。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>条件付き集計への応用：</strong><code>SUM(CASE WHEN status='completed' THEN amount ELSE 0 END)</code> のように集計関数と組み合わせると「特定条件の合計金額だけ集計」ができる。GROUP BY と組み合わせてKPI集計に頻用される。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>ELSEは常に書く：</strong>ELSEを省略すると一致しない値がNULLになり、APIレスポンスにNULLが混入して予期しないエラーを引き起こす。想定外の値のフォールバックとして必ず <code>ELSE '不明'</code> などを書く習慣が重要。</div></div>
@@ -1391,11 +1360,11 @@ function buildAll() {
         <div class="q-title">${q.title}</div>
         <div class="q-tags">${tagHTML(q.tags)}</div>
       </div>
-      ${acc('📘','pill-blue','前提','基礎文法・概念',q.premise)}
-      ${acc('❓','pill-green','問題','テーブルデータ付き',q.question)}
-      ${acc('📊','pill-orange','出力例','期待する結果',q.output)}
-      ${acc('✅','pill-red','模範回答','SQL（コメント付き）',q.answer)}
-      ${acc('🔍','pill-purple','解説','変化の可視化＋学習ポイント',q.explain)}
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力','期待出力',q.output)}
+      ${acc('✅','pill-red','解答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',q.explain)}
       <div class="nav-bar">
         <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
         <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>

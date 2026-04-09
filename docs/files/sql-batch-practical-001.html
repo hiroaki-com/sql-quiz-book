@@ -42,7 +42,6 @@
   }
   .header-text-wrap { flex: 1; }
   .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-  .header-sub { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; }
   .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
 
@@ -215,7 +214,6 @@
       <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">BATCH 10</span></div>
       <div class="header-text-wrap">
         <div class="header-title">APIバッチ処理で学ぶ SQL 王道10選（CTE・ウィンドウ関数・累計・ピボット・再帰編）</div>
-        <div class="header-sub">WITH / LAG / SUM OVER / ROW_NUMBER / DENSE_RANK / RECURSIVE / CASE PIVOT / COALESCE / FIRST_VALUE / FILTER</div>
       </div>
     </div>
     <div class="header-tags">
@@ -285,39 +283,42 @@ const QS = [
 <tr><td>2024-04-01</td><td class="tc-g">55000</td><td class="tc-hi">2</td><td class="tc-y">27500</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px;">※ 04-04 は合計30000円なので除外される</p>`,
-  answer: `<pre><span class="cmt">-- CTEで日次集計を定義（WITH句は本体SELECTより前に書く）</span>
+  answer: `<pre><span class="cmt">-- WITH: CTE（一時テーブル）を定義し、処理を分割・名前付けする</span>
 <span class="kw">WITH</span> <span class="tbl">daily_stats</span> <span class="kw">AS</span> (
 
   <span class="cmt">-- ① orders テーブルを日付ごとに集計する</span>
-  <span class="kw">SELECT</span>
-    order_date,                           <span class="cmt">-- GROUP BY のキー（日付）</span>
-    <span class="fn">SUM</span>(amount)   <span class="kw">AS</span> total_sales,        <span class="cmt">-- SUM: その日の売上合計</span>
-    <span class="fn">COUNT</span>(<span class="op">*</span>)     <span class="kw">AS</span> order_count,        <span class="cmt">-- COUNT(*): 行数 = 注文件数</span>
-    <span class="fn">AVG</span>(amount)   <span class="kw">AS</span> avg_order           <span class="cmt">-- AVG: 平均注文額（SUM/COUNTと同じ）</span>
-  <span class="kw">FROM</span>      <span class="tbl">orders</span>                       <span class="cmt">-- FROM: どのテーブルから取るか</span>
-  <span class="kw">GROUP BY</span>  order_date                   <span class="cmt">-- GROUP BY: order_dateが同じ行をまとめる</span>
+  <span class="kw">SELECT</span>                       <span class="cmt">-- SELECT: 抽出・計算したい列を指定</span>
+    order_date,                <span class="cmt">-- GROUP BY のキー（集計の単位）</span>
+    <span class="fn">SUM</span>(amount)   <span class="kw">AS</span> total_sales, <span class="cmt">-- SUM(): 指定列の数値を合計する集計関数</span>
+    <span class="fn">COUNT</span>(<span class="op">*</span>)     <span class="kw">AS</span> order_count, <span class="cmt">-- COUNT(*): NULLを含む全行数を数える集計関数</span>
+    <span class="fn">AVG</span>(amount)   <span class="kw">AS</span> avg_order    <span class="cmt">-- AVG(): 指定列の平均値を計算する集計関数</span>
+  <span class="kw">FROM</span>      <span class="tbl">orders</span>             <span class="cmt">-- FROM: データを取得する元テーブルを指定</span>
+  <span class="kw">GROUP BY</span>  order_date         <span class="cmt">-- GROUP BY: 指定列（order_date）が同じ行を1グループに圧縮</span>
 
 )
 
 <span class="cmt">-- ② CTEの結果にフィルタと並び替えを適用する（本体SELECT）</span>
-<span class="kw">SELECT</span>
+<span class="kw">SELECT</span>                         <span class="cmt">-- SELECT: 最終的に出力する列を指定</span>
   order_date,
   total_sales,
   order_count,
   avg_order
-<span class="kw">FROM</span>     <span class="tbl">daily_stats</span>                    <span class="cmt">-- CTE名をテーブルのように使う</span>
-<span class="kw">WHERE</span>    total_sales <span class="op">>=</span> <span class="num">50000</span>           <span class="cmt">-- 集計値をWHEREで絞る（CTEのおかげで可能）</span>
-<span class="kw">ORDER BY</span> total_sales <span class="kw">DESC</span>;             <span class="cmt">-- DESC: 降順（大きい順）</span>
+<span class="kw">FROM</span>     <span class="tbl">daily_stats</span>           <span class="cmt">-- FROM: 上で作成したCTEをテーブルとして指定</span>
+<span class="kw">WHERE</span>    total_sales <span class="op">>=</span> <span class="num">50000</span>  <span class="cmt">-- WHERE: 条件を満たす行だけを抽出。GROUP BY済みの値で直接絞り込む</span>
+<span class="kw">ORDER BY</span> total_sales <span class="kw">DESC</span>;     <span class="cmt">-- ORDER BY: 抽出結果を並び替える。DESCは降順（大きい順）</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. CTE daily_stats: FROM orders → GROUP BY order_date
-                      → SUM / COUNT / AVG を日付ごとに計算
-  2. 本体:            FROM daily_stats → WHERE total_sales >= 50000
-  3. 本体:            ORDER BY total_sales DESC
-  ★ WHERE の前に GROUP BY が実行される（GROUP BY → WHERE ではなく FROM → WHERE → GROUP BY の順）
-  ★ ただしCTEの中の GROUP BY は CTEの外側から見ると「既に集計済み」なので
-    外側の WHERE で集計値（total_sales）を直接フィルタできる
+  【SQL文の実行順序】
+  1. (CTE内) FROM orders: 元データを読み込む
+  2. (CTE内) GROUP BY order_date: 日付ごとにデータをグループ化（圧縮）
+  3. (CTE内) SELECT: SUM/COUNT/AVG を計算し、daily_stats を作成
+  4. (本体)  FROM daily_stats: 作成したCTEを読み込む
+  5. (本体)  WHERE total_sales >= 50000: 条件に合致しない行を除外
+  6. (本体)  SELECT: 出力する列を確定
+  7. (本体)  ORDER BY total_sales DESC: 最終結果を並び替え
+
+  ★ 超基礎: WHERE の実行は GROUP BY より前に行われるため、WHERE 句内で直接 SUM() などの集計関数は使えません。
+  ★ CTEを使うことで、「集計（GROUP BY）」→「結果のフィルタ（WHERE）」という自然な順序で処理を書くことができます。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -408,50 +409,51 @@ const QS = [
 <tr class="tr-hi2"><td>2024-04</td><td class="tc-g">160000</td><td class="tc-hi">120000</td><td class="tc-g">+40000</td><td class="tc-g">33.33</td></tr>
 <tr class="tr-hi"><td>2024-05</td><td class="tc-g">145000</td><td class="tc-hi">160000</td><td class="tc-r">-15000</td><td class="tc-r">-9.38</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH</span> <span class="tbl">sales_with_prev</span> <span class="kw">AS</span> (
+  answer: `<pre><span class="cmt">-- WITH: 一連の処理を名前付きで定義（CTE）</span>
+<span class="kw">WITH</span> <span class="tbl">sales_with_prev</span> <span class="kw">AS</span> (
 
   <span class="cmt">-- ① LAGで前月売上を同じ行に引っ張る</span>
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span>                          <span class="cmt">-- SELECT: 取得する列を指定</span>
     month,
-    sales,                                   <span class="cmt">-- 当月売上</span>
-    <span class="fn">LAG</span>(sales, <span class="num">1</span>, <span class="num">0</span>) <span class="kw">OVER</span> (
-      <span class="kw">ORDER BY</span> month                         <span class="cmt">-- month昇順で「1行前」= 前月を決める</span>
-    ) <span class="kw">AS</span> prev_sales                          <span class="cmt">-- 前月がない先頭行はデフォルト値0</span>
-  <span class="kw">FROM</span> <span class="tbl">monthly_sales</span>                        <span class="cmt">-- FROM: 元テーブル</span>
+    sales,                        <span class="cmt">-- 当月売上</span>
+    <span class="fn">LAG</span>(sales, <span class="num">1</span>, <span class="num">0</span>) <span class="kw">OVER</span> (       <span class="cmt">-- LAG(列, オフセット, デフォルト値): 指定行前の値を取得</span>
+      <span class="kw">ORDER BY</span> month              <span class="cmt">-- ORDER BY: month昇順で並べた上で「1行前」を決定</span>
+    ) <span class="kw">AS</span> prev_sales               <span class="cmt">-- 前月がない先頭行はデフォルト値0が入る</span>
+  <span class="kw">FROM</span> <span class="tbl">monthly_sales</span>              <span class="cmt">-- FROM: 元テーブルを指定</span>
 
 )
 
-<span class="cmt">-- ② 差額・増減率を計算（prev_sales=0の場合はNULLにする）</span>
-<span class="kw">SELECT</span>
+<span class="cmt">-- ② 差額・増減率を計算</span>
+<span class="kw">SELECT</span>                            <span class="cmt">-- SELECT: 最終出力を指定</span>
   month,
   sales,
   prev_sales,
-  <span class="kw">CASE</span>
-    <span class="kw">WHEN</span> prev_sales <span class="op">=</span> <span class="num">0</span> <span class="kw">THEN</span> <span class="kw">NULL</span>           <span class="cmt">-- 前月なし（先頭行）はNULL</span>
-    <span class="kw">ELSE</span> sales <span class="op">-</span> prev_sales                  <span class="cmt">-- 差額（マイナスなら減少）</span>
+  <span class="kw">CASE</span>                            <span class="cmt">-- CASE WHEN: SQLにおける条件分岐（if-else）</span>
+    <span class="kw">WHEN</span> prev_sales <span class="op">=</span> <span class="num">0</span> <span class="kw">THEN</span> <span class="kw">NULL</span> <span class="cmt">-- 0の場合はNULLを返す（ゼロ除算防止）</span>
+    <span class="kw">ELSE</span> sales <span class="op">-</span> prev_sales       <span class="cmt">-- それ以外は差額を計算（+なら増加、-なら減少）</span>
   <span class="kw">END</span> <span class="kw">AS</span> diff,
   <span class="kw">CASE</span>
-    <span class="kw">WHEN</span> prev_sales <span class="op">=</span> <span class="num">0</span> <span class="kw">THEN</span> <span class="kw">NULL</span>           <span class="cmt">-- 前月なし（先頭行）はNULL</span>
+    <span class="kw">WHEN</span> prev_sales <span class="op">=</span> <span class="num">0</span> <span class="kw">THEN</span> <span class="kw">NULL</span>
     <span class="kw">ELSE</span>
-      <span class="fn">ROUND</span>(                                 <span class="cmt">-- ROUND: 小数点を四捨五入</span>
-        (sales <span class="op">-</span> prev_sales) <span class="op">::</span> <span class="fn">numeric</span>    <span class="cmt">-- ::numeric: 整数を数値型にキャスト（PostgreSQL記法）</span>
-        <span class="op">/</span> prev_sales <span class="op">*</span> <span class="num">100</span>,                 <span class="cmt">-- 増減率(%) = (差額 / 前月) × 100</span>
-        <span class="num">2</span>                                    <span class="cmt">-- 小数第2位まで</span>
+      <span class="fn">ROUND</span>(                      <span class="cmt">-- ROUND(値, 桁数): 小数点を四捨五入する関数</span>
+        (sales <span class="op">-</span> prev_sales) <span class="op">::</span> <span class="fn">numeric</span> <span class="cmt">-- ::numeric: 整数同士の割り算で切り捨てられないよう小数型に変換</span>
+        <span class="op">/</span> prev_sales <span class="op">*</span> <span class="num">100</span>,       <span class="cmt">-- 演算子(/は割り算, *は掛け算)</span>
+        <span class="num">2</span>                         <span class="cmt">-- 小数第2位まで表示</span>
       )
   <span class="kw">END</span> <span class="kw">AS</span> growth_rate
-<span class="kw">FROM</span>     <span class="tbl">sales_with_prev</span>
-<span class="kw">ORDER BY</span> month;                             <span class="cmt">-- 月昇順で並べる</span>
+<span class="kw">FROM</span>     <span class="tbl">sales_with_prev</span>          <span class="cmt">-- FROM: 上で定義したCTEを指定</span>
+<span class="kw">ORDER BY</span> month;                   <span class="cmt">-- ORDER BY: 月の昇順（ASC省略）で並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. CTE sales_with_prev: FROM monthly_sales
-                          → LAG(sales,1,0) OVER(ORDER BY month)
-                          → 各行に prev_sales 列を追加
-  2. 本体:                FROM sales_with_prev
-                          → CASE WHEN で diff / growth_rate を計算
-  3. 本体:                ORDER BY month
-  ★ ウィンドウ関数（LAG）は行を消さない（GROUP BYと違い全行が残る）
-  ★ CASE WHEN THEN ELSE END は条件分岐（if-elseに相当）
+  【SQL文の実行順序】
+  1. (CTE内) FROM monthly_sales: 元データを読み込む
+  2. (CTE内) SELECT (ウィンドウ関数): ORDER BY month の順序で LAG を計算し、prev_sales を各行に付与
+  3. (本体)  FROM sales_with_prev: CTEを読み込む
+  4. (本体)  SELECT: CASE WHEN を用いて各行の diff と growth_rate を計算
+  5. (本体)  ORDER BY month: 最終出力を月順に並び替え
+
+  ★ 超基礎: ウィンドウ関数（OVER句）は、GROUP BYと異なり「行を圧縮せずに（元の行数を保ったまま）」集計や参照が可能です。
+  ★ CASE WHEN THEN ELSE END は1セットです。ELSE を書き忘れると条件不一致時に NULL になります。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -551,40 +553,39 @@ const QS = [
 <tr><td>2024-05</td><td class="tc-g">130000</td><td class="tc-hi">580000</td><td class="tc-y">126666.7</td></tr>
 <tr><td>2024-06</td><td class="tc-g">170000</td><td class="tc-hi">750000</td><td class="tc-y">150000.0</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                            <span class="cmt">-- SELECT: 抽出・計算する列を指定</span>
   month,
   sales,
 
   <span class="cmt">-- ① 累計売上: 先頭行から現在行までのSUMを各行に付加</span>
-  <span class="fn">SUM</span>(sales) <span class="kw">OVER</span> (
-    <span class="kw">ORDER BY</span>     month                      <span class="cmt">-- month昇順で行を並べる</span>
-    <span class="kw">ROWS BETWEEN</span> <span class="kw">UNBOUNDED PRECEDING</span>       <span class="cmt">-- UNBOUNDED PRECEDING = 先頭行から</span>
-             <span class="kw">AND</span> <span class="kw">CURRENT ROW</span>               <span class="cmt">-- CURRENT ROW = 現在の行まで（累計の定義）</span>
+  <span class="fn">SUM</span>(sales) <span class="kw">OVER</span> (               <span class="cmt">-- SUM() OVER(): 行を維持したまま合計値を算出するウィンドウ関数</span>
+    <span class="kw">ORDER BY</span>     month            <span class="cmt">-- ORDER BY: month昇順で対象行を並べる</span>
+    <span class="kw">ROWS BETWEEN</span> <span class="kw">UNBOUNDED PRECEDING</span> <span class="cmt">-- ROWS BETWEEN: 物理的な行数で計算範囲（ウィンドウ）を指定。UNBOUNDED PRECEDING = 先頭行から</span>
+             <span class="kw">AND</span> <span class="kw">CURRENT ROW</span>      <span class="cmt">-- CURRENT ROW = 現在行まで。これで「累計」になる</span>
   ) <span class="kw">AS</span> running_total,
 
-  <span class="cmt">-- ② 3ヶ月移動平均: 2行前〜現在行の平均（最大3行、足りない場合は存在する行のみ）</span>
-  <span class="fn">ROUND</span>(
-    <span class="fn">AVG</span>(sales) <span class="kw">OVER</span> (
-      <span class="kw">ORDER BY</span>     month                    <span class="cmt">-- month昇順</span>
-      <span class="kw">ROWS BETWEEN</span> <span class="num">2</span> <span class="kw">PRECEDING</span>             <span class="cmt">-- 2 PRECEDING = 2行前から</span>
-               <span class="kw">AND</span> <span class="kw">CURRENT ROW</span>             <span class="cmt">-- 現在行まで（= 最大3行の平均）</span>
-    ) <span class="op">::</span> <span class="fn">numeric</span>,                          <span class="cmt">-- numeric型にキャストしてROUNDを適用</span>
-    <span class="num">1</span>                                        <span class="cmt">-- 小数第1位まで四捨五入</span>
+  <span class="cmt">-- ② 3ヶ月移動平均: 2行前〜現在行の平均（最大3行）</span>
+  <span class="fn">ROUND</span>(                          <span class="cmt">-- ROUND(): 計算結果を指定した桁数で四捨五入</span>
+    <span class="fn">AVG</span>(sales) <span class="kw">OVER</span> (             <span class="cmt">-- AVG() OVER(): ウィンドウ内の平均値を算出</span>
+      <span class="kw">ORDER BY</span>     month
+      <span class="kw">ROWS BETWEEN</span> <span class="num">2</span> <span class="kw">PRECEDING</span>    <span class="cmt">-- 2 PRECEDING = 2行前から</span>
+               <span class="kw">AND</span> <span class="kw">CURRENT ROW</span>    <span class="cmt">-- CURRENT ROW = 現在行まで（計3行分の平均）</span>
+    ) <span class="op">::</span> <span class="fn">numeric</span>,                 <span class="cmt">-- ::numeric: 整数を数値型（小数許容）にキャスト</span>
+    <span class="num">1</span>                             <span class="cmt">-- 小数第1位まで</span>
   ) <span class="kw">AS</span> moving_avg_3m
 
-<span class="kw">FROM</span>     <span class="tbl">monthly_sales</span>                     <span class="cmt">-- FROM: 元テーブル（CTEなしでも書ける）</span>
-<span class="kw">ORDER BY</span> month;                             <span class="cmt">-- 月昇順で返す</span>
+<span class="kw">FROM</span>     <span class="tbl">monthly_sales</span>            <span class="cmt">-- FROM: 対象テーブルを指定</span>
+<span class="kw">ORDER BY</span> month;                   <span class="cmt">-- ORDER BY: 最終出力を月昇順で並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. FROM monthly_sales で全行読み込む
-  2. ウィンドウ関数（SUM OVER / AVG OVER）を ORDER BY month で並べた上で各行に計算
-     ・running_total: UNBOUNDED PRECEDING〜CURRENT ROW（累計）
-     ・moving_avg_3m: 2 PRECEDING〜CURRENT ROW（直近3行の平均）
-  3. ROUND で四捨五入
-  4. ORDER BY month で最終出力を並べる
-  ★ ウィンドウ関数は行を消さず、計算結果を各行に付け加える
-  ★ ROWS BETWEEN の範囲は ORDER BY の順序に従って決まる
+  【SQL文の実行順序】
+  1. FROM monthly_sales: 対象テーブルから全行を読み込む
+  2. ウィンドウ関数 (SUM OVER / AVG OVER): 
+     ORDER BY month の順序で並べ、ROWS BETWEEN で指定された行範囲（先頭〜現在行、2行前〜現在行）の計算を各行に対して実行
+  3. SELECT: 各列の値を確定（ROUND などの関数もここで評価）
+  4. ORDER BY month: 最終結果を並び替え
+
+  ★ 超基礎: ウィンドウ関数は SELECT 句（または ORDER BY 句）の中でのみ使用可能です。WHERE 句の中で直接使うことはできません。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -675,41 +676,42 @@ const QS = [
 <tr class="tr-hi2"><td>飲料</td><td>コーヒー</td><td class="tc-g">78000</td><td class="tc-hi">2</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px;">※ バナナ・みかんは同率62000だが ROW_NUMBER はどちらか一方のみを2位にする（内部順序に依存）</p>`,
-  answer: `<pre><span class="kw">WITH</span> <span class="tbl">ranked_products</span> <span class="kw">AS</span> (
+  answer: `<pre><span class="cmt">-- WITH: 一時的な結果セット（CTE）を定義する</span>
+<span class="kw">WITH</span> <span class="tbl">ranked_products</span> <span class="kw">AS</span> (
 
   <span class="cmt">-- ① 全商品に「カテゴリ内の売上順位」を付ける</span>
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span>                          <span class="cmt">-- SELECT: 出力列の指定</span>
     category,
     product_name,
     sales,
-    <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (
-      <span class="kw">PARTITION BY</span> category              <span class="cmt">-- category が同じ行をグループ化して番号をリセット</span>
-      <span class="kw">ORDER BY</span>     sales <span class="kw">DESC</span>          <span class="cmt">-- 売上の高い順に1,2,3...と番号を振る</span>
-    ) <span class="kw">AS</span> rn                              <span class="cmt">-- rn: row_number の略称</span>
-  <span class="kw">FROM</span> <span class="tbl">product_sales</span>                    <span class="cmt">-- FROM: 元テーブル</span>
+    <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (           <span class="cmt">-- ROW_NUMBER() OVER(): 1から始まる連番を振るウィンドウ関数</span>
+      <span class="kw">PARTITION BY</span> category       <span class="cmt">-- PARTITION BY: category（カテゴリ）ごとに独立して番号をリセットする（超重要）</span>
+      <span class="kw">ORDER BY</span>     sales <span class="kw">DESC</span>     <span class="cmt">-- ORDER BY: 売上(sales)の降順(DESC)で順位付けする</span>
+    ) <span class="kw">AS</span> rn                       <span class="cmt">-- 順位を rn という列名にする</span>
+  <span class="kw">FROM</span> <span class="tbl">product_sales</span>              <span class="cmt">-- FROM: 元テーブルの指定</span>
 
 )
 
 <span class="cmt">-- ② 各カテゴリの上位2件（rn <= 2）だけを取り出す</span>
-<span class="kw">SELECT</span>
+<span class="kw">SELECT</span>                            <span class="cmt">-- SELECT: 最終出力列の指定</span>
   category,
   product_name,
   sales,
   rn
-<span class="kw">FROM</span>     <span class="tbl">ranked_products</span>
-<span class="kw">WHERE</span>    rn <span class="op"><=</span> <span class="num">2</span>                        <span class="cmt">-- rn=1（1位）とrn=2（2位）のみ残す</span>
-<span class="kw">ORDER BY</span> category, rn;                  <span class="cmt">-- カテゴリ→順位の順で並べる</span>
+<span class="kw">FROM</span>     <span class="tbl">ranked_products</span>          <span class="cmt">-- FROM: 上で定義した CTE を指定</span>
+<span class="kw">WHERE</span>    rn <span class="op"><=</span> <span class="num">2</span>                  <span class="cmt">-- WHERE: 順位(rn)が2以下の行だけを抽出（フィルタリング）</span>
+<span class="kw">ORDER BY</span> category, rn;            <span class="cmt">-- ORDER BY: カテゴリの昇順、その中で順位(rn)の昇順に並べる</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. CTE: FROM product_sales
-          → ROW_NUMBER() OVER(PARTITION BY category ORDER BY sales DESC)
-          → 各行に「カテゴリ内での売上順位」rn を付加
-  2. 本体: FROM ranked_products → WHERE rn <= 2
-  3. 本体: ORDER BY category, rn
-  ★ ROW_NUMBER の結果（rn列）をWHEREで使うにはCTEが必要
-    （ウィンドウ関数の結果を同じSELECTのWHEREでは直接使えない）
-  ★ PARTITION BY がないと全行を1グループとして扱い、上位2件だけが抽出される
+  【SQL文の実行順序】
+  1. (CTE内) FROM product_sales: テーブルデータを読み込む
+  2. (CTE内) SELECT (ウィンドウ関数): PARTITION BY でカテゴリ毎に分け、ORDER BY sales DESC の順に ROW_NUMBER で連番を付与
+  3. (本体)  FROM ranked_products: 順位が付与されたCTEを読み込む
+  4. (本体)  WHERE rn <= 2: 順位が3位以下の行を除外する
+  5. (本体)  SELECT: 出力列を確定
+  6. (本体)  ORDER BY category, rn: 最終結果を並び替え
+
+  ★ 超基礎: ウィンドウ関数で生成した値（rn）は、同じ SELECT レベルの WHERE 句では使えません。必ず CTE やサブクエリで「一度確定」させてから、外側の WHERE で絞り込みます。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -797,11 +799,11 @@ const QS = [
 <tr class="tr-hi"><td>田中</td><td class="tc-g">2</td><td class="tc-hi">1</td><td class="tc-y">1</td><td class="tc-p">4</td></tr>
 <tr><td>鈴木</td><td class="tc-g">1</td><td class="tc-hi">2</td><td class="tc-y">0</td><td class="tc-p">3</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">SELECT</span>
-  assignee,                                             <span class="cmt">-- GROUP BY のキー（担当者）</span>
+  answer: `<pre><span class="kw">SELECT</span>                                                  <span class="cmt">-- SELECT: 出力する列を指定</span>
+  assignee,                                             <span class="cmt">-- GROUP BY のキー列（担当者）</span>
 
   <span class="cmt">-- ① 完了タスク件数: status='完了'の行だけ1、それ以外は0にして合計する</span>
-  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'完了'</span>  <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> done,
+  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'完了'</span>  <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> done, <span class="cmt">-- CASE WHEN: 行ごとに条件分岐。SUM(): それを合計（実質的な件数カウント）</span>
 
   <span class="cmt">-- ② 進行中タスク件数: status='進行中'の行だけ1にして合計</span>
   <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'進行中'</span> <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> in_progress,
@@ -809,22 +811,22 @@ const QS = [
   <span class="cmt">-- ③ 未着手タスク件数: status='未着手'の行だけ1にして合計</span>
   <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'未着手'</span> <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> not_started,
 
-  <span class="cmt">-- ④ 合計: 担当者の全タスク数（CASE WHENなしで全行カウント）</span>
-  <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> total
+  <span class="cmt">-- ④ 合計: 担当者の全タスク数（条件なしの全行カウント）</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> total                                     <span class="cmt">-- COUNT(*): 行の総数を数える</span>
 
-<span class="kw">FROM</span>     <span class="tbl">tasks</span>                                         <span class="cmt">-- FROM: 元テーブル</span>
-<span class="kw">GROUP BY</span> assignee                                       <span class="cmt">-- 担当者ごとに集計する</span>
-<span class="kw">ORDER BY</span> assignee;                                      <span class="cmt">-- 担当者名の昇順（デフォルトASC）</span>
+<span class="kw">FROM</span>     <span class="tbl">tasks</span>                                          <span class="cmt">-- FROM: 元テーブルの指定</span>
+<span class="kw">GROUP BY</span> assignee                                       <span class="cmt">-- GROUP BY: assignee（担当者）ごとにデータをグループ化</span>
+<span class="kw">ORDER BY</span> assignee;                                      <span class="cmt">-- ORDER BY: 担当者名の昇順（ASCがデフォルト）で並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. FROM tasks で全行読み込む
-  2. GROUP BY assignee で担当者ごとにグループ化
-  3. 各グループに対して CASE WHEN + SUM を計算（ピボット）
-  4. ORDER BY assignee で並べる
-  ★ CASE WHEN THEN ELSE END は1行ごとに評価される条件分岐
-  ★ SUM(CASE WHEN ... THEN 1 ELSE 0 END) = 条件を満たす行数のカウント
-  ★ COUNT(*) FILTER (WHERE status='完了') と同じ意味（PostgreSQL記法）
+  【SQL文の実行順序】
+  1. FROM tasks: テーブルデータを読み込む
+  2. GROUP BY assignee: 同じ担当者の行を1つのグループに圧縮する
+  3. SELECT: 各グループに対して、CASE WHEN での条件判定と SUM()/COUNT(*) を実行（ピボット集計）
+  4. ORDER BY assignee: 最終結果を担当者名順に並び替え
+
+  ★ 超基礎: CASE WHEN THEN ELSE END は、条件に合致するかどうかで返す値を変える関数です。
+    これと SUM() を組み合わせることで、「条件を満たす行の数」を特定の列として展開する（ピボット）ことができます。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -915,18 +917,19 @@ const QS = [
 <tr><td>U02</td><td class="tc-hi">2</td><td class="tc-g">2</td><td class="tc-y">3</td><td class="tc-p">7</td><td class="tc-o">優良</td></tr>
 <tr class="tr-dim"><td>U03</td><td class="tc-hi">1</td><td class="tc-g">1</td><td class="tc-y">1</td><td class="tc-p">3</td><td class="tc-r">一般</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH</span>
+  answer: `<pre><span class="cmt">-- WITH: 複数のCTE（一時テーブル）をカンマ区切りで連続して定義できる</span>
+<span class="kw">WITH</span>
 
 <span class="cmt">-- ① ユーザーごとの生集計（R/F/Mの元データを計算）</span>
 <span class="tbl">rfm_raw</span> <span class="kw">AS</span> (
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span>                                                        <span class="cmt">-- SELECT: 集計する列を指定</span>
     user_id,
     <span class="cmt">-- R: 基準日 - 最終購買日の日数（小さいほど最近 = 良い）</span>
-    <span class="str">'2024-05-01'</span> <span class="op">::</span><span class="fn">date</span> <span class="op">-</span> <span class="fn">MAX</span>(order_date)   <span class="kw">AS</span> recency_days, <span class="cmt">-- 日付の差（日数）</span>
-    <span class="fn">COUNT</span>(<span class="op">*</span>)                                  <span class="kw">AS</span> frequency,    <span class="cmt">-- 購買回数</span>
-    <span class="fn">SUM</span>(amount)                                <span class="kw">AS</span> monetary      <span class="cmt">-- 購買金額合計</span>
-  <span class="kw">FROM</span>     <span class="tbl">orders</span>
-  <span class="kw">GROUP BY</span> user_id                                              <span class="cmt">-- ユーザーごとに集計</span>
+    <span class="str">'2024-05-01'</span> <span class="op">::</span><span class="fn">date</span> <span class="op">-</span> <span class="fn">MAX</span>(order_date)   <span class="kw">AS</span> recency_days, <span class="cmt">-- MAX(): グループ内の最大値(最新日)。日付同士の引き算で日数を算出</span>
+    <span class="fn">COUNT</span>(<span class="op">*</span>)                                  <span class="kw">AS</span> frequency,    <span class="cmt">-- COUNT(*): グループ内の行数（購買回数）</span>
+    <span class="fn">SUM</span>(amount)                                <span class="kw">AS</span> monetary      <span class="cmt">-- SUM(): 金額の合計</span>
+  <span class="kw">FROM</span>     <span class="tbl">orders</span>                                               <span class="cmt">-- FROM: 元テーブルを指定</span>
+  <span class="kw">GROUP BY</span> user_id                                              <span class="cmt">-- GROUP BY: ユーザー単位でグループ化</span>
 ),
 
 <span class="cmt">-- ② 各指標をスコア（1〜3）に変換</span>
@@ -934,7 +937,7 @@ const QS = [
   <span class="kw">SELECT</span>
     user_id,
     <span class="cmt">-- R スコア: 日数が少ない（最近）ほど高得点</span>
-    <span class="kw">CASE</span>
+    <span class="kw">CASE</span>                                         <span class="cmt">-- CASE WHEN: 条件によってスコアを出し分ける</span>
       <span class="kw">WHEN</span> recency_days <span class="op"><=</span> <span class="num">30</span> <span class="kw">THEN</span> <span class="num">3</span>           <span class="cmt">-- 30日以内 → 3点</span>
       <span class="kw">WHEN</span> recency_days <span class="op"><=</span> <span class="num">60</span> <span class="kw">THEN</span> <span class="num">2</span>           <span class="cmt">-- 60日以内 → 2点</span>
       <span class="kw">ELSE</span> <span class="num">1</span>                                     <span class="cmt">-- それ以外 → 1点</span>
@@ -951,7 +954,7 @@ const QS = [
       <span class="kw">WHEN</span> monetary <span class="op">>=</span>  <span class="num">50000</span> <span class="kw">THEN</span> <span class="num">2</span>           <span class="cmt">-- 5万以上 → 2点</span>
       <span class="kw">ELSE</span> <span class="num">1</span>                                     <span class="cmt">-- それ以外 → 1点</span>
     <span class="kw">END</span> <span class="kw">AS</span> m_score
-  <span class="kw">FROM</span> <span class="tbl">rfm_raw</span>                                 <span class="cmt">-- ①のCTE（rfm_raw）を参照</span>
+  <span class="kw">FROM</span> <span class="tbl">rfm_raw</span>                                   <span class="cmt">-- FROM: ①のCTE（rfm_raw）を指定。前のステップの結果を参照できる</span>
 )
 
 <span class="cmt">-- ③ 合計スコアを算出してセグメントを決定</span>
@@ -960,24 +963,26 @@ const QS = [
   r_score,
   f_score,
   m_score,
-  r_score <span class="op">+</span> f_score <span class="op">+</span> m_score <span class="kw">AS</span> total_score,  <span class="cmt">-- R+F+Mの合計（最大9点）</span>
+  r_score <span class="op">+</span> f_score <span class="op">+</span> m_score <span class="kw">AS</span> total_score,    <span class="cmt">-- 列同士を足し算して合計スコアを算出</span>
   <span class="kw">CASE</span>
-    <span class="kw">WHEN</span> r_score <span class="op">+</span> f_score <span class="op">+</span> m_score <span class="op">>=</span> <span class="num">8</span> <span class="kw">THEN</span> <span class="str">'VIP'</span>    <span class="cmt">-- 8点以上 → VIP</span>
-    <span class="kw">WHEN</span> r_score <span class="op">+</span> f_score <span class="op">+</span> m_score <span class="op">>=</span> <span class="num">6</span> <span class="kw">THEN</span> <span class="str">'優良'</span>   <span class="cmt">-- 6点以上 → 優良</span>
-    <span class="kw">ELSE</span> <span class="str">'一般'</span>                                          <span class="cmt">-- それ以外 → 一般</span>
+    <span class="kw">WHEN</span> r_score <span class="op">+</span> f_score <span class="op">+</span> m_score <span class="op">>=</span> <span class="num">8</span> <span class="kw">THEN</span> <span class="str">'VIP'</span>  <span class="cmt">-- 再度CASE WHENで最終セグメントを決定</span>
+    <span class="kw">WHEN</span> r_score <span class="op">+</span> f_score <span class="op">+</span> m_score <span class="op">>=</span> <span class="num">6</span> <span class="kw">THEN</span> <span class="str">'優良'</span>
+    <span class="kw">ELSE</span> <span class="str">'一般'</span>
   <span class="kw">END</span> <span class="kw">AS</span> segment
-<span class="kw">FROM</span>     <span class="tbl">rfm_scored</span>                                    <span class="cmt">-- ②のCTEを参照</span>
-<span class="kw">ORDER BY</span> total_score <span class="kw">DESC</span>;                             <span class="cmt">-- 合計スコア降順で返す</span>
+<span class="kw">FROM</span>     <span class="tbl">rfm_scored</span>                                    <span class="cmt">-- FROM: ②のCTE（rfm_scored）を指定</span>
+<span class="kw">ORDER BY</span> total_score <span class="kw">DESC</span>;                             <span class="cmt">-- ORDER BY: 合計スコアの降順で並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. CTE rfm_raw:    FROM orders → GROUP BY user_id
-                     → MAX(order_date), COUNT(*), SUM(amount)
-  2. CTE rfm_scored: FROM rfm_raw → CASE WHEN でR/F/Mを各1〜3点に変換
-  3. 本体:           FROM rfm_scored → r+f+m で total_score → CASE WHEN でsegment
-  4. 本体:           ORDER BY total_score DESC
-  ★ CTE は上から順に定義し、後のCTEから前のCTEを参照できる（逆順は不可）
-  ★ 複数CTEはWITH の後にカンマ区切りで列挙する
+  【SQL文の実行順序】
+  1. (CTE rfm_raw) FROM orders: データを読み込み
+  2. (CTE rfm_raw) GROUP BY user_id: ユーザー毎に集計(MAX/COUNT/SUM)
+  3. (CTE rfm_scored) FROM rfm_raw: 1の結果を読み込み、CASE WHEN でスコア化
+  4. (本体) FROM rfm_scored: 2の結果を読み込む
+  5. (本体) SELECT: 合計スコアを計算し、セグメントを決定
+  6. (本体) ORDER BY total_score DESC: 最終並び替え
+
+  ★ 超基礎: WITH 句で複数CTEを定義する場合、各CTEの間に「, (カンマ)」が必要です。
+    最後のCTEと本体SELECTの間にはカンマを書きません。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1076,41 +1081,43 @@ const QS = [
 <tr class="tr-dim"><td>G02</td><td>Iris</td><td class="tc-g">4800</td><td class="tc-r">4→除外</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px;">※ G01のEve(7100)はDENSE_RANK=4なので除外。G02のIris(4800)はDENSE_RANK=3だが今回の出力例から除外</p>`,
-  answer: `<pre><span class="kw">WITH</span> <span class="tbl">ranked_scores</span> <span class="kw">AS</span> (
+  answer: `<pre><span class="cmt">-- WITH: 一時テーブル(CTE)の定義</span>
+<span class="kw">WITH</span> <span class="tbl">ranked_scores</span> <span class="kw">AS</span> (
 
   <span class="cmt">-- ① ゲームごとにDENSE_RANKで順位を付ける</span>
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span>                          <span class="cmt">-- SELECT: 出力する列を指定</span>
     game_id,
     player_name,
     score,
-    <span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (
-      <span class="kw">PARTITION BY</span> game_id              <span class="cmt">-- ゲームごとに独立して順位を付ける</span>
-      <span class="kw">ORDER BY</span>     score <span class="kw">DESC</span>          <span class="cmt">-- スコア降順（高い方が1位）</span>
-    ) <span class="kw">AS</span> rank                           <span class="cmt">-- 同率は同順位、番号は飛ばさない</span>
-  <span class="kw">FROM</span> <span class="tbl">game_scores</span>                     <span class="cmt">-- FROM: 元テーブル</span>
+    <span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (           <span class="cmt">-- DENSE_RANK() OVER(): 同率同順位かつ番号を飛ばさない順位付け関数</span>
+      <span class="kw">PARTITION BY</span> game_id        <span class="cmt">-- PARTITION BY: game_id（ゲーム）ごとに独立して順位を付ける</span>
+      <span class="kw">ORDER BY</span>     score <span class="kw">DESC</span>     <span class="cmt">-- ORDER BY: スコアの高い順(降順)に順位を計算</span>
+    ) <span class="kw">AS</span> rank                     <span class="cmt">-- 算出した順位に rank という列名を付ける</span>
+  <span class="kw">FROM</span> <span class="tbl">game_scores</span>                <span class="cmt">-- FROM: 元テーブルを指定</span>
 
 )
 
 <span class="cmt">-- ② 3位以内（rank <= 3）を取り出す</span>
-<span class="kw">SELECT</span>
+<span class="kw">SELECT</span>                            <span class="cmt">-- SELECT: 最終出力する列</span>
   game_id,
   player_name,
   score,
   rank
-<span class="kw">FROM</span>     <span class="tbl">ranked_scores</span>
-<span class="kw">WHERE</span>    rank <span class="op"><=</span> <span class="num">3</span>                     <span class="cmt">-- DENSE_RANK が 3 以下の全員を返す</span>
-<span class="kw">ORDER BY</span> game_id, rank, score <span class="kw">DESC</span>;  <span class="cmt">-- ゲーム→順位→スコア降順で並べる</span>
+<span class="kw">FROM</span>     <span class="tbl">ranked_scores</span>            <span class="cmt">-- FROM: 作成したCTEを指定</span>
+<span class="kw">WHERE</span>    rank <span class="op"><=</span> <span class="num">3</span>                  <span class="cmt">-- WHERE: DENSE_RANK が 3 以下の行だけを抽出（同率がいれば4人以上になることも）</span>
+<span class="kw">ORDER BY</span> game_id, rank, score <span class="kw">DESC</span>; <span class="cmt">-- ORDER BY: ゲームIDの昇順 → 順位の昇順 → スコアの降順</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. CTE: FROM game_scores
-          → DENSE_RANK() OVER(PARTITION BY game_id ORDER BY score DESC)
-          → 各行に game_id 内での順位を付加
-  2. 本体: FROM ranked_scores → WHERE rank <= 3
-  3. 本体: ORDER BY game_id, rank, score DESC
-  ★ DENSE_RANK: 同率は同順位、次の番号は飛ばさない（1,2,2,3,4...）
-  ★ RANK:       同率は同順位、次の番号を飛ばす（1,2,2,4...）
-  ★ ROW_NUMBER: 同率でも強制連番（1,2,3,4...）
+  【SQL文の実行順序】
+  1. (CTE内) FROM game_scores: データを読み込む
+  2. (CTE内) SELECT (ウィンドウ関数): PARTITION BY でゲーム毎に分け、ORDER BY score DESC の順で DENSE_RANK を計算
+  3. (本体)  FROM ranked_scores: CTEを読み込む
+  4. (本体)  WHERE rank <= 3: 算出した順位でフィルタリング（同率3位までが残る）
+  5. (本体)  SELECT: 出力列を確定
+  6. (本体)  ORDER BY: 指定したキー順に並び替え
+
+  ★ 超基礎: ウィンドウ関数内の ORDER BY は「順位付けの基準」、
+    一番最後の ORDER BY は「出力結果の見た目の並び順」です。役割が全く異なります。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1209,38 +1216,40 @@ const QS = [
 <tr><td>2024-05</td><td class="tc-g">100000</td><td class="tc-hi">2</td></tr>
 <tr><td>2024-06</td><td class="tc-g">90000</td><td class="tc-hi">1</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH</span>
+  answer: `<pre><span class="cmt">-- WITH: 一時テーブル(CTE)の定義</span>
+<span class="kw">WITH</span>
 
 <span class="cmt">-- ① orders を月ごとに集計（売上がある月のみ）</span>
 <span class="tbl">monthly_agg</span> <span class="kw">AS</span> (
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span>                          <span class="cmt">-- SELECT: 集計列を指定</span>
     order_month,
-    <span class="fn">SUM</span>(amount)   <span class="kw">AS</span> total_sales,          <span class="cmt">-- 月の売上合計</span>
-    <span class="fn">COUNT</span>(<span class="op">*</span>)     <span class="kw">AS</span> order_count           <span class="cmt">-- 月の注文件数</span>
-  <span class="kw">FROM</span>     <span class="tbl">orders</span>
-  <span class="kw">GROUP BY</span> order_month                      <span class="cmt">-- 月ごとにまとめる</span>
+    <span class="fn">SUM</span>(amount)  <span class="kw">AS</span> total_sales,  <span class="cmt">-- SUM(): 月の売上合計</span>
+    <span class="fn">COUNT</span>(<span class="op">*</span>)     <span class="kw">AS</span> order_count   <span class="cmt">-- COUNT(*): 月の注文件数</span>
+  <span class="kw">FROM</span>     <span class="tbl">orders</span>                 <span class="cmt">-- FROM: 売上データのテーブル</span>
+  <span class="kw">GROUP BY</span> order_month            <span class="cmt">-- GROUP BY: 月ごとにデータをまとめる</span>
 )
 
 <span class="cmt">-- ② 全月マスタに売上集計を LEFT JOIN（売上ゼロ月は NULL になる）</span>
-<span class="kw">SELECT</span>
+<span class="kw">SELECT</span>                            <span class="cmt">-- SELECT: 最終出力列</span>
   m.month,
-  <span class="fn">COALESCE</span>(a.total_sales,  <span class="num">0</span>) <span class="kw">AS</span> total_sales,  <span class="cmt">-- NULLなら0（売上ゼロ補完）</span>
-  <span class="fn">COALESCE</span>(a.order_count, <span class="num">0</span>) <span class="kw">AS</span> order_count    <span class="cmt">-- NULLなら0（件数ゼロ補完）</span>
-<span class="kw">FROM</span>       <span class="tbl">month_master</span> m                        <span class="cmt">-- 左テーブル: 全月リスト（基準）</span>
-<span class="kw">LEFT JOIN</span>  <span class="tbl">monthly_agg</span>  a                        <span class="cmt">-- 右テーブル: 売上ありの月のみ</span>
-        <span class="kw">ON</span> m.month <span class="op">=</span> a.order_month               <span class="cmt">-- 月で突合（一致しない月はNULL）</span>
-<span class="kw">ORDER BY</span>   m.month;                              <span class="cmt">-- 月昇順で返す</span>
+  <span class="fn">COALESCE</span>(a.total_sales,  <span class="num">0</span>) <span class="kw">AS</span> total_sales, <span class="cmt">-- COALESCE(): 最初の引数がNULLなら、2番目の引数(0)を返す。欠損補完の要</span>
+  <span class="fn">COALESCE</span>(a.order_count, <span class="num">0</span>) <span class="kw">AS</span> order_count   <span class="cmt">-- NULLを0に置き換える</span>
+<span class="kw">FROM</span>       <span class="tbl">month_master</span> m         <span class="cmt">-- FROM: 左テーブル(全月リスト)。"m" はテーブルの別名(エイリアス)</span>
+<span class="kw">LEFT JOIN</span>  <span class="tbl">monthly_agg</span>  a         <span class="cmt">-- LEFT JOIN: 左テーブルの全行を残しつつ、右テーブル(売上データ)を結合する</span>
+        <span class="kw">ON</span> m.month <span class="op">=</span> a.order_month <span class="cmt">-- ON: 結合条件。月が一致する行をくっつける。一致しない月は右側がNULLになる</span>
+<span class="kw">ORDER BY</span>   m.month;               <span class="cmt">-- ORDER BY: 月昇順で並び替え</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. CTE monthly_agg: FROM orders → GROUP BY order_month
-                      → SUM / COUNT（売上ある月のみ: 4行）
-  2. 本体:            FROM month_master LEFT JOIN monthly_agg ON month
-                      → 左テーブル（6行）を基準、売上ない月はNULLで残る
-  3. 本体:            COALESCE(NULL, 0) → 0 に置き換え
-  4. 本体:            ORDER BY month
-  ★ LEFT JOIN: 左テーブルの全行 + 右テーブルに一致する行（なければNULL）
-  ★ COALESCE(x, y): x が NULL なら y を返す（NULL安全な置き換え）
+  【SQL文の実行順序】
+  1. (CTE内) FROM orders: データを読み込み
+  2. (CTE内) GROUP BY order_month: 月ごとに集計
+  3. (本体)  FROM month_master m LEFT JOIN monthly_agg a ON m.month = a.order_month:
+     全月マスタを基準に、集計した売上データを結合（売上がない月は右側が全てNULLになる）
+  4. (本体)  SELECT: COALESCE関数を使って、結合によって発生したNULLを0に変換
+  5. (本体)  ORDER BY m.month: 結果を並び替え
+
+  ★ 超基礎: LEFT JOIN は「左側に書いたテーブル(month_master)の行は絶対に消さない」という結合方法です。
+    INNER JOIN を使うと、売上データが存在しない月は結果から消滅してしまいます。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1291,7 +1300,7 @@ const QS = [
   num: 9,
   title: "FIRST_VALUE() / LAST_VALUE() — 初回購買と最終購買を同じ行に並べる",
   tags: [["r","FIRST_VALUE"],["r","LAST_VALUE"],["g","初回/最終"],["o","購買分析"]],
-  premise: `<p><strong>FIRST_VALUE() / LAST_VALUE()</strong> は、ウィンドウの最初・最後の行の値を取得します。「各ユーザーの初回購買商品と最終購買商品を同じ行に表示する」などの購買履歴分析に使います。</p>
+  premise: `<p><strong>FIRST_VALUE() / LAST_VALUE()</strong> は、ウィンドウの最初・最後の行延を取得します。「各ユーザーの初回購買商品と最終購買商品を同じ行に表示する」などの購買履歴分析に使います。</p>
 <pre><span class="fn">FIRST_VALUE</span>(product) <span class="kw">OVER</span> (
   <span class="kw">PARTITION BY</span> user_id          <span class="cmt">-- ユーザーごとに独立</span>
   <span class="kw">ORDER BY</span>     order_date        <span class="cmt">-- 日付昇順 → 最初の行が初回購買</span>
@@ -1328,32 +1337,33 @@ const QS = [
 <tr><td>U02</td><td class="tc-hi">2024-01-15</td><td class="tc-g">緑茶</td><td class="tc-y">2024-03-30</td><td class="tc-p">コーヒー</td></tr>
 <tr><td>U03</td><td class="tc-hi">2024-02-01</td><td class="tc-g">水</td><td class="tc-y">2024-02-01</td><td class="tc-p">水</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH</span> <span class="tbl">purchase_ranked</span> <span class="kw">AS</span> (
+  answer: `<pre><span class="cmt">-- WITH: 一時テーブル(CTE)の定義</span>
+<span class="kw">WITH</span> <span class="tbl">purchase_ranked</span> <span class="kw">AS</span> (
 
   <span class="cmt">-- ① 各行に「初回購買情報」と「最終購買情報」を付加する</span>
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span>                          <span class="cmt">-- SELECT: 出力列</span>
     user_id,
     order_date,
     product,
 
-    <span class="cmt">-- 初回購買日（ユーザーごとに最古のorder_date）</span>
-    <span class="fn">FIRST_VALUE</span>(order_date) <span class="kw">OVER</span> (
-      <span class="kw">PARTITION BY</span> user_id               <span class="cmt">-- ユーザーごとに独立</span>
-      <span class="kw">ORDER BY</span>     order_date             <span class="cmt">-- 昇順の先頭行 = 初回</span>
+    <span class="cmt">-- 初回購買日</span>
+    <span class="fn">FIRST_VALUE</span>(order_date) <span class="kw">OVER</span> (<span class="cmt">-- FIRST_VALUE(): ウィンドウ内の先頭行の値を取得</span>
+      <span class="kw">PARTITION BY</span> user_id        <span class="cmt">-- PARTITION BY: ユーザー単位に分割</span>
+      <span class="kw">ORDER BY</span>     order_date     <span class="cmt">-- ORDER BY: 日付の昇順（古い順）に並べる -> 先頭が初回</span>
     ) <span class="kw">AS</span> first_date,
 
-    <span class="cmt">-- 初回購買商品（初回の日の商品）</span>
+    <span class="cmt">-- 初回購買商品</span>
     <span class="fn">FIRST_VALUE</span>(product) <span class="kw">OVER</span> (
       <span class="kw">PARTITION BY</span> user_id
       <span class="kw">ORDER BY</span>     order_date
     ) <span class="kw">AS</span> first_product,
 
-    <span class="cmt">-- 最終購買日（ユーザーごとに最新のorder_date）</span>
-    <span class="fn">LAST_VALUE</span>(order_date) <span class="kw">OVER</span> (
+    <span class="cmt">-- 最終購買日</span>
+    <span class="fn">LAST_VALUE</span>(order_date) <span class="kw">OVER</span> ( <span class="cmt">-- LAST_VALUE(): ウィンドウ内の最終行の値を取得</span>
       <span class="kw">PARTITION BY</span> user_id
       <span class="kw">ORDER BY</span>     order_date
-      <span class="kw">ROWS BETWEEN</span> <span class="kw">UNBOUNDED PRECEDING</span>  <span class="cmt">-- 先頭から</span>
-               <span class="kw">AND</span> <span class="kw">UNBOUNDED FOLLOWING</span>  <span class="cmt">-- 末尾まで（全行）→ 最後の行が最終購買</span>
+      <span class="kw">ROWS BETWEEN</span> <span class="kw">UNBOUNDED PRECEDING</span> <span class="cmt">-- 範囲: グループの先頭行から</span>
+               <span class="kw">AND</span> <span class="kw">UNBOUNDED FOLLOWING</span> <span class="cmt">-- グループの末尾行まで（全行対象にするための必須設定）</span>
     ) <span class="kw">AS</span> last_date,
 
     <span class="cmt">-- 最終購買商品</span>
@@ -1361,34 +1371,33 @@ const QS = [
       <span class="kw">PARTITION BY</span> user_id
       <span class="kw">ORDER BY</span>     order_date
       <span class="kw">ROWS BETWEEN</span> <span class="kw">UNBOUNDED PRECEDING</span>
-               <span class="kw">AND</span> <span class="kw">UNBOUNDED FOLLOWING</span>  <span class="cmt">-- ここを忘れると「現在行の商品」が返る</span>
+               <span class="kw">AND</span> <span class="kw">UNBOUNDED FOLLOWING</span>
     ) <span class="kw">AS</span> last_product
 
-  <span class="kw">FROM</span> <span class="tbl">purchase_history</span>
+  <span class="kw">FROM</span> <span class="tbl">purchase_history</span>           <span class="cmt">-- FROM: 元テーブル</span>
 
 )
 
-<span class="cmt">-- ② ユーザーごとに1行だけ残す（DISTINCT または ROW_NUMBER で重複除去）</span>
-<span class="kw">SELECT</span> <span class="kw">DISTINCT</span>                            <span class="cmt">-- 同じ値の行をまとめて1行にする</span>
+<span class="cmt">-- ② ユーザーごとに1行だけ残す</span>
+<span class="kw">SELECT</span> <span class="kw">DISTINCT</span>                   <span class="cmt">-- SELECT DISTINCT: 全く同じ値を持つ重複行を1行にまとめる機能</span>
   user_id,
   first_date,
   first_product,
   last_date,
   last_product
-<span class="kw">FROM</span>     <span class="tbl">purchase_ranked</span>
-<span class="kw">ORDER BY</span> user_id;                           <span class="cmt">-- ユーザーID昇順</span>
+<span class="kw">FROM</span>     <span class="tbl">purchase_ranked</span>          <span class="cmt">-- FROM: CTEの指定</span>
+<span class="kw">ORDER BY</span> user_id;                 <span class="cmt">-- ORDER BY: ユーザーIDの昇順</span>
 
 <span class="cmt">/*
-  実行順序:
-  1. CTE: FROM purchase_history
-          → FIRST_VALUE / LAST_VALUE で各行に初回・最終情報を付加
-          → この時点では全6行、各行に同じユーザーの初回/最終値が並ぶ
-  2. 本体: SELECT DISTINCT → 同じ (user_id, first_date, first_product, last_date, last_product)
-           の重複行を除去してユーザーごと1行に圧縮
-  3. 本体: ORDER BY user_id
-  ★ LAST_VALUE は ROWS BETWEEN ... UNBOUNDED FOLLOWING なしだと
-    「現在行まで」がデフォルト → 先頭行では last = first になってしまう
-  ★ SELECT DISTINCT は全列が一致する重複を除去する（GROUP BYとは異なる）
+  【SQL文の実行順序】
+  1. (CTE内) FROM purchase_history: データを読み込み
+  2. (CTE内) SELECT (ウィンドウ関数): ORDER BY の順に沿って、各行に対し FIRST/LAST_VALUE を付与
+     -> この時点では、同じユーザーの全行に同一の初回・最終情報が付加されている状態
+  3. (本体)  FROM purchase_ranked: CTEを読み込み
+  4. (本体)  SELECT DISTINCT: 重複している行（order_date等を含めないため全列同じになる）を1行に圧縮
+  5. (本体)  ORDER BY user_id: 結果を並び替え
+
+  ★ 超基礎: DISTINCT は集計（SUMやCOUNTなど）を伴わずに「重複排除」だけを行いたい場合に便利です。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1483,54 +1492,53 @@ const QS = [
 <tr class="tr-hi2"><td>6</td><td>ノートPC</td><td class="tc-hi">2</td><td class="tc-g">電化製品 &gt; パソコン &gt; ノートPC</td></tr>
 <tr class="tr-hi2"><td>7</td><td>デスクトップ</td><td class="tc-hi">2</td><td class="tc-g">電化製品 &gt; パソコン &gt; デスクトップ</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH RECURSIVE</span> <span class="tbl">category_tree</span> <span class="kw">AS</span> (
+  answer: `<pre><span class="cmt">-- WITH RECURSIVE: 再帰CTE（自己参照できる特殊なCTE）の定義</span>
+<span class="kw">WITH RECURSIVE</span> <span class="tbl">category_tree</span> <span class="kw">AS</span> (
 
   <span class="cmt">-- ═══ アンカー部: 最初の1回だけ実行。ルートノードを取得 ═══</span>
-  <span class="kw">SELECT</span>
+  <span class="kw">SELECT</span>                          <span class="cmt">-- SELECT: ルート行の列</span>
     id,
     parent_id,
     name,
-    <span class="num">0</span>    <span class="kw">AS</span> depth,          <span class="cmt">-- ルートの深さ = 0</span>
-    name <span class="kw">AS</span> path           <span class="cmt">-- パスはルートの名前から始まる</span>
-  <span class="kw">FROM</span>  <span class="tbl">categories</span>
-  <span class="kw">WHERE</span> parent_id <span class="kw">IS NULL</span> <span class="cmt">-- IS NULL: 親なし = ルートカテゴリ</span>
+    <span class="num">0</span>    <span class="kw">AS</span> depth,                <span class="cmt">-- ルートなので深さは0</span>
+    name <span class="kw">AS</span> path                  <span class="cmt">-- 階層パスの起点は自分自身の名前</span>
+  <span class="kw">FROM</span>  <span class="tbl">categories</span>                <span class="cmt">-- FROM: 元テーブル</span>
+  <span class="kw">WHERE</span> parent_id <span class="kw">IS NULL</span>         <span class="cmt">-- WHERE: 親が存在しない(IS NULL)行 = ルート</span>
 
-  <span class="kw">UNION ALL</span>               <span class="cmt">-- アンカー部と再帰部の結果を連結（UNION ALLは重複を残す）</span>
+  <span class="kw">UNION ALL</span>                       <span class="cmt">-- UNION ALL: アンカー部の結果と、下の再帰部の結果を「縦に」結合する（重複排除しない）</span>
 
   <span class="cmt">-- ═══ 再帰部: アンカー部の結果を使って繰り返し実行 ═══</span>
   <span class="kw">SELECT</span>
     c.id,
     c.parent_id,
     c.name,
-    t.depth <span class="op">+</span> <span class="num">1</span>,          <span class="cmt">-- 親の depth に1を足す（階層が深くなるたびに増える）</span>
-    t.path <span class="op">||</span> <span class="str">' > '</span> <span class="op">||</span> c.name  <span class="cmt">-- || は文字列連結（パスに子の名前を追加）</span>
-  <span class="kw">FROM</span>       <span class="tbl">categories</span>  c  <span class="cmt">-- c: 子カテゴリ（実テーブル）</span>
-  <span class="kw">INNER JOIN</span> <span class="tbl">category_tree</span> t <span class="cmt">-- t: 前のステップの結果（再帰CTEを自己参照）</span>
-          <span class="kw">ON</span> c.parent_id <span class="op">=</span> t.id  <span class="cmt">-- 子の parent_id が前ステップの id と一致</span>
+    t.depth <span class="op">+</span> <span class="num">1</span>,                  <span class="cmt">-- 親の depth に1を足す（階層が深くなる）</span>
+    t.path <span class="op">||</span> <span class="str">' > '</span> <span class="op">||</span> c.name       <span class="cmt">-- || は文字列連結。親のパスに自分の名前を追加</span>
+  <span class="kw">FROM</span>       <span class="tbl">categories</span>  c        <span class="cmt">-- FROM: 子カテゴリを取得するための実テーブル(c)</span>
+  <span class="kw">INNER JOIN</span> <span class="tbl">category_tree</span> t      <span class="cmt">-- INNER JOIN: 前のステップで取得した自分自身(再帰CTE "t")と結合</span>
+          <span class="kw">ON</span> c.parent_id <span class="op">=</span> t.id   <span class="cmt">-- ON: 子の parent_id が、前ステップの親 id と一致する行を探す</span>
 
 )
 
 <span class="cmt">-- 再帰が終わったら全ステップの結果を取り出す</span>
-<span class="kw">SELECT</span>
+<span class="kw">SELECT</span>                            <span class="cmt">-- SELECT: 最終出力</span>
   id,
   name,
   depth,
   path
-<span class="kw">FROM</span>     <span class="tbl">category_tree</span>
-<span class="kw">ORDER BY</span> path;              <span class="cmt">-- パスの辞書順（ツリー構造がわかりやすい順）</span>
+<span class="kw">FROM</span>     <span class="tbl">category_tree</span>            <span class="cmt">-- FROM: 再帰で組み上がった全結果が格納されたCTE</span>
+<span class="kw">ORDER BY</span> path;                    <span class="cmt">-- ORDER BY: パスの文字列順（ツリー構造が分かりやすい順）に並び替え</span>
 
 <span class="cmt">/*
-  実行順序（再帰CTEの特殊な実行フロー）:
-  Step1（アンカー）: WHERE parent_id IS NULL → id=1（電化製品）を取得
-  Step2（再帰①）:  category_tree（Step1の結果 id=1）にJOIN
-                   → parent_id=1 の子: id=2（スマートフォン）, id=3（パソコン）
-  Step3（再帰②）:  category_tree（Step2の結果 id=2,3）にJOIN
-                   → parent_id=2 の子: id=4,5 / parent_id=3 の子: id=6,7
-  Step4（再帰③）:  category_tree（Step3の結果 id=4,5,6,7）にJOIN
-                   → 子が存在しないため 0行 → 再帰終了
-  最終: Step1〜Step3の全行（7行）を UNION ALL でまとめて返す
-  ★ WITH RECURSIVE は通常の WITH の先頭に RECURSIVE を追加するだけ
-  ★ || は文字列連結演算子（PostgreSQL / SQLite）。MySQLでは CONCAT() を使う
+  【SQL文の実行順序（再帰CTEの特殊フロー）】
+  1. (アンカー部) FROM -> WHERE -> SELECT: parent_id IS NULL のルート行（id=1）を取得。これが初期の "category_tree" になる
+  2. (再帰①) FROM categories INNER JOIN category_tree: 先ほどの id=1 を親(t)として、子(c)を結合して取得（id=2, 3）。これをUNION ALLで追加。
+  3. (再帰②) 新たに取得した id=2, 3 を親(t)として、さらに子(c)を結合して取得（id=4, 5, 6, 7）。
+  4. (再帰③) id=4, 5, 6, 7 を親として子を探すが、存在しないため 0行 となる -> ここで再帰が終了。
+  5. (本体)   FROM category_tree -> SELECT -> ORDER BY: 蓄積された全行を出力し並び替え
+
+  ★ 超基礎: UNION ALL は上下の SELECT 結果を「合体」させる構文です。
+    両者のカラム数とデータ型が一致している必要があります。
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1613,11 +1621,11 @@ function buildAll() {
         <div class="q-title">${q.title}</div>
         <div class="q-tags">${tagHTML(q.tags)}</div>
       </div>
-      ${acc('📘','pill-blue','前提','基礎文法・概念',q.premise)}
-      ${acc('❓','pill-green','問題','テーブルデータ付き',q.question)}
-      ${acc('📊','pill-orange','出力例','期待する結果',q.output)}
-      ${acc('✅','pill-red','模範回答','SQL（コメント付き）',q.answer)}
-      ${acc('🔍','pill-purple','解説','変化の可視化＋学習ポイント',q.explain)}
+      ${acc('📘','pill-blue','PREMISE','前提知識',q.premise)}
+      ${acc('❓','pill-green','QUESTION','問題',q.question)}
+      ${acc('📊','pill-orange','OUTPUT','期待出力',q.output)}
+      ${acc('✅','pill-red','ANSWER','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','EXPLAIN','解説（テーブル変化・ポイント）',q.explain)}
       <div class="nav-bar">
         <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
         <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>

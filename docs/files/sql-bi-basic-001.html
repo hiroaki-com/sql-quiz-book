@@ -42,7 +42,6 @@
   }
   .header-text-wrap { flex: 1; }
   .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-  .header-sub { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; }
   .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
 
@@ -215,7 +214,6 @@
       <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">BI</span></div>
       <div class="header-text-wrap">
         <div class="header-title">マネタイズ BI 集計で学ぶ SQL 王道パターン10選（WINDOW関数 / DATE集計 / UPSERT / COALESCE / 複合JOIN / UNION / LATERAL / JSON / STRING_AGG / 条件付き集計）</div>
-        <div class="header-sub">ROW_NUMBER / DATE_TRUNC / ON CONFLICT / COALESCE / LEFT JOIN 複合 / UNION ALL / LAG / JSONB / STRING_AGG / FILTER</div>
       </div>
     </div>
     <div class="header-tags">
@@ -285,30 +283,30 @@ const QS = [
 <tr class="tr-hi4"><td>standard</td><td>U05</td><td>3000</td><td class="tc-p">3</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ premium の U02・U04 は同額 8000 → 同じ 2位。次の順位は 3 になる（2が飛ぶ）</p>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                              <span class="cmt">-- データを取得する列を指定（超基礎）</span>
   plan,                             <span class="cmt">-- プラン名（PARTITION BY のキー）</span>
   user_id,                          <span class="cmt">-- ユーザーID</span>
   amount,                           <span class="cmt">-- 売上金額</span>
 
   <span class="cmt">-- RANK: plan 内で amount 降順に順位付け（同額 = 同順位、次はスキップ）</span>
-  <span class="fn">RANK</span>() <span class="kw">OVER</span> (
-    <span class="kw">PARTITION BY</span> plan              <span class="cmt">-- plan の値が変わるたびに順位をリセット</span>
-    <span class="kw">ORDER BY</span>     amount <span class="kw">DESC</span>      <span class="cmt">-- amount が大きい順に 1, 2, 3 … を付ける</span>
-  ) <span class="kw">AS</span> rank_in_plan                <span class="cmt">-- ウィンドウ関数の結果に列名を付ける</span>
+  <span class="fn">RANK</span>() <span class="kw">OVER</span> (                     <span class="cmt">-- ウィンドウ関数を使用（元の行を残したまま計算）</span>
+    <span class="kw">PARTITION BY</span> plan               <span class="cmt">-- plan の値が変わるたびに順位をリセット（グループ化）</span>
+    <span class="kw">ORDER BY</span>     amount <span class="kw">DESC</span>        <span class="cmt">-- amount が大きい順(降順:DESC)に 1, 2, 3 … を付ける</span>
+  ) <span class="kw">AS</span> rank_in_plan                 <span class="cmt">-- AS: 取得した結果に新しい列名を付ける（超基礎）</span>
 
-<span class="kw">FROM</span>   <span class="tbl">orders</span>                        <span class="cmt">-- 対象テーブル（行数は変わらない）</span>
-<span class="kw">ORDER BY</span>
-  plan,                             <span class="cmt">-- まずプランでグループ化して並べる（表示用）</span>
-  rank_in_plan;                     <span class="cmt">-- 次に順位で昇順に並べる</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>                       <span class="cmt">-- データを取得する対象テーブルを指定（超基礎）</span>
+<span class="kw">ORDER BY</span>                            <span class="cmt">-- 最終的な結果の表示順序を指定（超基礎）</span>
+  plan <span class="kw">ASC</span>,                         <span class="cmt">-- まずプランで昇順(ASC:省略可)に並べる（表示用）</span>
+  rank_in_plan <span class="kw">ASC</span>;                 <span class="cmt">-- 次に順位で昇順(ASC)に並べる</span>
 
 <span class="cmt">/*
   実行順序:
-  1. FROM orders               → 全6行読み込み
+  1. FROM orders               → データを取得するテーブルから全6行読み込み
   2. RANK() OVER (PARTITION BY plan ORDER BY amount DESC)
        → plan='premium'  グループ: 12000→1位, 8000→2位, 8000→2位
        → plan='standard' グループ: 5000→1位, 5000→1位, 3000→3位（2は飛ぶ）
-  3. SELECT plan, user_id, amount, rank_in_plan → 列を選択（行は6行のまま）
-  4. ORDER BY plan, rank_in_plan → 並び替え
+  3. SELECT plan, user_id, amount, rank_in_plan → 取得する列を選択（行は6行のまま）
+  4. ORDER BY plan, rank_in_plan → 最終的な出力結果を並び替え
   ★ GROUP BY とは異なり、行は集約されず全6行が残る
   ★ PARTITION BY を省略すると全行を1グループとして扱い全体順位になる
 */</span></pre>`,
@@ -343,6 +341,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（OVER句とは）：</strong>通常の <code>GROUP BY</code> は複数行を1行にまとめてしまいますが、<code>OVER()</code> を使うと元の行を残したまま、その行に対する集計値や順位を横にくっつけることができます。「集約せずに計算結果を付与する」のがウィンドウ関数の最大の特徴です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ランキングAPIの実装：</strong><code>GET /rankings?plan=premium&limit=3</code> では、このウィンドウ関数結果をサブクエリで包み <code>WHERE rank_in_plan &lt;= 3</code> で上位3件を絞るのが定石。GROUP BY では元の行を残せないため、ウィンドウ関数が必須。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>3種の使い分け：</strong><em>ROW_NUMBER</em> はページネーションの一意連番に、<em>RANK</em> は「同率○位」を正確に表現したいスポーツ・売上ランキングに、<em>DENSE_RANK</em> は番号を飛ばしたくないカテゴリーランキングに使う。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>PARTITION BY の省略：</strong>省略すると全行が1パーティションになり「全体ランキング」になる。ECサイトで「全商品中の売上順位」と「カテゴリー内の順位」を同時に出したい場合は、PARTITION BY を変えた列を2つ並べるだけで実現できる。</div></div>
@@ -395,24 +394,24 @@ const QS = [
 <tr class="tr-hi4"><td class="tc-hi">2024-03-01</td><td class="tc-y">7000</td><td class="tc-g">1</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ payment_id:3（failed）は WHERE で除外されるため集計に含まれない</p>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                                <span class="cmt">-- データを取得する列を指定（超基礎）</span>
   <span class="cmt">-- paid_at を月の先頭日に切り捨て → GROUP BY のキーになる</span>
   <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, paid_at) <span class="kw">AS</span> month,  <span class="cmt">-- 例: 2024-01-10 → 2024-01-01</span>
 
-  <span class="fn">SUM</span>(amount)  <span class="kw">AS</span> total_revenue,   <span class="cmt">-- 月内の succeeded 金額の合計</span>
-  <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> payment_count    <span class="cmt">-- 月内の succeeded 件数</span>
+  <span class="fn">SUM</span>(amount)  <span class="kw">AS</span> total_revenue,      <span class="cmt">-- SUM: 数値を合計する集約関数（超基礎）</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>)     <span class="kw">AS</span> payment_count       <span class="cmt">-- COUNT: 行数を数える集約関数（超基礎）</span>
 
-<span class="kw">FROM</span>   <span class="tbl">payments</span>                        <span class="cmt">-- 対象テーブル</span>
-<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'succeeded'</span>            <span class="cmt">-- 集計前に失敗・返金を除外（succeeded のみ対象）</span>
-<span class="kw">GROUP BY</span>
-  <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, paid_at)       <span class="cmt">-- 切り捨てた月ごとに1グループを作る</span>
-<span class="kw">ORDER BY</span>
-  month <span class="kw">ASC</span>;                          <span class="cmt">-- 月の昇順（古い月から新しい月へ）</span>
+<span class="kw">FROM</span>   <span class="tbl">payments</span>                       <span class="cmt">-- データを取得する対象テーブルを指定（超基礎）</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'succeeded'</span>           <span class="cmt">-- WHERE: 条件に合致する行だけを絞り込む（超基礎）</span>
+<span class="kw">GROUP BY</span>                              <span class="cmt">-- 指定した列の値が同じ行をグループにまとめる（超基礎）</span>
+  <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, paid_at)        <span class="cmt">-- 切り捨てた月（1日）ごとに1グループを作る</span>
+<span class="kw">ORDER BY</span>                              <span class="cmt">-- 最終的な結果の表示順序を指定（超基礎）</span>
+  month <span class="kw">ASC</span>;                          <span class="cmt">-- 月の昇順(ASC:古い月から新しい月へ)に並べる</span>
 
 <span class="cmt">/*
   実行順序:
   1. FROM payments              → 全6行読み込み
-  2. WHERE status='succeeded'   → failed(id:3)を除外 → 5行残る
+  2. WHERE status='succeeded'   → 指定条件に合致しないfailed(id:3)を除外 → 5行残る
   3. DATE_TRUNC('month',paid_at)→ 各行の paid_at を月初に切り捨て
        2024-01-10 → 2024-01-01
        2024-01-25 → 2024-01-01  （同じ月 → 同じグループ）
@@ -420,9 +419,9 @@ const QS = [
        2024-02-20 → 2024-02-01  （同じ月 → 同じグループ）
        2024-03-08 → 2024-03-01
   4. GROUP BY 月初値            → 3グループに集約（1月:2行, 2月:2行, 3月:1行）
-  5. SUM / COUNT               → 各グループを集計
-  6. SELECT month, ...          → 列を選択
-  7. ORDER BY month ASC         → 月昇順に並び替え
+  5. SUM / COUNT                → 各グループを集約計算
+  6. SELECT month, ...          → 取得する列を選択・表示名(AS)を付ける
+  7. ORDER BY month ASC         → 月の昇順に並び替え
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -454,6 +453,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（GROUP BYと集約関数）：</strong><code>GROUP BY</code> は指定した列の値が同じ行を「1つのグループ」にまとめます。まとめた後は、<code>SUM()</code>（合計）や <code>COUNT()</code>（件数）といった集約関数を使って、グループごとの計算結果を出力します。グループ化しない列を SELECT にそのまま書くことはできません。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>月次レポートAPIの基本形：</strong><code>GET /reports/revenue?granularity=monthly</code> のようなエンドポイントに直結するパターン。<code>granularity</code> パラメータに応じて <code>'day'</code>/<code>'week'</code>/<code>'month'</code> を切り替えるだけで日次・週次・月次を対応できる。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>TO_CHAR での表示形式変換：</strong>APIレスポンスで <code>"month": "2024-01"</code> と返したい場合は <code>TO_CHAR(DATE_TRUNC('month', paid_at), 'YYYY-MM')</code> で文字列に変換する。フロントでそのまま表示ラベルに使えて便利。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>インデックスとの相性：</strong><code>paid_at</code> にインデックスを張っても、<code>DATE_TRUNC('month', paid_at)</code> を WHERE で使う場合は関数インデックスが必要。期間絞り込みは <code>WHERE paid_at &gt;= '2024-01-01' AND paid_at &lt; '2024-04-01'</code> のように元の列で範囲指定するほうが高速。</div></div>
@@ -505,40 +505,41 @@ const QS = [
 <tr class="tr-hi"><td>2024-03-01</td><td>108000</td><td class="tc-o">120000</td><td class="tc-r">-10.0 %</td></tr>
 <tr class="tr-hi2"><td>2024-04-01</td><td>135000</td><td class="tc-o">108000</td><td class="tc-g">+25.0 %</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                              <span class="cmt">-- データを取得する列を指定（超基礎）</span>
   month,                            <span class="cmt">-- 集計月</span>
   revenue,                          <span class="cmt">-- 今月の売上</span>
 
-  <span class="cmt">-- LAG: ORDER BY month の順で 1行前（前月）の revenue を取得</span>
-  <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (
-    <span class="kw">ORDER BY</span> month               <span class="cmt">-- month の昇順で「前の行」を定義</span>
-  ) <span class="kw">AS</span> prev_revenue,              <span class="cmt">-- 前月売上（先頭行は前行なし → NULL）</span>
+  <span class="cmt">-- LAG: 1行前（前月）の revenue を取得するウィンドウ関数</span>
+  <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (            <span class="cmt">-- OVER句でウィンドウ関数として実行</span>
+    <span class="kw">ORDER BY</span> month                  <span class="cmt">-- month の昇順(古い順)で「前の行」を定義</span>
+  ) <span class="kw">AS</span> prev_revenue,                <span class="cmt">-- AS: 列に名前を付ける（先頭行は前行がないためNULLになる）</span>
 
   <span class="cmt">-- 前月比成長率 (%) = (今月 - 前月) / 前月 * 100</span>
-  <span class="fn">ROUND</span>(
+  <span class="fn">ROUND</span>(                            <span class="cmt">-- ROUND: 数値を指定した桁数で四捨五入する（超基礎）</span>
     (revenue <span class="op">-</span> <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> month))  <span class="cmt">-- 差分（増減額）</span>
-    <span class="op">/</span> <span class="fn">NULLIF</span>(                                         <span class="cmt">-- NULLIF: 前月が0ならNULLにしてゼロ除算防止</span>
-        <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> month),        <span class="cmt">-- 前月売上（分母）</span>
-        <span class="num">0</span>                                              <span class="cmt">-- 0 のとき NULL を返す</span>
+    <span class="op">/</span> <span class="fn">NULLIF</span>(                       <span class="cmt">-- NULLIF: 2つの引数が等しい場合にNULLを返す（ゼロ除算防止）</span>
+        <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> month),         <span class="cmt">-- 前月売上（分母）</span>
+        <span class="num">0</span>                                              <span class="cmt">-- 分母が 0 のとき NULL を返す</span>
       )
-    <span class="op">*</span> <span class="num">100.0</span>,                                          <span class="cmt">-- 100.0: 整数除算を回避（100 だと切り捨て）</span>
-    <span class="num">1</span>                                                   <span class="cmt">-- ROUND の第2引数: 小数点以下1桁に丸める</span>
-  ) <span class="kw">AS</span> growth_pct                    <span class="cmt">-- 成長率（%）</span>
+    <span class="op">*</span> <span class="num">100.0</span>,                        <span class="cmt">-- 100.0: 小数点を含めることで整数除算を回避（100 だと切り捨てられる）</span>
+    <span class="num">1</span>                               <span class="cmt">-- ROUND の第2引数: 小数点以下1桁に丸める</span>
+  ) <span class="kw">AS</span> growth_pct                   <span class="cmt">-- 成長率（%）</span>
 
-<span class="kw">FROM</span>   <span class="tbl">monthly_revenue</span>               <span class="cmt">-- 対象テーブル</span>
-<span class="kw">ORDER BY</span> month;                       <span class="cmt">-- 月昇順で出力</span>
+<span class="kw">FROM</span>   <span class="tbl">monthly_revenue</span>              <span class="cmt">-- データを取得する対象テーブルを指定（超基礎）</span>
+<span class="kw">ORDER BY</span> month <span class="kw">ASC</span>;                 <span class="cmt">-- 結果を月の昇順(ASC)で出力（超基礎）</span>
 
 <span class="cmt">/*
   実行順序:
   1. FROM monthly_revenue       → 4行読み込み
   2. LAG(revenue, 1) OVER (ORDER BY month)
-       → month昇順で1行前のrevenueを取得
+       → month昇順で並べた状態の1行前のrevenueを取得
           1月: NULL（前行なし）, 2月: 100000, 3月: 120000, 4月: 108000
   3. (revenue - prev) / NULLIF(prev, 0) * 100.0
        → 1月: NULL, 2月: (120000-100000)/100000*100=20.0
           3月: (108000-120000)/120000*100=-10.0, 4月: (135000-108000)/108000*100=25.0
   4. ROUND(..., 1)              → 小数点1桁に丸める
-  5. SELECT / ORDER BY          → 列選択・並び替え
+  5. SELECT                     → 列の選択と計算式の実行
+  6. ORDER BY                   → 結果の並び替え
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -568,6 +569,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（NULLの計算ルール）：</strong>SQLの世界では、<code>NULL</code>（データが存在しない）を含む四則演算はすべて <code>NULL</code> になります。100 + NULL = NULL です。そのため、ゼロ除算エラーを防ぐために <code>NULLIF</code> でわざと 0 を NULL に変換し、計算結果全体を安全に NULL にするテクニックがよく使われます。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ダッシュボードAPIの定番：</strong>売上グラフに「前月比」矢印（↑↓）を表示するAPIは、このパターンをCTEでラップし <code>growth_pct &gt; 0</code> で方向を判定して返すのが最短実装。アプリ側で計算するより1クエリで完結。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PARTITION BY との組み合わせ：</strong>複数カテゴリーの前月比を同時に計算する場合は <code>LAG(revenue,1) OVER (PARTITION BY category ORDER BY month)</code> とすることで、カテゴリーごとに独立した前月比が得られる。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>LEAD で「翌月予測差分」：</strong><code>LEAD(revenue,1) OVER (ORDER BY month)</code> で翌月の値を現在行に付与できる。「今月の実績 vs 翌月目標」の差分を1行で表現する際に活用できる。</div></div>
@@ -618,22 +620,22 @@ const QS = [
 <tr class="tr-hi2"><td>U03</td><td class="tc-hi">鈴木 一郎</td><td class="tc-g">未設定</td><td class="tc-y">0</td></tr>
 <tr class="tr-hi3"><td>U04</td><td class="tc-hi">yamada ← メールのユーザー名部分</td><td class="tc-g">未設定</td><td class="tc-y">0</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                              <span class="cmt">-- データを取得する列を指定（超基礎）</span>
   user_id,                          <span class="cmt">-- ユーザーID</span>
 
-  <span class="cmt">-- display_name が NULL なら email の @ より前の部分を代替名に使う</span>
+  <span class="cmt">-- COALESCE: 左から順に評価して、最初にNULLでなかった値を返す関数</span>
   <span class="fn">COALESCE</span>(
     display_name,                   <span class="cmt">-- まず display_name を試す</span>
-    <span class="fn">SPLIT_PART</span>(email, <span class="str">'@'</span>, <span class="num">1</span>)      <span class="cmt">-- NULL なら email を '@' で分割して左側（ユーザー名部分）を使う</span>
-  ) <span class="kw">AS</span> safe_name,                   <span class="cmt">-- NULL でない最初の値が返る</span>
+    <span class="fn">SPLIT_PART</span>(email, <span class="str">'@'</span>, <span class="num">1</span>)       <span class="cmt">-- NULL なら email を '@' で分割して左側（1番目）を使う</span>
+  ) <span class="kw">AS</span> safe_name,                   <span class="cmt">-- AS: 列に名前を付ける（超基礎）</span>
 
   <span class="cmt">-- bio が NULL なら固定文字列 '未設定' を返す</span>
   <span class="fn">COALESCE</span>(bio, <span class="str">'未設定'</span>) <span class="kw">AS</span> safe_bio,  <span class="cmt">-- bio がNULLのとき '未設定' が入る</span>
 
   <span class="cmt">-- score が NULL なら 0 を返す（数値のデフォルト値パターン）</span>
-  <span class="fn">COALESCE</span>(score, <span class="num">0</span>) <span class="kw">AS</span> safe_score    <span class="cmt">-- NULLを0に変換してアプリ側の null チェックをなくす</span>
+  <span class="fn">COALESCE</span>(score, <span class="num">0</span>) <span class="kw">AS</span> safe_score  <span class="cmt">-- NULLを0に変換してアプリ側の null チェックをなくす</span>
 
-<span class="kw">FROM</span>   <span class="tbl">user_profiles</span>;                <span class="cmt">-- 対象テーブル</span>
+<span class="kw">FROM</span>   <span class="tbl">user_profiles</span>;               <span class="cmt">-- データを取得する対象テーブルを指定（超基礎）</span>
 
 <span class="cmt">/*
   実行順序:
@@ -642,9 +644,9 @@ const QS = [
        U01: 'tanaka@ex.com'の場合は display_name='田中太郎' が非NULLなのでそのまま
        U02: display_name=NULL → SPLIT_PART('sato@ex.com','@',1)='sato' を使う
        U04: display_name=NULL → SPLIT_PART('yamada@ex.com','@',1)='yamada'
-  3. COALESCE(bio, '未設定')   → NULL を '未設定' に変換
-  4. COALESCE(score, 0)        → NULL を 0 に変換
-  5. SELECT 列を選択・返却
+  3. COALESCE(bio, '未設定')    → NULL を '未設定' に変換
+  4. COALESCE(score, 0)         → NULL を 0 に変換
+  5. SELECT                     → 列の選択・表示名の適用
   ★ COALESCE は「左から評価してNULL以外の最初の値を返す」
   ★ 全引数がNULLのときのみ NULL が返る
 */</span></pre>`,
@@ -677,6 +679,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（NULLとは何か）：</strong><code>NULL</code> は「空文字（''）」や「ゼロ（0）」とは全く異なり、「値が未定義・存在しない」状態を表します。そのため <code>bio = NULL</code> といった等価比較はできず、必ず <code>bio IS NULL</code> のように専用の構文を使います。これを扱う専用関数が <code>COALESCE</code> です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>APIレスポンスのNULL排除：</strong>アプリ層で <code>user.displayName ?? user.email.split('@')[0]</code> のような変換をしているなら、それはSQLの責務。DBのCOALESCEで変換することで全APIエンドポイントで一貫したレスポンスが保証される。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>COALESCE と集計の組み合わせ：</strong><code>SUM(COALESCE(score, 0))</code> のようにNULL行を0として集計に含める使い方が頻出。NULLを含むカラムをSUMすると NULL行は無視されるため、0として計上したい場合は必ずCOALESCEで変換する。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>NULLIF で空文字とNULLを統一：</strong>フォーム送信では bio が空文字 <code>''</code> で来ることがある。DBに保存する前に <code>NULLIF(bio, '')</code> でNULLに変換すると、取得時の <code>COALESCE(bio, '未設定')</code> が一貫して動く。空文字とNULLが混在するのが最も危険。</div></div>
@@ -739,25 +742,27 @@ const QS = [
 <tr><td>U04</td><td>山田</td><td class="tc-g">0</td><td class="tc-y">0</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ U02 の cancelled 注文は JOIN条件で除外 → 0件として正しく計上</p>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                               <span class="cmt">-- データを取得する列を指定（超基礎）</span>
   u.user_id,                         <span class="cmt">-- ユーザーID（左テーブルから取得 → 常に存在する）</span>
   u.name,                            <span class="cmt">-- ユーザー名</span>
 
+  <span class="cmt">-- COUNT: データの件数を数える集約関数（超基礎）</span>
   <span class="cmt">-- COUNT(o.order_id): order_id が NULL（= 注文なし）の行はカウントしない → 0 になる</span>
   <span class="fn">COUNT</span>(o.order_id) <span class="kw">AS</span> order_count,  <span class="cmt">-- ★ COUNT(*) にすると注文なしでも 1 になるので必ず列名指定</span>
 
+  <span class="cmt">-- SUM: 数値を合計する集約関数（超基礎）</span>
   <span class="cmt">-- SUM が NULL 行（注文なし）を無視するため、COALESCE で 0 に変換</span>
   <span class="fn">COALESCE</span>(<span class="fn">SUM</span>(o.amount), <span class="num">0</span>) <span class="kw">AS</span> total_amount  <span class="cmt">-- NULL（注文なし）→ 0 に変換</span>
 
-<span class="kw">FROM</span>      <span class="tbl">users</span>  u                    <span class="cmt">-- 左テーブル: 全ユーザーを必ず残す</span>
+<span class="kw">FROM</span>      <span class="tbl">users</span>  u                   <span class="cmt">-- データを取得するベースの左テーブル（超基礎）。'u' はテーブルの別名(エイリアス)</span>
 
-<span class="cmt">-- LEFT JOIN + ON に status 条件を書く → 結合前にフィルタ（WHEREとは動きが違う）</span>
-<span class="kw">LEFT JOIN</span> <span class="tbl">orders</span> o                    <span class="cmt">-- 右テーブル: 一致しなければ NULL</span>
-  <span class="kw">ON</span>  u.user_id <span class="op">=</span> o.user_id          <span class="cmt">-- 結合キー</span>
+<span class="cmt">-- LEFT JOIN: 左テーブルの全行を残しつつ、右テーブルを結合する（超基礎）</span>
+<span class="kw">LEFT JOIN</span> <span class="tbl">orders</span> o                   <span class="cmt">-- 右テーブル。一致しなければ NULL になる</span>
+  <span class="kw">ON</span>  u.user_id <span class="op">=</span> o.user_id          <span class="cmt">-- ON: 結合するためのキー条件（超基礎）</span>
   <span class="kw">AND</span> o.status  <span class="op">=</span> <span class="str">'completed'</span>        <span class="cmt">-- ★ここで絞る: WHERE に書くと LEFT JOIN が INNER JOIN 相当になる</span>
 
-<span class="kw">GROUP BY</span> u.user_id, u.name            <span class="cmt">-- ユーザーごとに集計（nameも SELECT に含めるため GROUP BY に追加）</span>
-<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;          <span class="cmt">-- 合計金額の大きい順</span>
+<span class="kw">GROUP BY</span> u.user_id, u.name           <span class="cmt">-- 指定した列で同じ値を持つ行をグループにまとめる（超基礎）</span>
+<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;          <span class="cmt">-- 最終的な結果を合計金額の降順(大きい順:DESC)に並び替え（超基礎）</span>
 
 <span class="cmt">/*
   実行順序:
@@ -765,10 +770,11 @@ const QS = [
   2. LEFT JOIN orders o ON ... AND o.status='completed'
        → completed の orders のみ結合対象（cancelled は結合されない）
        → U01: order_id 1,2 と結合, U02: 結合なし(NULL), U03: order_id 4と結合, U04: NULL
-  3. GROUP BY user_id, name    → 4グループ
-  4. COUNT(o.order_id)         → NULLをスキップ: U01=2, U02=0, U03=1, U04=0
-  5. COALESCE(SUM(o.amount),0) → NULLを0に: U02=0, U04=0
-  6. ORDER BY total_amount DESC
+  3. GROUP BY user_id, name    → 4つのグループに集約
+  4. COUNT(o.order_id)         → NULLをスキップして件数を計算: U01=2, U02=0, U03=1, U04=0
+  5. COALESCE(SUM(o.amount),0) → 合計を計算し、NULLを0に変換: U02=0, U04=0
+  6. SELECT                    → 取得する列を選択・表示名(AS)を適用
+  7. ORDER BY total_amount DESC→ 結果を大きい順に並び替え
   ★ ON 句の AND 条件は LEFT JOIN では「結合前フィルタ」。WHERE に書くと LEFT 効果がなくなる
 */</span></pre>`,
   explain: `
@@ -801,6 +807,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（INNER JOIN と LEFT JOIN の違い）：</strong><code>INNER JOIN</code> は両方のテーブルに一致するデータがある行だけを残します。一方、<code>LEFT JOIN</code> は「左側（FROMに書いたテーブル）」の全データを基準とし、右側のテーブルに一致するデータがなくても、行を消さずに右側の列をすべて <code>NULL</code> にして残す結合方法です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ユーザー分析APIの定番：</strong><code>GET /analytics/users/summary</code> では「全ユーザーの購買状況を返す」要件が多い。INNER JOIN では未購入ユーザーが消えてしまうため、LEFT JOIN が必須。このパターンを覚えるだけで「0件ユーザーの取りこぼし」バグが防げる。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>ON 句と WHERE 句のフィルタの違い：</strong>LEFT JOIN の右テーブルへの絞り込み条件は ON に書く。WHERE に書くと NULL 行（=注文なし）が除外されてしまい INNER JOIN と同じ動作になる。「LEFT JOIN なのに結果が少ない」バグの最多原因。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>複数テーブルを LEFT JOIN：</strong>users → orders → reviews と3テーブルを LEFT JOIN する場合も同じ発想。左テーブル（users）の全行を維持しながら右テーブルを順番に繋いでいく。JOIN の順番と ON 条件を慎重に確認すること。</div></div>
@@ -854,18 +861,18 @@ const QS = [
 <tr class="tr-hi3"><td>2024-01-04</td><td>20000</td><td class="tc-p">53000</td></tr>
 <tr><td>2024-01-05</td><td>12000</td><td class="tc-p">65000</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                              <span class="cmt">-- データを取得する列を指定（超基礎）</span>
   sale_date,                        <span class="cmt">-- 日付</span>
   daily_amount,                     <span class="cmt">-- その日の売上</span>
 
-  <span class="cmt">-- SUM OVER: ORDER BY で「先頭から現在行まで」を累積集計</span>
-  <span class="fn">SUM</span>(daily_amount) <span class="kw">OVER</span> (
-    <span class="kw">ORDER BY</span> sale_date              <span class="cmt">-- 日付昇順で「現在行まで」の範囲を定義</span>
+  <span class="cmt">-- SUM OVER: ウィンドウ関数を使って「先頭から現在行まで」を累積集計</span>
+  <span class="fn">SUM</span>(daily_amount) <span class="kw">OVER</span> (          <span class="cmt">-- OVER句で元の行を維持したまま合計を計算</span>
+    <span class="kw">ORDER BY</span> sale_date              <span class="cmt">-- 日付の昇順(ASC:古い順)で「現在行まで」の範囲を定義</span>
     <span class="cmt">-- ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW はデフォルトなので省略可</span>
-  ) <span class="kw">AS</span> cumulative_amount            <span class="cmt">-- 先頭日から当日までの累積合計</span>
+  ) <span class="kw">AS</span> cumulative_amount            <span class="cmt">-- AS: 列に名前を付ける（超基礎）</span>
 
-<span class="kw">FROM</span>   <span class="tbl">daily_sales</span>                   <span class="cmt">-- 対象テーブル</span>
-<span class="kw">ORDER BY</span> sale_date <span class="kw">ASC</span>;             <span class="cmt">-- 日付昇順で出力（ウィンドウ内と同じ順）</span>
+<span class="kw">FROM</span>   <span class="tbl">daily_sales</span>                  <span class="cmt">-- データを取得する対象テーブルを指定（超基礎）</span>
+<span class="kw">ORDER BY</span> sale_date <span class="kw">ASC</span>;             <span class="cmt">-- 日付の昇順(ASC:古い順)で出力（超基礎）</span>
 
 <span class="cmt">/*
   実行順序:
@@ -877,8 +884,8 @@ const QS = [
           1/3行: SUM(10000+15000+8000)   = 33000
           1/4行: SUM(...+20000)          = 53000
           1/5行: SUM(...+12000)          = 65000
-  3. SELECT 列を選択 → 行は5行のまま（GROUP BY なし）
-  4. ORDER BY sale_date ASC
+  3. SELECT                     → 列を選択・表示名を適用（行は5行のまま）
+  4. ORDER BY sale_date ASC     → 最終的な出力結果の並び替え
   ★ ウィンドウ関数は SELECT の評価フェーズで計算される（WHERE/GROUP BY の後）
 */</span></pre>`,
   explain: `
@@ -911,6 +918,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（ウィンドウフレームとは）：</strong><code>ROWS BETWEEN A AND B</code> は「どの範囲の行を集計するか」を指定するフレーム句です。<code>UNBOUNDED PRECEDING</code> は「一番最初の行」、<code>CURRENT ROW</code> は「今見ている行」を指します。つまり「先頭から現在行まで足し上げる」＝「累積和」となります。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>売上グラフAPIへの直結：</strong>フロントの折れ線グラフで「累積売上」と「日次売上」を同時に表示したい場合、このクエリ1本で <code>daily_amount</code>（棒グラフ）と <code>cumulative_amount</code>（線グラフ）の両方のデータが揃う。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>移動平均への応用：</strong><code>AVG(daily_amount) OVER (ORDER BY sale_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)</code> で7日移動平均が計算できる。<code>ROWS BETWEEN 6 PRECEDING AND CURRENT ROW</code> は「現在行を含む直近7行」を意味する。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>CTEと組み合わせた活用：</strong>月次集計（DATE_TRUNC）→ CTE に格納 → 累積SUM のパターンで「月次累積売上」が算出できる。Q2（DATE_TRUNC）とこのパターンを合わせると年度の売上進捗グラフが1クエリで完成する。</div></div>
@@ -970,33 +978,33 @@ const QS = [
 <tr><td>2</td><td>2024-06-01</td><td>new_users</td><td>120</td><td>（変化なし）</td></tr>
 <tr class="tr-hi2"><td>3</td><td>2024-06-01</td><td>new_metric</td><td class="tc-g">9999 ← 新規</td><td class="tc-hi">NOW()</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">INSERT INTO</span> <span class="tbl">daily_kpi</span> (              <span class="cmt">-- 挿入先テーブル（id は自動採番のため省略）</span>
+  answer: `<pre><span class="kw">INSERT INTO</span> <span class="tbl">daily_kpi</span> (              <span class="cmt">-- データを挿入するテーブルと列を指定（超基礎）</span>
   report_date,                      <span class="cmt">-- 集計対象日</span>
   metric_name,                      <span class="cmt">-- KPI名</span>
   value,                            <span class="cmt">-- KPI値</span>
   updated_at                        <span class="cmt">-- 最終更新日時</span>
 )
-<span class="kw">VALUES</span>
+<span class="kw">VALUES</span>                              <span class="cmt">-- 挿入する具体的なデータを指定（超基礎）</span>
   (<span class="str">'2024-06-01'</span>, <span class="str">'revenue'</span>,    <span class="num">55000</span>, <span class="fn">NOW</span>()), <span class="cmt">-- 既存: UNIQUE違反 → ON CONFLICT 発動</span>
-  (<span class="str">'2024-06-01'</span>, <span class="str">'new_metric'</span>, <span class="num">9999</span>,  <span class="fn">NOW</span>())  <span class="cmt">-- 新規: 通常INSERT</span>
+  (<span class="str">'2024-06-01'</span>, <span class="str">'new_metric'</span>, <span class="num">9999</span>,  <span class="fn">NOW</span>())  <span class="cmt">-- 新規: 通常のINSERTが成功する</span>
 
-<span class="cmt">-- UNIQUE制約 (report_date, metric_name) が衝突した場合の処理を指定</span>
-<span class="kw">ON CONFLICT</span> (report_date, metric_name)       <span class="cmt">-- どのUNIQUE制約が対象か</span>
-<span class="kw">DO UPDATE SET</span>
-  <span class="cmt">-- EXCLUDED: 今回INSERTしようとした行の値（新しい値）を参照するキーワード</span>
-  value      <span class="op">=</span> <span class="kw">EXCLUDED</span>.value,            <span class="cmt">-- 衝突した場合は新しい value で上書き</span>
-  updated_at <span class="op">=</span> <span class="kw">EXCLUDED</span>.updated_at;       <span class="cmt">-- 更新日時を現在時刻に更新</span>
+<span class="cmt">-- UNIQUE制約 (report_date, metric_name) で重複（衝突）が発生した場合の処理を指定</span>
+<span class="kw">ON CONFLICT</span> (report_date, metric_name)       <span class="cmt">-- どのUNIQUE制約が対象かを指定</span>
+<span class="kw">DO UPDATE SET</span>                                <span class="cmt">-- 衝突した場合はデータを更新(UPDATE)する</span>
+  <span class="cmt">-- EXCLUDED: 今回INSERTしようとした行の値（新しい値）を参照する特別なキーワード</span>
+  value      <span class="op">=</span> <span class="kw">EXCLUDED</span>.value,               <span class="cmt">-- 古い value を新しい value で上書き</span>
+  updated_at <span class="op">=</span> <span class="kw">EXCLUDED</span>.updated_at;          <span class="cmt">-- 更新日時を新しい現在時刻で上書き</span>
 
 <span class="cmt">/*
   実行順序:
   1. VALUES 1行目: ('2024-06-01','revenue',55000,NOW())
-       → UNIQUE(report_date,metric_name)='2024-06-01/revenue' が既存と衝突
-       → ON CONFLICT DO UPDATE SET value=55000, updated_at=NOW()
+       → UNIQUE(report_date,metric_name)='2024-06-01/revenue' が既存データと衝突
+       → ON CONFLICT DO UPDATE SET value=55000, updated_at=NOW() として更新(UPSERT)される
   2. VALUES 2行目: ('2024-06-01','new_metric',9999,NOW())
-       → 衝突なし → 通常の INSERT（id=3 が自動採番される）
+       → 衝突なし → 通常の INSERT（id=3 が自動採番される）として新規追加される
   ★ ON CONFLICT: 衝突がなければ通常INSERT, 衝突があればDO UPDATEが実行される
   ★ EXCLUDED: INSERTしようとした新しい値を参照する特殊テーブル名
-  ★ DO NOTHING にすると衝突時はスキップ（更新しない）
+  ★ DO NOTHING にすると衝突時はエラーを出さずにスキップ（更新しない）できる
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1024,6 +1032,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（一意制約 / UNIQUE制約）：</strong>テーブルにデータを入れる際、「この列の値（または複数の列の組み合わせ）は絶対に重複してはならない」というルールを設けるのが一意制約です。重複したデータが入ろうとすると通常はエラーになりますが、<code>ON CONFLICT</code> を使うとそのエラーをキャッチして別の処理（UPDATEなど）に切り替えることができます。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>バッチの冪等性を SQL レベルで保証：</strong>日次バッチが2重実行されても ON CONFLICT により同じ結果になる。「バッチを再実行して大丈夫か？」という疑問が出たらこのパターンを使う。CRON + UPSERT の組み合わせが最も安全なバッチ設計。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>カウンター加算パターン：</strong><code>value = daily_kpi.value + EXCLUDED.value</code> とすることで、ページビュー数などのカウンターを「既存値に加算」できる。INSERTとUPDATE COUNT を別クエリで書く必要がなくなる。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>DO NOTHING との使い分け：</strong>「既にデータがあれば何もしない（初回INSERTのみ）」なら <code>DO NOTHING</code>。「常に最新値で上書き」なら <code>DO UPDATE SET</code>。バッチの再集計結果を書き込む場合は DO UPDATE が適切。</div></div>
@@ -1084,35 +1093,35 @@ const QS = [
 <tr class="tr-hi4"><td>W001</td><td>U01</td><td>5000</td><td>2024-06-01 10:00</td><td class="tc-p">web</td></tr>
 </table></div>`,
   answer: `<pre><span class="cmt">-- UNION ALL の前半: WEB注文</span>
-<span class="kw">SELECT</span>
+<span class="kw">SELECT</span>                              <span class="cmt">-- データを取得する列を指定（超基礎）</span>
   order_id,                         <span class="cmt">-- 注文ID（UNION ALLは列数・型が一致している必要がある）</span>
   user_id,                          <span class="cmt">-- ユーザーID</span>
   amount,                           <span class="cmt">-- 金額</span>
   ordered_at,                       <span class="cmt">-- 注文日時</span>
-  <span class="str">'web'</span> <span class="kw">AS</span> channel               <span class="cmt">-- リテラル文字列を列として追加（固定値で識別子を付ける）</span>
-<span class="kw">FROM</span> <span class="tbl">web_orders</span>                     <span class="cmt">-- WEB注文テーブル</span>
+  <span class="str">'web'</span> <span class="kw">AS</span> channel                  <span class="cmt">-- リテラル文字列を列として追加（固定値で識別子を付ける）</span>
+<span class="kw">FROM</span> <span class="tbl">web_orders</span>                     <span class="cmt">-- データを取得する対象テーブルを指定（超基礎）</span>
 
-<span class="kw">UNION ALL</span>                           <span class="cmt">-- 重複除去なしで縦結合（UNION より高速）</span>
+<span class="kw">UNION ALL</span>                           <span class="cmt">-- 複数のSELECT結果を「縦」に結合する（重複除去なしで高速）</span>
 
 <span class="cmt">-- UNION ALL の後半: アプリ注文（列の順序・型を前半と揃える）</span>
-<span class="kw">SELECT</span>
-  order_id,                         <span class="cmt">-- web_orders の order_id と同じ位置・型</span>
+<span class="kw">SELECT</span>                              <span class="cmt">-- 後半のデータを取得（超基礎）</span>
+  order_id,                         <span class="cmt">-- web_orders の order_id と同じ位置・型にする</span>
   user_id,
   amount,
   ordered_at,
-  <span class="str">'app'</span> <span class="kw">AS</span> channel               <span class="cmt">-- アプリ注文には 'app' を付ける</span>
-<span class="kw">FROM</span> <span class="tbl">app_orders</span>                     <span class="cmt">-- アプリ注文テーブル</span>
+  <span class="str">'app'</span> <span class="kw">AS</span> channel                  <span class="cmt">-- アプリ注文には 'app' を付ける</span>
+<span class="kw">FROM</span> <span class="tbl">app_orders</span>                     <span class="cmt">-- データを取得する対象テーブルを指定（超基礎）</span>
 
-<span class="kw">ORDER BY</span> ordered_at <span class="kw">DESC</span>;          <span class="cmt">-- UNION ALL 全体の結果に対して並び替え（最後に1回だけ書く）</span>
+<span class="kw">ORDER BY</span> ordered_at <span class="kw">DESC</span>;           <span class="cmt">-- 最終的な結果を注文日時の降順(新しい順:DESC)に並び替え（超基礎）</span>
 
 <span class="cmt">/*
   実行順序:
   1. SELECT ... FROM web_orders  → 2行取得（channel='web'を付与）
   2. SELECT ... FROM app_orders  → 2行取得（channel='app'を付与）
-  3. UNION ALL                   → 4行を縦結合（重複チェックなし）
+  3. UNION ALL                   → 上下4行をそのまま縦に結合（重複チェックは行わない）
   4. ORDER BY ordered_at DESC    → 統合後の4行を日時降順で並び替え
   ★ ORDER BY は UNION ALL の最後に1回だけ書く（各SELECTには書けない）
-  ★ 列名は1番目のSELECTの列名が使われる（2番目以降の列名は無視される）
+  ★ 最終的な列名は1番目のSELECTの列名が使われる（2番目以降の列名は無視される）
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1142,6 +1151,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（JOINとUNIONの違い）：</strong><code>JOIN</code> はテーブルを「横」に繋げて列を増やす操作です。一方 <code>UNION</code> はテーブルを「縦」に繋げて行を増やす操作です。別々のテーブルにある同じ性質のデータ（例: webの注文とアプリの注文）を1つのリストにまとめたいときは <code>UNION</code> を使います。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>マルチチャネル統合レポートの定番：</strong>WEB・アプリ・実店舗と異なるテーブルに分散した売上データを統合するレポートAPIに最頻出。UNION ALL で統合してから GROUP BY channel で集計すると「チャネル別売上比較」が完成する。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>列数・型の一致が必須：</strong>UNION ALL の各 SELECT は列数と対応する列の型が一致していなければエラーになる。型が違う場合は <code>CAST(amount AS NUMERIC)</code> で揃える。列名は最初の SELECT のものが採用される。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>UNION ALL + CTE で使いやすく：</strong><code>WITH all_orders AS (SELECT ... UNION ALL SELECT ...)</code> とCTEにまとめると、後続の GROUP BY・JOIN・ウィンドウ関数から <code>all_orders</code> という名前で参照できる。複雑なレポートではこのパターンが読みやすい。</div></div>
@@ -1212,49 +1222,50 @@ const QS = [
 <tr class="tr-hi4"><td>P02</td><td>ワイヤレスイヤホン</td><td class="tc-p">Bluetooth, オーディオ, ワイヤレス</td><td class="tc-g">1</td><td class="tc-y">5.0</td></tr>
 </table></div>
 <p style="font-size:12px;color:var(--dim);margin-top:6px">※ avg_rating は published のみが対象（pending レビューは除く）</p>`,
-  answer: `<pre><span class="kw">SELECT</span>
+  answer: `<pre><span class="kw">SELECT</span>                              <span class="cmt">-- データを取得する列を指定（超基礎）</span>
   p.product_id,                     <span class="cmt">-- 商品ID</span>
   p.name,                           <span class="cmt">-- 商品名</span>
 
-  <span class="cmt">-- STRING_AGG: tag_name をアルファベット順で ',' + スペース区切りに連結</span>
+  <span class="cmt">-- STRING_AGG: 文字列を区切り文字で連結する集約関数</span>
   <span class="fn">STRING_AGG</span>(
     t.tag_name,                     <span class="cmt">-- 連結する列</span>
     <span class="str">', '</span>                            <span class="cmt">-- 区切り文字（コンマ + スペース）</span>
-    <span class="kw">ORDER BY</span> t.tag_name             <span class="cmt">-- 連結順を安定させるためソートを指定</span>
-  ) <span class="kw">AS</span> tag_list,                   <span class="cmt">-- 結果例: 'Bluetooth, オーディオ, ワイヤレス'</span>
+    <span class="kw">ORDER BY</span> t.tag_name             <span class="cmt">-- 連結順を安定させるため昇順ソートを指定</span>
+  ) <span class="kw">AS</span> tag_list,                    <span class="cmt">-- 結果例: 'Bluetooth, オーディオ, ワイヤレス'</span>
 
-  <span class="cmt">-- FILTER: published のレビューだけをカウント（pending はスキップ）</span>
-  <span class="fn">COUNT</span>(r.rating) <span class="kw">FILTER</span> (
-    <span class="kw">WHERE</span> r.status <span class="op">=</span> <span class="str">'published'</span>   <span class="cmt">-- 条件を満たす行のみ COUNT の対象にする</span>
+  <span class="cmt">-- FILTER: 集約関数の中で条件を絞る機能（WHEREと違い行自体は消えない）</span>
+  <span class="fn">COUNT</span>(r.rating) <span class="kw">FILTER</span> (          <span class="cmt">-- COUNT: 件数を数える（超基礎）</span>
+    <span class="kw">WHERE</span> r.status <span class="op">=</span> <span class="str">'published'</span>    <span class="cmt">-- published(公開) のレビューだけをカウント対象にする</span>
   ) <span class="kw">AS</span> published_reviews,           <span class="cmt">-- published レビュー数</span>
 
   <span class="cmt">-- FILTER で published のみの平均評価を計算</span>
-  <span class="fn">ROUND</span>(
-    <span class="fn">AVG</span>(r.rating) <span class="kw">FILTER</span> (
-      <span class="kw">WHERE</span> r.status <span class="op">=</span> <span class="str">'published'</span> <span class="cmt">-- published のみ平均の対象</span>
+  <span class="fn">ROUND</span>(                            <span class="cmt">-- ROUND: 四捨五入する（超基礎）</span>
+    <span class="fn">AVG</span>(r.rating) <span class="kw">FILTER</span> (          <span class="cmt">-- AVG: 平均値を計算する集約関数（超基礎）</span>
+      <span class="kw">WHERE</span> r.status <span class="op">=</span> <span class="str">'published'</span>  <span class="cmt">-- published のみ平均の対象</span>
     ),
     <span class="num">1</span>                               <span class="cmt">-- ROUND の第2引数: 小数点1桁</span>
   ) <span class="kw">AS</span> avg_rating                   <span class="cmt">-- 公開レビューの平均評価</span>
 
-<span class="kw">FROM</span>       <span class="tbl">products</span>      p           <span class="cmt">-- 商品テーブル（左テーブル = 必ず残す）</span>
-<span class="kw">LEFT JOIN</span>  <span class="tbl">product_tags</span> t            <span class="cmt">-- タグテーブル（タグなし商品もNULLで残す）</span>
-  <span class="kw">ON</span> p.product_id <span class="op">=</span> t.product_id   <span class="cmt">-- 商品IDで結合</span>
-<span class="kw">LEFT JOIN</span>  <span class="tbl">reviews</span>      r            <span class="cmt">-- レビューテーブル（レビューなし商品もNULLで残す）</span>
-  <span class="kw">ON</span> p.product_id <span class="op">=</span> r.product_id   <span class="cmt">-- 商品IDで結合</span>
+<span class="kw">FROM</span>       <span class="tbl">products</span>      p          <span class="cmt">-- データを取得するベースの左テーブル（超基礎）</span>
+<span class="kw">LEFT JOIN</span>  <span class="tbl">product_tags</span> t           <span class="cmt">-- LEFT JOIN: 左テーブルを全残しして結合（超基礎）</span>
+  <span class="kw">ON</span> p.product_id <span class="op">=</span> t.product_id    <span class="cmt">-- ON: 結合条件（超基礎）</span>
+<span class="kw">LEFT JOIN</span>  <span class="tbl">reviews</span>      r           <span class="cmt">-- 2つ目のテーブルも LEFT JOIN で結合</span>
+  <span class="kw">ON</span> p.product_id <span class="op">=</span> r.product_id    <span class="cmt">-- 商品IDで結合</span>
 
-<span class="kw">GROUP BY</span> p.product_id, p.name;      <span class="cmt">-- 商品ごとに集約（STRINGAGGもFILTERも各グループで計算）</span>
+<span class="kw">GROUP BY</span> p.product_id, p.name;      <span class="cmt">-- 指定した列でグループにまとめる（超基礎）</span>
 
 <span class="cmt">/*
   実行順序:
-  1. FROM products p               → 2行（P01, P02）
-  2. LEFT JOIN product_tags t      → タグを結合（P01:2行, P02:3行 → 計5行）
-  3. LEFT JOIN reviews r           → レビューを結合（P01:3行, P02:2行 だが
-                                     tags × reviews でクロスになるため別CTEを推奨）
-  4. GROUP BY product_id, name     → 2グループ
+  1. FROM products p               → ベーステーブル2行（P01, P02）
+  2. LEFT JOIN product_tags t      → タグを結合（P01:2行, P02:3行 → 計5行に増殖）
+  3. LEFT JOIN reviews r           → レビューを結合（さらに行が増殖し、クロスジョイン状態になる。
+                                     ※実務では tags × reviews で行が増えすぎるため別CTEを推奨）
+  4. GROUP BY product_id, name     → 増殖した行を商品ごとの2グループに集約
   5. STRING_AGG(tag_name, ', ' ORDER BY tag_name) → タグを連結
   6. COUNT(r.rating) FILTER (WHERE status='published') → 公開のみカウント
   7. ROUND(AVG(r.rating) FILTER (...), 1) → 公開のみ平均
-  ★ FILTER は集計関数の内側で条件を絞る（WHERE は集計前の全行に適用）
+  8. SELECT                        → 列を選択・表示名適用
+  ★ FILTER は集約関数の内側で条件を絞る（WHERE は集計前の全行を消してしまう）
 */</span></pre>`,
   explain: `
 <div class="viz-flow">
@@ -1284,6 +1295,7 @@ const QS = [
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（1対多のJOINによる行の増殖）：</strong>1つの商品に対してタグが2つ、レビューが3つある状態でこれらをすべて同時に <code>LEFT JOIN</code> すると、結果は 2×3 = 6行に増殖（カーテシアン積）してしまいます。これが集計の際に「SUMやCOUNTの数が合わない」原因になります。多対多の場合は結合前に集約（CTEなど）しておくのが基本です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>商品詳細APIの1クエリ化：</strong><code>GET /products/{id}</code> の詳細APIで「タグ配列 + 評価スコア + レビュー数」を別々に3クエリで取得していたなら、このパターンで1クエリに統合できる。フロントに JSON 配列で返したい場合は <code>STRING_AGG</code> の代わりに <code>ARRAY_AGG(tag_name ORDER BY tag_name)</code> を使う。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>FILTER によるピボット集計：</strong><code>COUNT(*) FILTER (WHERE status='A')</code> と <code>COUNT(*) FILTER (WHERE status='B')</code> を同じSELECTに並べると「ステータスAの件数 / ステータスBの件数」をピボット形式で1行に収められる。管理画面のサマリーAPIに最適。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>ARRAY_AGG でJSON配列を直接生成：</strong><code>ARRAY_AGG(tag_name ORDER BY tag_name)</code> は PostgreSQL の配列型を返す。JSONレスポンスでは <code>json_agg</code> や <code>jsonb_agg</code> を使うとネストしたJSONオブジェクトの配列も生成できる。</div></div>
@@ -1342,65 +1354,65 @@ const QS = [
 <tr class="tr-hi3"><td>2024-02-01</td><td>120000</td><td class="tc-o">100000</td><td class="tc-p">+20.0</td><td class="tc-g">急成長</td></tr>
 <tr class="tr-hi4"><td>2024-03-01</td><td>150000</td><td class="tc-o">120000</td><td class="tc-p">+25.0</td><td class="tc-g">急成長</td></tr>
 </table></div>`,
-  answer: `<pre><span class="kw">WITH</span>
+  answer: `<pre><span class="kw">WITH</span>                                <span class="cmt">-- WITH句: 一時的な名前付き結果セット(CTE)を定義する（超基礎）</span>
 
 <span class="cmt">-- ① 月次売上集計: DATE_TRUNC で月ごとに GROUP BY（Q2で学んだパターン）</span>
-monthly_revenue <span class="kw">AS</span> (
-  <span class="kw">SELECT</span>
+monthly_revenue <span class="kw">AS</span> (                <span class="cmt">-- 1つ目のCTEの名前を定義</span>
+  <span class="kw">SELECT</span>                            <span class="cmt">-- 列を指定（超基礎）</span>
     <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, paid_at) <span class="kw">AS</span> month,  <span class="cmt">-- 月の先頭日に切り捨て</span>
-    <span class="fn">SUM</span>(amount)                 <span class="kw">AS</span> revenue  <span class="cmt">-- 月次売上合計</span>
-  <span class="kw">FROM</span>   <span class="tbl">payments</span>
-  <span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'succeeded'</span>                <span class="cmt">-- 成功した決済のみ対象</span>
+    <span class="fn">SUM</span>(amount)                  <span class="kw">AS</span> revenue <span class="cmt">-- 月次売上合計</span>
+  <span class="kw">FROM</span>   <span class="tbl">payments</span>                   <span class="cmt">-- テーブルを指定（超基礎）</span>
+  <span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'succeeded'</span>       <span class="cmt">-- 成功した決済のみに絞り込む（超基礎）</span>
   <span class="kw">GROUP BY</span>
-    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, paid_at)           <span class="cmt">-- 月ごとにグループ化</span>
-),
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, paid_at)    <span class="cmt">-- 月ごとにグループ化</span>
+),                                  <span class="cmt">-- カンマで複数のCTEを繋ぐ</span>
 
 <span class="cmt">-- ② 前月比計算: LAG で前月売上を取得し growth_pct を算出（Q3で学んだパターン）</span>
-with_growth <span class="kw">AS</span> (
+with_growth <span class="kw">AS</span> (                    <span class="cmt">-- 2つ目のCTE</span>
   <span class="kw">SELECT</span>
-    month,                                    <span class="cmt">-- 月（CTEから引き継ぐ）</span>
-    revenue,                                  <span class="cmt">-- 今月の売上</span>
+    month,                          <span class="cmt">-- 月（1つ目のCTEから引き継ぐ）</span>
+    revenue,                        <span class="cmt">-- 今月の売上</span>
 
-    <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (
-      <span class="kw">ORDER BY</span> month                        <span class="cmt">-- 月昇順で前月値を取得</span>
-    ) <span class="kw">AS</span> prev_revenue,                      <span class="cmt">-- 前月売上（先頭月はNULL）</span>
+    <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (          <span class="cmt">-- 1行前の値を取得</span>
+      <span class="kw">ORDER BY</span> month                <span class="cmt">-- 月昇順で前月値を取得</span>
+    ) <span class="kw">AS</span> prev_revenue,              <span class="cmt">-- 前月売上（先頭月はNULL）</span>
 
     <span class="fn">ROUND</span>(
       (revenue <span class="op">-</span> <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> month))
       <span class="op">/</span> <span class="fn">NULLIF</span>(<span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> month), <span class="num">0</span>)
-      <span class="op">*</span> <span class="num">100.0</span>,                              <span class="cmt">-- 100.0 で浮動小数点演算に</span>
-      <span class="num">1</span>                                       <span class="cmt">-- 小数点以下1桁に丸める</span>
-    ) <span class="kw">AS</span> growth_pct                          <span class="cmt">-- 前月比成長率（%）</span>
+      <span class="op">*</span> <span class="num">100.0</span>,                      <span class="cmt">-- 100.0 で浮動小数点演算に</span>
+      <span class="num">1</span>                             <span class="cmt">-- 小数点以下1桁に丸める</span>
+    ) <span class="kw">AS</span> growth_pct                 <span class="cmt">-- 前月比成長率（%）</span>
 
-  <span class="kw">FROM</span> monthly_revenue                        <span class="cmt">-- ① の CTE を参照（テーブルのように使える）</span>
+  <span class="kw">FROM</span> monthly_revenue              <span class="cmt">-- ★重要: ① で作った CTE をテーブルのように参照する</span>
 ),
 
 <span class="cmt">-- ③ 成長タイプ分類: CASE WHEN で growth_pct の値に応じてラベルを付与</span>
-with_type <span class="kw">AS</span> (
+with_type <span class="kw">AS</span> (                      <span class="cmt">-- 3つ目のCTE</span>
   <span class="kw">SELECT</span>
     month,
     revenue,
     prev_revenue,
     growth_pct,
 
-    <span class="cmt">-- CASE WHEN: growth_pct の値によって成長タイプを分類</span>
+    <span class="cmt">-- CASE WHEN: 条件によって返す値を分岐させる（超基礎）</span>
     <span class="kw">CASE</span>
-      <span class="kw">WHEN</span> growth_pct <span class="kw">IS NULL</span>      <span class="cmt">-- 前月データなし（先頭月）</span>
+      <span class="kw">WHEN</span> growth_pct <span class="kw">IS NULL</span>       <span class="cmt">-- 前月データなし（先頭月）</span>
         <span class="kw">THEN</span> <span class="str">'基準月'</span>
-      <span class="kw">WHEN</span> growth_pct <span class="op">&gt;=</span> <span class="num">10</span>        <span class="cmt">-- 10%以上の成長</span>
+      <span class="kw">WHEN</span> growth_pct <span class="op">&gt;=</span> <span class="num">10</span>         <span class="cmt">-- 10%以上の成長</span>
         <span class="kw">THEN</span> <span class="str">'急成長'</span>
-      <span class="kw">WHEN</span> growth_pct <span class="op">&gt;=</span> <span class="num">0</span>         <span class="cmt">-- 0%以上10%未満の成長</span>
+      <span class="kw">WHEN</span> growth_pct <span class="op">&gt;=</span> <span class="num">0</span>          <span class="cmt">-- 0%以上10%未満の成長</span>
         <span class="kw">THEN</span> <span class="str">'微増'</span>
-      <span class="kw">ELSE</span>                           <span class="cmt">-- 0%未満（前月比マイナス）</span>
+      <span class="kw">ELSE</span>                          <span class="cmt">-- それ以外(0%未満：マイナス)</span>
         <span class="str">'減少'</span>
     <span class="kw">END</span> <span class="kw">AS</span> growth_type              <span class="cmt">-- タイプラベル</span>
 
-  <span class="kw">FROM</span> with_growth                  <span class="cmt">-- ② の CTE を参照</span>
+  <span class="kw">FROM</span> with_growth                  <span class="cmt">-- ★重要: ② で作った CTE を参照する</span>
 )
 
 <span class="cmt">-- 最終SELECT: ③ の CTE を全列取得・月昇順で返す</span>
-<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> with_type             <span class="cmt">-- with_type の全列を返す</span>
-<span class="kw">ORDER BY</span> month;                     <span class="cmt">-- 月昇順で出力</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> with_type             <span class="cmt">-- 最後に with_type から全列(*)を取得する（超基礎）</span>
+<span class="kw">ORDER BY</span> month <span class="kw">ASC</span>;                 <span class="cmt">-- 最終結果を月昇順(ASC)で出力（超基礎）</span>
 
 <span class="cmt">/*
   実行順序（CTE は上から順に評価される）:
@@ -1410,7 +1422,7 @@ with_type <span class="kw">AS</span> (
        → with_growth: 1月(NULL), 2月(+20.0), 3月(+25.0)
   3. with_growth → CASE WHEN でタイプ分類
        → with_type: 1月(基準月), 2月(急成長), 3月(急成長)
-  4. SELECT * FROM with_type ORDER BY month → 最終結果
+  4. SELECT * FROM with_type ORDER BY month ASC → 最終結果を取得・並び替え
   ★ CTEは上から下へ順番に評価され、後のCTEは前のCTEを参照できる
   ★ サブクエリのネストと違い、各ステップを独立して読める・デバッグできる
 */</span></pre>`,
@@ -1455,6 +1467,7 @@ with_type <span class="kw">AS</span> (
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足（サブクエリとCTE）：</strong><code>SELECT * FROM (SELECT * FROM table)</code> のようにFROM句の中に直接書くのがサブクエリです。対して <code>WITH name AS (SELECT * FROM table)</code> と先頭に定義して名前を付けるのがCTEです。結果は同じですが、CTEのほうが「上から下へ」処理の流れ通りに読めるため、複雑なクエリで圧倒的に読みやすくなります。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>BI集計SQLはCTEで分解するのが実務標準：</strong>本番のダッシュボードAPIでは「生データ取得 → フィルタ・変換 → 集計 → ランキング・ラベル付け」の4〜6ステップをCTEで書く。サブクエリのネストと異なり、各CTEを単独でSELECTしてデバッグできる点が大きな利点。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CTEの再利用：</strong>同じCTEを最終SELECT内で複数回 JOIN することもできる。例えば <code>WITH base AS (...)</code> を定義して <code>SELECT a.month, b.revenue FROM base a JOIN base b ON ...</code> のように自己参照も可能（再帰CTEは <code>WITH RECURSIVE</code>）。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>このクエリで学んだパターンの組み合わせ：</strong>Q2（DATE_TRUNC月次集計）+ Q3（LAG前月比）+ Q10（CTE分解）を1本のクエリに統合した形がこの問題。個々のパターンを理解した上で組み合わせることで、実務レベルのBI集計クエリが書けるようになる。</div></div>
@@ -1499,11 +1512,11 @@ function buildAll() {
         <div class="q-title">${q.title}</div>
         <div class="q-tags">${tagHTML(q.tags)}</div>
       </div>
-      ${acc('📘','pill-blue','前提','基礎文法・概念',q.premise)}
-      ${acc('❓','pill-green','問題','テーブルデータ付き',q.question)}
-      ${acc('📊','pill-orange','出力例','期待する結果',q.output)}
-      ${acc('✅','pill-red','模範回答','SQL（コメント付き）',q.answer)}
-      ${acc('🔍','pill-purple','解説','変化の可視化＋学習ポイント',q.explain)}
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力例','期待出力',q.output)}
+      ${acc('✅','pill-red','模範回答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',q.explain)}
       <div class="nav-bar">
         <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
         <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
