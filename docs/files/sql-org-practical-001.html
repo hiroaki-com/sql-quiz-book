@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL組織分析10選 — 企業データ × テーブル変化で理解する</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-sub { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw); font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  .viz-flow { margin: 6px 0 14px; }
+  .step-block { margin-bottom: 8px; }
+  .step-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; }
+  .step-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .sn1 { background: #1a2744; color: var(--accent); }
+  .sn2 { background: #1a2e1a; color: var(--green); }
+  .sn3 { background: #2e1a2e; color: var(--purple); }
+  .sn4 { background: #2e1a0a; color: var(--orange); }
+  .step-desc { color: var(--dim); }
+  .step-desc strong { color: var(--text); }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+  .tr-hi  td { background: #0e1e33 !important; }
+  .tr-hi2 td { background: #0e1e0e !important; }
+  .tr-hi3 td { background: #1e1433 !important; }
+  .tr-hi4 td { background: #1e1a0a !important; }
+  .tr-dim td { opacity: 0.4; }
+  .tc-hi { color: var(--accent) !important; font-weight: 700; }
+  .tc-g  { color: var(--green)  !important; font-weight: 700; }
+  .tc-p  { color: var(--purple) !important; font-weight: 700; }
+  .tc-y  { color: var(--yellow) !important; font-weight: 700; }
+  .tc-o  { color: var(--orange) !important; font-weight: 700; }
+  .tc-r  { color: var(--red)    !important; font-weight: 700; }
+  .null  { color: var(--dim)    !important; font-style: italic; }
+
+  .arrow { text-align: center; padding: 4px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .arrow-text { color: var(--dim); font-size: 11px; }
+
+  .exec-box { background: #060a0f; border: 1px solid var(--bg4); border-radius: 6px; padding: 12px 14px; margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+  .exec-title { color: var(--purple); font-size: 10px; letter-spacing: 1px; margin-bottom: 8px; }
+  .exec-row { display: flex; gap: 8px; margin-bottom: 5px; align-items: flex-start; }
+  .exec-n { color: var(--dim); width: 14px; flex-shrink: 0; }
+  .exec-step { color: var(--yellow); min-width: 160px; flex-shrink: 0; }
+  .exec-desc { color: var(--dim); line-height: 1.5; }
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em { color: var(--yellow); }
+  .insight-body code { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code { font-size: 11px; }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">組織10</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">企業組織データで学ぶ SQL 応用10選（実務BI編）</div>
+        <div class="header-sub">DENSE_RANK / SELF JOIN / 予算差異 / LAG / FIRST_VALUE / NOT EXISTS / SUM OVER / RECURSIVE CTE / PIVOT / LEAD</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★★ 中〜上級</span>
+      <span class="htag">組織分析</span>
+      <span class="htag">HR Analytics</span>
+      <span class="htag">PostgreSQL/BigQuery対応</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  DENSE_RANK — 部署内売上ランキング（同率対応）
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "DENSE_RANK — 部署内売上ランキングを同率考慮で算出",
+  tags: [["r","DENSE_RANK"],["o","PARTITION BY"],["g","CTE"],["p","部署別ランキング"]],
+  premise: `<p><strong>DENSE_RANK()</strong> は同値に同順位を振り、次の順位を飛ばさないウィンドウ関数です。部署別ランキング・社内表彰・昇格候補抽出など、組織分析で頻出します。</p>
+<pre><span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> dept_id          <span class="cmt">-- 部署ごとに独立したウィンドウを作成</span>
+  <span class="kw">ORDER BY</span>    total_sales <span class="kw">DESC</span> <span class="cmt">-- 売上の降順でランク付け（高い方が1位）</span>
+) <span class="kw">AS</span> dept_rank</pre>
+<div class="callout"><strong>3兄弟の違い（同値が2人いるとき）：</strong><br>
+ROW_NUMBER → 1, 2, 3, 4（同値でも必ず別番号）<br>
+RANK       → 1, 1, 3, 4（同率あり・次を飛ばす）<br>
+DENSE_RANK → 1, 1, 2, 3（同率あり・次を飛ばさない）</div>
+<p>組織ランキングでは <em>「3位は何人いるか」を正確に表したい</em> ので DENSE_RANK が最適です。RANK だと「2位が2人いると4位が続く」という直感に反する表示になります。</p>`,
+  question: `<p>employees テーブルと sales_results テーブルを結合し、<em>各部署内での四半期売上ランキング</em>を DENSE_RANK で算出してください。</p>
+<p>各部署の上位3位以内の社員のみを出力し、同率の場合は全員含めます。</p>
+<p>出力：dept_name, emp_name, total_sales, dept_rank</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employees</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>dept_id</th></tr>
+        <tr><td>1</td><td>田中</td><td>10</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>10</td></tr>
+        <tr><td>3</td><td>山田</td><td>10</td></tr>
+        <tr><td>4</td><td>鈴木</td><td>20</td></tr>
+        <tr><td>5</td><td>高橋</td><td>20</td></tr>
+        <tr><td>6</td><td>木村</td><td>20</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sales_results</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>quarter</th><th>total_sales</th></tr>
+        <tr><td>1</td><td>2024Q1</td><td>820,000</td></tr>
+        <tr><td>2</td><td>2024Q1</td><td>750,000</td></tr>
+        <tr><td>3</td><td>2024Q1</td><td>750,000</td></tr>
+        <tr><td>4</td><td>2024Q1</td><td>990,000</td></tr>
+        <tr><td>5</td><td>2024Q1</td><td>640,000</td></tr>
+        <tr><td>6</td><td>2024Q1</td><td>880,000</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ departments</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>dept_id</th><th>dept_name</th></tr>
+        <tr><td>10</td><td>営業一部</td></tr>
+        <tr><td>20</td><td>営業二部</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>emp_name</th><th>total_sales</th><th>dept_rank</th></tr>
+<tr><td>営業一部</td><td>田中</td><td>820,000</td><td>1</td></tr>
+<tr><td>営業一部</td><td>佐藤</td><td>750,000</td><td>2</td></tr>
+<tr><td>営業一部</td><td>山田</td><td>750,000</td><td>2</td></tr>
+<tr><td>営業二部</td><td>鈴木</td><td>990,000</td><td>1</td></tr>
+<tr><td>営業二部</td><td>木村</td><td>880,000</td><td>2</td></tr>
+<tr><td>営業二部</td><td>高橋</td><td>640,000</td><td>3</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 部署内売上ランキングを算出する（CTEで一段ラップ）</span>
+ranked <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    d.dept_name,                    <span class="cmt">-- 部署名（departments テーブルから）</span>
+    e.emp_name,                     <span class="cmt">-- 社員名（employees テーブルから）</span>
+    s.total_sales,                  <span class="cmt">-- 四半期売上（sales_results テーブルから）</span>
+    <span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> e.dept_id         <span class="cmt">-- 部署ごとに独立してランク付け（部署が変わると1からリセット）</span>
+      <span class="kw">ORDER BY</span>    s.total_sales <span class="kw">DESC</span> <span class="cmt">-- 売上が高いほど小さい数字（1位）になる</span>
+    ) <span class="kw">AS</span> dept_rank
+  <span class="kw">FROM</span>       <span class="tbl">sales_results</span> s
+  <span class="kw">JOIN</span>       <span class="tbl">employees</span>     e  <span class="kw">ON</span> s.emp_id  <span class="op">=</span> e.emp_id   <span class="cmt">-- 社員IDで結合して名前・部署IDを取得</span>
+  <span class="kw">JOIN</span>       <span class="tbl">departments</span>   d  <span class="kw">ON</span> e.dept_id <span class="op">=</span> d.dept_id  <span class="cmt">-- 部署IDで結合して部署名を取得</span>
+  <span class="kw">WHERE</span>      s.quarter <span class="op">=</span> <span class="str">'2024Q1'</span>                          <span class="cmt">-- 対象四半期のみに絞る</span>
+)
+
+<span class="cmt">-- ② CTEの結果から上位3位以内のみ取得（同率3位は全員含む）</span>
+<span class="cmt">-- ※ ウィンドウ関数の結果は同じSELECTのWHEREで使えないため CTEが必須</span>
+<span class="kw">SELECT</span>
+  dept_name,
+  emp_name,
+  total_sales,
+  dept_rank
+<span class="kw">FROM</span>  ranked
+<span class="kw">WHERE</span> dept_rank <span class="op">&lt;=</span> <span class="num">3</span>               <span class="cmt">-- 3位以内（同率3位が複数いれば全員出力）</span>
+<span class="kw">ORDER BY</span> dept_name, dept_rank;    <span class="cmt">-- 部署名の昇順 → 同部署内は順位の昇順で表示</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM sales_results           → 売上テーブルを読み込む
+  2. JOIN employees               → 社員情報（dept_id）を結合
+  3. JOIN departments             → 部署名を結合
+  4. WHERE quarter = '2024Q1'     → 四半期で絞り込む
+  5. DENSE_RANK() OVER(PARTITION) → 部署ごとに売上ランクを付与
+  6. ranked CTE 完成
+  7. WHERE dept_rank <= 3         → 上位3位以内に絞り込む
+  8. ORDER BY dept_name, rank     → 部署・順位順で出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>JOIN後の中間テーブル</strong> — 全カラムが揃った状態</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>emp_name</th><th>total_sales</th></tr>
+<tr><td>営業一部</td><td>田中</td><td>820,000</td></tr>
+<tr><td>営業一部</td><td>佐藤</td><td>750,000</td></tr>
+<tr><td>営業一部</td><td>山田</td><td>750,000</td></tr>
+<tr><td>営業二部</td><td>鈴木</td><td>990,000</td></tr>
+<tr><td>営業二部</td><td>高橋</td><td>640,000</td></tr>
+<tr><td>営業二部</td><td>木村</td><td>880,000</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">DENSE_RANK() OVER (PARTITION BY dept_id ORDER BY total_sales DESC)</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>ranked CTE</strong> — 部署ごとに独立してランク付け（佐藤・山田は同率2位）</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>emp_name</th><th>total_sales</th><th class="tc-hi">dept_rank</th><th>ROW_NUMBER比較</th><th>RANK比較</th></tr>
+<tr><td>営業一部</td><td>田中</td><td>820,000</td><td class="tc-hi">1</td><td>1</td><td>1</td></tr>
+<tr class="tr-hi"><td>営業一部</td><td>佐藤</td><td>750,000</td><td class="tc-hi">2 ←同率</td><td>2</td><td>2</td></tr>
+<tr class="tr-hi"><td>営業一部</td><td>山田</td><td>750,000</td><td class="tc-hi">2 ←同率</td><td>3</td><td>2</td></tr>
+<tr><td>営業二部</td><td>鈴木</td><td>990,000</td><td class="tc-hi">1</td><td>1</td><td>1</td></tr>
+<tr><td>営業二部</td><td>木村</td><td>880,000</td><td class="tc-hi">2</td><td>2</td><td>2</td></tr>
+<tr><td>営業二部</td><td>高橋</td><td>640,000</td><td class="tc-hi">3</td><td>3</td><td>3</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">WHERE dept_rank &lt;= 3 — 上位3位以内に絞り込む</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — 同率2位の佐藤・山田が両方残る</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>emp_name</th><th>total_sales</th><th class="tc-hi">dept_rank</th></tr>
+<tr><td>営業一部</td><td>田中</td><td>820,000</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi"><td>営業一部</td><td>佐藤</td><td>750,000</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi"><td>営業一部</td><td>山田</td><td>750,000</td><td class="tc-hi">2</td></tr>
+<tr><td>営業二部</td><td>鈴木</td><td>990,000</td><td class="tc-hi">1</td></tr>
+<tr><td>営業二部</td><td>木村</td><td>880,000</td><td class="tc-hi">2</td></tr>
+<tr><td>営業二部</td><td>高橋</td><td>640,000</td><td class="tc-hi">3</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>DENSE_RANK を選ぶ判断基準：</strong>「3位タイが2人いるとき4位は存在するか？」→「しない」なら DENSE_RANK。組織の表彰・昇格ランキングでは DENSE_RANK が直感的です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PARTITION BY の本質：</strong>「各グループで1から振り直す」という指定。省略すると全社員を1つのウィンドウとしてランク付けするため部署内ランキングにならない。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>実務Tips：</strong>「各部署のトップのみ抽出」なら <code>WHERE dept_rank = 1</code>。複数部署の最高成績者を一発で取れます。サブクエリで <code>MAX</code> を使うより可読性・パフォーマンス共に優れます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同じSELECT内のWHEREでウィンドウ関数の結果を使う：</strong><code>WHERE DENSE_RANK() OVER(...) &lt;= 3</code> はエラー。ウィンドウ関数は WHERE より後に評価されるため、必ずCTEかサブクエリでラップしてから WHERE で絞る。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>RANK を使って同率を見落とす：</strong>同率3位が2人いると RANK では4位が表示されず「3人未満しか表示されないケース」が生じる。意図を確認してから関数を選ぶこと。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  SELF JOIN — 上司情報を同じテーブルから引く
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "SELF JOIN — 社員テーブルから上司名を同テーブルで取得",
+  tags: [["r","SELF JOIN"],["o","LEFT JOIN"],["g","階層構造"],["p","組織図API"]],
+  premise: `<p><strong>SELF JOIN</strong> は同じテーブルを2つの別名で結合するテクニックです。employees テーブルの <code>manager_id</code> が同テーブルの <code>emp_id</code> を参照している場合、上司の名前を引くのに使います。</p>
+<pre><span class="kw">FROM</span>      <span class="tbl">employees</span> e         <span class="cmt">-- 本人テーブル（エイリアス e）</span>
+<span class="kw">LEFT JOIN</span> <span class="tbl">employees</span> m          <span class="cmt">-- 同じテーブルを上司として別名 m で参照</span>
+  <span class="kw">ON</span> e.manager_id <span class="op">=</span> m.emp_id  <span class="cmt">-- 本人のmanager_idが上司のemp_idと一致</span></pre>
+<div class="callout warn"><strong>LEFT JOIN を使う理由：</strong>トップ（CEO）は manager_id が NULL のため、INNER JOIN にするとトップが消えてしまいます。組織全員を出したいときは LEFT JOIN が必須です。</div>`,
+  question: `<p>employees テーブルを SELF JOIN して、<em>全社員の情報と直属上司名</em>を一覧表示してください。</p>
+<p>トップ（manager_idがNULL）は manager_name に <code>'— (トップ)'</code> と表示します。</p>
+<p>出力：emp_id, emp_name, dept_name, job_title, manager_name</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employees（manager_idが上司のemp_idを指す）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>dept_name</th><th>job_title</th><th>manager_id</th></tr>
+        <tr><td>1</td><td>田中</td><td>経営</td><td>CEO</td><td class="null">NULL</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>営業</td><td>部長</td><td>1</td></tr>
+        <tr><td>3</td><td>山田</td><td>開発</td><td>部長</td><td>1</td></tr>
+        <tr><td>4</td><td>鈴木</td><td>営業</td><td>課長</td><td>2</td></tr>
+        <tr><td>5</td><td>高橋</td><td>開発</td><td>リーダー</td><td>3</td></tr>
+        <tr><td>6</td><td>木村</td><td>営業</td><td>担当</td><td>4</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>emp_name</th><th>dept_name</th><th>job_title</th><th>manager_name</th></tr>
+<tr><td>1</td><td>田中</td><td>経営</td><td>CEO</td><td>— (トップ)</td></tr>
+<tr><td>2</td><td>佐藤</td><td>営業</td><td>部長</td><td>田中</td></tr>
+<tr><td>3</td><td>山田</td><td>開発</td><td>部長</td><td>田中</td></tr>
+<tr><td>4</td><td>鈴木</td><td>営業</td><td>課長</td><td>佐藤</td></tr>
+<tr><td>5</td><td>高橋</td><td>開発</td><td>リーダー</td><td>山田</td></tr>
+<tr><td>6</td><td>木村</td><td>営業</td><td>担当</td><td>鈴木</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  e.emp_id,                                    <span class="cmt">-- 本人の社員ID</span>
+  e.emp_name,                                  <span class="cmt">-- 本人の名前</span>
+  e.dept_name,                                 <span class="cmt">-- 本人の部署名</span>
+  e.job_title,                                 <span class="cmt">-- 本人の役職</span>
+
+  <span class="cmt">-- 上司名: NULLの場合（トップ）はCOALESCEで代替文字列を返す</span>
+  <span class="cmt">-- COALESCE(a, b) → a が NULL なら b を返す標準SQL関数</span>
+  <span class="fn">COALESCE</span>(m.emp_name, <span class="str">'— (トップ)'</span>) <span class="kw">AS</span> manager_name
+
+<span class="kw">FROM</span>      <span class="tbl">employees</span> e            <span class="cmt">-- 本人: エイリアス e（全社員を起点にする）</span>
+<span class="kw">LEFT JOIN</span> <span class="tbl">employees</span> m            <span class="cmt">-- 上司: 同じテーブルを別名 m で左結合</span>
+  <span class="kw">ON</span> e.manager_id <span class="op">=</span> m.emp_id    <span class="cmt">-- 本人の manager_id = 上司の emp_id で照合</span>
+                                  <span class="cmt">-- LEFT JOIN なので結合失敗（manager_id=NULL）でも e 側は残る</span>
+<span class="kw">ORDER BY</span> e.emp_id;               <span class="cmt">-- 社員IDの昇順で出力</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM employees e             → 本人テーブルを全件読み込む
+  2. LEFT JOIN employees m        → 同テーブルを上司として左結合
+     ON e.manager_id = m.emp_id  → 一致しない（NULLの）行も e 側は残る
+  3. COALESCE(m.emp_name, '—')   → 上司がいない行にデフォルト値を付与
+  4. ORDER BY emp_id              → 社員ID昇順で出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>SELF JOIN の仕組み</strong> — 同テーブルを e（本人）と m（上司）の2コピーで扱う</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>e.emp_id</th><th>e.emp_name</th><th>e.manager_id</th><th>→ ONで結合</th><th>m.emp_id</th><th class="tc-hi">m.emp_name（上司名）</th></tr>
+<tr><td>1</td><td>田中</td><td class="null">NULL</td><td class="null">一致なし</td><td class="null">NULL</td><td class="null">NULL → '—(トップ)'</td></tr>
+<tr class="tr-hi2"><td>2</td><td>佐藤</td><td>1</td><td class="tc-g">1 = 1 ✓</td><td>1</td><td class="tc-hi">田中</td></tr>
+<tr class="tr-hi2"><td>3</td><td>山田</td><td>1</td><td class="tc-g">1 = 1 ✓</td><td>1</td><td class="tc-hi">田中</td></tr>
+<tr class="tr-hi"><td>4</td><td>鈴木</td><td>2</td><td class="tc-g">2 = 2 ✓</td><td>2</td><td class="tc-hi">佐藤</td></tr>
+<tr class="tr-hi3"><td>5</td><td>高橋</td><td>3</td><td class="tc-g">3 = 3 ✓</td><td>3</td><td class="tc-hi">山田</td></tr>
+<tr class="tr-hi4"><td>6</td><td>木村</td><td>4</td><td class="tc-g">4 = 4 ✓</td><td>4</td><td class="tc-hi">鈴木</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">COALESCE(m.emp_name, '—(トップ)') — NULL を文字列で置換</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>最終出力</strong> — 全社員に上司名が付いた状態</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>emp_name</th><th>job_title</th><th class="tc-hi">manager_name</th></tr>
+<tr><td>1</td><td>田中</td><td>CEO</td><td class="null">— (トップ)</td></tr>
+<tr><td>2</td><td>佐藤</td><td>部長</td><td class="tc-hi">田中</td></tr>
+<tr><td>3</td><td>山田</td><td>部長</td><td class="tc-hi">田中</td></tr>
+<tr><td>4</td><td>鈴木</td><td>課長</td><td class="tc-hi">佐藤</td></tr>
+<tr><td>5</td><td>高橋</td><td>リーダー</td><td class="tc-hi">山田</td></tr>
+<tr><td>6</td><td>木村</td><td>担当</td><td class="tc-hi">鈴木</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCE の使い方：</strong><code>COALESCE(a, b)</code> は「aがNULLならbを返す」標準SQL関数。複数引数 <code>COALESCE(a, b, c)</code> で「最初の非NULLを返す」動作も可能。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>階層が深い場合：</strong>「上司の上司」まで取りたいなら SELF JOIN をさらに重ねるか、Q8で学ぶ <em>再帰CTE</em> を使う。SELF JOIN は最大で何階層取るか事前に決まっている場合に向いている。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INNER JOIN にしてしまう：</strong>CEOのように manager_id が NULL の社員は INNER JOIN だと結合失敗で行ごと消える。組織全員を出したいときは必ず <strong>LEFT JOIN</strong>。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>エイリアスなしで曖昧な列参照：</strong>SELF JOINでは必ず <code>e</code> / <code>m</code> のようなエイリアスを付けて全列を修飾する。省略すると「どちらのemp_nameか」が不明でエラーになる。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  予算差異分析
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "予算差異分析 — 部署別予算消化率と超過アラート",
+  tags: [["r","CTE連鎖"],["o","差異計算"],["g","CASE WHEN"],["p","予算管理BI"]],
+  premise: `<p>予算差異分析（Budget Variance Analysis）は <em>予算額 vs 実績額</em> の乖離をモニタリングするBI分析の王道パターンです。単なる引き算ではなく、<strong>差異率・アラート状態・消化進捗</strong>を一括で取得するクエリ設計が実務では求められます。</p>
+<pre><span class="cmt">-- 差異額（正 = 残あり、負 = 超過）</span>
+budget_amount <span class="op">-</span> actual_amount <span class="kw">AS</span> variance
+
+<span class="cmt">-- 消化率（小数点1桁）</span>
+<span class="fn">ROUND</span>(actual_amount <span class="op">*</span> <span class="num">100.0</span> <span class="op">/</span> <span class="fn">NULLIF</span>(budget_amount, <span class="num">0</span>), <span class="num">1</span>) <span class="kw">AS</span> usage_pct</pre>
+<div class="callout"><code>NULLIF(budget_amount, 0)</code> で予算額が 0 のときのゼロ除算を防ぎます。結果は NULL になるため注意。</div>`,
+  question: `<p>budgets テーブルと actual_expenses テーブルを使い、<em>部署ごとの年間予算消化状況</em>を集計してください。</p>
+<p>消化率が 90% 以上なら <code>'要注意'</code>、100% 超なら <code>'超過'</code>、それ以外は <code>'正常'</code> のアラートを付与します。</p>
+<p>出力：dept_name, budget_amount, actual_amount, variance, usage_pct, alert</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ budgets（年間予算）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>dept_id</th><th>dept_name</th><th>fiscal_year</th><th>budget_amount</th></tr>
+        <tr><td>10</td><td>営業部</td><td>2024</td><td>5,000,000</td></tr>
+        <tr><td>20</td><td>開発部</td><td>2024</td><td>8,000,000</td></tr>
+        <tr><td>30</td><td>マーケ部</td><td>2024</td><td>3,000,000</td></tr>
+        <tr><td>40</td><td>総務部</td><td>2024</td><td>2,000,000</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ actual_expenses（月次実績）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>dept_id</th><th>expense_month</th><th>amount</th></tr>
+        <tr><td>10</td><td>2024-01</td><td>420,000</td></tr>
+        <tr><td>10</td><td>2024-02</td><td>380,000</td></tr>
+        <tr><td>20</td><td>2024-01</td><td>710,000</td></tr>
+        <tr><td>30</td><td>2024-01</td><td>950,000</td></tr>
+        <tr><td>30</td><td>2024-02</td><td>1,180,000</td></tr>
+        <tr><td>30</td><td>2024-03</td><td>1,050,000</td></tr>
+        <tr><td>...</td><td>...</td><td>...</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>budget_amount</th><th>actual_amount</th><th>variance</th><th>usage_pct</th><th>alert</th></tr>
+<tr><td>開発部</td><td>8,000,000</td><td>5,820,000</td><td>2,180,000</td><td>72.8</td><td>正常</td></tr>
+<tr><td>総務部</td><td>2,000,000</td><td>1,840,000</td><td>160,000</td><td>92.0</td><td>要注意</td></tr>
+<tr><td>営業部</td><td>5,000,000</td><td>4,750,000</td><td>250,000</td><td>95.0</td><td>要注意</td></tr>
+<tr><td>マーケ部</td><td>3,000,000</td><td>3,180,000</td><td>-180,000</td><td>106.0</td><td>超過</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 部署ごとの年間実績合計を集計する</span>
+actuals <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    dept_id,
+    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> actual_amount    <span class="cmt">-- 月次実績を年間合計に集約（SUM = 合計）</span>
+  <span class="kw">FROM</span>  <span class="tbl">actual_expenses</span>
+  <span class="kw">WHERE</span> <span class="fn">EXTRACT</span>(<span class="kw">YEAR FROM</span> expense_month) <span class="op">=</span> <span class="num">2024</span>  <span class="cmt">-- EXTRACT で日付から年を取り出して絞る</span>
+  <span class="kw">GROUP BY</span> dept_id                                <span class="cmt">-- 部署IDごとに1行に集約</span>
+),
+
+<span class="cmt">-- ② 予算テーブルと実績を結合して差異を計算する</span>
+variance_calc <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    b.dept_name,
+    b.budget_amount,
+    <span class="fn">COALESCE</span>(a.actual_amount, <span class="num">0</span>) <span class="kw">AS</span> actual_amount,  <span class="cmt">-- 実績がない部署は0として扱う</span>
+    b.budget_amount <span class="op">-</span> <span class="fn">COALESCE</span>(a.actual_amount, <span class="num">0</span>) <span class="kw">AS</span> variance,  <span class="cmt">-- 差異 = 予算 - 実績（正=残、負=超過）</span>
+    <span class="fn">ROUND</span>(
+      <span class="fn">COALESCE</span>(a.actual_amount, <span class="num">0</span>) <span class="op">*</span> <span class="num">100.0</span>           <span class="cmt">-- * 100.0 で浮動小数点除算にする（整数除算防止）</span>
+      <span class="op">/</span> <span class="fn">NULLIF</span>(b.budget_amount, <span class="num">0</span>)                    <span class="cmt">-- NULLIF: 予算0円でのゼロ除算を防いでNULLにする</span>
+    , <span class="num">1</span>) <span class="kw">AS</span> usage_pct                                 <span class="cmt">-- 小数点1桁に丸める</span>
+  <span class="kw">FROM</span>      <span class="tbl">budgets</span>  b
+  <span class="kw">LEFT JOIN</span> actuals a <span class="kw">ON</span> b.dept_id <span class="op">=</span> a.dept_id  <span class="cmt">-- LEFT JOIN: 実績がない部署も予算側は残す</span>
+  <span class="kw">WHERE</span>     b.fiscal_year <span class="op">=</span> <span class="num">2024</span>                <span class="cmt">-- 対象年度を絞る</span>
+)
+
+<span class="cmt">-- ③ 消化率に応じたアラートを付与して出力する</span>
+<span class="kw">SELECT</span>
+  dept_name,
+  budget_amount,
+  actual_amount,
+  variance,
+  usage_pct,
+  <span class="kw">CASE</span>
+    <span class="cmt">-- 条件は上から評価されるため、より厳しい条件（超過）を先に書く</span>
+    <span class="kw">WHEN</span> usage_pct <span class="op">&gt;</span>  <span class="num">100</span> <span class="kw">THEN</span> <span class="str">'超過'</span>    <span class="cmt">-- 100%超 = 予算オーバー</span>
+    <span class="kw">WHEN</span> usage_pct <span class="op">&gt;=</span>  <span class="num">90</span> <span class="kw">THEN</span> <span class="str">'要注意'</span>  <span class="cmt">-- 90%以上（かつ100%以下）= 残り少ない</span>
+    <span class="kw">ELSE</span>                       <span class="str">'正常'</span>      <span class="cmt">-- 90%未満</span>
+  <span class="kw">END</span> <span class="kw">AS</span> alert
+<span class="kw">FROM</span>  variance_calc
+<span class="kw">ORDER BY</span> usage_pct <span class="kw">DESC</span>;  <span class="cmt">-- 消化率の高い順（危険度順）に並べる</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM actual_expenses + WHERE年度 → 対象年度の実績を読み込む
+  2. GROUP BY dept_id                  → 部署別に年間合計を算出 → actuals完成
+  3. FROM budgets LEFT JOIN actuals    → 予算と実績を部署IDで結合
+  4. variance / usage_pct の計算      → variance_calc CTE完成
+  5. CASE usage_pct                    → アラートラベルを付与
+  6. ORDER BY usage_pct DESC          → 消化率の高い順（危険度順）に出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>actuals CTE</strong> — 月次実績を部署ごとに年間合計に集約</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_id</th><th class="tc-hi">actual_amount（年間合計）</th></tr>
+<tr><td>10（営業部）</td><td class="tc-hi">4,750,000</td></tr>
+<tr><td>20（開発部）</td><td class="tc-hi">5,820,000</td></tr>
+<tr><td>30（マーケ部）</td><td class="tc-hi">3,180,000</td></tr>
+<tr><td>40（総務部）</td><td class="tc-hi">1,840,000</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">LEFT JOIN budgets — 予算と実績を結合して差異計算</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>variance_calc CTE</strong> — 差異額・消化率を計算</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>budget</th><th>actual</th><th class="tc-hi">variance</th><th class="tc-g">usage_pct</th></tr>
+<tr><td>営業部</td><td>5,000,000</td><td>4,750,000</td><td class="tc-g">+250,000</td><td class="tc-g">95.0%</td></tr>
+<tr><td>開発部</td><td>8,000,000</td><td>5,820,000</td><td class="tc-g">+2,180,000</td><td class="tc-g">72.8%</td></tr>
+<tr class="tr-hi4"><td>マーケ部</td><td>3,000,000</td><td>3,180,000</td><td class="tc-r">-180,000（超過！）</td><td class="tc-r">106.0%</td></tr>
+<tr><td>総務部</td><td>2,000,000</td><td>1,840,000</td><td class="tc-y">+160,000</td><td class="tc-y">92.0%</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">CASE usage_pct → アラート付与 → ORDER BY usage_pct DESC</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — 危険度の高い順（消化率降順）</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>usage_pct</th><th class="tc-hi">alert</th></tr>
+<tr class="tr-hi4"><td>マーケ部</td><td class="tc-r">106.0%</td><td class="tc-r">超過</td></tr>
+<tr class="tr-hi"><td>営業部</td><td class="tc-y">95.0%</td><td class="tc-y">要注意</td></tr>
+<tr class="tr-hi"><td>総務部</td><td class="tc-y">92.0%</td><td class="tc-y">要注意</td></tr>
+<tr><td>開発部</td><td class="tc-g">72.8%</td><td class="tc-g">正常</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CASE の条件評価順：</strong>上から順に評価されて最初にTRUEになった条件で止まる。「超過」を先に書かないと106%も「要注意」になってしまう。<em>より厳しい条件を先に書く</em>のが鉄則。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULLIF の使い方：</strong><code>NULLIF(a, b)</code> は「a = b なら NULL を返す」関数。ゼロ除算防止の定番パターン。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COALESCE を忘れる：</strong>LEFT JOIN で NULL になった actual_amount をそのまま引き算すると <code>budget - NULL = NULL</code> になる。<code>COALESCE(actual_amount, 0)</code> で NULL を 0 に変換してから計算すること。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  LAG + CASE — 離職リスク検知
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "LAG + CASE — 評価スコアの下降トレンドで離職リスクを検知",
+  tags: [["r","LAG"],["o","トレンド判定"],["g","CTE"],["p","HR分析・離職予測"]],
+  premise: `<p>社員の評価スコアが2期連続で下降している場合、離職リスクの指標としてフラグを立てることがHR分析の実務ではよく求められます。<strong>LAG(col, 1) で1期前・LAG(col, 2) で2期前</strong>を引き込み、CASE で比較判定します。</p>
+<pre><span class="fn">LAG</span>(score, <span class="num">1</span>) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> emp_id    <span class="cmt">-- 社員ごとに独立して期前値を計算</span>
+  <span class="kw">ORDER BY</span>    eval_period <span class="cmt">-- 時系列順（古い→新しい）</span>
+) <span class="kw">AS</span> prev1_score          <span class="cmt">-- 1期前のスコア</span></pre>
+<div class="callout warn">最初の1〜2行は十分な過去データがないため LAG の結果が NULL になります。CASE でNULL対処を忘れると意図しない判定になるため注意。</div>`,
+  question: `<p>performance_reviews テーブルを使い、<em>直近3期の評価スコアが連続下降している社員</em>に離職リスクフラグを立ててください。</p>
+<p>条件：今期 &lt; 1期前 かつ 1期前 &lt; 2期前 → <code>'高リスク'</code>、今期 &lt; 1期前のみ → <code>'要観察'</code>、それ以外 → <code>'正常'</code></p>
+<p>出力：emp_name, dept_name, eval_period, score, prev1_score, prev2_score, risk_flag</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ performance_reviews</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>dept_name</th><th>eval_period</th><th>score</th></tr>
+        <tr><td>1</td><td>田中</td><td>営業部</td><td>2023Q3</td><td>82</td></tr>
+        <tr><td>1</td><td>田中</td><td>営業部</td><td>2023Q4</td><td>78</td></tr>
+        <tr><td>1</td><td>田中</td><td>営業部</td><td>2024Q1</td><td>71</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>開発部</td><td>2023Q3</td><td>75</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>開発部</td><td>2023Q4</td><td>80</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>開発部</td><td>2024Q1</td><td>83</td></tr>
+        <tr><td>3</td><td>山田</td><td>営業部</td><td>2023Q3</td><td>90</td></tr>
+        <tr><td>3</td><td>山田</td><td>営業部</td><td>2023Q4</td><td>85</td></tr>
+        <tr><td>3</td><td>山田</td><td>営業部</td><td>2024Q1</td><td>79</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>dept_name</th><th>eval_period</th><th>score</th><th>prev1</th><th>prev2</th><th>risk_flag</th></tr>
+<tr><td>田中</td><td>営業部</td><td>2024Q1</td><td>71</td><td>78</td><td>82</td><td>高リスク</td></tr>
+<tr><td>山田</td><td>営業部</td><td>2024Q1</td><td>79</td><td>85</td><td>90</td><td>高リスク</td></tr>
+<tr><td>佐藤</td><td>開発部</td><td>2024Q1</td><td>83</td><td>80</td><td>75</td><td>正常</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 各社員の評価スコアに過去2期分を付与する</span>
+scored <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    emp_id,
+    emp_name,
+    dept_name,
+    eval_period,
+    score,
+    <span class="cmt">-- LAG(列, N) → 同ウィンドウ内でN行前の値を取得（1期前スコア）</span>
+    <span class="fn">LAG</span>(score, <span class="num">1</span>) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id      <span class="cmt">-- 社員ごとに独立してウィンドウを作成</span>
+      <span class="kw">ORDER BY</span>    eval_period  <span class="cmt">-- 時系列順（古い→新しい）に並べる</span>
+    ) <span class="kw">AS</span> prev1_score,
+    <span class="cmt">-- 2行前の値（2期前スコア）を取得</span>
+    <span class="fn">LAG</span>(score, <span class="num">2</span>) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id
+      <span class="kw">ORDER BY</span>    eval_period
+    ) <span class="kw">AS</span> prev2_score
+  <span class="kw">FROM</span> <span class="tbl">performance_reviews</span>
+)
+
+<span class="cmt">-- ② 最新期のみ抽出してリスクフラグを判定する</span>
+<span class="kw">SELECT</span>
+  emp_name,
+  dept_name,
+  eval_period,
+  score,
+  prev1_score,
+  prev2_score,
+  <span class="kw">CASE</span>
+    <span class="cmt">-- 今期 < 1期前 かつ 1期前 < 2期前 → 3期連続下降 = 高リスク</span>
+    <span class="kw">WHEN</span> score <span class="op">&lt;</span> prev1_score <span class="kw">AND</span> prev1_score <span class="op">&lt;</span> prev2_score <span class="kw">THEN</span> <span class="str">'高リスク'</span>
+    <span class="cmt">-- 今期 < 1期前のみ → 1期下降 = 要観察（prev2がNULLでも安全に評価される）</span>
+    <span class="kw">WHEN</span> score <span class="op">&lt;</span> prev1_score                                  <span class="kw">THEN</span> <span class="str">'要観察'</span>
+    <span class="kw">ELSE</span>                                                             <span class="str">'正常'</span>
+  <span class="kw">END</span> <span class="kw">AS</span> risk_flag
+<span class="kw">FROM</span>  scored
+<span class="kw">WHERE</span> eval_period <span class="op">=</span> <span class="str">'2024Q1'</span>  <span class="cmt">-- 最新期の行のみを対象（過去期は出力不要）</span>
+<span class="kw">ORDER BY</span>
+  <span class="cmt">-- 文字列をそのままORDER BYすると50音順になるため、数値に変換してカスタムソート</span>
+  <span class="kw">CASE</span> risk_flag <span class="kw">WHEN</span> <span class="str">'高リスク'</span> <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">WHEN</span> <span class="str">'要観察'</span> <span class="kw">THEN</span> <span class="num">2</span> <span class="kw">ELSE</span> <span class="num">3</span> <span class="kw">END</span>,
+  emp_name;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM performance_reviews     → 全評価データを読み込む
+  2. LAG(score,1) / LAG(score,2)  → 社員ごとに1期前・2期前スコアを計算
+  3. scored CTE 完成
+  4. WHERE eval_period='2024Q1'   → 最新期の行のみ絞り込む
+  5. CASE risk判定                → スコア比較でフラグを付与
+  6. ORDER BY CASE risk_flag      → リスク度の高い順に並べる
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>scored CTE</strong> — LAG で過去2期を現在行に引き込む（グレー行はWHEREで除外）</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>eval_period</th><th>score</th><th class="tc-hi">prev1_score</th><th class="tc-g">prev2_score</th></tr>
+<tr class="tr-dim"><td>田中</td><td>2023Q3</td><td>82</td><td class="null">NULL（初回のため）</td><td class="null">NULL</td></tr>
+<tr class="tr-dim"><td>田中</td><td>2023Q4</td><td>78</td><td class="tc-hi">82</td><td class="null">NULL（2期分ない）</td></tr>
+<tr class="tr-hi4"><td>田中</td><td>2024Q1</td><td>71</td><td class="tc-hi">78</td><td class="tc-g">82</td></tr>
+<tr class="tr-dim"><td>佐藤</td><td>2023Q3</td><td>75</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+<tr class="tr-dim"><td>佐藤</td><td>2023Q4</td><td>80</td><td class="tc-hi">75</td><td class="null">NULL</td></tr>
+<tr class="tr-hi2"><td>佐藤</td><td>2024Q1</td><td>83</td><td class="tc-hi">80</td><td class="tc-g">75</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">WHERE eval_period = '2024Q1' → CASE でスコア比較</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>最新期のリスク判定</strong> — CASE の比較ロジック</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>score(今)</th><th>prev1</th><th>prev2</th><th>今&lt;prev1?</th><th>prev1&lt;prev2?</th><th class="tc-hi">risk_flag</th></tr>
+<tr class="tr-hi4"><td>田中</td><td>71</td><td>78</td><td>82</td><td class="tc-r">TRUE</td><td class="tc-r">TRUE</td><td class="tc-r">高リスク</td></tr>
+<tr class="tr-hi4"><td>山田</td><td>79</td><td>85</td><td>90</td><td class="tc-r">TRUE</td><td class="tc-r">TRUE</td><td class="tc-r">高リスク</td></tr>
+<tr class="tr-hi2"><td>佐藤</td><td>83</td><td>80</td><td>75</td><td class="tc-g">FALSE</td><td class="tc-g">FALSE</td><td class="tc-g">正常</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAG(col, N) の N 引数：</strong>N=1で「1行前」、N=2で「2行前」。ORDER BY の並び順に依存するため、時系列として正しい列でORDER BYすることが必須。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULL の三値論理：</strong>CASE の比較 <code>NULL &lt; 数値</code> は UNKNOWN（TRUEでもFALSEでもない）のため「高リスク」にはならず、意図通り「要観察」か「正常」に分類される。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY なしでLAGを使う：</strong>省略すると全社員が1つのウィンドウになり、「田中の前の行が佐藤」という意味不明なLAG値になる。必ず PARTITION BY emp_id を指定する。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  FIRST_VALUE / LAST_VALUE — 役職変遷
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "FIRST_VALUE / LAST_VALUE — 入社時と最新の役職を1行で比較",
+  tags: [["r","FIRST_VALUE"],["o","LAST_VALUE"],["g","ウィンドウ関数"],["p","キャリア分析"]],
+  premise: `<p><strong>FIRST_VALUE(col)</strong> はウィンドウ内の最初の行の値、<strong>LAST_VALUE(col)</strong> は最後の行の値を返すウィンドウ関数です。社員の入社時役職と最新役職を1行で比較するキャリア分析に最適です。</p>
+<pre><span class="fn">FIRST_VALUE</span>(job_title) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> emp_id
+  <span class="kw">ORDER BY</span>    changed_at  <span class="cmt">-- 時系列順 → 先頭行 = 入社時</span>
+)
+
+<span class="fn">LAST_VALUE</span>(job_title) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> emp_id
+  <span class="kw">ORDER BY</span>    changed_at
+  <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</span>  <span class="cmt">-- フレーム全体 = 必須！</span>
+)</pre>
+<div class="callout danger"><strong>LAST_VALUE の落とし穴：</strong>デフォルトのフレームは <code>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code>（現在行まで）のため、フレーム指定なしでは「現在行の値」を返してしまいます。</div>`,
+  question: `<p>job_history テーブルを使い、<em>各社員の入社時の役職と現在の役職を1行で比較</em>してください。</p>
+<p>役職が変わった社員には <code>true</code> フラグを立て、昇進までの日数も出力します。</p>
+<p>出力：emp_name, first_title, current_title, first_date, current_date, days_to_promote, is_promoted</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ job_history（役職変更履歴）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>job_title</th><th>changed_at</th></tr>
+        <tr><td>1</td><td>田中</td><td>担当</td><td>2020-04-01</td></tr>
+        <tr><td>1</td><td>田中</td><td>主任</td><td>2022-04-01</td></tr>
+        <tr><td>1</td><td>田中</td><td>課長</td><td>2024-01-01</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>担当</td><td>2021-07-01</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>担当</td><td>2024-01-01</td></tr>
+        <tr><td>3</td><td>山田</td><td>部長</td><td>2019-04-01</td></tr>
+        <tr><td>3</td><td>山田</td><td>本部長</td><td>2023-04-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>first_title</th><th>current_title</th><th>first_date</th><th>current_date</th><th>days_to_promote</th><th>is_promoted</th></tr>
+<tr><td>田中</td><td>担当</td><td>課長</td><td>2020-04-01</td><td>2024-01-01</td><td>1371</td><td>true</td></tr>
+<tr><td>佐藤</td><td>担当</td><td>担当</td><td>2021-07-01</td><td>2024-01-01</td><td class="null">NULL</td><td>false</td></tr>
+<tr><td>山田</td><td>部長</td><td>本部長</td><td>2019-04-01</td><td>2023-04-01</td><td>1461</td><td>true</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 社員ごとに入社時と最新の役職・日付を全行に付与する</span>
+career <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    emp_id,
+    emp_name,
+
+    <span class="cmt">-- FIRST_VALUE: ウィンドウ内の先頭行の値（入社時役職）</span>
+    <span class="cmt">-- デフォルトフレームで問題なし（先頭から現在行の先頭は常に先頭行）</span>
+    <span class="fn">FIRST_VALUE</span>(job_title)  <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id
+      <span class="kw">ORDER BY</span>    changed_at   <span class="cmt">-- 古い順 → 先頭が入社時</span>
+    ) <span class="kw">AS</span> first_title,
+
+    <span class="cmt">-- 入社日も同様に先頭行から取得</span>
+    <span class="fn">FIRST_VALUE</span>(changed_at) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id
+      <span class="kw">ORDER BY</span>    changed_at
+    ) <span class="kw">AS</span> first_date,
+
+    <span class="cmt">-- LAST_VALUE: ウィンドウ全体の末尾行の値（最新役職）</span>
+    <span class="cmt">-- ★ フレーム指定が必須！省略すると「現在行の値」しか返らない</span>
+    <span class="fn">LAST_VALUE</span>(job_title)  <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id
+      <span class="kw">ORDER BY</span>    changed_at
+      <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING</span>  <span class="cmt">-- ウィンドウの先頭から</span>
+               <span class="kw">AND UNBOUNDED FOLLOWING</span>   <span class="cmt">-- ウィンドウの末尾まで（全体を対象）</span>
+    ) <span class="kw">AS</span> current_title,
+
+    <span class="cmt">-- 最新の変更日も同様にフレーム全体指定で取得</span>
+    <span class="fn">LAST_VALUE</span>(changed_at) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id
+      <span class="kw">ORDER BY</span>    changed_at
+      <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</span>
+    ) <span class="kw">AS</span> current_date,
+
+    <span class="cmt">-- 社員ごとの行番号（重複除去のため：rn=1 の行だけ残す）</span>
+    <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id <span class="kw">ORDER BY</span> changed_at  <span class="cmt">-- 最古の行が rn=1 になる</span>
+    ) <span class="kw">AS</span> rn
+  <span class="kw">FROM</span> <span class="tbl">job_history</span>
+)
+
+<span class="cmt">-- ② 1社員1行に絞り、昇進フラグと日数を付与する</span>
+<span class="kw">SELECT</span>
+  emp_name,
+  first_title,
+  current_title,
+  first_date,
+  current_date,
+  <span class="cmt">-- 役職が変わった場合のみ昇進日数を計算（変化なしはNULL）</span>
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> first_title <span class="op">&lt;&gt;</span> current_title  <span class="cmt">-- &lt;&gt; は「等しくない」の比較演算子（!=と同義）</span>
+    <span class="kw">THEN</span> (current_date <span class="op">-</span> first_date)    <span class="cmt">-- 日付の差分（PostgreSQLでは整数=日数）</span>
+    <span class="kw">ELSE</span> <span class="kw">NULL</span>
+  <span class="kw">END</span> <span class="kw">AS</span> days_to_promote,
+  (first_title <span class="op">&lt;&gt;</span> current_title) <span class="kw">AS</span> is_promoted  <span class="cmt">-- 比較式 → TRUE/FALSE を返す</span>
+<span class="kw">FROM</span>  career
+<span class="kw">WHERE</span> rn <span class="op">=</span> <span class="num">1</span>              <span class="cmt">-- 社員ごとの最初の行だけ残す（全列に入社時〜最新が付いているため）</span>
+<span class="kw">ORDER BY</span> emp_name;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM job_history              → 全役職履歴を読み込む
+  2. FIRST_VALUE / LAST_VALUE      → 社員ごとに入社時・最新値を全行に付与
+  3. ROW_NUMBER()                  → 社員ごとに連番を振る
+  4. career CTE 完成
+  5. WHERE rn = 1                  → 社員ごとの最初の行のみ取り出す
+  6. CASE first_title <> current   → 昇進フラグと日数を算出
+  7. ORDER BY emp_name             → 名前順に出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>LAST_VALUE フレームの違い</strong> — 指定なしと指定ありで結果が全く異なる</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>行</th><th>emp_name</th><th>job_title</th><th>FIRST_VALUE</th><th class="tc-r">LAST_VALUE (デフォ)</th><th class="tc-hi">LAST_VALUE (フレーム指定)</th></tr>
+<tr><td>1</td><td>田中</td><td>担当</td><td class="tc-g">担当</td><td class="tc-r">担当（現在行まで）</td><td class="tc-hi">課長（全体末尾）</td></tr>
+<tr><td>2</td><td>田中</td><td>主任</td><td class="tc-g">担当</td><td class="tc-r">主任（現在行まで）</td><td class="tc-hi">課長（全体末尾）</td></tr>
+<tr><td>3</td><td>田中</td><td>課長</td><td class="tc-g">担当</td><td class="tc-r">課長（現在行まで）</td><td class="tc-hi">課長（全体末尾）</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">WHERE rn=1 → 1社員1行に絞る → CASE で昇進フラグ付与</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>最終出力</strong> — 1社員1行でキャリア変遷を比較</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>first_title</th><th>current_title</th><th class="tc-hi">days_to_promote</th><th class="tc-g">is_promoted</th></tr>
+<tr class="tr-hi2"><td>田中</td><td>担当</td><td>課長</td><td class="tc-hi">1371日</td><td class="tc-g">true</td></tr>
+<tr><td>佐藤</td><td>担当</td><td>担当</td><td class="null">NULL</td><td class="tc-r">false</td></tr>
+<tr class="tr-hi2"><td>山田</td><td>部長</td><td>本部長</td><td class="tc-hi">1461日</td><td class="tc-g">true</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAST_VALUE のフレーム指定を覚える：</strong>デフォルトフレームは <code>CURRENT ROW</code> まで。LAST_VALUE を使うときは必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> をセットで書くクセをつける。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>代替パターン：</strong><code>MAX(changed_at) OVER (PARTITION BY emp_id)</code> で最大日付を取り WHERE で絞る方法もある。フレーム指定が覚えられない場合の実用的な回避策。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LAST_VALUE をフレーム指定なしで使う：</strong>最も多い落とし穴。デフォルトでは各行が「自分自身の値」を返す。必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> を指定する。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6  NOT EXISTS — 全プロジェクト未参加社員
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "NOT EXISTS — 一度も参加していないプロジェクトがある社員を抽出",
+  tags: [["r","NOT EXISTS"],["o","全否定"],["g","サブクエリ"],["p","リソース配置分析"]],
+  premise: `<p><strong>NOT EXISTS</strong> は「サブクエリが1行も返さないとき TRUE」を意味します。「一度も参加していない〇〇がある社員」という否定的な条件の検索に最適です。</p>
+<pre><span class="kw">WHERE NOT EXISTS</span> (
+  <span class="kw">SELECT</span> <span class="num">1</span>                   <span class="cmt">-- SELECT 1は「何でもよい」の慣用句（SELECT *と同義）</span>
+  <span class="kw">FROM</span> <span class="tbl">project_members</span> pm
+  <span class="kw">WHERE</span> pm.emp_id    <span class="op">=</span> e.emp_id      <span class="cmt">-- 外部クエリの社員と紐付け（相関サブクエリ）</span>
+    <span class="kw">AND</span> pm.project_id <span class="op">=</span> p.project_id  <span class="cmt">-- 外部クエリのプロジェクトと紐付け</span>
+)</pre>`,
+  question: `<p>employees / projects / project_members テーブルを使い、<em>少なくとも1つ以上のプロジェクトに一度も参加したことがない社員</em>を抽出してください。</p>
+<p>出力：emp_name, dept_name, unassigned_project_names（カンマ区切り）, unassigned_count</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employees</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>dept_name</th></tr>
+        <tr><td>1</td><td>田中</td><td>開発部</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>開発部</td></tr>
+        <tr><td>3</td><td>山田</td><td>営業部</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ projects</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>project_id</th><th>project_name</th></tr>
+        <tr><td>P1</td><td>基幹システム刷新</td></tr>
+        <tr><td>P2</td><td>モバイルアプリ開発</td></tr>
+        <tr><td>P3</td><td>データ基盤構築</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ project_members</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>project_id</th></tr>
+        <tr><td>1</td><td>P1</td></tr>
+        <tr><td>1</td><td>P2</td></tr>
+        <tr><td>2</td><td>P1</td></tr>
+        <tr><td>3</td><td>P2</td></tr>
+        <tr><td>3</td><td>P3</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>dept_name</th><th>unassigned_project_names</th><th>unassigned_count</th></tr>
+<tr><td>田中</td><td>開発部</td><td>データ基盤構築</td><td>1</td></tr>
+<tr><td>佐藤</td><td>開発部</td><td>モバイルアプリ開発, データ基盤構築</td><td>2</td></tr>
+<tr><td>山田</td><td>営業部</td><td>基幹システム刷新</td><td>1</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 全社員 × 全プロジェクトの組み合わせを生成する（CROSS JOIN）</span>
+<span class="cmt">-- CROSS JOIN: 結合条件なしで全組み合わせを作る（3社員 × 3PJ = 9行）</span>
+all_combinations <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    e.emp_id,
+    e.emp_name,
+    e.dept_name,
+    p.project_id,
+    p.project_name
+  <span class="kw">FROM</span>       <span class="tbl">employees</span> e
+  <span class="kw">CROSS JOIN</span> <span class="tbl">projects</span>  p  <span class="cmt">-- 全組み合わせを生成（ONなし）</span>
+),
+
+<span class="cmt">-- ② 組み合わせのうち「参加記録がない」ものだけ残す</span>
+unassigned <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    ac.emp_id,
+    ac.emp_name,
+    ac.dept_name,
+    ac.project_name
+  <span class="kw">FROM</span> all_combinations ac
+  <span class="kw">WHERE NOT EXISTS</span> (                  <span class="cmt">-- サブクエリが0行 = 参加記録なし = TRUEで残す</span>
+    <span class="kw">SELECT</span> <span class="num">1</span>                          <span class="cmt">-- 何でもよい（存在確認だけが目的）</span>
+    <span class="kw">FROM</span>  <span class="tbl">project_members</span> pm
+    <span class="kw">WHERE</span> pm.emp_id    <span class="op">=</span> ac.emp_id     <span class="cmt">-- この社員が（外部クエリと相関）</span>
+      <span class="kw">AND</span> pm.project_id <span class="op">=</span> ac.project_id  <span class="cmt">-- このプロジェクトに参加した記録があるか</span>
+  )
+)
+
+<span class="cmt">-- ③ 社員ごとに未参加プロジェクトをカンマ結合して集約する</span>
+<span class="kw">SELECT</span>
+  emp_name,
+  dept_name,
+  <span class="cmt">-- STRING_AGG: 複数行の文字列を指定区切りで1行に連結する集計関数</span>
+  <span class="fn">STRING_AGG</span>(project_name, <span class="str">', '</span> <span class="kw">ORDER BY</span> project_name)  <span class="cmt">-- カンマ区切りで連結、名前順</span>
+    <span class="kw">AS</span> unassigned_project_names,
+  <span class="fn">COUNT</span>(<span class="op">*</span>)  <span class="kw">AS</span> unassigned_count        <span class="cmt">-- 未参加プロジェクト数を集計</span>
+<span class="kw">FROM</span>  unassigned
+<span class="kw">GROUP BY</span> emp_id, emp_name, dept_name   <span class="cmt">-- 社員ごとに1行に集約</span>
+<span class="kw">ORDER BY</span> emp_name;                     <span class="cmt">-- 名前の50音順で出力</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. CROSS JOIN employees × projects → 全組み合わせ生成（3×3=9行）
+  2. NOT EXISTS サブクエリ           → 各組み合わせで参加記録をチェック
+  3. unassigned CTE 完成             → 未参加の（社員,PJ）ペアが残る
+  4. GROUP BY emp_id                 → 社員ごとに集約
+  5. STRING_AGG(...)                 → 未参加PJ名をカンマ区切りで連結
+  6. COUNT(*)                        → 未参加PJ数をカウント
+  7. ORDER BY emp_name               → 名前順に出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CROSS JOIN後の全組み合わせ（9行）と NOT EXISTS の判定</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>project_name</th><th>参加記録あり？</th><th>NOT EXISTS</th></tr>
+<tr class="tr-dim"><td>田中</td><td>基幹システム刷新</td><td class="tc-g">あり（P1）</td><td class="tc-r">FALSE → 除外</td></tr>
+<tr class="tr-dim"><td>田中</td><td>モバイルアプリ開発</td><td class="tc-g">あり（P2）</td><td class="tc-r">FALSE → 除外</td></tr>
+<tr class="tr-hi4"><td>田中</td><td>データ基盤構築</td><td class="tc-r">なし</td><td class="tc-g">TRUE → 残る</td></tr>
+<tr class="tr-dim"><td>佐藤</td><td>基幹システム刷新</td><td class="tc-g">あり（P1）</td><td class="tc-r">FALSE → 除外</td></tr>
+<tr class="tr-hi4"><td>佐藤</td><td>モバイルアプリ開発</td><td class="tc-r">なし</td><td class="tc-g">TRUE → 残る</td></tr>
+<tr class="tr-hi4"><td>佐藤</td><td>データ基盤構築</td><td class="tc-r">なし</td><td class="tc-g">TRUE → 残る</td></tr>
+<tr class="tr-hi4"><td>山田</td><td>基幹システム刷新</td><td class="tc-r">なし</td><td class="tc-g">TRUE → 残る</td></tr>
+<tr class="tr-dim"><td>山田</td><td>モバイルアプリ開発</td><td class="tc-g">あり（P2）</td><td class="tc-r">FALSE → 除外</td></tr>
+<tr class="tr-dim"><td>山田</td><td>データ基盤構築</td><td class="tc-g">あり（P3）</td><td class="tc-r">FALSE → 除外</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">GROUP BY emp_id → STRING_AGG でプロジェクト名を連結</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>最終出力</strong> — 社員ごとに未参加プロジェクトを集約</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th class="tc-hi">unassigned_project_names</th><th class="tc-g">unassigned_count</th></tr>
+<tr><td>田中</td><td class="tc-hi">データ基盤構築</td><td class="tc-g">1</td></tr>
+<tr><td>佐藤</td><td class="tc-hi">モバイルアプリ開発, データ基盤構築</td><td class="tc-g">2</td></tr>
+<tr><td>山田</td><td class="tc-hi">基幹システム刷新</td><td class="tc-g">1</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CROSS JOINの使いどころ：</strong>「全組み合わせを基準にして、存在しないものを探す」逆引きパターンで使う。データ量が多い場合は組み合わせ爆発に注意（100社員×1000PJで10万行）。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NOT IN より NOT EXISTS が安全：</strong><code>NOT IN (SELECT ...)</code> はサブクエリにNULLが1件でもあると全行がFALSEになる（SQL三値論理）。NOT EXISTS はNULLに対して安全。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NOT IN に NULL が混入：</strong><code>WHERE project_id NOT IN (SELECT project_id FROM ...)</code> は結果にNULLがあると全行FALSE。安全のため NOT EXISTS を優先する。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  SUM OVER — 部署内シェア
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "SUM OVER + 部署内シェア — 個人売上の部署内構成比を算出",
+  tags: [["r","SUM OVER"],["o","構成比"],["g","PARTITION BY"],["p","売上シェア分析"]],
+  premise: `<p>「グループ合計に占める各行の比率（構成比）」は <strong>SUM() OVER (PARTITION BY)</strong> の典型的な活用法です。GROUP BY だとグループが1行になってしまいますが、ウィンドウ関数なら<em>個人の詳細行を残しながら部署合計を各行に付与</em>できます。</p>
+<pre><span class="cmt">-- グループ内合計を全行に付与（行が減らない）</span>
+<span class="fn">SUM</span>(sales) <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> dept_id) <span class="kw">AS</span> dept_total
+
+<span class="cmt">-- OVER() 空 = 全行の合計（全社合計）を各行に付与</span>
+<span class="fn">SUM</span>(sales) <span class="kw">OVER</span> () <span class="kw">AS</span> company_total</pre>`,
+  question: `<p>sales_results・employees・departments テーブルを使い、<em>各社員の売上・部署内シェア・全社シェア・部署内ランク</em>を1クエリで取得してください。</p>
+<p>出力：dept_name, emp_name, sales, dept_total, dept_share_pct, company_share_pct, dept_rank</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sales_results（2024Q1）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>quarter</th><th>total_sales</th></tr>
+        <tr><td>1（田中/営業一部）</td><td>2024Q1</td><td>820,000</td></tr>
+        <tr><td>2（佐藤/営業一部）</td><td>2024Q1</td><td>750,000</td></tr>
+        <tr><td>3（山田/営業一部）</td><td>2024Q1</td><td>680,000</td></tr>
+        <tr><td>4（鈴木/営業二部）</td><td>2024Q1</td><td>990,000</td></tr>
+        <tr><td>5（高橋/営業二部）</td><td>2024Q1</td><td>640,000</td></tr>
+        <tr><td>6（木村/営業二部）</td><td>2024Q1</td><td>880,000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>emp_name</th><th>sales</th><th>dept_total</th><th>dept_share%</th><th>company_share%</th><th>dept_rank</th></tr>
+<tr><td>営業一部</td><td>田中</td><td>820,000</td><td>2,250,000</td><td>36.4</td><td>17.2</td><td>1</td></tr>
+<tr><td>営業一部</td><td>佐藤</td><td>750,000</td><td>2,250,000</td><td>33.3</td><td>15.8</td><td>2</td></tr>
+<tr><td>営業一部</td><td>山田</td><td>680,000</td><td>2,250,000</td><td>30.2</td><td>14.3</td><td>3</td></tr>
+<tr><td>営業二部</td><td>鈴木</td><td>990,000</td><td>2,510,000</td><td>39.4</td><td>20.8</td><td>1</td></tr>
+<tr><td>営業二部</td><td>木村</td><td>880,000</td><td>2,510,000</td><td>35.1</td><td>18.5</td><td>2</td></tr>
+<tr><td>営業二部</td><td>高橋</td><td>640,000</td><td>2,510,000</td><td>25.5</td><td>13.4</td><td>3</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  d.dept_name,                                         <span class="cmt">-- 部署名</span>
+  e.emp_name,                                          <span class="cmt">-- 社員名</span>
+  s.total_sales                          <span class="kw">AS</span> sales,     <span class="cmt">-- 個人売上</span>
+
+  <span class="cmt">-- ① 部署内合計: PARTITION BY dept_id → 部署ごとの合計が全行に付く（行は減らない）</span>
+  <span class="fn">SUM</span>(s.total_sales) <span class="kw">OVER</span> (
+    <span class="kw">PARTITION BY</span> e.dept_id               <span class="cmt">-- 部署ごとに独立してSUMを計算</span>
+  )                                      <span class="kw">AS</span> dept_total,
+
+  <span class="cmt">-- ② 部署内シェア: 個人売上 ÷ 部署合計 × 100（小数点1桁）</span>
+  <span class="fn">ROUND</span>(
+    s.total_sales <span class="op">*</span> <span class="num">100.0</span>               <span class="cmt">-- * 100.0 で浮動小数点に変換（整数除算防止）</span>
+    <span class="op">/</span> <span class="fn">SUM</span>(s.total_sales) <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> e.dept_id)
+  , <span class="num">1</span>)                                   <span class="kw">AS</span> dept_share_pct,
+
+  <span class="cmt">-- ③ 全社シェア: OVER() 空 = 全行の合計を分母にする（部署を問わない全社合計）</span>
+  <span class="fn">ROUND</span>(
+    s.total_sales <span class="op">*</span> <span class="num">100.0</span>
+    <span class="op">/</span> <span class="fn">SUM</span>(s.total_sales) <span class="kw">OVER</span> ()         <span class="cmt">-- OVER() = PARTITION BY なし = 全行が1ウィンドウ</span>
+  , <span class="num">1</span>)                                   <span class="kw">AS</span> company_share_pct,
+
+  <span class="cmt">-- ④ 部署内ランク: 売上降順でDENSE_RANK（同率あり・飛び番なし）</span>
+  <span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (
+    <span class="kw">PARTITION BY</span> e.dept_id
+    <span class="kw">ORDER BY</span>    s.total_sales <span class="kw">DESC</span>      <span class="cmt">-- 売上が高い順（DESCで降順）にランク付け</span>
+  )                                      <span class="kw">AS</span> dept_rank
+
+<span class="kw">FROM</span>  <span class="tbl">sales_results</span> s
+<span class="kw">JOIN</span>  <span class="tbl">employees</span>     e  <span class="kw">ON</span> s.emp_id  <span class="op">=</span> e.emp_id   <span class="cmt">-- 社員IDで結合して名前・部署を取得</span>
+<span class="kw">JOIN</span>  <span class="tbl">departments</span>   d  <span class="kw">ON</span> e.dept_id <span class="op">=</span> d.dept_id  <span class="cmt">-- 部署IDで結合して部署名を取得</span>
+<span class="kw">WHERE</span> s.quarter <span class="op">=</span> <span class="str">'2024Q1'</span>                           <span class="cmt">-- 対象四半期のみに絞る</span>
+<span class="kw">ORDER BY</span> d.dept_name, s.total_sales <span class="kw">DESC</span>;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM + JOIN                      → 3テーブルを結合して全カラム揃える
+  2. WHERE quarter = '2024Q1'         → 対象四半期に絞る
+  3. SUM() OVER(PARTITION BY dept_id) → 部署合計を全行に付与
+  4. SUM() OVER()                     → 全社合計を全行に付与
+  5. ROUND(... / SUM())               → 部署内・全社シェアを計算
+  6. DENSE_RANK() OVER(PARTITION)     → 部署内ランクを付与
+  7. ORDER BY dept_name, sales DESC   → 部署・売上順で出力
+  ★ GROUP BY は不要。ウィンドウ関数は行を集約せずに計算する。
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>SUM OVER の動作比較</strong> — PARTITION BY ありと空の違い</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>dept_id</th><th>sales</th><th class="tc-hi">SUM OVER(PARTITION BY dept)</th><th class="tc-g">SUM OVER()</th></tr>
+<tr><td>田中</td><td>10</td><td>820,000</td><td class="tc-hi">2,250,000（一部合計）</td><td class="tc-g">4,760,000（全社合計）</td></tr>
+<tr><td>佐藤</td><td>10</td><td>750,000</td><td class="tc-hi">2,250,000（一部合計）</td><td class="tc-g">4,760,000（全社合計）</td></tr>
+<tr><td>山田</td><td>10</td><td>680,000</td><td class="tc-hi">2,250,000（一部合計）</td><td class="tc-g">4,760,000（全社合計）</td></tr>
+<tr><td>鈴木</td><td>20</td><td>990,000</td><td class="tc-hi">2,510,000（二部合計）</td><td class="tc-g">4,760,000（全社合計）</td></tr>
+<tr><td>高橋</td><td>20</td><td>640,000</td><td class="tc-hi">2,510,000（二部合計）</td><td class="tc-g">4,760,000（全社合計）</td></tr>
+<tr><td>木村</td><td>20</td><td>880,000</td><td class="tc-hi">2,510,000（二部合計）</td><td class="tc-g">4,760,000（全社合計）</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">ROUND(sales × 100.0 / 各合計, 1) → シェア率算出 → DENSE_RANK 付与</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>最終出力</strong> — 個人行を保ちながら部署・全社シェアが付く</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>emp_name</th><th>sales</th><th class="tc-hi">dept_share%</th><th class="tc-g">company%</th><th class="tc-p">rank</th></tr>
+<tr><td>営業一部</td><td>田中</td><td>820,000</td><td class="tc-hi">36.4</td><td class="tc-g">17.2</td><td class="tc-p">1</td></tr>
+<tr><td>営業二部</td><td>鈴木</td><td>990,000</td><td class="tc-hi">39.4</td><td class="tc-g">20.8</td><td class="tc-p">1</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ウィンドウ関数の最大の強み：</strong>GROUP BY は「集約して行が減る」が、ウィンドウ関数は「行を残したまま計算する」。「個人詳細 + 部署合計 + 全社合計を同時に欲しい」には GROUP BY では対処できない。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>* 100.0 の重要性：</strong><code>sales * 100 / SUM(...)</code> は整数÷整数=切り捨てになる。必ず <code>* 100.0</code> か <code>CAST(sales AS NUMERIC)</code> で浮動小数点に変換してから割り算する。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>スカラーサブクエリで全社合計を毎回取る：</strong><code>SELECT sales / (SELECT SUM(sales) FROM ...)</code> は全行に対して毎回サブクエリが実行される（非効率）。<strong>SUM() OVER ()</strong> なら全行一括計算で高速。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  RECURSIVE CTE — 組織階層の全展開
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "RECURSIVE CTE — 組織の全階層をツリー展開して深さと経路を表示",
+  tags: [["r","RECURSIVE CTE"],["o","WITH RECURSIVE"],["g","階層構造"],["p","組織ツリー可視化"]],
+  premise: `<p><strong>再帰CTE（Recursive CTE）</strong> は自分自身を参照できるCTEで、ツリー構造や階層データを深さに制限なく展開するのに使います。Q2のSELF JOINでは「上司の上司」を取ろうとするたびにJOINを追加する必要がありましたが、再帰CTEなら何階層でも自動的に追いかけられます。</p>
+<pre><span class="kw">WITH RECURSIVE</span> org_tree <span class="kw">AS</span> (
+
+  <span class="cmt">-- 基底クエリ（Anchor）: 再帰の起点となる最初の1行</span>
+  <span class="kw">SELECT</span> emp_id, emp_name, manager_id, <span class="num">0</span> <span class="kw">AS</span> depth
+  <span class="kw">FROM</span>   <span class="tbl">employees</span>
+  <span class="kw">WHERE</span>  manager_id <span class="kw">IS NULL</span>  <span class="cmt">-- トップ（CEOなど）から始める</span>
+
+  <span class="kw">UNION ALL</span>
+
+  <span class="cmt">-- 再帰クエリ（Recursive）: org_tree に結合して1階層ずつ下に掘る</span>
+  <span class="kw">SELECT</span> e.emp_id, e.emp_name, e.manager_id, t.depth <span class="op">+</span> <span class="num">1</span>
+  <span class="kw">FROM</span>   <span class="tbl">employees</span> e
+  <span class="kw">JOIN</span>   org_tree   t <span class="kw">ON</span> e.manager_id <span class="op">=</span> t.emp_id  <span class="cmt">-- 前の結果の子を取得</span>
+)
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> org_tree;</pre>
+<div class="callout"><strong>UNION ALL vs UNION：</strong>再帰CTEでは必ず <code>UNION ALL</code> を使います。<code>UNION</code>（重複除去あり）は各反復で重複チェックをするため非常に重くなります。</div>`,
+  question: `<p>employees テーブルを再帰CTEで展開し、<em>各社員の階層深さ・トップからの経路・配下人数</em>を出力してください。</p>
+<p>出力：emp_id, emp_name, job_title, depth, path, subordinate_count</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employees</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>job_title</th><th>manager_id</th></tr>
+        <tr><td>1</td><td>田中</td><td>CEO</td><td class="null">NULL</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>営業部長</td><td>1</td></tr>
+        <tr><td>3</td><td>山田</td><td>開発部長</td><td>1</td></tr>
+        <tr><td>4</td><td>鈴木</td><td>営業課長</td><td>2</td></tr>
+        <tr><td>5</td><td>高橋</td><td>開発リーダー</td><td>3</td></tr>
+        <tr><td>6</td><td>木村</td><td>営業担当</td><td>4</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>emp_name</th><th>job_title</th><th>depth</th><th>path</th><th>subordinate_count</th></tr>
+<tr><td>1</td><td>田中</td><td>CEO</td><td>0</td><td>田中</td><td>5</td></tr>
+<tr><td>2</td><td>佐藤</td><td>営業部長</td><td>1</td><td>田中 → 佐藤</td><td>2</td></tr>
+<tr><td>3</td><td>山田</td><td>開発部長</td><td>1</td><td>田中 → 山田</td><td>1</td></tr>
+<tr><td>4</td><td>鈴木</td><td>営業課長</td><td>2</td><td>田中 → 佐藤 → 鈴木</td><td>1</td></tr>
+<tr><td>5</td><td>高橋</td><td>開発リーダー</td><td>2</td><td>田中 → 山田 → 高橋</td><td>0</td></tr>
+<tr><td>6</td><td>木村</td><td>営業担当</td><td>3</td><td>田中 → 佐藤 → 鈴木 → 木村</td><td>0</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH RECURSIVE</span>
+
+<span class="cmt">-- ① 再帰CTE: トップから1階層ずつ下に向かって全社員を展開する</span>
+org_tree <span class="kw">AS</span> (
+
+  <span class="cmt">-- 基底クエリ（Anchor Member）: 再帰の起点を定義する</span>
+  <span class="cmt">-- manager_id が NULL の社員 = トップ（CEO）から始める</span>
+  <span class="kw">SELECT</span>
+    emp_id,
+    emp_name,
+    job_title,
+    manager_id,
+    <span class="num">0</span>        <span class="kw">AS</span> depth,        <span class="cmt">-- トップは深さ 0</span>
+    emp_name <span class="kw">AS</span> path           <span class="cmt">-- トップの経路 = 自分自身の名前</span>
+  <span class="kw">FROM</span>   <span class="tbl">employees</span>
+  <span class="kw">WHERE</span>  manager_id <span class="kw">IS NULL</span>   <span class="cmt">-- manager_id が NULL = トップ（上司なし）</span>
+
+  <span class="kw">UNION ALL</span>  <span class="cmt">-- 重複除去なしで結合（再帰CTEでは UNION ALL が必須）</span>
+
+  <span class="cmt">-- 再帰クエリ（Recursive Member）: 前の反復結果（org_tree）に子を結合する</span>
+  <span class="cmt">-- 子が存在する限りこのクエリを繰り返す（結果が0行になったら停止）</span>
+  <span class="kw">SELECT</span>
+    e.emp_id,
+    e.emp_name,
+    e.job_title,
+    e.manager_id,
+    t.depth <span class="op">+</span> <span class="num">1</span>                             <span class="cmt">-- 1階層下るごとに depth を +1</span>
+      <span class="kw">AS</span> depth,
+    t.path <span class="op">||</span> <span class="str">' → '</span> <span class="op">||</span> e.emp_name           <span class="cmt">-- || は文字列結合演算子（経路を '→' でつなぐ）</span>
+      <span class="kw">AS</span> path
+  <span class="kw">FROM</span>   <span class="tbl">employees</span>  e
+  <span class="kw">JOIN</span>   org_tree    t <span class="kw">ON</span> e.manager_id <span class="op">=</span> t.emp_id  <span class="cmt">-- 前の結果の社員が上司の子を取得</span>
+),
+
+<span class="cmt">-- ② 各社員の配下人数を集計する（直接の部下だけでなく全配下を数える）</span>
+<span class="cmt">-- 「誰かの manager_id に自分の emp_id が含まれるか」を逆引きで集計</span>
+sub_count <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    t.emp_id,
+    <span class="fn">COUNT</span>(sub.emp_id) <span class="kw">AS</span> subordinate_count  <span class="cmt">-- 配下にいる社員数（自分を除く）</span>
+  <span class="kw">FROM</span>       org_tree t
+  <span class="kw">LEFT JOIN</span>  org_tree sub                        <span class="cmt">-- 全社員と再度結合（LEFT: 部下0人も残す）</span>
+    <span class="kw">ON</span> sub.path <span class="kw">LIKE</span> t.path <span class="op">||</span> <span class="str">' →%'</span>          <span class="cmt">-- 経路が自分から始まる社員が配下</span>
+  <span class="kw">GROUP BY</span> t.emp_id                              <span class="cmt">-- 社員ごとに配下数を集計</span>
+)
+
+<span class="cmt">-- ③ 再帰結果と配下人数を結合して出力</span>
+<span class="kw">SELECT</span>
+  t.emp_id,
+  t.emp_name,
+  t.job_title,
+  t.depth,
+  t.path,
+  s.subordinate_count
+<span class="kw">FROM</span>  org_tree   t
+<span class="kw">JOIN</span>  sub_count  s <span class="kw">ON</span> t.emp_id <span class="op">=</span> s.emp_id  <span class="cmt">-- 配下人数を結合</span>
+<span class="kw">ORDER BY</span> t.path;                             <span class="cmt">-- 経路順（自然な組織ツリー順）で出力</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. Anchor（基底クエリ）実行     → CEO行（depth=0, path='田中'）を生成
+  2. Recursive（再帰クエリ）×1回目→ CEOの直属部下（depth=1）を取得
+  3. Recursive ×2回目            → 部長の部下（depth=2）を取得
+  4. Recursive ×3回目            → 課長の部下（depth=3）を取得
+  5. Recursive ×4回目            → 結果0行 → 反復終了
+  6. org_tree CTE 完成（全6行）
+  7. sub_count: LIKE で経路をチェックして配下を集計
+  8. JOIN + ORDER BY path        → 組織ツリー順で出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>再帰の反復プロセス</strong> — 1階層ずつ下に掘り進める</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>反復回数</th><th>emp_name</th><th class="tc-hi">depth</th><th class="tc-g">path（経路）</th></tr>
+<tr class="tr-hi"><td>基底（初回）</td><td>田中</td><td class="tc-hi">0</td><td class="tc-g">田中</td></tr>
+<tr class="tr-hi2"><td>1回目</td><td>佐藤</td><td class="tc-hi">1</td><td class="tc-g">田中 → 佐藤</td></tr>
+<tr class="tr-hi2"><td>1回目</td><td>山田</td><td class="tc-hi">1</td><td class="tc-g">田中 → 山田</td></tr>
+<tr class="tr-hi3"><td>2回目</td><td>鈴木</td><td class="tc-hi">2</td><td class="tc-g">田中 → 佐藤 → 鈴木</td></tr>
+<tr class="tr-hi3"><td>2回目</td><td>高橋</td><td class="tc-hi">2</td><td class="tc-g">田中 → 山田 → 高橋</td></tr>
+<tr class="tr-hi4"><td>3回目</td><td>木村</td><td class="tc-hi">3</td><td class="tc-g">田中 → 佐藤 → 鈴木 → 木村</td></tr>
+<tr><td>4回目</td><td colspan="3" class="null">結果0行 → 反復終了</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">sub_count: LIKE '田中 →%' で配下を逆引き集計 → JOIN して出力</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>最終出力</strong> — 深さ・経路・配下人数が揃ったツリービュー</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th class="tc-hi">depth</th><th class="tc-g">path</th><th class="tc-p">subordinate_count</th></tr>
+<tr><td>田中（CEO）</td><td class="tc-hi">0</td><td class="tc-g">田中</td><td class="tc-p">5</td></tr>
+<tr><td>佐藤（営業部長）</td><td class="tc-hi">1</td><td class="tc-g">田中 → 佐藤</td><td class="tc-p">2</td></tr>
+<tr><td>山田（開発部長）</td><td class="tc-hi">1</td><td class="tc-g">田中 → 山田</td><td class="tc-p">1</td></tr>
+<tr><td>鈴木（営業課長）</td><td class="tc-hi">2</td><td class="tc-g">田中 → 佐藤 → 鈴木</td><td class="tc-p">1</td></tr>
+<tr><td>高橋（開発リーダー）</td><td class="tc-hi">2</td><td class="tc-g">田中 → 山田 → 高橋</td><td class="tc-p">0</td></tr>
+<tr><td>木村（営業担当）</td><td class="tc-hi">3</td><td class="tc-g">田中 → 佐藤 → 鈴木 → 木村</td><td class="tc-p">0</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>再帰CTEの2部構成：</strong>「基底クエリ（起点を1行生成）」+ UNION ALL +「再帰クエリ（前の結果を参照して子を取得）」。子が0行になった時点で自動停止する。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>SELF JOINとの使い分け：</strong>SELF JOINは階層数が事前に決まっている場合に向く（2階層なら2回JOIN）。階層数が不定（ツリーの深さが可変）なら再帰CTEを使う。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>無限ループ対策：</strong>循環参照（A→B→A）があるデータでは再帰が終わらない。PostgreSQLでは <code>CYCLE emp_id SET is_cycle USING path</code> で検知できる。本番環境では <code>WHERE depth &lt; 20</code> など深さ上限を設けると安全。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>UNION ALL でなく UNION を使う：</strong>再帰部分で <code>UNION</code>（重複除去あり）を使うと、反復ごとに全結果と重複チェックが走り非常に重くなる。再帰CTEでは必ず <code>UNION ALL</code>。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WITH RECURSIVE を WITH だけにする：</strong>PostgreSQL/BigQueryでは自己参照CTEには <code>WITH RECURSIVE</code> が必須。<code>WITH</code> だけだと「org_tree テーブルが存在しない」エラーになる。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  CASE + GROUP BY — クロス集計（PIVOT）
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "CASE + GROUP BY — 四半期別売上のクロス集計（手動PIVOT）",
+  tags: [["r","CASE+SUM"],["o","クロス集計"],["g","GROUP BY"],["p","売上レポートBI"]],
+  premise: `<p>多くのRDBMSには専用のPIVOT構文がありませんが、<strong>SUM(CASE WHEN ... THEN 値 ELSE 0 END)</strong> のパターンで同等のクロス集計が実現できます。「行 → 列」変換とも呼ばれ、売上レポート・勤怠集計・マトリクス表の生成でよく使います。</p>
+<pre><span class="cmt">-- 特定の条件に一致する行のみ集計する「条件付きSUM」</span>
+<span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> quarter <span class="op">=</span> <span class="str">'2024Q1'</span> <span class="kw">THEN</span> total_sales <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> q1_sales
+<span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> quarter <span class="op">=</span> <span class="str">'2024Q2'</span> <span class="kw">THEN</span> total_sales <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> q2_sales</pre>
+<div class="callout"><strong>ELSE 0 の重要性：</strong>ELSE を省略すると条件が一致しない行は NULL になり、SUM(NULL) = NULL になってしまいます。<code>ELSE 0</code> にすることで、その期の実績がない行も 0 として加算されます。</div>`,
+  question: `<p>sales_results テーブルを使い、<em>部署ごとの四半期別売上をクロス集計</em>（横持ち）してください。</p>
+<p>各行が1部署、各列が四半期（Q1〜Q4）の売上になるよう変換します。年間合計と最高四半期も付与してください。</p>
+<p>出力：dept_name, q1_sales, q2_sales, q3_sales, q4_sales, annual_total, best_quarter</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sales_results（縦持ち：1行1四半期）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>dept_name</th><th>quarter</th><th>total_sales</th></tr>
+        <tr><td>1</td><td>営業部</td><td>2024Q1</td><td>820,000</td></tr>
+        <tr><td>1</td><td>営業部</td><td>2024Q2</td><td>950,000</td></tr>
+        <tr><td>1</td><td>営業部</td><td>2024Q3</td><td>1,100,000</td></tr>
+        <tr><td>1</td><td>営業部</td><td>2024Q4</td><td>870,000</td></tr>
+        <tr><td>2</td><td>開発部</td><td>2024Q1</td><td>650,000</td></tr>
+        <tr><td>2</td><td>開発部</td><td>2024Q2</td><td>700,000</td></tr>
+        <tr><td>2</td><td>開発部</td><td>2024Q3</td><td>720,000</td></tr>
+        <tr><td>2</td><td>開発部</td><td>2024Q4</td><td>690,000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>q1_sales</th><th>q2_sales</th><th>q3_sales</th><th>q4_sales</th><th>annual_total</th><th>best_quarter</th></tr>
+<tr><td>営業部</td><td>820,000</td><td>950,000</td><td>1,100,000</td><td>870,000</td><td>3,740,000</td><td>2024Q3</td></tr>
+<tr><td>開発部</td><td>650,000</td><td>700,000</td><td>720,000</td><td>690,000</td><td>2,760,000</td><td>2024Q3</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 縦持ちデータを部署ごとに四半期別に横展開する（手動PIVOT）</span>
+pivoted <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    dept_name,
+
+    <span class="cmt">-- 条件付きSUM: quarter が '2024Q1' の行だけ total_sales を足し、他は 0</span>
+    <span class="cmt">-- GROUP BY と組み合わせることで、部署ごとにQ1の合計だけが入る</span>
+    <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> quarter <span class="op">=</span> <span class="str">'2024Q1'</span> <span class="kw">THEN</span> total_sales <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> q1_sales,
+    <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> quarter <span class="op">=</span> <span class="str">'2024Q2'</span> <span class="kw">THEN</span> total_sales <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> q2_sales,
+    <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> quarter <span class="op">=</span> <span class="str">'2024Q3'</span> <span class="kw">THEN</span> total_sales <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> q3_sales,
+    <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> quarter <span class="op">=</span> <span class="str">'2024Q4'</span> <span class="kw">THEN</span> total_sales <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> q4_sales,
+
+    <span class="cmt">-- 年間合計: 全四半期のSUM（条件なし）</span>
+    <span class="fn">SUM</span>(total_sales)  <span class="kw">AS</span> annual_total
+
+  <span class="kw">FROM</span>     <span class="tbl">sales_results</span>
+  <span class="kw">WHERE</span>    quarter <span class="kw">LIKE</span> <span class="str">'2024%'</span>       <span class="cmt">-- LIKE '2024%': '2024'で始まるもの（% = 任意の文字列）</span>
+  <span class="kw">GROUP BY</span> dept_name                  <span class="cmt">-- 部署ごとに1行に集約（これがPIVOTの核心）</span>
+)
+
+<span class="cmt">-- ② 最も売上の高い四半期（best_quarter）を判定して出力する</span>
+<span class="kw">SELECT</span>
+  dept_name,
+  q1_sales,
+  q2_sales,
+  q3_sales,
+  q4_sales,
+  annual_total,
+
+  <span class="cmt">-- 4つのQのうち最大値を持つ四半期名を返す</span>
+  <span class="cmt">-- GREATEST(a,b,c,d) は引数の中の最大値を返す関数</span>
+  <span class="kw">CASE</span> <span class="fn">GREATEST</span>(q1_sales, q2_sales, q3_sales, q4_sales)
+    <span class="kw">WHEN</span> q1_sales <span class="kw">THEN</span> <span class="str">'2024Q1'</span>   <span class="cmt">-- 最大値が Q1 の場合</span>
+    <span class="kw">WHEN</span> q2_sales <span class="kw">THEN</span> <span class="str">'2024Q2'</span>   <span class="cmt">-- 最大値が Q2 の場合</span>
+    <span class="kw">WHEN</span> q3_sales <span class="kw">THEN</span> <span class="str">'2024Q3'</span>   <span class="cmt">-- 最大値が Q3 の場合</span>
+    <span class="kw">ELSE</span>               <span class="str">'2024Q4'</span>   <span class="cmt">-- それ以外（Q4 が最大）</span>
+  <span class="kw">END</span>  <span class="kw">AS</span> best_quarter
+
+<span class="kw">FROM</span>     pivoted
+<span class="kw">ORDER BY</span> annual_total <span class="kw">DESC</span>;    <span class="cmt">-- 年間合計の高い部署が上に来るよう降順ソート</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM sales_results           → 全売上データを読み込む
+  2. WHERE quarter LIKE '2024%'   → 2024年の行のみに絞る
+  3. SUM(CASE WHEN quarter=Q1...) → 条件付きSUMで各四半期列を生成
+  4. GROUP BY dept_name           → 部署ごとに集約（縦→横 の PIVOT 完成）
+  5. pivoted CTE 完成
+  6. CASE GREATEST(q1,q2,q3,q4)  → 最高四半期を判定
+  7. ORDER BY annual_total DESC   → 年間売上の高い順に出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>縦持ち（元データ）→ 横持ち（PIVOT後）の変換イメージ</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>quarter</th><th>total_sales</th><th>→ 変換</th><th>dept_name</th><th class="tc-hi">q1_sales</th><th class="tc-g">q2_sales</th><th class="tc-p">q3_sales</th><th class="tc-y">q4_sales</th></tr>
+<tr><td>営業部</td><td>2024Q1</td><td>820,000</td><td rowspan="4" style="text-align:center">GROUP BY<br>+CASE SUM</td><td rowspan="4">営業部</td><td class="tc-hi">820,000</td><td class="tc-g">950,000</td><td class="tc-p">1,100,000</td><td class="tc-y">870,000</td></tr>
+<tr><td>営業部</td><td>2024Q2</td><td>950,000</td></tr>
+<tr><td>営業部</td><td>2024Q3</td><td>1,100,000</td></tr>
+<tr><td>営業部</td><td>2024Q4</td><td>870,000</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">条件付きSUMの内部動作：CASE WHEN が false の行は ELSE 0 として加算される</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>条件付きSUMの行単位の動作</strong> — q1_sales の場合</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>行</th><th>quarter</th><th>total_sales</th><th>CASE WHEN quarter='2024Q1'</th><th class="tc-hi">加算値</th></tr>
+<tr class="tr-hi"><td>1</td><td>2024Q1</td><td>820,000</td><td class="tc-g">THEN total_sales（マッチ）</td><td class="tc-hi">820,000</td></tr>
+<tr><td>2</td><td>2024Q2</td><td>950,000</td><td class="null">ELSE 0（非マッチ）</td><td class="null">0</td></tr>
+<tr><td>3</td><td>2024Q3</td><td>1,100,000</td><td class="null">ELSE 0</td><td class="null">0</td></tr>
+<tr><td>4</td><td>2024Q4</td><td>870,000</td><td class="null">ELSE 0</td><td class="null">0</td></tr>
+<tr class="tr-hi2"><td colspan="4" style="text-align:right">SUM → q1_sales =</td><td class="tc-hi">820,000</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">GREATEST(q1,q2,q3,q4) → CASE で最高四半期を判定</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — 部署×四半期の横持ちクロス集計</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th class="tc-hi">q1</th><th class="tc-g">q2</th><th class="tc-p">q3</th><th class="tc-y">q4</th><th>annual</th><th class="tc-o">best_q</th></tr>
+<tr><td>営業部</td><td class="tc-hi">820,000</td><td class="tc-g">950,000</td><td class="tc-p">1,100,000</td><td class="tc-y">870,000</td><td>3,740,000</td><td class="tc-o">2024Q3</td></tr>
+<tr><td>開発部</td><td class="tc-hi">650,000</td><td class="tc-g">700,000</td><td class="tc-p">720,000</td><td class="tc-y">690,000</td><td>2,760,000</td><td class="tc-o">2024Q3</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>手動PIVOTの考え方：</strong>「四半期という行のバリエーションを列に変換する」。GROUP BY で1行に集約しながら、CASE WHEN で各列に分岐する、という2つの動作が組み合わさっている。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>LIKE の使い方：</strong><code>LIKE '2024%'</code> の <code>%</code> は「0文字以上の任意の文字列」を意味するワイルドカード。<code>_</code>（アンダースコア）は「ちょうど1文字」。例：<code>LIKE '2024Q_'</code> で2024Qで始まる5文字の文字列に一致。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>GREATEST/LEAST 関数：</strong>複数値の最大・最小を返す関数。<code>GREATEST(a,b,c)</code> は引数がNULLだとNULLを返すので注意。COALESCE と組み合わせて <code>GREATEST(COALESCE(a,0), ...)</code> とすると安全。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE を省略する：</strong><code>SUM(CASE WHEN quarter='2024Q1' THEN total_sales END)</code> は ELSE なしだと一致しない行が NULL になる。SUM は NULL を無視するため偶然合計は合うが、<code>ELSE 0</code> を明示する方が意図が明確で安全。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BY に集約対象外の列を入れ忘れる：</strong><code>SELECT dept_name, emp_name, SUM(...) GROUP BY dept_name</code> は、GROUP BY にない emp_name がエラーになる。SELECTに書いた非集計列は全てGROUP BYに含める必要がある。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10  LEAD + 成長率 — 月次売上の前月比・前年同月比
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "LEAD + 成長率 — 月次売上の前月比・前年同月比を同時算出",
+  tags: [["r","LEAD"],["o","LAG+成長率"],["g","CTE"],["p","売上トレンド分析"]],
+  premise: `<p>Q4では <strong>LAG</strong>（過去の値を参照）を学びましたが、<strong>LEAD(col, N)</strong> は逆に「N行後の値」を現在行に持ってきます。前月比・前年同月比の成長率計算には、主に LAG で「N行前の値を現在行に持ち込む」パターンを使います。</p>
+<pre><span class="cmt">-- 前月売上を今月の行に持ち込む（LAG: N行前の値）</span>
+<span class="fn">LAG</span>(monthly_sales, <span class="num">1</span>) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> dept_id    <span class="cmt">-- 部署ごとに独立したウィンドウ</span>
+  <span class="kw">ORDER BY</span>    sale_month  <span class="cmt">-- 時系列順（月の昇順）</span>
+) <span class="kw">AS</span> prev_month_sales
+
+<span class="cmt">-- 前年同月（12ヶ月前）の値を持ち込む</span>
+<span class="fn">LAG</span>(monthly_sales, <span class="num">12</span>) <span class="kw">OVER</span> (...) <span class="kw">AS</span> prev_year_same_month</pre>
+<div class="callout warn"><strong>成長率計算の注意：</strong>前月や前年が NULL（データなし）または 0 の場合、除算エラーになります。<code>NULLIF(prev, 0)</code> でゼロ除算を防ぎ、<code>NULL</code> の場合は成長率も NULL として扱います。</div>`,
+  question: `<p>monthly_sales テーブルを使い、<em>部署ごとの月次売上・前月比成長率・前年同月比成長率</em>を算出してください。</p>
+<p>成長率は小数点1桁の % で表示し、前月・前年のデータがない場合は NULL とします。</p>
+<p>出力：dept_name, sale_month, monthly_sales, prev_month_sales, mom_growth_pct, prev_year_sales, yoy_growth_pct</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ / 一部抜粋）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ monthly_sales（月次売上）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>dept_id</th><th>dept_name</th><th>sale_month</th><th>monthly_sales</th></tr>
+        <tr><td>10</td><td>営業部</td><td>2023-01</td><td>780,000</td></tr>
+        <tr><td>10</td><td>営業部</td><td>2023-02</td><td>820,000</td></tr>
+        <tr><td>10</td><td>営業部</td><td>...</td><td>...</td></tr>
+        <tr><td>10</td><td>営業部</td><td>2024-01</td><td>850,000</td></tr>
+        <tr><td>10</td><td>営業部</td><td>2024-02</td><td>910,000</td></tr>
+        <tr><td>10</td><td>営業部</td><td>2024-03</td><td>870,000</td></tr>
+        <tr><td>20</td><td>開発部</td><td>2023-01</td><td>620,000</td></tr>
+        <tr><td>20</td><td>開発部</td><td>2024-01</td><td>680,000</td></tr>
+        <tr><td>20</td><td>開発部</td><td>2024-02</td><td>720,000</td></tr>
+        <tr><td>20</td><td>開発部</td><td>2024-03</td><td>700,000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>sale_month</th><th>monthly_sales</th><th>prev_month</th><th>MoM%</th><th>prev_year</th><th>YoY%</th></tr>
+<tr><td>営業部</td><td>2024-01</td><td>850,000</td><td>810,000</td><td>+4.9</td><td>780,000</td><td>+9.0</td></tr>
+<tr><td>営業部</td><td>2024-02</td><td>910,000</td><td>850,000</td><td>+7.1</td><td>820,000</td><td>+10.9</td></tr>
+<tr><td>営業部</td><td>2024-03</td><td>870,000</td><td>910,000</td><td>-4.4</td><td>840,000</td><td>+3.6</td></tr>
+<tr><td>開発部</td><td>2024-01</td><td>680,000</td><td class="null">NULL</td><td class="null">NULL</td><td>620,000</td><td>+9.7</td></tr>
+<tr><td>開発部</td><td>2024-02</td><td>720,000</td><td>680,000</td><td>+5.9</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+<tr><td>開発部</td><td>2024-03</td><td>700,000</td><td>720,000</td><td>-2.8</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 月次売上に前月・前年同月の値を付与する</span>
+with_prev <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    dept_id,
+    dept_name,
+    sale_month,
+    monthly_sales,
+
+    <span class="cmt">-- 前月売上: 同部署の1行前（= 1ヶ月前）の売上</span>
+    <span class="fn">LAG</span>(monthly_sales, <span class="num">1</span>) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> dept_id    <span class="cmt">-- 部署ごとに独立したウィンドウ（部署をまたがない）</span>
+      <span class="kw">ORDER BY</span>    sale_month  <span class="cmt">-- 月の昇順に並べる（古い→新しい）</span>
+    ) <span class="kw">AS</span> prev_month_sales,
+
+    <span class="cmt">-- 前年同月売上: 同部署の12行前（= 12ヶ月前）の売上</span>
+    <span class="cmt">-- ※ 月次データが欠損なく揃っている前提。欠損があると12行前 ≠ 1年前になる</span>
+    <span class="fn">LAG</span>(monthly_sales, <span class="num">12</span>) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> dept_id
+      <span class="kw">ORDER BY</span>    sale_month
+    ) <span class="kw">AS</span> prev_year_sales
+
+  <span class="kw">FROM</span> <span class="tbl">monthly_sales</span>
+),
+
+<span class="cmt">-- ② 成長率を計算する</span>
+growth_calc <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    dept_name,
+    sale_month,
+    monthly_sales,
+    prev_month_sales,
+
+    <span class="cmt">-- 前月比成長率（MoM: Month over Month）</span>
+    <span class="cmt">-- (今月 - 前月) / 前月 × 100 = 増減率（%）</span>
+    <span class="fn">ROUND</span>(
+      (monthly_sales <span class="op">-</span> prev_month_sales) <span class="op">*</span> <span class="num">100.0</span>
+      <span class="op">/</span> <span class="fn">NULLIF</span>(prev_month_sales, <span class="num">0</span>)        <span class="cmt">-- NULLIF: 前月が0でのゼロ除算防止</span>
+    , <span class="num">1</span>)  <span class="kw">AS</span> mom_growth_pct,              <span class="cmt">-- 小数点1桁に丸める</span>
+
+    prev_year_sales,
+
+    <span class="cmt">-- 前年同月比成長率（YoY: Year over Year）</span>
+    <span class="fn">ROUND</span>(
+      (monthly_sales <span class="op">-</span> prev_year_sales) <span class="op">*</span> <span class="num">100.0</span>
+      <span class="op">/</span> <span class="fn">NULLIF</span>(prev_year_sales, <span class="num">0</span>)         <span class="cmt">-- 前年が NULL の場合、除算もNULLになる</span>
+    , <span class="num">1</span>)  <span class="kw">AS</span> yoy_growth_pct
+
+  <span class="kw">FROM</span>  with_prev
+)
+
+<span class="cmt">-- ③ 2024年のデータのみを出力する</span>
+<span class="kw">SELECT</span>
+  dept_name,
+  sale_month,
+  monthly_sales,
+  prev_month_sales,
+  mom_growth_pct,
+  prev_year_sales,
+  yoy_growth_pct
+<span class="kw">FROM</span>  growth_calc
+<span class="kw">WHERE</span> sale_month <span class="kw">LIKE</span> <span class="str">'2024%'</span>        <span class="cmt">-- 2024年のデータのみに絞る</span>
+<span class="kw">ORDER BY</span> dept_name, sale_month;      <span class="cmt">-- 部署名 → 月の昇順で出力</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM monthly_sales            → 月次売上データを全件読み込む
+  2. LAG(monthly_sales, 1)         → 部署ごとに前月売上を現在行に持ち込む
+  3. LAG(monthly_sales, 12)        → 部署ごとに前年同月売上を持ち込む
+  4. with_prev CTE 完成
+  5. (monthly_sales - prev) × 100.0 / NULLIF(prev, 0) → MoM・YoY成長率を計算
+  6. ROUND(..., 1)                 → 小数点1桁に丸める
+  7. growth_calc CTE 完成
+  8. WHERE sale_month LIKE '2024%' → 2024年のみに絞る
+  9. ORDER BY dept_name, month     → 部署・月順で出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>with_prev CTE</strong> — LAGで前月・前年同月を現在行に持ち込む</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>sale_month</th><th>monthly_sales</th><th class="tc-hi">prev_month（LAG 1）</th><th class="tc-g">prev_year（LAG 12）</th></tr>
+<tr class="tr-dim"><td>営業部</td><td>2023-01</td><td>780,000</td><td class="null">NULL（初回）</td><td class="null">NULL</td></tr>
+<tr class="tr-dim"><td>営業部</td><td>2023-02</td><td>820,000</td><td class="tc-hi">780,000</td><td class="null">NULL</td></tr>
+<tr class="tr-dim"><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+<tr class="tr-hi4"><td>営業部</td><td>2024-01</td><td>850,000</td><td class="tc-hi">810,000（2023-12）</td><td class="tc-g">780,000（2023-01）</td></tr>
+<tr class="tr-hi4"><td>営業部</td><td>2024-02</td><td>910,000</td><td class="tc-hi">850,000（2024-01）</td><td class="tc-g">820,000（2023-02）</td></tr>
+<tr class="tr-hi4"><td>営業部</td><td>2024-03</td><td>870,000</td><td class="tc-hi">910,000（2024-02）</td><td class="tc-g">840,000（2023-03）</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">(monthly_sales - prev) × 100.0 / NULLIF(prev, 0) → 成長率を計算</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>成長率の計算ロジック</strong> — MoM成長率（2024-02 の場合）</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>項目</th><th>値</th><th>意味</th></tr>
+<tr><td>monthly_sales（今月）</td><td>910,000</td><td>2024-02の売上</td></tr>
+<tr><td>prev_month_sales（前月）</td><td>850,000</td><td>2024-01の売上</td></tr>
+<tr><td>差分</td><td>60,000</td><td>910,000 - 850,000</td></tr>
+<tr><td>差分 × 100.0 / 前月</td><td class="tc-hi">7.05...</td><td>60,000 × 100.0 / 850,000</td></tr>
+<tr class="tr-hi2"><td>ROUND(..., 1)</td><td class="tc-g">7.1</td><td>小数点1桁に丸め → MoM成長率</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">WHERE sale_month LIKE '2024%' → 2024年のみ表示</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — 前月比・前年同月比が揃ったトレンドレポート</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>sale_month</th><th>monthly_sales</th><th class="tc-hi">MoM%</th><th class="tc-g">YoY%</th></tr>
+<tr><td>営業部</td><td>2024-01</td><td>850,000</td><td class="tc-hi">+4.9%</td><td class="tc-g">+9.0%</td></tr>
+<tr><td>営業部</td><td>2024-02</td><td>910,000</td><td class="tc-hi">+7.1%</td><td class="tc-g">+10.9%</td></tr>
+<tr class="tr-hi4"><td>営業部</td><td>2024-03</td><td>870,000</td><td class="tc-r">-4.4%</td><td class="tc-g">+3.6%</td></tr>
+<tr><td>開発部</td><td>2024-01</td><td>680,000</td><td class="null">NULL（前月なし）</td><td class="tc-g">+9.7%</td></tr>
+<tr><td>開発部</td><td>2024-02</td><td>720,000</td><td class="tc-hi">+5.9%</td><td class="null">NULL（前年なし）</td></tr>
+<tr class="tr-hi4"><td>開発部</td><td>2024-03</td><td>700,000</td><td class="tc-r">-2.8%</td><td class="null">NULL</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAG vs LEAD の使い分け：</strong>LAG は「過去の値を今に持ち込む」= 今と過去の比較に使う。LEAD は「未来の値を今に持ち込む」= 今と未来の差分（例：次月の予測との乖離）に使う。成長率計算には LAG が定番。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>前年同月比の落とし穴：</strong><code>LAG(sales, 12)</code> は「12行前」を取るため、月次データに欠損があると「12行前 ≠ 1年前」になる。欠損のあるデータでは日付列を使った計算（DATEADD/INTERVAL）+ SELF JOINで対応する。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>移動平均との組み合わせ：</strong>成長率のノイズを減らしたいとき <code>AVG(sales) OVER (PARTITION BY dept ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)</code> で3ヶ月移動平均を計算し、その値に対して前年比を取るパターンも実務でよく使われる。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>前月が0のときNULLIFを忘れる：</strong>前月売上が0（新設部署など）の場合 <code>(今月 - 0) / 0</code> となりゼロ除算エラー。<code>NULLIF(prev_month_sales, 0)</code> で0をNULLに変換すれば、除算結果もNULLになり安全。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY なしで LAG を使う：</strong>部署ごとに独立した時系列で比較したいのに PARTITION BY を省略すると、「営業部12月の次が開発部1月」として計算されてしまう。必ず PARTITION BY dept_id を指定すること。</div></div>
+</div>`
+}
+
+];
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p', y:'tag-o'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','基礎文法・概念',q.premise)}
+      ${acc('❓','pill-green','問題','テーブルデータ付き',q.question)}
+      ${acc('📊','pill-orange','出力例','期待する結果',q.output)}
+      ${acc('✅','pill-red','模範回答','SQL（コメント付き）',q.answer)}
+      ${acc('🔍','pill-purple','解説','変化の可視化＋学習ポイント',q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+</script>
+</body>
+</html>
