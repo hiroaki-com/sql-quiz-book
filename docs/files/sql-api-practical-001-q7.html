@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL応用7選 — API実務 × テーブル変化で理解する</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3);
+    border: 1px solid var(--accent);
+    border-radius: 6px; padding: 6px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent);
+    line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-sub { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim);
+  }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  main { max-width: 920px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw { color: var(--kw); font-weight: 700; }
+  .fn { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+
+  .viz-flow { margin: 6px 0 14px; }
+  .step-block { margin-bottom: 6px; }
+  .step-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0;
+  }
+  .sn1 { background: #1a2744; color: var(--accent); }
+  .sn2 { background: #1a2e1a; color: var(--green); }
+  .sn3 { background: #2e1a2e; color: var(--purple); }
+  .sn4 { background: #2e1a0a; color: var(--orange); }
+  .step-desc { color: var(--dim); }
+  .step-desc strong { color: var(--text); }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+  .tr-hi  td { background: #0e1e33 !important; }
+  .tr-hi2 td { background: #0e1e0e !important; }
+  .tr-hi3 td { background: #1e1433 !important; }
+  .tr-hi4 td { background: #1e1a0a !important; }
+  .tr-dim td { opacity: 0.4; }
+  .tc-hi { color: var(--accent) !important; font-weight: 700; }
+  .tc-g  { color: var(--green) !important; font-weight: 700; }
+  .tc-p  { color: var(--purple) !important; font-weight: 700; }
+  .tc-y  { color: var(--yellow) !important; font-weight: 700; }
+  .tc-o  { color: var(--orange) !important; font-weight: 700; }
+  .tc-r  { color: var(--red) !important; font-weight: 700; }
+  .null  { color: var(--dim) !important; font-style: italic; }
+
+  .arrow { text-align: center; padding: 4px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .arrow-text { color: var(--dim); font-size: 11px; }
+
+  .exec-box { background: #060a0f; border: 1px solid var(--bg4); border-radius: 6px; padding: 12px 14px; margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+  .exec-title { color: var(--purple); font-size: 10px; letter-spacing: 1px; margin-bottom: 8px; }
+  .exec-row { display: flex; gap: 8px; margin-bottom: 4px; }
+  .exec-n { color: var(--dim); width: 14px; flex-shrink: 0; }
+  .exec-step { color: var(--yellow); min-width: 140px; }
+  .exec-desc { color: var(--dim); }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:480px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .acc-head { padding: 9px 10px; }
+    .acc-body { padding: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">応用7</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">テーブル変化で理解する SQL 応用7選（API実務編）</div>
+        <div class="header-sub">NTILE / PIVOT / 再帰CTE / PERCENTILE / コホート / LEAD / FILTER</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★★ 中〜上級</span>
+      <span class="htag">実務BI</span>
+      <span class="htag">API開発</span>
+      <span class="htag">PostgreSQL/BigQuery対応</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const QS = [
+/* ═══════════════════════════════════════════════════════
+   Q1  NTILE — ユーザーを購入金額で4分位ランク帯に分類
+═══════════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "NTILE — ユーザーを購入金額4分位でランク帯に分類",
+  tags: [["r","NTILE"],["o","4分位"],["g","CTE"],["p","セグメント分析"]],
+  premise: `<p><strong>NTILE(n)</strong> は行全体を <em>n 個の等しいバケツ（桶）</em> に分割し、各行が何番目のバケツに属するかを返すウィンドウ関数です。RFM分析・顧客ランク付け・パーセンタイル帯分類などBI業務の頻出パターンです。</p>
+<pre><span class="fn">NTILE</span>(<span class="num">4</span>) <span class="kw">OVER</span> (
+  <span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>  <span class="cmt">-- 高い順に並べてバケツを振る</span>
+) <span class="kw">AS</span> quartile                   <span class="cmt">-- 1=上位25%, 2=次の25%... と番号がつく</span></pre>
+<div class="callout"><strong>NTILE の挙動：</strong> 行数がn で割り切れない場合、余りの行は先頭のバケツに1行ずつ加算されます。例：13行を4分割 → 4,3,3,3行。</div>
+<p>NTILE で得た番号に <code>CASE WHEN</code> でラベルを付けると、APIレスポンスでそのままセグメント名を返せます。</p>`,
+  question: `<p>orders テーブルから各ユーザーの累計購入金額を集計し、<em>4分位（NTILE(4)）でランク帯</em>に分類してください。</p>
+<p>quartile 1 → <code>'platinum'</code>、2 → <code>'gold'</code>、3 → <code>'silver'</code>、4 → <code>'bronze'</code> のラベルを付与し、購入金額の降順で出力します。</p>
+<p>テーブル：orders(order_id, user_id, amount, status) / users(user_id, name)</p>
+<p>出力：user_id, name, total_amount, quartile, segment</p>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>total_amount</th><th>quartile</th><th>segment</th></tr>
+<tr class="tr-hi"><td>3</td><td>山田</td><td>98,000</td><td>1</td><td>platinum</td></tr>
+<tr class="tr-hi"><td>1</td><td>田中</td><td>72,000</td><td>1</td><td>platinum</td></tr>
+<tr class="tr-hi2"><td>5</td><td>鈴木</td><td>55,000</td><td>2</td><td>gold</td></tr>
+<tr class="tr-hi2"><td>2</td><td>佐藤</td><td>34,000</td><td>2</td><td>gold</td></tr>
+<tr class="tr-hi3"><td>6</td><td>高橋</td><td>21,000</td><td>3</td><td>silver</td></tr>
+<tr class="tr-hi3"><td>4</td><td>木村</td><td>18,000</td><td>3</td><td>silver</td></tr>
+<tr><td>7</td><td>中村</td><td>9,000</td><td>4</td><td>bronze</td></tr>
+<tr><td>8</td><td>小林</td><td>3,000</td><td>4</td><td>bronze</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① ユーザーごとの累計購入金額を集計する</span>
+user_totals <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    user_id,
+    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount  <span class="cmt">-- SUM: グループ内の合計値</span>
+  <span class="kw">FROM</span>  <span class="tbl">orders</span>
+  <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'completed'</span>       <span class="cmt">-- 完了済みのみ集計対象</span>
+  <span class="kw">GROUP BY</span> user_id               <span class="cmt">-- user_id ごとに1行に集約</span>
+),
+
+<span class="cmt">-- ② 累計金額の降順で4分位バケツ番号を振る</span>
+ranked <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    user_id,
+    total_amount,
+    <span class="fn">NTILE</span>(<span class="num">4</span>) <span class="kw">OVER</span> (
+      <span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>  <span class="cmt">-- 金額の高い順に 1,2,3,4 を割り振る</span>
+    ) <span class="kw">AS</span> quartile
+  <span class="kw">FROM</span> user_totals
+)
+
+<span class="cmt">-- ③ usersと結合してname取得、quartileをセグメント名に変換</span>
+<span class="kw">SELECT</span>
+  r.user_id,
+  u.name,
+  r.total_amount,
+  r.quartile,
+  <span class="kw">CASE</span> r.quartile            <span class="cmt">-- CASE: 値ごとに異なる結果を返す条件分岐</span>
+    <span class="kw">WHEN</span> <span class="num">1</span> <span class="kw">THEN</span> <span class="str">'platinum'</span>
+    <span class="kw">WHEN</span> <span class="num">2</span> <span class="kw">THEN</span> <span class="str">'gold'</span>
+    <span class="kw">WHEN</span> <span class="num">3</span> <span class="kw">THEN</span> <span class="str">'silver'</span>
+    <span class="kw">ELSE</span>       <span class="str">'bronze'</span>
+  <span class="kw">END</span> <span class="kw">AS</span> segment
+<span class="kw">FROM</span>  ranked r
+<span class="kw">JOIN</span>  <span class="tbl">users</span>  u <span class="kw">ON</span> r.user_id <span class="op">=</span> u.user_id  <span class="cmt">-- JOIN: user_idが一致する行を横に結合</span>
+<span class="kw">ORDER BY</span> r.total_amount <span class="kw">DESC</span>;             <span class="cmt">-- 金額降順で出力</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders + WHERE       → completedのみ読み込む
+  2. GROUP BY user_id          → ユーザーごとに集約
+  3. SUM(amount)               → user_totals CTE 完成
+  4. NTILE(4) OVER(ORDER BY)   → 全ユーザーをバケツに振り分け → ranked CTE 完成
+  5. JOIN users                → name列を付加
+  6. CASE quartile             → セグメント名に変換
+  7. ORDER BY total_amount DESC→ 結果を金額降順で並べる
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>user_totals CTE</strong> — GROUP BY で1ユーザー1行に集約</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th class="tc-hi">total_amount</th></tr>
+<tr><td>1（田中）</td><td class="tc-hi">72,000</td></tr>
+<tr><td>2（佐藤）</td><td class="tc-hi">34,000</td></tr>
+<tr><td>3（山田）</td><td class="tc-hi">98,000</td></tr>
+<tr><td>4（木村）</td><td class="tc-hi">18,000</td></tr>
+<tr><td>5（鈴木）</td><td class="tc-hi">55,000</td></tr>
+<tr><td>6（高橋）</td><td class="tc-hi">21,000</td></tr>
+<tr><td>7（中村）</td><td class="tc-hi">9,000</td></tr>
+<tr><td>8（小林）</td><td class="tc-hi">3,000</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">NTILE(4) OVER (ORDER BY total_amount DESC) — 降順で4等分</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>ranked CTE</strong> — 8行を4バケツに2行ずつ割り振り</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>total_amount</th><th class="tc-hi">quartile</th><th>バケツの意味</th></tr>
+<tr class="tr-hi"><td>3（山田）</td><td>98,000</td><td class="tc-hi">1</td><td>上位 25%</td></tr>
+<tr class="tr-hi"><td>1（田中）</td><td>72,000</td><td class="tc-hi">1</td><td>上位 25%</td></tr>
+<tr class="tr-hi2"><td>5（鈴木）</td><td>55,000</td><td class="tc-g">2</td><td>上位 25〜50%</td></tr>
+<tr class="tr-hi2"><td>2（佐藤）</td><td>34,000</td><td class="tc-g">2</td><td>上位 25〜50%</td></tr>
+<tr class="tr-hi3"><td>6（高橋）</td><td>21,000</td><td class="tc-p">3</td><td>上位 50〜75%</td></tr>
+<tr class="tr-hi3"><td>4（木村）</td><td>18,000</td><td class="tc-p">3</td><td>上位 50〜75%</td></tr>
+<tr><td>7（中村）</td><td>9,000</td><td class="tc-y">4</td><td>下位 25%</td></tr>
+<tr><td>8（小林）</td><td>3,000</td><td class="tc-y">4</td><td>下位 25%</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">JOIN users + CASE quartile → segment名を付与</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — ラベル付きセグメント</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>total_amount</th><th>quartile</th><th class="tc-hi">segment</th></tr>
+<tr class="tr-hi"><td>3</td><td>山田</td><td>98,000</td><td>1</td><td class="tc-hi">platinum</td></tr>
+<tr class="tr-hi"><td>1</td><td>田中</td><td>72,000</td><td>1</td><td class="tc-hi">platinum</td></tr>
+<tr class="tr-hi2"><td>5</td><td>鈴木</td><td>55,000</td><td>2</td><td class="tc-g">gold</td></tr>
+<tr class="tr-hi2"><td>2</td><td>佐藤</td><td>34,000</td><td>2</td><td class="tc-g">gold</td></tr>
+<tr class="tr-hi3"><td>6</td><td>高橋</td><td>21,000</td><td>3</td><td class="tc-p">silver</td></tr>
+<tr class="tr-hi3"><td>4</td><td>木村</td><td>18,000</td><td>3</td><td class="tc-p">silver</td></tr>
+<tr><td>7</td><td>中村</td><td>9,000</td><td>4</td><td class="tc-y">bronze</td></tr>
+<tr><td>8</td><td>小林</td><td>3,000</td><td>4</td><td class="tc-y">bronze</td></tr>
+</table></div>
+</div>
+
+</div>
+<div class="exec-box">
+<div class="exec-title">NTILE vs RANK vs PERCENT_RANK</div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">NTILE(n)</span><span class="exec-desc"> → n個のバケツに均等分割。セグメント分類に最適</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">RANK</span><span class="exec-desc"> → 同値に同順位を付与。「上位N位」の抽出に向く</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">PERCENT_RANK</span><span class="exec-desc"> → 0〜1の相対順位。「上位10%」などの閾値フィルタに向く</span></div>
+</div>
+`
+},
+
+/* ═══════════════════════════════════════════════════════
+   Q2  CASE WHEN ピボット — 月別×ステータスのクロス集計
+═══════════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "CASE WHEN ピボット — 月別×ステータスのクロス集計",
+  tags: [["r","PIVOT"],["o","CASE WHEN"],["g","GROUP BY"],["p","ダッシュボードBI"]],
+  premise: `<p>SQLには専用の <code>PIVOT</code> 構文がない場合（PostgreSQL / BigQuery など）、<strong>CASE WHEN + 集計関数</strong> の組み合わせで行を列に変換します。これは「条件付き集計」と呼ばれ、ダッシュボードAPIのレスポンス整形で極めて頻繁に登場します。</p>
+<pre><span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'completed'</span> <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>)
+<span class="cmt">-- ↑ 条件に合う行のamountだけ合計。合わない行は 0 として無視される</span></pre>
+<div class="callout warn"><strong>ELSE 0 vs ELSE NULL の違い：</strong><br>
+ELSE 0 → SUM に加算される（意図通り合計に影響しない）<br>
+ELSE NULL → SUM は NULL を無視するので結果は同じだが、COUNT の場合は挙動が異なる。COUNT(CASE WHEN ... THEN 1 END) で NULL は除外される。</div>`,
+  question: `<p>orders テーブルを使い、<em>月ごと・ステータスごとの件数と金額合計</em> を1行に横展開してください。</p>
+<p>ステータス：<code>completed</code> / <code>pending</code> / <code>cancelled</code></p>
+<p>テーブル：orders(order_id, user_id, ordered_at, amount, status)</p>
+<p>出力：month, completed_count, completed_amount, pending_count, pending_amount, cancelled_count, cancelled_amount</p>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month</th><th>completed_count</th><th>completed_amount</th><th>pending_count</th><th>pending_amount</th><th>cancelled_count</th><th>cancelled_amount</th></tr>
+<tr><td>2024-01</td><td>8</td><td>320,000</td><td>3</td><td>85,000</td><td>1</td><td>12,000</td></tr>
+<tr><td>2024-02</td><td>11</td><td>480,000</td><td>2</td><td>44,000</td><td>2</td><td>28,000</td></tr>
+<tr><td>2024-03</td><td>14</td><td>650,000</td><td>4</td><td>102,000</td><td>0</td><td>0</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  <span class="fn">TO_CHAR</span>(ordered_at, <span class="str">'YYYY-MM'</span>) <span class="kw">AS</span> month,  <span class="cmt">-- 日時 → 年月文字列に変換</span>
+
+  <span class="cmt">-- completed の件数：条件に合う行のみ 1 を返し、合計でカウント</span>
+  <span class="fn">COUNT</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'completed'</span>  <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">END</span>) <span class="kw">AS</span> completed_count,
+
+  <span class="cmt">-- completed の金額合計：条件に合う行のamountのみ合計（他は0扱い）</span>
+  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span>  status <span class="op">=</span> <span class="str">'completed'</span>  <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> completed_amount,
+
+  <span class="cmt">-- pending の件数</span>
+  <span class="fn">COUNT</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'pending'</span>    <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">END</span>) <span class="kw">AS</span> pending_count,
+
+  <span class="cmt">-- pending の金額合計</span>
+  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span>  status <span class="op">=</span> <span class="str">'pending'</span>    <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> pending_amount,
+
+  <span class="cmt">-- cancelled の件数</span>
+  <span class="fn">COUNT</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'cancelled'</span>  <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">END</span>) <span class="kw">AS</span> cancelled_count,
+
+  <span class="cmt">-- cancelled の金額合計</span>
+  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span>  status <span class="op">=</span> <span class="str">'cancelled'</span>  <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> cancelled_amount
+
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="kw">GROUP BY</span> <span class="fn">TO_CHAR</span>(ordered_at, <span class="str">'YYYY-MM'</span>)  <span class="cmt">-- 月ごとに集約</span>
+<span class="kw">ORDER BY</span> month;                            <span class="cmt">-- 月の昇順で出力</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders               → 全注文を読み込む
+  2. GROUP BY TO_CHAR(...)     → 年月ごとにグループ化
+  3. CASE WHEN × 6列           → 各グループ内で条件別に集計
+  4. COUNT / SUM               → 件数・金額を算出
+  5. ORDER BY month            → 月順に並べて出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>orders（元データのイメージ）</strong> — 複数ステータスが混在</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>ordered_at</th><th>amount</th><th>status</th></tr>
+<tr><td>1</td><td>2024-01-05</td><td>30,000</td><td>completed</td></tr>
+<tr><td>2</td><td>2024-01-12</td><td>15,000</td><td>pending</td></tr>
+<tr><td>3</td><td>2024-01-20</td><td>12,000</td><td>cancelled</td></tr>
+<tr><td>4</td><td>2024-01-22</td><td>40,000</td><td>completed</td></tr>
+<tr><td>5</td><td>2024-02-08</td><td>55,000</td><td>completed</td></tr>
+<tr><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">GROUP BY month — 月ごとに集約</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>CASE WHEN の動き</strong> — 各行でフィルタして0/値を返す</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>status</th><th>amount</th><th class="tc-hi">completed?</th><th class="tc-g">pending?</th><th class="tc-r">cancelled?</th></tr>
+<tr><td>1</td><td>completed</td><td>30,000</td><td class="tc-hi">30,000 ✓</td><td class="tc-r">0</td><td class="tc-r">0</td></tr>
+<tr><td>2</td><td>pending</td><td>15,000</td><td class="tc-r">0</td><td class="tc-g">15,000 ✓</td><td class="tc-r">0</td></tr>
+<tr><td>3</td><td>cancelled</td><td>12,000</td><td class="tc-r">0</td><td class="tc-r">0</td><td class="tc-r">12,000 ✓</td></tr>
+<tr><td>4</td><td>completed</td><td>40,000</td><td class="tc-hi">40,000 ✓</td><td class="tc-r">0</td><td class="tc-r">0</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">SUM / COUNT で列ごとに合計 → 横1行に集約</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力（2024-01の行）</strong> — 縦の状態が横列に変換</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month</th><th class="tc-hi">completed_count</th><th class="tc-hi">completed_amount</th><th class="tc-g">pending_count</th><th class="tc-g">pending_amount</th><th class="tc-r">cancelled_count</th><th class="tc-r">cancelled_amount</th></tr>
+<tr><td>2024-01</td><td class="tc-hi">8</td><td class="tc-hi">320,000</td><td class="tc-g">3</td><td class="tc-g">85,000</td><td class="tc-r">1</td><td class="tc-r">12,000</td></tr>
+</table></div>
+</div>
+
+</div>
+<div class="callout">PostgreSQL 14+ では <code>FILTER (WHERE ...)</code> 構文が使えます（Q7で解説）。<code>SUM(amount) FILTER (WHERE status = 'completed')</code> のように書けて可読性が上がります。</div>
+`
+},
+
+/* ═══════════════════════════════════════════════════════
+   Q3  再帰CTE — 組織階層ツリーの全展開
+═══════════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "再帰CTE — 組織階層ツリーを深さ付きで全展開",
+  tags: [["r","再帰CTE"],["o","WITH RECURSIVE"],["g","階層構造"],["p","組織図API"]],
+  premise: `<p><strong>再帰CTE（WITH RECURSIVE）</strong> は、自分自身を参照しながら繰り返し処理を行うSQLの構文です。ツリー構造（組織階層・カテゴリ親子・コメントスレッド）の展開に使います。</p>
+<pre><span class="kw">WITH RECURSIVE</span> cte <span class="kw">AS</span> (
+  <span class="cmt">-- ① アンカー部（初回：ルートノードを取得）</span>
+  <span class="kw">SELECT</span> id, parent_id, name, <span class="num">0</span> <span class="kw">AS</span> depth
+  <span class="kw">FROM</span> <span class="tbl">employees</span>
+  <span class="kw">WHERE</span> parent_id <span class="kw">IS NULL</span>  <span class="cmt">-- 親なし = トップ</span>
+
+  <span class="kw">UNION ALL</span>               <span class="cmt">-- ② 再帰部と連結</span>
+
+  <span class="cmt">-- ③ 再帰部（前回結果に子を結合して繰り返す）</span>
+  <span class="kw">SELECT</span> e.id, e.parent_id, e.name, c.depth <span class="op">+</span> <span class="num">1</span>
+  <span class="kw">FROM</span> <span class="tbl">employees</span> e
+  <span class="kw">JOIN</span> cte c <span class="kw">ON</span> e.parent_id <span class="op">=</span> c.id  <span class="cmt">-- 前回の id に子を繋ぐ</span>
+)</pre>
+<div class="callout warn">無限ループ防止のため、必ず <code>depth &lt; n</code> や <code>LIMIT</code> で深さ上限を設けること。DBによっては <code>MAXRECURSION</code> オプションもある。</div>`,
+  question: `<p>employees テーブルを使い、<em>全従業員の組織ツリーを深さ（depth）・パス付きで展開</em>してください。</p>
+<p>ルートから各ノードまでのパスを <code>'CEO > 部長A > 課長X'</code> 形式で生成し、depth で昇順に表示します。</p>
+<p>テーブル：employees(emp_id, name, parent_id, department)</p>
+<p>出力：emp_id, name, department, depth, path</p>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>name</th><th>department</th><th>depth</th><th>path</th></tr>
+<tr><td>1</td><td>田中CEO</td><td>経営</td><td>0</td><td>田中CEO</td></tr>
+<tr><td>2</td><td>佐藤部長</td><td>営業</td><td>1</td><td>田中CEO &gt; 佐藤部長</td></tr>
+<tr><td>3</td><td>山田部長</td><td>開発</td><td>1</td><td>田中CEO &gt; 山田部長</td></tr>
+<tr><td>4</td><td>鈴木課長</td><td>営業1課</td><td>2</td><td>田中CEO &gt; 佐藤部長 &gt; 鈴木課長</td></tr>
+<tr><td>5</td><td>高橋主任</td><td>開発基盤</td><td>2</td><td>田中CEO &gt; 山田部長 &gt; 高橋主任</td></tr>
+<tr><td>6</td><td>木村担当</td><td>営業1課</td><td>3</td><td>田中CEO &gt; 佐藤部長 &gt; 鈴木課長 &gt; 木村担当</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH RECURSIVE</span>
+
+org_tree <span class="kw">AS</span> (
+
+  <span class="cmt">-- ① アンカー部: parent_id が NULL のルートノードだけを取得</span>
+  <span class="kw">SELECT</span>
+    emp_id,
+    name,
+    department,
+    parent_id,
+    <span class="num">0</span>    <span class="kw">AS</span> depth,           <span class="cmt">-- ルートの深さは 0</span>
+    name <span class="kw">AS</span> path            <span class="cmt">-- パスの初期値は自分の名前だけ</span>
+  <span class="kw">FROM</span> <span class="tbl">employees</span>
+  <span class="kw">WHERE</span> parent_id <span class="kw">IS NULL</span>  <span class="cmt">-- 親なし = ルート（CEOなど）</span>
+
+  <span class="kw">UNION ALL</span>               <span class="cmt">-- アンカー結果と再帰結果を縦に積む</span>
+
+  <span class="cmt">-- ② 再帰部: org_tree（前回結果）に子を JOIN して1階層ずつ掘り下げる</span>
+  <span class="kw">SELECT</span>
+    e.emp_id,
+    e.name,
+    e.department,
+    e.parent_id,
+    o.depth <span class="op">+</span> <span class="num">1</span>,            <span class="cmt">-- 親より1深い</span>
+    o.path <span class="op">||</span> <span class="str">' &gt; '</span> <span class="op">||</span> e.name  <span class="cmt">-- || は文字列結合。パスを親から引き継いで伸ばす</span>
+  <span class="kw">FROM</span> <span class="tbl">employees</span> e
+  <span class="kw">JOIN</span> org_tree   o <span class="kw">ON</span> e.parent_id <span class="op">=</span> o.emp_id  <span class="cmt">-- 前回の id に子を繋げる</span>
+  <span class="kw">WHERE</span> o.depth <span class="op">&lt;</span> <span class="num">10</span>        <span class="cmt">-- 無限ループ防止: 深さ上限を設ける</span>
+)
+
+<span class="kw">SELECT</span>
+  emp_id,
+  name,
+  department,
+  depth,
+  path
+<span class="kw">FROM</span>  org_tree
+<span class="kw">ORDER BY</span> depth, emp_id;  <span class="cmt">-- 深さ昇順 → 同じ深さは emp_id 順</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. アンカー部              → ルート行（depth=0）を取得
+  2. UNION ALL + 再帰部(1回目) → depth=1 の行を取得
+  3. UNION ALL + 再帰部(2回目) → depth=2 の行を取得
+  4. ...繰り返し（子がなくなるか depth>=10 で終了）
+  5. 全イテレーションを縦に結合 → org_tree CTE 完成
+  6. ORDER BY depth, emp_id  → ツリー構造順に出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>employees テーブル</strong> — parent_id で親子関係を表現</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>name</th><th>parent_id</th><th>department</th></tr>
+<tr><td>1</td><td>田中CEO</td><td class="null">NULL</td><td>経営</td></tr>
+<tr><td>2</td><td>佐藤部長</td><td>1</td><td>営業</td></tr>
+<tr><td>3</td><td>山田部長</td><td>1</td><td>開発</td></tr>
+<tr><td>4</td><td>鈴木課長</td><td>2</td><td>営業1課</td></tr>
+<tr><td>5</td><td>高橋主任</td><td>3</td><td>開発基盤</td></tr>
+<tr><td>6</td><td>木村担当</td><td>4</td><td>営業1課</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">アンカー部: WHERE parent_id IS NULL → ルートのみ取得</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>再帰の反復イメージ</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>イテレーション</th><th>取得される行</th><th class="tc-hi">depth</th><th>path</th></tr>
+<tr class="tr-hi"><td>アンカー (初回)</td><td>田中CEO</td><td class="tc-hi">0</td><td>田中CEO</td></tr>
+<tr class="tr-hi2"><td>再帰 1回目</td><td>佐藤部長, 山田部長</td><td class="tc-g">1</td><td>田中CEO &gt; 佐藤部長 / 田中CEO &gt; 山田部長</td></tr>
+<tr class="tr-hi3"><td>再帰 2回目</td><td>鈴木課長, 高橋主任</td><td class="tc-p">2</td><td>田中CEO &gt; 佐藤部長 &gt; 鈴木課長 ...</td></tr>
+<tr class="tr-hi4"><td>再帰 3回目</td><td>木村担当</td><td class="tc-y">3</td><td>田中CEO &gt; ... &gt; 木村担当</td></tr>
+<tr><td>再帰 4回目</td><td>（子なし → 終了）</td><td class="null">—</td><td class="null">—</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">UNION ALL で全イテレーション結果を縦に結合 → ORDER BY depth</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — 階層ツリー展開完了</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>name</th><th>depth</th><th class="tc-hi">path</th></tr>
+<tr class="tr-hi"><td>1</td><td>田中CEO</td><td>0</td><td class="tc-hi">田中CEO</td></tr>
+<tr class="tr-hi2"><td>2</td><td>佐藤部長</td><td>1</td><td class="tc-g">田中CEO &gt; 佐藤部長</td></tr>
+<tr class="tr-hi2"><td>3</td><td>山田部長</td><td>1</td><td class="tc-g">田中CEO &gt; 山田部長</td></tr>
+<tr class="tr-hi3"><td>4</td><td>鈴木課長</td><td>2</td><td class="tc-p">田中CEO &gt; 佐藤部長 &gt; 鈴木課長</td></tr>
+<tr class="tr-hi3"><td>5</td><td>高橋主任</td><td>2</td><td class="tc-p">田中CEO &gt; 山田部長 &gt; 高橋主任</td></tr>
+<tr class="tr-hi4"><td>6</td><td>木村担当</td><td>3</td><td class="tc-y">田中CEO &gt; 佐藤部長 &gt; 鈴木課長 &gt; 木村担当</td></tr>
+</table></div>
+</div>
+
+</div>
+<div class="exec-box">
+<div class="exec-title">再帰CTEの主なユースケース</div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">組織階層展開</span><span class="exec-desc"> → 上司〜部下ツリー、承認フロー</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">カテゴリ階層</span><span class="exec-desc"> → ECの親カテゴリ〜子カテゴリ</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">連番・カレンダー生成</span><span class="exec-desc"> → 日付テーブルを動的生成</span></div>
+</div>
+`
+},
+
+/* ═══════════════════════════════════════════════════════
+   Q4  PERCENTILE_CONT — 商品カテゴリ別の価格中央値・パーセンタイル
+═══════════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "PERCENTILE_CONT — カテゴリ別の価格中央値・パーセンタイルを算出",
+  tags: [["r","PERCENTILE_CONT"],["o","中央値"],["g","統計集計"],["p","価格分析"]],
+  premise: `<p><strong>PERCENTILE_CONT(fraction)</strong> は順序集合集計関数（Ordered-Set Aggregate）です。fraction に <code>0.5</code> を指定すると中央値（median）が得られます。平均値は外れ値に引きずられますが、中央値は外れ値に強いため価格・リードタイム・応答時間の分析で特に重要です。</p>
+<pre><span class="fn">PERCENTILE_CONT</span>(<span class="num">0.5</span>) <span class="kw">WITHIN GROUP</span> (<span class="kw">ORDER BY</span> price)
+<span class="cmt">-- ↑ 0.5 = 中央値。0.9 なら上位10%のしきい値（P90）</span>
+
+<span class="fn">PERCENTILE_DISC</span>(<span class="num">0.5</span>) <span class="kw">WITHIN GROUP</span> (<span class="kw">ORDER BY</span> price)
+<span class="cmt">-- DISC: 実際に存在する値を返す。CONT: 線形補間で計算</span></pre>
+<div class="callout"><strong>CONT vs DISC：</strong> 偶数個のデータで中央値を計算する場合、CONT は隣り合う2値の平均を返し、DISC は小さい方の値を返します。</div>`,
+  question: `<p>products テーブルと order_items テーブルを使い、<em>カテゴリ別の販売価格の中央値・P25・P75・平均値</em>を集計してください。</p>
+<p>テーブル：order_items(item_id, order_id, product_id, price, quantity) / products(product_id, name, category)</p>
+<p>出力：category, sales_count, avg_price, median_price, p25_price, p75_price（各価格は小数点以下切り捨て）</p>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>category</th><th>sales_count</th><th>avg_price</th><th>median_price</th><th>p25_price</th><th>p75_price</th></tr>
+<tr><td>書籍</td><td>48</td><td>2,840</td><td>2,200</td><td>1,500</td><td>3,800</td></tr>
+<tr><td>電子機器</td><td>31</td><td>38,500</td><td>29,800</td><td>18,000</td><td>55,000</td></tr>
+<tr><td>衣料品</td><td>62</td><td>5,100</td><td>4,200</td><td>2,800</td><td>7,500</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  p.category,
+  <span class="fn">COUNT</span>(*)                   <span class="kw">AS</span> sales_count,  <span class="cmt">-- 販売件数（全行カウント）</span>
+
+  <span class="cmt">-- 平均値（外れ値に弱いため中央値と比較して分布の歪みを確認する）</span>
+  <span class="fn">FLOOR</span>(<span class="fn">AVG</span>(oi.price))       <span class="kw">AS</span> avg_price,
+
+  <span class="cmt">-- 中央値: fraction=0.5 で50パーセンタイル</span>
+  <span class="fn">FLOOR</span>(
+    <span class="fn">PERCENTILE_CONT</span>(<span class="num">0.5</span>)
+    <span class="kw">WITHIN GROUP</span> (<span class="kw">ORDER BY</span> oi.price)
+  )                          <span class="kw">AS</span> median_price,
+
+  <span class="cmt">-- P25（第1四分位）: 下位25%のしきい値</span>
+  <span class="fn">FLOOR</span>(
+    <span class="fn">PERCENTILE_CONT</span>(<span class="num">0.25</span>)
+    <span class="kw">WITHIN GROUP</span> (<span class="kw">ORDER BY</span> oi.price)
+  )                          <span class="kw">AS</span> p25_price,
+
+  <span class="cmt">-- P75（第3四分位）: 下位75%のしきい値</span>
+  <span class="fn">FLOOR</span>(
+    <span class="fn">PERCENTILE_CONT</span>(<span class="num">0.75</span>)
+    <span class="kw">WITHIN GROUP</span> (<span class="kw">ORDER BY</span> oi.price)
+  )                          <span class="kw">AS</span> p75_price
+
+<span class="kw">FROM</span>  <span class="tbl">order_items</span> oi
+<span class="kw">JOIN</span>  <span class="tbl">products</span>    p  <span class="kw">ON</span> oi.product_id <span class="op">=</span> p.product_id  <span class="cmt">-- productのcategoryを取得</span>
+<span class="kw">GROUP BY</span> p.category    <span class="cmt">-- カテゴリごとに集約（各集計関数はグループ内で計算）</span>
+<span class="kw">ORDER BY</span> p.category;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM order_items JOIN products → 商品カテゴリを紐付け
+  2. GROUP BY category              → カテゴリごとにグループ化
+  3. COUNT / AVG                    → 件数・平均を計算
+  4. PERCENTILE_CONT × 3            → 各グループ内でパーセンタイルを計算
+  5. FLOOR(...)                     → 小数点以下切り捨て
+  6. ORDER BY category              → カテゴリ名の昇順で出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>書籍カテゴリの販売価格（並べ替えイメージ）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>順位</th><th>price</th><th>パーセンタイル位置</th></tr>
+<tr><td>1</td><td>800</td><td></td></tr>
+<tr><td>2</td><td>1,200</td><td></td></tr>
+<tr class="tr-hi4"><td>12</td><td>1,500</td><td class="tc-y">← P25（第1四分位）</td></tr>
+<tr><td>...</td><td>...</td><td></td></tr>
+<tr class="tr-hi"><td>24</td><td>2,200</td><td class="tc-hi">← P50（中央値）</td></tr>
+<tr><td>...</td><td>...</td><td></td></tr>
+<tr class="tr-hi2"><td>36</td><td>3,800</td><td class="tc-g">← P75（第3四分位）</td></tr>
+<tr><td>...</td><td>...</td><td></td></tr>
+<tr><td>48</td><td>9,800</td><td class="tc-r">← 外れ値（平均を押し上げる）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">AVG vs PERCENTILE_CONT(0.5) の違いを確認</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>平均値 vs 中央値の乖離</strong> — 外れ値の影響を可視化</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>category</th><th class="tc-r">avg_price（外れ値の影響あり）</th><th class="tc-hi">median_price（外れ値に強い）</th><th>乖離</th></tr>
+<tr><td>書籍</td><td class="tc-r">2,840</td><td class="tc-hi">2,200</td><td class="tc-y">+640（高めに歪む）</td></tr>
+<tr><td>電子機器</td><td class="tc-r">38,500</td><td class="tc-hi">29,800</td><td class="tc-y">+8,700（高めに歪む）</td></tr>
+<tr><td>衣料品</td><td class="tc-r">5,100</td><td class="tc-hi">4,200</td><td class="tc-y">+900（高めに歪む）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">P25〜P75 の四分位範囲（IQR）で価格の散らばりを把握</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — 統計サマリー</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>category</th><th>sales_count</th><th>avg_price</th><th class="tc-hi">median_price</th><th class="tc-y">p25_price</th><th class="tc-g">p75_price</th><th>IQR（P75-P25）</th></tr>
+<tr><td>書籍</td><td>48</td><td>2,840</td><td class="tc-hi">2,200</td><td class="tc-y">1,500</td><td class="tc-g">3,800</td><td>2,300</td></tr>
+<tr><td>電子機器</td><td>31</td><td>38,500</td><td class="tc-hi">29,800</td><td class="tc-y">18,000</td><td class="tc-g">55,000</td><td>37,000</td></tr>
+<tr><td>衣料品</td><td>62</td><td>5,100</td><td class="tc-hi">4,200</td><td class="tc-y">2,800</td><td class="tc-g">7,500</td><td>4,700</td></tr>
+</table></div>
+</div>
+
+</div>
+<div class="callout warn">PERCENTILE_CONT は <strong>ウィンドウ関数ではなく集計関数</strong>です。OVER() は使えず、必ず GROUP BY か PARTITION BY と組み合わせます。</div>
+`
+},
+
+/* ═══════════════════════════════════════════════════════
+   Q5  コホート分析 — 登録月別リテンション率の算出
+═══════════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "複数CTE連鎖 — 登録月別コホートのリテンション率を算出",
+  tags: [["r","コホート分析"],["g","複数CTE"],["o","リテンション"],["p","SaaS BI"]],
+  premise: `<p><strong>コホート分析</strong>は「同じ時期に登録したユーザーグループ（コホート）が、その後どの割合で継続しているか」を追跡する分析手法です。SaaS・アプリのBI分析で必須のパターンです。</p>
+<p>複数のCTEを連鎖させることで、複雑な計算を段階的に分解できます。</p>
+<pre><span class="kw">WITH</span>
+cohort_base <span class="kw">AS</span> (...),   <span class="cmt">-- ① 登録月ごとのコホートを定義</span>
+activity    <span class="kw">AS</span> (...),   <span class="cmt">-- ② ユーザーの活動月を特定</span>
+joined      <span class="kw">AS</span> (...)    <span class="cmt">-- ③ コホートと活動を結合して月差を計算</span>
+<span class="kw">SELECT</span> ...               <span class="cmt">-- ④ リテンション率を集計</span></pre>
+<div class="callout"><code>DATE_TRUNC('month', date)</code> は日付を月の初日に切り捨て、コホートの月単位グループ化に使います（BigQuery では <code>DATE_TRUNC(date, MONTH)</code>）。</div>`,
+  question: `<p>users・orders テーブルから、<em>登録月ごとのユーザーが翌月・翌々月・3ヶ月後にどの割合でオーダーしているか</em>（リテンション率）を算出してください。</p>
+<p>テーブル：users(user_id, registered_at) / orders(order_id, user_id, ordered_at)</p>
+<p>出力：cohort_month, cohort_size, month_0_rate, month_1_rate, month_2_rate, month_3_rate（%表示・小数点1桁）</p>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>cohort_month</th><th>cohort_size</th><th>month_0</th><th>month_1</th><th>month_2</th><th>month_3</th></tr>
+<tr><td>2024-01</td><td>120</td><td>100.0%</td><td>62.5%</td><td>45.8%</td><td>38.3%</td></tr>
+<tr><td>2024-02</td><td>95</td><td>100.0%</td><td>58.9%</td><td>42.1%</td><td>35.8%</td></tr>
+<tr><td>2024-03</td><td>140</td><td>100.0%</td><td>65.0%</td><td>47.9%</td><td class="null">—</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 各ユーザーの「登録月（cohort_month）」を定義する</span>
+cohort_base <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    user_id,
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, registered_at) <span class="kw">AS</span> cohort_month  <span class="cmt">-- 月の初日に切り捨て</span>
+  <span class="kw">FROM</span> <span class="tbl">users</span>
+),
+
+<span class="cmt">-- ② 各ユーザーが注文した月を重複なく列挙する</span>
+activity <span class="kw">AS</span> (
+  <span class="kw">SELECT</span> <span class="kw">DISTINCT</span>
+    user_id,
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, ordered_at) <span class="kw">AS</span> active_month  <span class="cmt">-- 注文した月</span>
+  <span class="kw">FROM</span> <span class="tbl">orders</span>
+),
+
+<span class="cmt">-- ③ コホートと活動を結合し、「登録からの経過月数」を計算する</span>
+cohort_activity <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    c.cohort_month,
+    c.user_id,
+    <span class="cmt">-- 活動月と登録月の月差（0=登録月, 1=翌月 ...）</span>
+    <span class="fn">EXTRACT</span>(<span class="kw">YEAR  FROM</span> a.active_month) <span class="op">*</span> <span class="num">12</span>
+    <span class="op">+</span> <span class="fn">EXTRACT</span>(<span class="kw">MONTH FROM</span> a.active_month)
+    <span class="op">-</span> <span class="fn">EXTRACT</span>(<span class="kw">YEAR  FROM</span> c.cohort_month) <span class="op">*</span> <span class="num">12</span>
+    <span class="op">-</span> <span class="fn">EXTRACT</span>(<span class="kw">MONTH FROM</span> c.cohort_month) <span class="kw">AS</span> month_offset  <span class="cmt">-- 経過月数</span>
+  <span class="kw">FROM</span>  cohort_base c
+  <span class="kw">LEFT JOIN</span> activity a <span class="kw">ON</span> c.user_id <span class="op">=</span> a.user_id  <span class="cmt">-- LEFT JOIN: 注文がないユーザーも残す</span>
+  <span class="kw">WHERE</span> a.active_month <span class="kw">IS NULL</span>
+     <span class="kw">OR</span> a.active_month <span class="op">&gt;=</span> c.cohort_month             <span class="cmt">-- 登録月以降のみ対象</span>
+)
+
+<span class="cmt">-- ④ コホート月ごとにリテンション率を集計する</span>
+<span class="kw">SELECT</span>
+  <span class="fn">TO_CHAR</span>(cohort_month, <span class="str">'YYYY-MM'</span>)  <span class="kw">AS</span> cohort_month,
+  <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> user_id)           <span class="kw">AS</span> cohort_size,    <span class="cmt">-- コホートの総人数</span>
+
+  <span class="cmt">-- 各月の継続率: その月に活動したユーザー数 / コホート全体</span>
+  <span class="fn">ROUND</span>(<span class="fn">COUNT</span>(<span class="kw">DISTINCT CASE WHEN</span> month_offset <span class="op">=</span> <span class="num">0</span> <span class="kw">THEN</span> user_id <span class="kw">END</span>) <span class="op">*</span> <span class="num">100.0</span>
+    <span class="op">/</span> <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> user_id), <span class="num">1</span>)  <span class="kw">AS</span> month_0_rate,
+
+  <span class="fn">ROUND</span>(<span class="fn">COUNT</span>(<span class="kw">DISTINCT CASE WHEN</span> month_offset <span class="op">=</span> <span class="num">1</span> <span class="kw">THEN</span> user_id <span class="kw">END</span>) <span class="op">*</span> <span class="num">100.0</span>
+    <span class="op">/</span> <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> user_id), <span class="num">1</span>)  <span class="kw">AS</span> month_1_rate,
+
+  <span class="fn">ROUND</span>(<span class="fn">COUNT</span>(<span class="kw">DISTINCT CASE WHEN</span> month_offset <span class="op">=</span> <span class="num">2</span> <span class="kw">THEN</span> user_id <span class="kw">END</span>) <span class="op">*</span> <span class="num">100.0</span>
+    <span class="op">/</span> <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> user_id), <span class="num">1</span>)  <span class="kw">AS</span> month_2_rate,
+
+  <span class="fn">ROUND</span>(<span class="fn">COUNT</span>(<span class="kw">DISTINCT CASE WHEN</span> month_offset <span class="op">=</span> <span class="num">3</span> <span class="kw">THEN</span> user_id <span class="kw">END</span>) <span class="op">*</span> <span class="num">100.0</span>
+    <span class="op">/</span> <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> user_id), <span class="num">1</span>)  <span class="kw">AS</span> month_3_rate
+
+<span class="kw">FROM</span>  cohort_activity
+<span class="kw">GROUP BY</span> cohort_month
+<span class="kw">ORDER BY</span> cohort_month;
+
+<span class="cmt">/*
+  実行順序:
+  1. cohort_base CTE        → 各ユーザーの登録月を定義
+  2. activity CTE           → 各ユーザーの注文月を重複除去で列挙
+  3. cohort_activity CTE    → 登録月とのずれ（month_offset）を計算
+  4. GROUP BY cohort_month  → 登録月ごとに集約
+  5. COUNT(DISTINCT CASE)   → 各経過月の活動ユーザー数を算出
+  6. ÷ cohort_size × 100   → リテンション率（%）に変換
+  7. ORDER BY cohort_month  → 登録月の昇順で出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>cohort_base × activity の結合イメージ</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>cohort_month</th><th>active_month</th><th class="tc-hi">month_offset</th></tr>
+<tr class="tr-hi"><td>1</td><td>2024-01</td><td>2024-01</td><td class="tc-hi">0（登録月）</td></tr>
+<tr class="tr-hi"><td>1</td><td>2024-01</td><td>2024-02</td><td class="tc-hi">1（翌月）</td></tr>
+<tr class="tr-hi"><td>1</td><td>2024-01</td><td>2024-04</td><td class="tc-hi">3（3ヶ月後）</td></tr>
+<tr class="tr-hi2"><td>2</td><td>2024-01</td><td>2024-01</td><td class="tc-g">0</td></tr>
+<tr class="tr-hi2"><td>2</td><td>2024-01</td><td class="null">NULL</td><td class="tc-r">注文なし（month_1,2,3は未活動）</td></tr>
+<tr><td>3</td><td>2024-02</td><td>2024-02</td><td>0</td></tr>
+<tr><td>3</td><td>2024-02</td><td>2024-03</td><td>1</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">GROUP BY cohort_month → COUNT(DISTINCT CASE WHEN month_offset = N)</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>2024-01コホート（120人）の集計イメージ</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month_offset</th><th>意味</th><th class="tc-hi">活動ユーザー数</th><th>リテンション率</th></tr>
+<tr class="tr-hi"><td>0</td><td>登録月（必ず100%）</td><td class="tc-hi">120人</td><td class="tc-hi">100.0%</td></tr>
+<tr class="tr-hi2"><td>1</td><td>翌月</td><td class="tc-g">75人</td><td class="tc-g">62.5%</td></tr>
+<tr class="tr-hi3"><td>2</td><td>翌々月</td><td class="tc-p">55人</td><td class="tc-p">45.8%</td></tr>
+<tr class="tr-hi4"><td>3</td><td>3ヶ月後</td><td class="tc-y">46人</td><td class="tc-y">38.3%</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">全コホートを横断して比較</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — コホートリテンション率テーブル</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>cohort_month</th><th>cohort_size</th><th class="tc-hi">month_0</th><th class="tc-g">month_1</th><th class="tc-p">month_2</th><th class="tc-y">month_3</th></tr>
+<tr><td>2024-01</td><td>120</td><td class="tc-hi">100.0%</td><td class="tc-g">62.5%</td><td class="tc-p">45.8%</td><td class="tc-y">38.3%</td></tr>
+<tr><td>2024-02</td><td>95</td><td class="tc-hi">100.0%</td><td class="tc-g">58.9%</td><td class="tc-p">42.1%</td><td class="tc-y">35.8%</td></tr>
+<tr><td>2024-03</td><td>140</td><td class="tc-hi">100.0%</td><td class="tc-g">65.0%</td><td class="tc-p">47.9%</td><td class="null">—（未到達）</td></tr>
+</table></div>
+</div>
+
+</div>
+<div class="exec-box">
+<div class="exec-title">コホート分析の読み方</div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">month_1 が高い</span><span class="exec-desc"> → 初月のオンボーディングが成功している</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">月を追うごとに急落</span><span class="exec-desc"> → 長期的なエンゲージメント施策が必要</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">特定コホートだけ高い</span><span class="exec-desc"> → その月のキャンペーン等の効果を示唆</span></div>
+</div>
+`
+},
+
+/* ═══════════════════════════════════════════════════════
+   Q6  LEAD — 次の購入までの日数とファネル離脱分析
+═══════════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "LEAD — 次回購入までの間隔を計算してリピート分析",
+  tags: [["r","LEAD"],["o","購入間隔"],["g","CTE"],["p","リピート分析"]],
+  premise: `<p><strong>LEAD(col, n)</strong> は「n行後の値」を現在行に引き込むウィンドウ関数です。<code>LAG</code> の逆方向です。ユーザーの次回行動（次の購入・次のログイン）との間隔を計算するリピート分析・ファネル分析の定番パターンです。</p>
+<pre><span class="fn">LEAD</span>(ordered_at, <span class="num">1</span>) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> user_id     <span class="cmt">-- ユーザーごとに独立して計算</span>
+  <span class="kw">ORDER BY</span>    ordered_at   <span class="cmt">-- 時系列順</span>
+) <span class="kw">AS</span> next_ordered_at        <span class="cmt">-- 次回注文日時を現在行に引き込む</span>
+
+<span class="cmt">-- 最後の注文行は next_ordered_at が NULL になる（次がない）</span></pre>
+<div class="callout"><strong>日数差の計算：</strong> PostgreSQL では <code>date2 - date1</code> で日数差が得られます。BigQuery では <code>DATE_DIFF(date2, date1, DAY)</code> を使います。</div>`,
+  question: `<p>orders テーブルを使い、各ユーザーの注文ごとに<em>次回の注文までの日数（days_to_next）</em>を計算してください。</p>
+<p>さらに、ユーザーごとの<em>平均購入間隔・最小間隔・最大間隔・リピート回数</em>をサマリーとして出力してください。</p>
+<p>テーブル：orders(order_id, user_id, ordered_at, amount)</p>
+<p>出力（サマリー）：user_id, total_orders, repeat_count, avg_days, min_days, max_days</p>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>total_orders</th><th>repeat_count</th><th>avg_days</th><th>min_days</th><th>max_days</th></tr>
+<tr><td>1</td><td>5</td><td>4</td><td>18.3</td><td>7</td><td>35</td></tr>
+<tr><td>2</td><td>3</td><td>2</td><td>24.0</td><td>15</td><td>33</td></tr>
+<tr><td>3</td><td>1</td><td>0</td><td class="null">NULL</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 各注文に「次回注文日時」を付与する</span>
+order_with_next <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    order_id,
+    user_id,
+    ordered_at,
+    amount,
+    <span class="cmt">-- 同ユーザーの次の注文日時を引き込む</span>
+    <span class="fn">LEAD</span>(ordered_at, <span class="num">1</span>) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> user_id    <span class="cmt">-- ユーザーごとに独立したウィンドウ</span>
+      <span class="kw">ORDER BY</span>    ordered_at  <span class="cmt">-- 注文日時の昇順（古い順）</span>
+    ) <span class="kw">AS</span> next_ordered_at       <span class="cmt">-- 次回注文日時（最終注文行はNULL）</span>
+  <span class="kw">FROM</span> <span class="tbl">orders</span>
+),
+
+<span class="cmt">-- ② 次回注文までの日数を計算する</span>
+with_interval <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    order_id,
+    user_id,
+    ordered_at,
+    next_ordered_at,
+    <span class="cmt">-- 日付の差分（整数の日数）。PostgreSQL: date差。BigQuery: DATE_DIFF(..., DAY)</span>
+    (<span class="fn">next_ordered_at</span><span class="op">::</span>date <span class="op">-</span> ordered_at<span class="op">::</span>date) <span class="kw">AS</span> days_to_next
+  <span class="kw">FROM</span> order_with_next
+)
+
+<span class="cmt">-- ③ ユーザーごとに購入間隔の統計を集計する</span>
+<span class="kw">SELECT</span>
+  user_id,
+  <span class="fn">COUNT</span>(*)                          <span class="kw">AS</span> total_orders,   <span class="cmt">-- 総注文数</span>
+  <span class="fn">COUNT</span>(days_to_next)               <span class="kw">AS</span> repeat_count,   <span class="cmt">-- NULLを除いた件数 = リピート回数</span>
+  <span class="fn">ROUND</span>(<span class="fn">AVG</span>(days_to_next), <span class="num">1</span>)       <span class="kw">AS</span> avg_days,      <span class="cmt">-- 平均購入間隔（NULL行は自動除外）</span>
+  <span class="fn">MIN</span>(days_to_next)                  <span class="kw">AS</span> min_days,      <span class="cmt">-- 最短間隔</span>
+  <span class="fn">MAX</span>(days_to_next)                  <span class="kw">AS</span> max_days       <span class="cmt">-- 最長間隔</span>
+<span class="kw">FROM</span>  with_interval
+<span class="kw">GROUP BY</span> user_id
+<span class="kw">ORDER BY</span> user_id;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders                 → 全注文を読み込む
+  2. LEAD() OVER(PARTITION BY)   → ユーザーごとに次回注文日時を付与
+  3. order_with_next CTE 完成
+  4. (::date - ::date)           → 日数差を計算 → with_interval CTE 完成
+  5. GROUP BY user_id            → ユーザーごとに集約
+  6. COUNT / AVG / MIN / MAX     → 統計量を算出（NULL は自動除外）
+  7. ORDER BY user_id            → ユーザーID順に出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>orders（元データ）</strong> — user_id=1 の注文履歴</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>ordered_at</th><th>amount</th></tr>
+<tr><td>10</td><td>1</td><td>2024-01-05</td><td>12,000</td></tr>
+<tr><td>15</td><td>1</td><td>2024-01-12</td><td>8,000</td></tr>
+<tr><td>23</td><td>1</td><td>2024-02-16</td><td>22,000</td></tr>
+<tr><td>34</td><td>1</td><td>2024-03-06</td><td>5,500</td></tr>
+<tr><td>48</td><td>1</td><td>2024-04-10</td><td>18,000</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">LEAD(ordered_at, 1) OVER (PARTITION BY user_id ORDER BY ordered_at)</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>order_with_next CTE</strong> — 次回注文日が現在行に付く</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>ordered_at</th><th class="tc-hi">next_ordered_at</th><th class="tc-g">days_to_next</th></tr>
+<tr><td>10</td><td>2024-01-05</td><td class="tc-hi">2024-01-12</td><td class="tc-g">7日</td></tr>
+<tr><td>15</td><td>2024-01-12</td><td class="tc-hi">2024-02-16</td><td class="tc-g">35日</td></tr>
+<tr><td>23</td><td>2024-02-16</td><td class="tc-hi">2024-03-06</td><td class="tc-g">19日</td></tr>
+<tr><td>34</td><td>2024-03-06</td><td class="tc-hi">2024-04-10</td><td class="tc-g">35日</td></tr>
+<tr class="tr-dim"><td>48</td><td>2024-04-10</td><td class="null">NULL（最後の注文）</td><td class="null">NULL</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">GROUP BY user_id → COUNT / AVG / MIN / MAX（NULLは自動除外）</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終サマリー</strong> — user_id=1</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>total_orders</th><th class="tc-hi">repeat_count</th><th class="tc-g">avg_days</th><th class="tc-y">min_days</th><th class="tc-o">max_days</th></tr>
+<tr><td>1</td><td>5</td><td class="tc-hi">4（NULL除く）</td><td class="tc-g">24.0日</td><td class="tc-y">7日</td><td class="tc-o">35日</td></tr>
+</table></div>
+</div>
+
+</div>
+<div class="exec-box">
+<div class="exec-title">COUNT(*) vs COUNT(列名) の違い</div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">COUNT(*)</span><span class="exec-desc"> → NULL を含む全行をカウント → total_orders に使う</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">COUNT(days_to_next)</span><span class="exec-desc"> → NULL を除いた行数 → リピート回数に使う</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">AVG / MIN / MAX</span><span class="exec-desc"> → いずれも NULL を自動で無視して計算する</span></div>
+</div>
+`
+},
+
+/* ═══════════════════════════════════════════════════════
+   Q7  FILTER — 条件付き集計を1パスで完結させる
+═══════════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "FILTER句 — 条件付き集計を1パスで可読性高く書く",
+  tags: [["r","FILTER"],["o","条件付き集計"],["g","SUM CASE"],["p","ダッシュボード"]],
+  premise: `<p><strong>FILTER (WHERE ...)</strong> は PostgreSQL 9.4+ で使える集計関数の拡張構文です。<code>SUM(CASE WHEN ... END)</code> と同じ結果を、より可読性高く記述できます。BI向けのダッシュボードAPIで複数条件を1クエリにまとめる際に非常に有効です。</p>
+<pre><span class="cmt">-- 旧来の書き方（Q2で学んだパターン）</span>
+<span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'completed'</span> <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>)
+
+<span class="cmt">-- FILTER を使った書き方（同じ結果・より直感的）</span>
+<span class="fn">SUM</span>(amount) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'completed'</span>)</pre>
+<div class="callout"><strong>FILTER の利点：</strong> COUNT・AVG・MAX にも使えます。特に <code>COUNT(*) FILTER (WHERE ...)</code> は <code>COUNT(CASE WHEN ... THEN 1 END)</code> よりも明快です。</div>
+<div class="callout warn">FILTER 構文は <strong>PostgreSQL / DuckDB / SQLite 3.30+</strong> で使えますが、<strong>BigQuery・MySQL・SQL Server は未対応</strong> です。移植性が必要な場合は CASE WHEN を使いましょう。</div>`,
+  question: `<p>orders テーブルを使い、<em>商品カテゴリ別に完了・保留・キャンセルの件数と金額合計、および完了率</em>をFILTER句で1クエリにまとめて取得してください。</p>
+<p>テーブル：orders(order_id, user_id, category, ordered_at, amount, status)</p>
+<p>出力：category, total_count, completed_count, pending_count, cancelled_count, completed_amount, completion_rate_pct</p>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>category</th><th>total_count</th><th>completed_count</th><th>pending_count</th><th>cancelled_count</th><th>completed_amount</th><th>completion_rate_pct</th></tr>
+<tr><td>書籍</td><td>55</td><td>42</td><td>8</td><td>5</td><td>186,000</td><td>76.4</td></tr>
+<tr><td>電子機器</td><td>28</td><td>20</td><td>5</td><td>3</td><td>820,000</td><td>71.4</td></tr>
+<tr><td>衣料品</td><td>70</td><td>58</td><td>9</td><td>3</td><td>310,000</td><td>82.9</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  category,
+
+  <span class="cmt">-- 全ステータスの総件数（NULL を含む全行）</span>
+  <span class="fn">COUNT</span>(*)                                      <span class="kw">AS</span> total_count,
+
+  <span class="cmt">-- completedのみカウント: FILTER で条件を後付け（CASE WHENより直感的）</span>
+  <span class="fn">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'completed'</span>)  <span class="kw">AS</span> completed_count,
+
+  <span class="cmt">-- pendingのみカウント</span>
+  <span class="fn">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'pending'</span>)    <span class="kw">AS</span> pending_count,
+
+  <span class="cmt">-- cancelledのみカウント</span>
+  <span class="fn">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'cancelled'</span>)  <span class="kw">AS</span> cancelled_count,
+
+  <span class="cmt">-- completedの金額合計: SUM に FILTER を付けて条件付き合計</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'completed'</span>) <span class="kw">AS</span> completed_amount,
+
+  <span class="cmt">-- 完了率 = completed数 / 全件数 × 100（小数点1桁）</span>
+  <span class="fn">ROUND</span>(
+    <span class="fn">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'completed'</span>)
+    <span class="op">*</span> <span class="num">100.0</span> <span class="op">/</span> <span class="fn">NULLIF</span>(<span class="fn">COUNT</span>(*), <span class="num">0</span>)  <span class="cmt">-- NULLIF: 分母が0のときNULLを返しゼロ除算を防ぐ</span>
+  , <span class="num">1</span>)                               <span class="kw">AS</span> completion_rate_pct
+
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="kw">GROUP BY</span> category      <span class="cmt">-- カテゴリごとに集約（全集計関数はグループ内で実行）</span>
+<span class="kw">ORDER BY</span> category;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders           → 全注文を読み込む（テーブルスキャンは1回だけ）
+  2. GROUP BY category     → カテゴリごとにグループ化
+  3. COUNT(*) FILTER × 3  → 各グループ内でステータス別に件数を算出
+  4. SUM(amount) FILTER    → 完了金額のみ合計
+  5. ROUND(... / NULLIF)   → 完了率を計算（ゼロ除算を防ぎながら）
+  6. ORDER BY category     → カテゴリ名の昇順で出力
+
+  ★ FILTER は GROUP BY のグループ内に対して適用される。
+    FROM → GROUP BY → FILTER（集計内） → SELECT → ORDER BY の順。
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>orders（元データのイメージ）— 書籍カテゴリ55件</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>category</th><th>amount</th><th>status</th><th>FILTER結果</th></tr>
+<tr class="tr-hi2"><td>1</td><td>書籍</td><td>3,200</td><td>completed</td><td class="tc-g">completed ✓</td></tr>
+<tr class="tr-hi2"><td>2</td><td>書籍</td><td>1,800</td><td>completed</td><td class="tc-g">completed ✓</td></tr>
+<tr class="tr-hi"><td>3</td><td>書籍</td><td>5,500</td><td>pending</td><td class="tc-hi">pending ✓</td></tr>
+<tr class="tr-hi4"><td>4</td><td>書籍</td><td>2,100</td><td>cancelled</td><td class="tc-r">cancelled ✓</td></tr>
+<tr class="tr-hi2"><td>5</td><td>書籍</td><td>4,400</td><td>completed</td><td class="tc-g">completed ✓</td></tr>
+<tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">GROUP BY category — 各グループ内で FILTER を適用した集計を実行</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>FILTER vs CASE WHEN — 同じ結果・違う可読性</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>書き方</th><th>コード</th><th>可読性</th><th>対応DB</th></tr>
+<tr class="tr-hi2"><td>FILTER（推奨）</td><td>COUNT(*) FILTER (WHERE status='completed')</td><td class="tc-g">高い</td><td class="tc-y">PostgreSQL等</td></tr>
+<tr><td>CASE WHEN</td><td>COUNT(CASE WHEN status='completed' THEN 1 END)</td><td class="tc-y">中</td><td class="tc-g">全DB対応</td></tr>
+<tr><td>SUM+CASE</td><td>SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END)</td><td class="tc-r">やや低</td><td class="tc-g">全DB対応</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">集計完了 → NULLIF(COUNT(*), 0) でゼロ除算を防ぎながら完了率を計算</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — 1クエリ・1パスで全ステータスを集計</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>category</th><th>total</th><th class="tc-g">completed</th><th class="tc-hi">pending</th><th class="tc-r">cancelled</th><th>completed_amount</th><th class="tc-y">rate(%)</th></tr>
+<tr><td>書籍</td><td>55</td><td class="tc-g">42</td><td class="tc-hi">8</td><td class="tc-r">5</td><td>186,000</td><td class="tc-y">76.4%</td></tr>
+<tr><td>電子機器</td><td>28</td><td class="tc-g">20</td><td class="tc-hi">5</td><td class="tc-r">3</td><td>820,000</td><td class="tc-y">71.4%</td></tr>
+<tr><td>衣料品</td><td>70</td><td class="tc-g">58</td><td class="tc-hi">9</td><td class="tc-r">3</td><td>310,000</td><td class="tc-y">82.9%</td></tr>
+</table></div>
+</div>
+
+</div>
+<div class="exec-box">
+<div class="exec-title">NULLIF の役割（ゼロ除算対策）</div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">NULLIF(x, 0)</span><span class="exec-desc"> → x が 0 のとき NULL を返す。分母に使うとゼロ除算エラーを回避</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">÷ NULL の結果</span><span class="exec-desc"> → NULL（エラーにならず、ROUND(NULL,1) → NULL で出力される）</span></div>
+<div class="exec-row"><span class="exec-n">▷</span><span class="exec-step">対比: COALESCE</span><span class="exec-desc"> → NULL を別の値に置き換える（例: COALESCE(rate, 0) → NULLを0に）</span></div>
+</div>
+`
+}
+];
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p', y:'tag-o'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','基礎文法・概念',q.premise)}
+      ${acc('❓','pill-green','問題','何を求めるか',q.question)}
+      ${acc('📊','pill-orange','出力例','期待する結果',q.output)}
+      ${acc('✅','pill-red','模範回答','SQL（コメント付き）',q.answer)}
+      ${acc('🔍','pill-blue','解説','テーブル変化の可視化',q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+
+  const activeTab = document.getElementById('tabRow').children[i];
+  if(activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+</script>
+</body>
+</html>
