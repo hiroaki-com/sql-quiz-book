@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL応用文法10選 — API・バッチ処理で理解する実践パターン（応用編 vol.3）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--purple); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--purple); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--purple); border-bottom-color: var(--purple); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--purple); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--purple); transition: width 0.2s; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw); font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  .viz-flow { margin: 6px 0 14px; }
+  .step-block { margin-bottom: 8px; }
+  .step-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; }
+  .step-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .sn1 { background: #1a2744; color: var(--accent); }
+  .sn2 { background: #1a2e1a; color: var(--green); }
+  .sn3 { background: #2e1a2e; color: var(--purple); }
+  .sn4 { background: #2e1a0a; color: var(--orange); }
+  .step-desc { color: var(--dim); }
+  .step-desc strong { color: var(--text); }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+  .tr-hi  td { background: #0e1e33 !important; }
+  .tr-hi2 td { background: #0e1e0e !important; }
+  .tr-hi3 td { background: #1e1433 !important; }
+  .tr-hi4 td { background: #1e1a0a !important; }
+  .tr-dim td { opacity: 0.4; }
+  .tc-hi { color: var(--accent) !important; font-weight: 700; }
+  .tc-g  { color: var(--green)  !important; font-weight: 700; }
+  .tc-p  { color: var(--purple) !important; font-weight: 700; }
+  .tc-y  { color: var(--yellow) !important; font-weight: 700; }
+  .tc-o  { color: var(--orange) !important; font-weight: 700; }
+  .tc-r  { color: var(--red)    !important; font-weight: 700; }
+  .null  { color: var(--dim)    !important; font-style: italic; }
+
+  .arrow { text-align: center; padding: 4px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .arrow-text { color: var(--dim); font-size: 11px; }
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em { color: var(--yellow); }
+  .insight-body code { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code { font-size: 11px; }
+
+  .column-box {
+    background: #0d1520; border: 1px solid #1c3550; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+    border-left: 3px solid var(--fn);
+  }
+  .column-title {
+    font-size: 11px; font-weight: 700; color: var(--fn); letter-spacing: 0.5px;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--fn); }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--purple); color: var(--purple); background: #160f2a; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">PRAC</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">WebApp API・バッチ処理で学ぶ SQL 応用文法10選 vol.3（相関サブクエリ/CTE/条件付き集計/LAG・LEAD/再帰CTE/LATERAL/JSONB/差分更新バッチ/EXPLAIN/ROLLUP編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★ 中級〜上級</span>
+      <span class="htag">API前提</span>
+      <span class="htag">バッチ処理</span>
+      <span class="htag">PostgreSQL対応</span>
+      <span class="htag">vol.3 応用編</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  相関サブクエリ — 最新レコード取得パターン
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "相関サブクエリ — 各ユーザーの「最新注文」だけを取得する",
+  tags: [["r","相関サブクエリ"],["fn","MAX"],["g","最新レコード"],["o","注文API"]],
+  premise: `<p><strong>相関サブクエリ（Correlated Subquery）</strong>とは、外側のクエリの列を内側のサブクエリが参照するサブクエリです。外側の行ごとにサブクエリが評価されるため、「この行と同じ条件で絞ったときの最大値・最小値」という処理に向いています。</p>
+<pre><span class="kw">SELECT</span> *
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o1
+<span class="kw">WHERE</span>  o1.ordered_at <span class="op">=</span> (
+  <span class="kw">SELECT</span> <span class="fn">MAX</span>(o2.ordered_at)       <span class="cmt">-- 内側のクエリが外側の o1.user_id を参照 → 相関サブクエリ</span>
+  <span class="kw">FROM</span>   <span class="tbl">orders</span> o2
+  <span class="kw">WHERE</span>  o2.user_id <span class="op">=</span> o1.user_id  <span class="cmt">-- ← ここが「相関」の核心。外側の行ごとに評価される</span>
+);</pre>
+<div class="callout"><strong>ポイント：</strong>相関サブクエリは外側の行数 × サブクエリの実行回数になるため、大量データでは <code>ROW_NUMBER()</code> ウィンドウ関数を使った書き方が高速な場合があります。ただし可読性が高いため少量データや素直な要件には適しています。</div>
+<p>「各ユーザーの直近ログイン」「各商品の最後の価格変更」など、グループ内の最新行取得は API・バッチ処理で最頻出のパターンの一つです。</p>`,
+  question: `<p><code>orders</code> テーブルから、<em>各ユーザー（user_id）の最新注文（ordered_at が最大）の行</em>を取得してください。同一ユーザーの複数注文が存在する場合、最新の1行だけ返すこと。結果は user_id 昇順で並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>ordered_at</th></tr>
+        <tr><td>1001</td><td>U01</td><td>3200</td><td>2024-03-10</td></tr>
+        <tr><td>1002</td><td>U01</td><td>1500</td><td>2024-05-20</td></tr>
+        <tr><td>1003</td><td>U02</td><td>8000</td><td>2024-04-01</td></tr>
+        <tr><td>1004</td><td>U02</td><td>2100</td><td>2024-06-15</td></tr>
+        <tr><td>1005</td><td>U03</td><td>500</td><td>2024-02-28</td></tr>
+        <tr><td>1006</td><td>U01</td><td>4700</td><td>2024-06-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>各ユーザーの最新注文 1 行（user_id 昇順）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>amount</th><th class="tc-hi">ordered_at</th></tr>
+<tr class="tr-hi"><td>1006</td><td>U01</td><td>4700</td><td class="tc-hi">2024-06-01</td></tr>
+<tr class="tr-hi"><td>1004</td><td>U02</td><td>2100</td><td class="tc-hi">2024-06-15</td></tr>
+<tr class="tr-hi"><td>1005</td><td>U03</td><td>500</td><td class="tc-hi">2024-02-28</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- 各ユーザーの最新注文のみを取得する（相関サブクエリ）</span>
+<span class="kw">SELECT</span>
+  o1.order_id,
+  o1.user_id,
+  o1.amount,
+  o1.ordered_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o1                     <span class="cmt">-- 【超基礎】テーブルに別名(エイリアス)を付ける</span>
+<span class="kw">WHERE</span>  o1.ordered_at <span class="op">=</span> (             <span class="cmt">-- この行の ordered_at が…</span>
+  <span class="kw">SELECT</span> <span class="fn">MAX</span>(o2.ordered_at)           <span class="cmt">-- …同じ user_id の中の最大値（最新日付）に等しい行だけ残す</span>
+  <span class="kw">FROM</span>   <span class="tbl">orders</span> o2
+  <span class="kw">WHERE</span>  o2.user_id <span class="op">=</span> o1.user_id      <span class="cmt">-- ← 外側の o1.user_id を内側で参照 → これが「相関」</span>
+)
+<span class="kw">ORDER BY</span> o1.user_id <span class="kw">ASC</span>;             <span class="cmt">-- 【超基礎】user_id の昇順で並び替え</span>
+
+<span class="cmt">/*
+  実行順序（相関サブクエリ）:
+  1. FROM orders o1              → 全行を対象にする（o1 という別名でアクセス）
+  2. WHERE o1.ordered_at = (子)  → o1 の各行ごとに以下のサブクエリを実行する
+     a. FROM orders o2           → 再び全行を走査
+     b. WHERE o2.user_id = o1.user_id → 外側の行と同じ user_id に絞る
+     c. MAX(o2.ordered_at)       → 絞り込み後の最大日付を求める
+     → この最大値と o1.ordered_at が一致する行だけを残す
+  3. SELECT o1.*                 → 必要な列を選択
+  4. ORDER BY o1.user_id ASC     → user_id 昇順に並び替え
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>外側の行ごとにサブクエリが実行される — U01 の例</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>外側(o1) の行</th><th>内側サブクエリの動き（同一 user_id = U01 に絞る）</th><th>MAX の結果</th><th class="tc-g">残るか？</th></tr>
+<tr class="tr-hi4"><td>order_id=1001 ordered_at=2024-03-10</td><td>U01 の ordered_at: 03-10, 05-20, 06-01</td><td>2024-06-01</td><td class="tc-r">× 不一致</td></tr>
+<tr class="tr-hi4"><td>order_id=1002 ordered_at=2024-05-20</td><td>U01 の ordered_at: 03-10, 05-20, 06-01</td><td>2024-06-01</td><td class="tc-r">× 不一致</td></tr>
+<tr class="tr-hi2"><td>order_id=1006 ordered_at=2024-06-01</td><td>U01 の ordered_at: 03-10, 05-20, 06-01</td><td>2024-06-01</td><td class="tc-g">✓ 一致 → 残る</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">全ユーザーで同様の処理を繰り返し → 最新行だけが残る</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>全ユーザーの結果まとめ</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>注文数</th><th>候補行</th><th class="tc-g">最新注文（残る行）</th></tr>
+<tr class="tr-hi"><td>U01</td><td>3件</td><td>1001, 1002, 1006</td><td class="tc-g">order_id=1006 (2024-06-01)</td></tr>
+<tr class="tr-hi"><td>U02</td><td>2件</td><td>1003, 1004</td><td class="tc-g">order_id=1004 (2024-06-15)</td></tr>
+<tr class="tr-hi"><td>U03</td><td>1件</td><td>1005</td><td class="tc-g">order_id=1005 (2024-02-28)</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">同日時の最新注文が複数ある場合の代替手法</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>代替手法：ROW_NUMBER() を使う書き方（同日時重複にも対応）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>手法</th><th>同日時の複数行</th><th>可読性</th><th>大量データの速度</th></tr>
+<tr class="tr-hi"><td class="tc-g">相関サブクエリ + MAX</td><td class="tc-r">全行返る（複数行になりうる）</td><td class="tc-g">高い</td><td class="tc-r">遅くなりやすい</td></tr>
+<tr class="tr-hi2"><td class="tc-g">ROW_NUMBER() OVER PARTITION</td><td class="tc-g">必ず1行（order_id等で制御可）</td><td class="tc-hi">中程度</td><td class="tc-g">速い（ウィンドウ関数）</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：テーブルエイリアスとは：</strong><code>FROM orders o1</code> の <code>o1</code> はテーブルの別名（エイリアス）です。同じテーブルを2回参照するときや長いテーブル名を短縮するときに使います。<code>AS o1</code> と書いても同じですが <code>AS</code> は省略可能です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>相関サブクエリの識別方法：</strong>サブクエリ内に外側テーブルの列名（今回は <code>o1.user_id</code>）が登場していれば相関サブクエリです。外側の行ごとに実行されるため、行数 × サブクエリコストの計算量になります。EXPLAINで "SubPlan" と表示されたら相関サブクエリです。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>ROW_NUMBER() 代替パターン：</strong><code>WITH ranked AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY ordered_at DESC) rn FROM orders) SELECT * FROM ranked WHERE rn = 1;</code> と書くと「各 user_id の中で ordered_at が最大の行に rn=1 を割り当てる」ので同日時重複も安全に1行に絞れます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>EXISTS vs IN vs 相関サブクエリ：</strong>「存在確認」には EXISTS、「値リスト照合」には IN、「グループ内最大値取得」には相関サブクエリ（またはウィンドウ関数）が向いています。それぞれ目的に応じて使い分けることが実務の基本です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同日時の最新行が複数ある場合を考慮しない：</strong><code>MAX(ordered_at)</code> での絞り込みは、同じ日時の注文が2件以上あると2件とも返ってしまう。「必ず1行」が要件の場合は ROW_NUMBER() を使うこと。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>大量テーブルへの無条件な相関サブクエリ適用：</strong>数百万行のテーブルに相関サブクエリを使うと、行数 × インデックスを使えないサブクエリのコストで極端に遅くなることがある。まず EXPLAIN ANALYZE でプランを確認し、必要に応じてウィンドウ関数や JOIN に書き換えること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：「最新レコード取得」はAPIの頻出パターン</div>
+<div class="column-body">
+「ユーザーの最終ログイン日時」「商品の最新価格」「注文の最新ステータス」など、<strong>グループ内の最新行を返すAPIエンドポイント</strong>は実務で非常に多く登場します。このパターンを知っておくだけでバックエンド実装の品質が大きく変わります。さらに <code>updated_at</code> や <code>created_at</code> にインデックスを貼っておくことで、サブクエリ内の MAX 計算を高速化できます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  WITH句（CTE） — 複雑なクエリを分割して読みやすくする
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "WITH句（CTE） — 月次売上レポートを段階的に組み立てる",
+  tags: [["r","WITH / CTE"],["fn","SUM / AVG"],["g","売上レポート"],["o","バッチ集計"]],
+  premise: `<p><strong>WITH句（CTE：Common Table Expression）</strong>は、クエリの中で一時的な名前付き結果セットを定義できる構文です。複雑なサブクエリをネストして書く代わりに、処理を「段階的なブロック」として切り出せるため、可読性と保守性が大幅に向上します。</p>
+<pre><span class="kw">WITH</span>
+  <span class="tbl">cte_name1</span> <span class="kw">AS</span> (              <span class="cmt">-- 第1ブロック：最初の一時テーブルを定義</span>
+    <span class="kw">SELECT</span> ... <span class="kw">FROM</span> <span class="tbl">some_table</span>
+  ),
+  <span class="tbl">cte_name2</span> <span class="kw">AS</span> (              <span class="cmt">-- 第2ブロック：cte_name1 を参照できる</span>
+    <span class="kw">SELECT</span> ... <span class="kw">FROM</span> <span class="tbl">cte_name1</span>
+  )
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">cte_name2</span>;       <span class="cmt">-- 最後のSELECTが実際の出力</span></pre>
+<div class="callout ok"><strong>使いどき：</strong>①深くネストしたサブクエリを平坦化したいとき、②同じサブクエリを複数回参照したいとき（<code>MATERIALIZED</code>オプションで一度だけ計算させられる）、③再帰クエリを書くとき（Q5参照）。</div>`,
+  question: `<p><code>sales</code> テーブルから、<em>月別・商品カテゴリ別の売上合計と月次全体平均に対する比率（%）</em>を取得してください。CTE を使って「月別カテゴリ集計」→「月別合計」→「比率計算」の3段階で組み立てること。結果は月・カテゴリ昇順で並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sales</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>sale_id</th><th>category</th><th>amount</th><th>sold_at</th></tr>
+        <tr><td>1</td><td>food</td><td>3000</td><td>2024-05-03</td></tr>
+        <tr><td>2</td><td>drink</td><td>1500</td><td>2024-05-10</td></tr>
+        <tr><td>3</td><td>food</td><td>2000</td><td>2024-05-20</td></tr>
+        <tr><td>4</td><td>drink</td><td>2500</td><td>2024-06-05</td></tr>
+        <tr><td>5</td><td>food</td><td>4000</td><td>2024-06-12</td></tr>
+        <tr><td>6</td><td>drink</td><td>1000</td><td>2024-06-20</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>月別・カテゴリ別売上と月次合計比率：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th class="tc-hi">month</th><th class="tc-g">category</th><th>cat_total</th><th class="tc-p">month_total</th><th class="tc-y">ratio_pct</th></tr>
+<tr class="tr-hi"><td class="tc-hi">2024-05</td><td class="tc-g">drink</td><td>1500</td><td class="tc-p">6500</td><td class="tc-y">23.08</td></tr>
+<tr class="tr-hi"><td class="tc-hi">2024-05</td><td class="tc-g">food</td><td>5000</td><td class="tc-p">6500</td><td class="tc-y">76.92</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024-06</td><td class="tc-g">drink</td><td>3500</td><td class="tc-p">7500</td><td class="tc-y">46.67</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024-06</td><td class="tc-g">food</td><td>4000</td><td class="tc-p">7500</td><td class="tc-y">53.33</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+  <span class="cmt">-- ① 月別・カテゴリ別の売上合計を計算する</span>
+  <span class="tbl">cat_monthly</span> <span class="kw">AS</span> (
+    <span class="kw">SELECT</span>
+      <span class="fn">TO_CHAR</span>(sold_at, <span class="str">'YYYY-MM'</span>) <span class="kw">AS</span> month,   <span class="cmt">-- 日付を 'YYYY-MM' 形式の文字列に変換</span>
+      category,
+      <span class="fn">SUM</span>(amount) <span class="kw">AS</span> cat_total              <span class="cmt">-- カテゴリごとの売上合計</span>
+    <span class="kw">FROM</span>   <span class="tbl">sales</span>
+    <span class="kw">GROUP BY</span> <span class="fn">TO_CHAR</span>(sold_at, <span class="str">'YYYY-MM'</span>), category  <span class="cmt">-- 月×カテゴリでグループ化</span>
+  ),
+
+  <span class="cmt">-- ② 月別の全カテゴリ合計（① を再利用）</span>
+  <span class="tbl">month_total</span> <span class="kw">AS</span> (
+    <span class="kw">SELECT</span>
+      month,
+      <span class="fn">SUM</span>(cat_total) <span class="kw">AS</span> month_total          <span class="cmt">-- 同月内の全カテゴリの合計を求める</span>
+    <span class="kw">FROM</span>   <span class="tbl">cat_monthly</span>                       <span class="cmt">-- CTE ① を普通のテーブルのように参照</span>
+    <span class="kw">GROUP BY</span> month
+  )
+
+<span class="cmt">-- ③ 最終SELECT：① と ② を JOIN して比率を計算</span>
+<span class="kw">SELECT</span>
+  cm.month,
+  cm.category,
+  cm.cat_total,
+  mt.month_total,
+  <span class="fn">ROUND</span>(
+    cm.cat_total <span class="op">::</span><span class="kw">NUMERIC</span> <span class="op">/</span> mt.month_total <span class="op">*</span> <span class="num">100</span>, <span class="num">2</span>  <span class="cmt">-- ::NUMERIC にキャストしてゼロ除算を防ぎ小数点を出す</span>
+  ) <span class="kw">AS</span> ratio_pct                               <span class="cmt">-- ROUND(値, 小数点以下桁数) で四捨五入</span>
+<span class="kw">FROM</span>   <span class="tbl">cat_monthly</span> cm
+<span class="kw">JOIN</span>   <span class="tbl">month_total</span>  mt <span class="kw">ON</span> cm.month <span class="op">=</span> mt.month  <span class="cmt">-- 月をキーに CTE ① と ② を結合</span>
+<span class="kw">ORDER BY</span> cm.month, cm.category;                  <span class="cmt">-- 【超基礎】月→カテゴリの順で並び替え</span>
+
+<span class="cmt">/*
+  実行順序（WITH句）:
+  1. CTE cat_monthly        → sales を月×カテゴリでGROUP BY → 4行の中間結果
+  2. CTE month_total        → cat_monthly を月でGROUP BY → 2行の中間結果
+  3. FROM cat_monthly cm    → CTE① を結合の左側として使う
+  4. JOIN month_total mt    → CTE② を month で結合
+  5. SELECT ... ROUND(...)  → 比率を計算して必要な列を選択
+  6. ORDER BY               → 月・カテゴリ昇順で並び替え
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE① cat_monthly — 月×カテゴリ集計（4行になる）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>元データ (sales)</th><th>GROUP BY後 → cat_monthly</th></tr>
+<tr><td>5月 food: 3000, 2000</td><td>2024-05 / food / <span class="tc-g">5000</span></td></tr>
+<tr><td>5月 drink: 1500</td><td>2024-05 / drink / <span class="tc-g">1500</span></td></tr>
+<tr><td>6月 food: 4000</td><td>2024-06 / food / <span class="tc-g">4000</span></td></tr>
+<tr><td>6月 drink: 2500, 1000</td><td>2024-06 / drink / <span class="tc-g">3500</span></td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">CTE① を入力として CTE② を計算</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>CTE② month_total — 月合計（2行になる）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month</th><th>SUM(cat_total) = month_total</th></tr>
+<tr class="tr-hi"><td>2024-05</td><td class="tc-p">5000 + 1500 = 6500</td></tr>
+<tr class="tr-hi2"><td>2024-06</td><td class="tc-p">4000 + 3500 = 7500</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">JOIN して比率を計算</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終SELECT — CTE① × CTE② を JOIN → 比率を付与</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month</th><th>category</th><th>cat_total</th><th>month_total</th><th class="tc-y">ratio_pct</th></tr>
+<tr class="tr-hi"><td>2024-05</td><td>drink</td><td>1500</td><td>6500</td><td class="tc-y">1500/6500×100 = 23.08%</td></tr>
+<tr class="tr-hi"><td>2024-05</td><td>food</td><td>5000</td><td>6500</td><td class="tc-y">5000/6500×100 = 76.92%</td></tr>
+<tr class="tr-hi2"><td>2024-06</td><td>drink</td><td>3500</td><td>7500</td><td class="tc-y">3500/7500×100 = 46.67%</td></tr>
+<tr class="tr-hi2"><td>2024-06</td><td>food</td><td>4000</td><td>7500</td><td class="tc-y">4000/7500×100 = 53.33%</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：GROUP BY と SUM の関係：</strong><code>GROUP BY</code> は指定した列の値が同じ行をひとまとめにします。<code>SUM(amount)</code> はその固まりの中の amount を合計します。<code>GROUP BY</code> に書いた列と集計関数だけが <code>SELECT</code> に書けます（他の列は書けません）。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CTE は「処理の名前付き中間テーブル」：</strong>CTE に名前を付けると、あとの CTE や最終 SELECT でそのまま使えます。同じ集計を2回書く必要がなくなり、クエリが「処理の流れを読むドキュメント」のようになります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>::NUMERIC キャストとゼロ除算：</strong>PostgreSQL で整数 ÷ 整数は結果も整数になります（例: 3 / 2 = 1）。<code>::NUMERIC</code> で浮動小数点に変換すると正確な比率が得られます。また <code>NULLIF(month_total, 0)</code> でゼロ除算を防げます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>MATERIALIZED ヒント：</strong>PostgreSQL 12 以降では <code>WITH cte AS MATERIALIZED (...)</code> と書くと CTE が必ず一度だけ物理的に計算されます（デフォルトはプランナが判断）。同じ CTE を複数回参照するときにパフォーマンスの予測が立てやすくなります。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>サブクエリを深くネストしすぎる：</strong>同じことを CTE なしで書くと <code>SELECT ... FROM (SELECT ... FROM (SELECT ... FROM sales) ...) ...</code> のように3重・4重ネストになり、どのサブクエリが何を返すのかほぼ追えなくなる。CTE は保守コストを劇的に下げる。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTE 内で必要以上の列を SELECT する：</strong>CTE で <code>SELECT *</code> を使うと不要な列も中間結果に含まれ、データ量が増える。後で使う列だけを明示的に書くこと。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：バッチ集計レポートと CTE 設計</div>
+<div class="column-body">
+月次・週次の売上レポートをバッチで生成するとき、<strong>CTE を使って処理を「生データ取得 → 集計 → 加工 → 出力」の4ブロックに整理する</strong>と、SQL の変更要求（「比率だけじゃなく前月比も欲しい」等）に素早く対応できます。また CTE は可読性が高いため、レビューでSQLのロジックを説明しやすくなるという副次効果もあります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  CASE WHEN + 条件付き集計 — ピボット集計と FILTER
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "CASE WHEN + 条件付き集計 — 在庫状況のピボット集計と FILTER 句",
+  tags: [["r","CASE WHEN"],["fn","SUM / FILTER"],["g","ピボット集計"],["o","在庫API"]],
+  premise: `<p><strong>CASE WHEN</strong> は SQL の条件分岐式です。集計関数の内部に組み込むことで、「特定条件を満たす行だけを集計する」いわゆる <em>条件付き集計（ピボット集計）</em> が実現できます。PostgreSQL では <code>FILTER (WHERE ...)</code> という専用の構文も使えます。</p>
+<pre><span class="cmt">-- CASE WHEN を使った条件付き集計（標準SQL）</span>
+<span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'active'</span> <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> active_sum
+
+<span class="cmt">-- FILTER 句を使った条件付き集計（PostgreSQL）</span>
+<span class="fn">SUM</span>(amount) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'active'</span>) <span class="kw">AS</span> active_sum</pre>
+<div class="callout"><strong>ピボット集計とは：</strong>行方向のデータを列方向に展開して、1行で複数のカテゴリの集計値を並べて見せること。Excelのピボットテーブルをイメージしてください。「行をカテゴリ別に分けてGROUP BY」ではなく「1行に複数カテゴリの合計を横並び」にする点が特徴です。</div>`,
+  question: `<p><code>inventory</code> テーブルから、<em>各倉庫（warehouse）ごとに「在庫あり（quantity > 0）の商品数」「在庫切れ（quantity = 0）の商品数」「全商品数」を1行にまとめた</em>ピボット集計を取得してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ inventory</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>item_id</th><th>warehouse</th><th>quantity</th></tr>
+        <tr><td>A01</td><td>東京</td><td>50</td></tr>
+        <tr><td>A02</td><td>東京</td><td>0</td></tr>
+        <tr><td>A03</td><td>東京</td><td>20</td></tr>
+        <tr><td>B01</td><td>大阪</td><td>0</td></tr>
+        <tr><td>B02</td><td>大阪</td><td>0</td></tr>
+        <tr><td>B03</td><td>大阪</td><td>15</td></tr>
+        <tr><td>C01</td><td>福岡</td><td>100</td></tr>
+        <tr><td>C02</td><td>福岡</td><td>30</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>倉庫別 在庫状況サマリー：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>warehouse</th><th class="tc-g">in_stock</th><th class="tc-r">out_of_stock</th><th class="tc-hi">total_items</th></tr>
+<tr class="tr-hi2"><td>東京</td><td class="tc-g">2</td><td class="tc-r">1</td><td class="tc-hi">3</td></tr>
+<tr class="tr-hi4"><td>大阪</td><td class="tc-g">1</td><td class="tc-r">2</td><td class="tc-hi">3</td></tr>
+<tr class="tr-hi3"><td>福岡</td><td class="tc-g">2</td><td class="tc-r">0</td><td class="tc-hi">2</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  warehouse,
+
+  <span class="cmt">-- ① CASE WHEN を使った条件付き集計（標準SQL・どのDBでも使える）</span>
+  <span class="fn">COUNT</span>(<span class="kw">CASE WHEN</span> quantity <span class="op">></span> <span class="num">0</span> <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">END</span>) <span class="kw">AS</span> in_stock,
+  <span class="cmt">-- WHEN条件が真のとき 1 を返す → COUNT が 1 を数える</span>
+  <span class="cmt">-- 条件が偽のとき ELSE がないので NULL → COUNT は NULL を無視 → 件数に含まれない</span>
+
+  <span class="cmt">-- ② FILTER 句を使った同等の書き方（PostgreSQL拡張・こちらが推奨）</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> quantity <span class="op">=</span> <span class="num">0</span>) <span class="kw">AS</span> out_of_stock,
+  <span class="cmt">-- FILTER句: quantity = 0 の行だけを COUNT(*) の対象にする</span>
+
+  <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> total_items             <span class="cmt">-- 【超基礎】全行数（条件なし）</span>
+
+<span class="kw">FROM</span>   <span class="tbl">inventory</span>
+<span class="kw">GROUP BY</span> warehouse                    <span class="cmt">-- 【超基礎】倉庫ごとにグループ化して集計</span>
+<span class="kw">ORDER BY</span> warehouse;                   <span class="cmt">-- 【超基礎】倉庫名の昇順で並び替え</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM inventory              → 全行を対象にする
+  2. GROUP BY warehouse          → 倉庫ごとにグループを作る（3グループ）
+  3. COUNT(CASE WHEN ...)        → 各グループ内で quantity > 0 の行数をカウント
+  4. COUNT(*) FILTER (WHERE ...) → 各グループ内で quantity = 0 の行数をカウント
+  5. COUNT(*)                    → 各グループの全行数をカウント
+  6. SELECT warehouse, ...       → 各グループの集計結果を1行として出力
+  7. ORDER BY warehouse          → 倉庫名昇順で並び替え
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>GROUP BY warehouse — 倉庫ごとにグループ分け</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>warehouse</th><th>グループ内の quantity 一覧</th></tr>
+<tr class="tr-hi2"><td>東京</td><td>50, 0, 20</td></tr>
+<tr class="tr-hi4"><td>大阪</td><td>0, 0, 15</td></tr>
+<tr class="tr-hi3"><td>福岡</td><td>100, 30</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">CASE WHEN で各グループ内の行を「在庫あり/なし」に仕分け</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>CASE WHEN の行ごとの動作 — 東京グループの例</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>item_id</th><th>quantity</th><th>CASE WHEN qty &gt; 0 THEN 1 END</th><th>CASE WHEN qty = 0 THEN 1 END</th></tr>
+<tr class="tr-hi2"><td>A01</td><td>50</td><td class="tc-g">1（カウントされる）</td><td class="null">NULL（無視）</td></tr>
+<tr class="tr-hi"><td>A02</td><td>0</td><td class="null">NULL（無視）</td><td class="tc-r">1（カウントされる）</td></tr>
+<tr class="tr-hi2"><td>A03</td><td>20</td><td class="tc-g">1（カウントされる）</td><td class="null">NULL（無視）</td></tr>
+<tr><td colspan="2">COUNT 結果</td><td class="tc-g">in_stock = 2</td><td class="tc-r">out_of_stock = 1</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">全倉庫の集計結果を横並びに出力</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>CASE WHEN vs FILTER 句 — 書き方の比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>手法</th><th>記述例</th><th>対応DB</th><th>可読性</th></tr>
+<tr class="tr-hi2"><td>CASE WHEN</td><td>COUNT(CASE WHEN qty &gt; 0 THEN 1 END)</td><td class="tc-g">全DBMS対応</td><td>中</td></tr>
+<tr class="tr-hi"><td class="tc-g">FILTER句（推奨）</td><td>COUNT(*) FILTER (WHERE qty &gt; 0)</td><td>PostgreSQL / SQLite 3.30+</td><td class="tc-g">高い（意図が明確）</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：CASE WHEN の構造：</strong><code>CASE WHEN 条件 THEN 値 ELSE デフォルト値 END</code> が基本構文です。ELSE を省略するとマッチしなかった行は NULL になります。COUNT は NULL を無視するため、「THEN 1、ELSE なし」パターンで「条件を満たす行数だけカウント」が実現できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ピボット集計の使いどき：</strong>「縦持ちのカテゴリデータを横持ちのレポートに変換する」場面が典型例。「各月の成功・失敗件数を1行に」「各倉庫の在庫あり・なし件数を1行に」など、行を減らして列を増やす集計が必要なときに使います。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>SUM(CASE WHEN ... THEN amount END) パターン：</strong>COUNT だけでなく SUM にも適用できます。<code>SUM(CASE WHEN category = 'food' THEN amount ELSE 0 END)</code> で「food カテゴリの売上合計のみ」を同じ行の他カテゴリ合計と並べられます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>ウィンドウ関数との組み合わせ：</strong><code>COUNT(*) FILTER (WHERE qty &gt; 0) OVER (PARTITION BY warehouse)</code> のように FILTER は集計ウィンドウ関数とも組み合わせられます。グループ集計と行レベル処理を同時に行う高度な用法です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CASE WHEN の ELSE 0 と ELSE NULL の混同：</strong>SUM での条件付き集計では <code>ELSE 0</code> でも <code>ELSE 省略（NULL）</code> でも通常は同じ結果になりますが、AVG では違います。<code>AVG(CASE WHEN qty &gt; 0 THEN qty ELSE 0 END)</code> はゼロ行も平均に含まれますが、<code>AVG(CASE WHEN qty &gt; 0 THEN qty END)</code> は在庫ありの行だけで平均を計算します。意図を明確にすること。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE と CASE WHEN の役割を混同する：</strong>「在庫ありの行だけを残す」なら WHERE で十分。CASE WHEN は「残しつつ値を変える・分岐集計する」ときに使うものです。不要に CASE WHEN を使うと可読性が下がります。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：在庫アラートAPIへの応用</div>
+<div class="column-body">
+在庫管理システムのAPIでは「在庫切れ商品が多い倉庫にアラートを飛ばす」バッチが典型的なユースケースです。このクエリのように<strong>倉庫ごとの在庫状況を1回のSQLで集計</strong>してアプリケーション側に返すことで、N+1問題（倉庫ごとに別々にクエリを投げる）を避けられます。さらに <code>HAVING out_of_stock &gt; 0</code> を加えれば在庫切れがある倉庫だけに絞れます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  ウィンドウ関数 LAG/LEAD — 前月比の計算
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "LAG / LEAD — 前月比・前行比の計算でトレンドを可視化する",
+  tags: [["r","LAG / LEAD"],["fn","OVER PARTITION BY"],["g","前月比"],["o","売上分析"]],
+  premise: `<p><strong>LAG(列, n)</strong> はウィンドウ関数で、現在行から n 行前の値を返します。<strong>LEAD(列, n)</strong> は逆に n 行後の値を返します。GROUP BY して行を集約することなく「前の行との差分」を同じ行に付与できるのが最大の特徴です。</p>
+<pre><span class="fn">LAG</span>(col, <span class="num">1</span>, <span class="num">0</span>) <span class="kw">OVER</span> (            <span class="cmt">-- col の 1行前の値。前行がない場合はデフォルト 0</span>
+  <span class="kw">PARTITION BY</span> group_col         <span class="cmt">-- グループ内で独立した順序を保つ</span>
+  <span class="kw">ORDER BY</span>     sort_col          <span class="cmt">-- この順序で「前後」を定義する（必須）</span>
+)
+
+<span class="fn">LEAD</span>(col, <span class="num">1</span>) <span class="kw">OVER</span> (             <span class="cmt">-- col の 1行後の値（次の行）</span>
+  <span class="kw">ORDER BY</span> sort_col
+)</pre>
+<div class="callout warn"><strong>ORDER BY は必須：</strong>ウィンドウ関数で LAG/LEAD を使うときは <code>OVER</code> 句内の <code>ORDER BY</code> が必須です。順序が定まらないと「前の行」が何なのか決まりません。</div>`,
+  question: `<p><code>monthly_sales</code> テーブルから、<em>各商品（product_id）の月別売上と前月売上・前月比（%）</em>を取得してください。前月データがない場合（最初の月）は前月売上は NULL、前月比は NULL で構いません。結果は product_id・month の昇順で並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ monthly_sales</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>month</th><th>revenue</th></tr>
+        <tr><td>P01</td><td>2024-03</td><td>10000</td></tr>
+        <tr><td>P01</td><td>2024-04</td><td>12000</td></tr>
+        <tr><td>P01</td><td>2024-05</td><td>9000</td></tr>
+        <tr><td>P02</td><td>2024-03</td><td>5000</td></tr>
+        <tr><td>P02</td><td>2024-04</td><td>7500</td></tr>
+        <tr><td>P02</td><td>2024-05</td><td>7500</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>前月比付き月別売上（product_id・month 昇順）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>product_id</th><th>month</th><th>revenue</th><th class="tc-g">prev_revenue</th><th class="tc-y">mom_pct</th></tr>
+<tr class="tr-hi"><td>P01</td><td>2024-03</td><td>10000</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+<tr class="tr-hi"><td>P01</td><td>2024-04</td><td>12000</td><td class="tc-g">10000</td><td class="tc-y">+20.00</td></tr>
+<tr class="tr-hi"><td>P01</td><td>2024-05</td><td>9000</td><td class="tc-g">12000</td><td class="tc-y">-25.00</td></tr>
+<tr class="tr-hi2"><td>P02</td><td>2024-03</td><td>5000</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+<tr class="tr-hi2"><td>P02</td><td>2024-04</td><td>7500</td><td class="tc-g">5000</td><td class="tc-y">+50.00</td></tr>
+<tr class="tr-hi2"><td>P02</td><td>2024-05</td><td>7500</td><td class="tc-g">7500</td><td class="tc-y">0.00</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  product_id,
+  month,
+  revenue,
+
+  <span class="cmt">-- ① 前月の revenue を取得（同一 product_id の1行前）</span>
+  <span class="fn">LAG</span>(revenue, <span class="num">1</span>)                          <span class="cmt">-- 第1引数: 参照する列、第2引数: 何行前か（1=直前）</span>
+    <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> product_id               <span class="cmt">-- product_id ごとに独立した順序で評価</span>
+      <span class="kw">ORDER BY</span>     month                    <span class="cmt">-- month の昇順が「前後」の基準</span>
+    ) <span class="kw">AS</span> prev_revenue,                      <span class="cmt">-- 最初の月は前行なし → NULL</span>
+
+  <span class="cmt">-- ② 前月比（%）: (今月 - 前月) / 前月 × 100</span>
+  <span class="fn">ROUND</span>(
+    (revenue <span class="op">-</span> <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> product_id <span class="kw">ORDER BY</span> month))
+    <span class="op">::</span><span class="kw">NUMERIC</span>
+    <span class="op">/</span> <span class="fn">NULLIF</span>(<span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> product_id <span class="kw">ORDER BY</span> month), <span class="num">0</span>)
+    <span class="op">*</span> <span class="num">100</span>, <span class="num">2</span>
+  ) <span class="kw">AS</span> mom_pct
+  <span class="cmt">-- NULLIF(前月, 0): 前月売上が 0 の場合にゼロ除算エラーを防ぐ</span>
+  <span class="cmt">-- 前月がNULL → 計算結果も NULL（前月比なし）</span>
+
+<span class="kw">FROM</span>   <span class="tbl">monthly_sales</span>
+<span class="kw">ORDER BY</span> product_id, month;              <span class="cmt">-- 【超基礎】複数列でのソート。先に書いた列が優先</span>
+
+<span class="cmt">/*
+  実行順序（ウィンドウ関数）:
+  1. FROM monthly_sales           → 全行を読み込む（6行）
+  2. ORDER BY product_id, month   → ソートして行の順序を確定させる（ウィンドウ計算前に必要）
+  3. LAG(revenue,1) OVER(...)     → PARTITION BY product_id で2グループに分け
+                                    ORDER BY month の順で各行の1行前の値を取得
+  4. ROUND(... / NULLIF(...))     → 前月比を計算（NULLsafe）
+  5. SELECT ...                   → 必要な列を選択して出力
+  ※ ウィンドウ関数は GROUP BY のように行を集約しない点が重要
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>PARTITION BY product_id — 商品ごとに独立した「窓」を作る</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>パーティション</th><th>行の順序（ORDER BY month）</th><th>LAG(revenue,1) の値</th></tr>
+<tr class="tr-hi"><td rowspan="3">P01 のウィンドウ</td><td>2024-03: revenue=10000</td><td class="null">NULL（前行なし）</td></tr>
+<tr class="tr-hi"><td>2024-04: revenue=12000</td><td class="tc-g">10000（1行前）</td></tr>
+<tr class="tr-hi"><td>2024-05: revenue=9000</td><td class="tc-g">12000（1行前）</td></tr>
+<tr class="tr-hi2"><td rowspan="3">P02 のウィンドウ</td><td>2024-03: revenue=5000</td><td class="null">NULL（前行なし）</td></tr>
+<tr class="tr-hi2"><td>2024-04: revenue=7500</td><td class="tc-g">5000（1行前）</td></tr>
+<tr class="tr-hi2"><td>2024-05: revenue=7500</td><td class="tc-g">7500（1行前）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">前月比の計算式 (今月 - 前月) / 前月 × 100</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>前月比の計算 — P01 の例</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month</th><th>revenue</th><th>prev_revenue</th><th class="tc-y">mom_pct の計算</th></tr>
+<tr class="tr-hi"><td>2024-03</td><td>10000</td><td class="null">NULL</td><td class="null">NULL（前月なし）</td></tr>
+<tr class="tr-hi"><td>2024-04</td><td>12000</td><td>10000</td><td class="tc-y">(12000-10000)/10000×100 = +20.00%</td></tr>
+<tr class="tr-hi"><td>2024-05</td><td>9000</td><td>12000</td><td class="tc-y">(9000-12000)/12000×100 = -25.00%</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">LAG / LEAD の使い分け</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>LAG vs LEAD の使い分け</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>関数</th><th>取得する行</th><th>代表的な用途</th></tr>
+<tr class="tr-hi"><td class="tc-g">LAG(col, 1)</td><td>現在行の1行前（過去方向）</td><td>前月比、前日比、前回との差分</td></tr>
+<tr class="tr-hi2"><td class="tc-g">LEAD(col, 1)</td><td>現在行の1行後（未来方向）</td><td>次月予測比較、次の予定日取得</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：ウィンドウ関数と GROUP BY の違い：</strong>GROUP BY はグループを「1行に集約」しますが、ウィンドウ関数は行を集約せず「元の行を保ちながら集計値を付与」します。これが最大の違いです。<code>OVER()</code> 句があればウィンドウ関数です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>PARTITION BY は省略可能：</strong>PARTITION BY を省略すると全行が1つのパーティションとして扱われます。例えば全商品合計での前月比なら <code>LAG(revenue,1) OVER (ORDER BY month)</code> でOKです。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>FIRST_VALUE / LAST_VALUE との比較：</strong><code>FIRST_VALUE(revenue) OVER (PARTITION BY product_id ORDER BY month)</code> はパーティション内の最初の行の値（= 最古月の売上）を全行に付与できます。「今月売上 / 初月売上 × 100」のような成長率計算に使えます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>NTILE(n) で分位数分類：</strong><code>NTILE(4) OVER (ORDER BY revenue DESC)</code> で売上上位25%・50%・75%・100%のグループに分けられます。四分位分析やランク付けAPIに便利です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>OVER 句に ORDER BY を書き忘れる：</strong>LAG/LEAD は「前後」を ORDER BY で定義しないと機能しません。ORDER BY なしの LAG はエラーになるか不定動作になります（DBによる）。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>月の欠損を考慮しない：</strong>4月のデータが抜けている場合、LAG は「3月の前=2月」ではなく「5月の前=3月（前レコード）」を返します。月の連続性が必要な場合は generate_series で月を補完してから LAG を適用すること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：トレンド分析APIの設計</div>
+<div class="column-body">
+ダッシュボードAPIでは「前月比・前週比の推移グラフ」が定番の機能です。LAG を使うことで<strong>アプリ側での差分計算を不要にし、SQLだけで完結したレスポンスを返せます</strong>。また、LAG の第3引数（デフォルト値）を <code>0</code> にするか <code>NULL</code> のままにするかで「最初の月の前月比をゼロにするか非表示にするか」をSQL側でコントロールできます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  再帰CTE — カテゴリ階層の全子孫取得
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "再帰CTE（WITH RECURSIVE） — カテゴリ階層の全子孫を取得する",
+  tags: [["r","WITH RECURSIVE"],["fn","UNION ALL"],["g","階層データ"],["o","カテゴリAPI"]],
+  premise: `<p><strong>WITH RECURSIVE</strong> は、CTE が自分自身を参照する「再帰クエリ」を書くための構文です。階層データ（カテゴリツリー・組織図・部品表）を再帰的にたどるときに使います。</p>
+<pre><span class="kw">WITH RECURSIVE</span> <span class="tbl">cte</span> <span class="kw">AS</span> (
+  <span class="cmt">-- ① アンカー部（再帰の起点。最初に1回だけ実行）</span>
+  <span class="kw">SELECT</span> id, parent_id, name, <span class="num">0</span> <span class="kw">AS</span> depth
+  <span class="kw">FROM</span>   <span class="tbl">categories</span>
+  <span class="kw">WHERE</span>  id <span class="op">=</span> <span class="num">1</span>                  <span class="cmt">-- 起点となる行を1件選ぶ</span>
+
+  <span class="kw">UNION ALL</span>                      <span class="cmt">-- アンカー部と再帰部をつなぐ（重複排除なしで高速）</span>
+
+  <span class="cmt">-- ② 再帰部（cte = 前の反復の結果を参照。結果が0行になるまで繰り返す）</span>
+  <span class="kw">SELECT</span> c.id, c.parent_id, c.name, r.depth <span class="op">+</span> <span class="num">1</span>
+  <span class="kw">FROM</span>   <span class="tbl">categories</span> c
+  <span class="kw">JOIN</span>   <span class="tbl">cte</span>         r <span class="kw">ON</span> c.parent_id <span class="op">=</span> r.id  <span class="cmt">-- 前の反復の id を親IDとして持つ行を取得</span>
+)
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">cte</span>;</pre>
+<div class="callout warn"><strong>無限ループ注意：</strong>データに循環参照（A→B→A）があると再帰が止まらなくなります。<code>depth &lt; 10</code> などの上限条件か、<code>path</code> 列を使ったループ検知を必ず入れましょう。</div>`,
+  question: `<p><code>categories</code> テーブルは parent_id で自己参照する階層構造です。<em>category_id = 1 を起点として、その全ての子孫カテゴリ（直接の子だけでなく孫・曾孫も含む）</em>を depth（階層深さ）付きで取得してください。深さは起点を 0 とします。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ categories</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>category_id</th><th>parent_id</th><th>name</th></tr>
+        <tr><td>1</td><td class="null">NULL</td><td>食品</td></tr>
+        <tr><td>2</td><td>1</td><td>飲料</td></tr>
+        <tr><td>3</td><td>1</td><td>菓子</td></tr>
+        <tr><td>4</td><td>2</td><td>コーヒー</td></tr>
+        <tr><td>5</td><td>2</td><td>ジュース</td></tr>
+        <tr><td>6</td><td>3</td><td>チョコレート</td></tr>
+        <tr><td>7</td><td>10</td><td>雑貨（別ツリー）</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>category_id=1（食品）配下の全子孫：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>category_id</th><th>parent_id</th><th>name</th><th class="tc-hi">depth</th></tr>
+<tr class="tr-hi"><td>1</td><td class="null">NULL</td><td>食品</td><td class="tc-hi">0</td></tr>
+<tr class="tr-hi2"><td>2</td><td>1</td><td>飲料</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi2"><td>3</td><td>1</td><td>菓子</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi3"><td>4</td><td>2</td><td>コーヒー</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi3"><td>5</td><td>2</td><td>ジュース</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi3"><td>6</td><td>3</td><td>チョコレート</td><td class="tc-hi">2</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH RECURSIVE</span> <span class="tbl">category_tree</span> <span class="kw">AS</span> (
+
+  <span class="cmt">-- ① アンカー部：起点となる行（食品 = category_id 1）を1行取得</span>
+  <span class="kw">SELECT</span>
+    category_id,
+    parent_id,
+    name,
+    <span class="num">0</span> <span class="kw">AS</span> depth                          <span class="cmt">-- 起点の深さを 0 に設定</span>
+  <span class="kw">FROM</span>   <span class="tbl">categories</span>
+  <span class="kw">WHERE</span>  category_id <span class="op">=</span> <span class="num">1</span>                <span class="cmt">-- 再帰の起点を指定（食品カテゴリ）</span>
+
+  <span class="kw">UNION ALL</span>                             <span class="cmt">-- アンカー結果と再帰結果を縦に結合</span>
+
+  <span class="cmt">-- ② 再帰部：前の反復結果 (category_tree) の id を親に持つ行を取得</span>
+  <span class="kw">SELECT</span>
+    c.category_id,
+    c.parent_id,
+    c.name,
+    ct.depth <span class="op">+</span> <span class="num">1</span>                        <span class="cmt">-- 深さを1増やす（depth: 0→1→2...）</span>
+  <span class="kw">FROM</span>   <span class="tbl">categories</span>     c
+  <span class="kw">JOIN</span>   <span class="tbl">category_tree</span>  ct
+         <span class="kw">ON</span> c.parent_id <span class="op">=</span> ct.category_id  <span class="cmt">-- 前回の結果の category_id を親に持つ子を探す</span>
+  <span class="kw">WHERE</span>  ct.depth <span class="op"><</span> <span class="num">10</span>                  <span class="cmt">-- 安全装置: 深さ10を超えたら再帰を止める（無限ループ防止）</span>
+)
+
+<span class="kw">SELECT</span> category_id, parent_id, name, depth
+<span class="kw">FROM</span>   <span class="tbl">category_tree</span>
+<span class="kw">ORDER BY</span> depth, category_id;            <span class="cmt">-- 深さ順 → 同一深さはcategory_id順</span>
+
+<span class="cmt">/*
+  実行順序（WITH RECURSIVE）:
+  1. アンカー部実行 → { id=1, 食品, depth=0 } の1行
+  2. 再帰1回目: parent_id=1 を持つ行 → { id=2, 飲料, depth=1 }, { id=3, 菓子, depth=1 }
+  3. 再帰2回目: parent_id=2 or 3 を持つ行 → { id=4, コーヒー, depth=2 },
+               { id=5, ジュース, depth=2 }, { id=6, チョコレート, depth=2 }
+  4. 再帰3回目: parent_id=4,5,6 を持つ行 → 該当なし → 再帰終了
+  5. UNION ALL で全反復の結果を縦積みにして 6行
+  6. SELECT / ORDER BY で最終出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>再帰の実行イメージ — 反復ごとの取得行</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>反復</th><th>取得する行</th><th>depth</th><th>次の再帰で探す親ID</th></tr>
+<tr class="tr-hi"><td>アンカー</td><td>食品 (id=1)</td><td class="tc-hi">0</td><td>1</td></tr>
+<tr class="tr-hi2"><td>1回目</td><td>飲料 (id=2), 菓子 (id=3)</td><td class="tc-hi">1</td><td>2, 3</td></tr>
+<tr class="tr-hi3"><td>2回目</td><td>コーヒー(id=4), ジュース(id=5), チョコ(id=6)</td><td class="tc-hi">2</td><td>4, 5, 6</td></tr>
+<tr class="tr-dim"><td>3回目</td><td>（該当なし → 終了）</td><td>-</td><td>-</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">別ツリーの category_id=7（雑貨）は parent_id=10 → 食品ツリーに含まれない</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>階層構造の可視化</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th colspan="4">食品（id=1, depth=0）</th></tr>
+<tr><td>　</td><th colspan="3">飲料（id=2, depth=1）</th></tr>
+<tr><td>　</td><td>　</td><th colspan="2">コーヒー（id=4, depth=2）</th></tr>
+<tr><td>　</td><td>　</td><th colspan="2">ジュース（id=5, depth=2）</th></tr>
+<tr><td>　</td><th colspan="3">菓子（id=3, depth=1）</th></tr>
+<tr><td>　</td><td>　</td><th colspan="2">チョコレート（id=6, depth=2）</th></tr>
+</table></div>
+</div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>UNION vs UNION ALL の違い（再帰では必ず UNION ALL）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>演算子</th><th>重複排除</th><th>再帰での使用</th><th>備考</th></tr>
+<tr class="tr-hi4"><td>UNION ALL</td><td class="tc-g">しない（高速）</td><td class="tc-g">必ず使う</td><td>再帰部では必ずこちら</td></tr>
+<tr class="tr-hi"><td>UNION</td><td class="tc-r">する（遅い）</td><td class="tc-r">PostgreSQLでは再帰に使えない</td><td>通常のUNIONに使う</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：自己参照テーブルとは：</strong>自己参照テーブルは「同じテーブルの行を親として参照する構造」です。<code>parent_id</code> が同テーブルの <code>category_id</code> を指します。組織図・カテゴリツリー・部品表などで広く使われます。NULL の parent_id は「親がいない = ルート」を意味します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>path 列でループ検知：</strong><code>ARRAY[category_id] AS path</code> から再帰で <code>path || c.category_id</code> と積み上げ、<code>WHERE NOT c.category_id = ANY(ct.path)</code> とすることで循環参照を検出して無限ループを完全に防げます。depth による上限より安全です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>経路（パス）文字列の生成：</strong><code>'食品 > 飲料 > コーヒー'</code> のような経路表示も再帰CTEで作れます。アンカーで <code>name AS path</code>、再帰部で <code>ct.path || ' > ' || c.name AS path</code> と連結していくと各行にフルパスが付きます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>ltree 拡張：</strong>PostgreSQL には <code>ltree</code> というパス型があり <code>'food.drink.coffee'</code> のような文字列でツリーを表現し、<code>@&gt;</code>（先祖判定）や <code>~</code>（パスパターンマッチ）で高速に階層検索できます。大規模な階層データには ltree のほうが適しています。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>無限ループへの無防備な実装：</strong>本番データで循環参照（A→B→C→A）が発生すると再帰が止まらず、DBがメモリ/CPU を使い切るまで走り続ける。必ず depth 上限 か path 列によるループ検知を入れること。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>アプリ側の再帰で N+1 クエリを発行する：</strong>アプリケーション側で「子を取得→その子を取得→…」と繰り返すパターンは、深さ×幅の本数のクエリを発行してしまう（N+1問題の再帰版）。WITH RECURSIVE を使えば1クエリで全階層を取得できる。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：ECサイトのカテゴリAPI設計</div>
+<div class="column-body">
+ECサイトでは「食品 &gt; 飲料 &gt; コーヒー」のようなカテゴリツリーをAPIで返すことが多くあります。<strong>WITH RECURSIVE を使えば「全ツリーを1回のSQLで取得 → アプリ側でツリー構造に組み立て」</strong>という効率的な実装が可能です。逆に「あるカテゴリの全祖先を取得して、パンくずリストを生成する」用途では、起点を末端カテゴリにして parent_id をたどる方向に再帰を書きます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6  LATERAL JOIN — 各カテゴリのTOP N件を一括取得
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "LATERAL JOIN — 各カテゴリの売上TOP3商品を一括取得する",
+  tags: [["r","LATERAL JOIN"],["fn","LIMIT"],["g","TOP N取得"],["o","ランキングAPI"]],
+  premise: `<p><strong>LATERAL</strong> は、JOIN の右側のサブクエリが左側の行の列を参照できるようにする構文です。「左側の各行に対して、その行の値を条件にしたサブクエリを実行する」という相関サブクエリのJOIN版です。</p>
+<pre><span class="kw">SELECT</span> *
+<span class="kw">FROM</span>   <span class="tbl">categories</span> c
+<span class="kw">JOIN</span> <span class="kw">LATERAL</span> (                       <span class="cmt">-- 右側のサブクエリが左側の c.category_id を参照できる</span>
+  <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">products</span> p
+  <span class="kw">WHERE</span>  p.category_id <span class="op">=</span> c.category_id  <span class="cmt">-- ← 左側の c を参照（LATERAL の核心）</span>
+  <span class="kw">ORDER BY</span> p.revenue <span class="kw">DESC</span>
+  <span class="kw">LIMIT</span>  <span class="num">3</span>                            <span class="cmt">-- カテゴリごとに上位3件に絞る</span>
+) sub <span class="kw">ON</span> <span class="kw">TRUE</span>;                        <span class="cmt">-- ON TRUE: LATERAL は JOIN 条件をサブクエリ内で処理済み</span></pre>
+<div class="callout ok"><strong>「各グループのTOP N」はLATERALが最も直感的：</strong>ROW_NUMBER()でも実現できますが、LATERALは「カテゴリごとに上位3件」という意図がコードに直接現れるため可読性が高いです。</div>`,
+  question: `<p><code>categories</code> テーブルと <code>products</code> テーブルを使い、<em>各カテゴリの売上（revenue）上位3商品</em>をカテゴリ名付きで取得してください。3商品に満たないカテゴリも全件含めること（<code>LEFT JOIN LATERAL</code>）。結果はカテゴリID・売上降順で並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ categories</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>category_id</th><th>name</th></tr>
+        <tr><td>1</td><td>飲料</td></tr>
+        <tr><td>2</td><td>食品</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ products</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>category_id</th><th>name</th><th>revenue</th></tr>
+        <tr><td>P01</td><td>1</td><td>コーヒー</td><td>50000</td></tr>
+        <tr><td>P02</td><td>1</td><td>紅茶</td><td>30000</td></tr>
+        <tr><td>P03</td><td>1</td><td>緑茶</td><td>45000</td></tr>
+        <tr><td>P04</td><td>1</td><td>水</td><td>20000</td></tr>
+        <tr><td>P05</td><td>2</td><td>パン</td><td>25000</td></tr>
+        <tr><td>P06</td><td>2</td><td>おにぎり</td><td>18000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>各カテゴリのTOP3商品（LEFT JOIN LATERAL）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>category_id</th><th>category_name</th><th>product_id</th><th>product_name</th><th class="tc-y">revenue</th><th class="tc-hi">rank</th></tr>
+<tr class="tr-hi"><td>1</td><td>飲料</td><td>P01</td><td>コーヒー</td><td class="tc-y">50000</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi"><td>1</td><td>飲料</td><td>P03</td><td>緑茶</td><td class="tc-y">45000</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi"><td>1</td><td>飲料</td><td>P02</td><td>紅茶</td><td class="tc-y">30000</td><td class="tc-hi">3</td></tr>
+<tr class="tr-hi2"><td>2</td><td>食品</td><td>P05</td><td>パン</td><td class="tc-y">25000</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi2"><td>2</td><td>食品</td><td>P06</td><td>おにぎり</td><td class="tc-y">18000</td><td class="tc-hi">2</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  c.category_id,
+  c.name                <span class="kw">AS</span> category_name,
+  sub.product_id,
+  sub.name              <span class="kw">AS</span> product_name,
+  sub.revenue,
+  sub.rank                                  <span class="cmt">-- LATERAL サブクエリ内で付けた順位</span>
+<span class="kw">FROM</span>   <span class="tbl">categories</span> c
+
+<span class="kw">LEFT JOIN LATERAL</span> (                         <span class="cmt">-- LEFT: 商品が1件もないカテゴリも残す</span>
+  <span class="kw">SELECT</span>
+    p.product_id,
+    p.name,
+    p.revenue,
+    <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> p.revenue <span class="kw">DESC</span>) <span class="kw">AS</span> rank  <span class="cmt">-- カテゴリ内の売上ランク</span>
+  <span class="kw">FROM</span>   <span class="tbl">products</span> p
+  <span class="kw">WHERE</span>  p.category_id <span class="op">=</span> c.category_id    <span class="cmt">-- ← 左側(c)の値を参照 → これがLATERALの特徴</span>
+  <span class="kw">ORDER BY</span> p.revenue <span class="kw">DESC</span>                <span class="cmt">-- 売上の高い順に並べ</span>
+  <span class="kw">LIMIT</span>  <span class="num">3</span>                               <span class="cmt">-- カテゴリごとに上位3件だけに絞る</span>
+) sub <span class="kw">ON TRUE</span>                             <span class="cmt">-- ON TRUE: JOIN条件はLATERAL内のWHEREで処理済み</span>
+
+<span class="kw">ORDER BY</span> c.category_id, sub.revenue <span class="kw">DESC</span>; <span class="cmt">-- カテゴリ順 → 売上降順</span>
+
+<span class="cmt">/*
+  実行順序（LATERAL JOIN）:
+  1. FROM categories c           → 左側テーブル全行（2行: 飲料, 食品）
+  2. LEFT JOIN LATERAL (sub)     → 左側の各行ごとに LATERAL サブクエリを実行
+     a. 飲料(c.category_id=1)の場合:
+        → products から category_id=1 に絞り revenue 降順で上位3件を取得
+        → P01(50000), P03(45000), P02(30000) の3行
+     b. 食品(c.category_id=2)の場合:
+        → products から category_id=2 に絞り revenue 降順で上位3件を取得
+        → P05(25000), P06(18000) の2行（3件未満でもLEFT JOINなので全件）
+  3. SELECT ...                  → c と sub の列を結合して出力
+  4. ORDER BY                    → カテゴリ→売上降順で並び替え
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>LATERAL の動作 — 左側の各行に対してサブクエリを実行</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>左側(c)の行</th><th>LATERAL サブクエリの動作</th><th>取得件数</th></tr>
+<tr class="tr-hi"><td>飲料 (category_id=1)</td><td>category_id=1 の商品を revenue 降順 TOP3 取得</td><td class="tc-g">3件（P01, P03, P02）</td></tr>
+<tr class="tr-hi2"><td>食品 (category_id=2)</td><td>category_id=2 の商品を revenue 降順 TOP3 取得</td><td class="tc-g">2件（P05, P06）※3件未満</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">LATERAL vs 通常の JOIN の違い</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>通常の JOIN との違い</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>手法</th><th>右側サブクエリが左側を参照？</th><th>LIMIT の適用範囲</th></tr>
+<tr class="tr-hi4"><td>通常の JOIN (...) sub</td><td class="tc-r">できない（独立して評価）</td><td class="tc-r">全件に対して1回だけ</td></tr>
+<tr class="tr-hi2"><td class="tc-g">JOIN LATERAL (...) sub</td><td class="tc-g">できる（左側の列を参照可）</td><td class="tc-g">左の各行ごとに適用</td></tr>
+</table></div>
+</div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>LEFT JOIN LATERAL の効果 — 商品ゼロのカテゴリも保持</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>JOIN 種類</th><th>商品0件のカテゴリ</th><th>結果の行</th></tr>
+<tr class="tr-hi"><td class="tc-g">LEFT JOIN LATERAL</td><td class="tc-g">NULL行として残る</td><td>全カテゴリが出力される</td></tr>
+<tr class="tr-hi4"><td>（INNER）JOIN LATERAL</td><td class="tc-r">除外される</td><td>商品があるカテゴリのみ</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：JOIN と LEFT JOIN の違い：</strong>INNER JOIN は両側にマッチする行がある場合のみ結果に出ます。LEFT JOIN は左側テーブルの全行を残し、右側にマッチしなければ NULL で埋めます。「左側テーブルのすべてを残したいとき」は LEFT JOIN を選びます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LATERAL と ROW_NUMBER() の使い分け：</strong>どちらも「グループ内TOP N」を取得できますが、LATERAL は「カテゴリごとに独立した LIMIT」を書けるので直感的です。ROW_NUMBER() 版は CTEと組み合わせることが多く、複雑な順位条件がある場合に向いています。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>LATERAL はテーブル関数にも使える：</strong><code>LATERAL unnest(tags_array)</code> のようにテーブル関数（配列展開等）と組み合わせると、配列型の列を行に展開しながら JOIN できます。JSONBの配列展開でも活用されます。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>通常の LIMIT で全体に制限をかけてしまう：</strong>LATERAL なしで <code>JOIN (SELECT ... ORDER BY revenue DESC LIMIT 3) sub ON ...</code> と書くと、全カテゴリの中から上位3件になってしまい、カテゴリごとの TOP3 にはなりません。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LATERAL のサポート確認を怠る：</strong>LATERAL は PostgreSQL 9.3 以降でサポート。MySQL 8.0.14 以降も使用可。古いDBバージョンや一部のSQLiteでは非サポートのため、環境確認が必要です。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：ランキングAPIの設計</div>
+<div class="column-body">
+「カテゴリページのベストセラー商品TOP3」「ユーザーごとの直近注文TOP5」など、<strong>グループ内TOP N取得はAPIエンドポイントの定番要件</strong>です。アプリ側で「全商品を取得してからPython/JSでソートして先頭3件だけ使う」実装は大量データで致命的に非効率です。LATERALを使えばDB側で完結し、転送データ量を最小に抑えられます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  JSONB操作 — PostgreSQL の JSON型検索・更新
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "JSONB操作 — PostgreSQLのJSONBカラムを検索・集計・更新する",
+  tags: [["r","JSONB"],["fn","->> / @>"],["g","JSON検索"],["o","設定API"]],
+  premise: `<p>PostgreSQL の <strong>JSONB</strong> 型は JSON データをバイナリ形式で格納し、インデックスを使った高速検索が可能です。フレキシブルなデータ構造（ユーザー設定・タグ・メタデータ等）をRDB内で扱うときに使います。</p>
+<pre><span class="cmt">-- JSON値の取り出し（テキスト型 → キャスト可能）</span>
+col <span class="op">->></span>  <span class="str">'key'</span>            <span class="cmt">-- テキストとして取り出す（よく使う）</span>
+col <span class="op">-></span>   <span class="str">'key'</span>            <span class="cmt">-- JSONB型のまま取り出す（ネスト参照に続けて使う）</span>
+col <span class="op">->></span>  <span class="num">0</span>               <span class="cmt">-- JSON配列の index 0 をテキストで取り出す</span>
+
+<span class="cmt">-- 包含チェック（GINインデックスと組み合わせると高速）</span>
+col <span class="op">@></span>  <span class="str">'{"key": "value"}'</span><span class="op">::</span><span class="kw">jsonb</span>   <span class="cmt">-- col が指定のキー/値を含むか</span>
+
+<span class="cmt">-- JSONB列の部分更新</span>
+<span class="fn">jsonb_set</span>(col, <span class="str">'{key}'</span>, <span class="str">'"new_value"'</span><span class="op">::</span><span class="kw">jsonb</span>)  <span class="cmt">-- 指定パスの値を新しい値に置き換える</span></pre>
+<div class="callout"><strong>text vs JSONB：</strong>JSON文字列をそのままTEXT型で保存するとSQLで中身を検索できません。JSONBを使うとキー・値を条件に絞り込めます。GINインデックスを貼ると <code>@&gt;</code> 演算子が高速になります。</div>`,
+  question: `<p><code>user_settings</code> テーブルの <code>settings</code> 列（JSONB型）に対して、①<em>通知が有効（notifications = true）なユーザー</em>を抽出するクエリと、②<em>全ユーザーの theme 設定の集計</em>（何人がdark/lightを使っているか）を取得してください。さらに③<em>user_id=1 の language を 'en' → 'ja' に更新</em>してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ user_settings</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>settings (JSONB)</th></tr>
+        <tr><td>1</td><td>{"theme":"dark","language":"en","notifications":true}</td></tr>
+        <tr><td>2</td><td>{"theme":"light","language":"ja","notifications":false}</td></tr>
+        <tr><td>3</td><td>{"theme":"dark","language":"ja","notifications":true}</td></tr>
+        <tr><td>4</td><td>{"theme":"light","language":"en","notifications":true}</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>① 通知有効（notifications=true）なユーザー：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th class="tc-g">notifications</th></tr>
+<tr class="tr-hi2"><td>1</td><td class="tc-g">true</td></tr>
+<tr class="tr-hi2"><td>3</td><td class="tc-g">true</td></tr>
+<tr class="tr-hi2"><td>4</td><td class="tc-g">true</td></tr>
+</table></div>
+<p>② theme 別ユーザー数：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th class="tc-p">theme</th><th class="tc-hi">user_count</th></tr>
+<tr class="tr-hi3"><td class="tc-p">dark</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi"><td class="tc-p">light</td><td class="tc-hi">2</td></tr>
+</table></div>
+<p>③ UPDATE後（user_id=1）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th class="tc-g">settings（更新後）</th></tr>
+<tr class="tr-hi2"><td>1</td><td class="tc-g">{"theme":"dark","language":"ja","notifications":true}</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① notifications が true のユーザーを抽出（@> 包含演算子）</span>
+<span class="kw">SELECT</span>
+  user_id,
+  settings <span class="op">->></span> <span class="str">'notifications'</span> <span class="kw">AS</span> notifications  <span class="cmt">-- JSONBからテキストとして値を取り出す</span>
+<span class="kw">FROM</span>   <span class="tbl">user_settings</span>
+<span class="kw">WHERE</span>  settings <span class="op">@></span> <span class="str">'{"notifications": true}'</span><span class="op">::</span><span class="kw">jsonb</span>;
+<span class="cmt">-- @> は「左側のJSONBが右側のJSONBを包含するか」を調べる演算子</span>
+<span class="cmt">-- GINインデックスを貼ると大量データでも高速</span>
+
+<span class="cmt">-- ② theme 設定ごとのユーザー数を集計</span>
+<span class="kw">SELECT</span>
+  settings <span class="op">->></span> <span class="str">'theme'</span> <span class="kw">AS</span> theme,    <span class="cmt">-- ->> でテキスト型に変換してGROUP BYに使う</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>)               <span class="kw">AS</span> user_count
+<span class="kw">FROM</span>   <span class="tbl">user_settings</span>
+<span class="kw">GROUP BY</span> settings <span class="op">->></span> <span class="str">'theme'</span>        <span class="cmt">-- JSONBのキーの値でグループ化（通常の列と同様に使える）</span>
+<span class="kw">ORDER BY</span> theme;
+
+<span class="cmt">-- ③ user_id=1 の language を 'en' → 'ja' に更新</span>
+<span class="kw">UPDATE</span> <span class="tbl">user_settings</span>
+<span class="kw">SET</span>    settings <span class="op">=</span> <span class="fn">jsonb_set</span>(
+  settings,               <span class="cmt">-- 元のJSONB値（更新対象の列）</span>
+  <span class="str">'{language}'</span>,           <span class="cmt">-- 更新するキーのパス（配列形式で書く）</span>
+  <span class="str">'"ja"'</span><span class="op">::</span><span class="kw">jsonb</span>           <span class="cmt">-- 新しい値（JSONB型でセットする。文字列は "" で囲む）</span>
+)
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="num">1</span>;        <span class="cmt">-- 【超基礎】UPDATE では WHERE を必ず書く（全行更新の事故防止）</span>
+
+<span class="cmt">/*
+  実行順序（① @> 検索）:
+  1. FROM user_settings           → 全4行を読み込む
+  2. WHERE settings @> '...'      → notifications:true を含む行に絞る（3行）
+  3. SELECT settings ->> '...'    → notifications の値をテキストで取り出す
+
+  実行順序（③ jsonb_set UPDATE）:
+  1. FROM user_settings WHERE user_id=1 → 対象行を特定（1行）
+  2. jsonb_set(settings, '{language}', '"ja"'::jsonb)
+     → 既存の settings JSONB の language キーだけを 'ja' に置き換えた新しいJSONBを生成
+     → 他のキー (theme, notifications) はそのまま保持
+  3. SET settings = (新しいJSONB)  → 列を更新
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>JSONB アクセス演算子まとめ</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>演算子</th><th>書き方</th><th>返す型</th><th>例（settings = {"theme":"dark","level":3}）</th></tr>
+<tr class="tr-hi"><td class="tc-g">->></td><td>settings -&gt;&gt; 'theme'</td><td class="tc-g">text</td><td>'dark'（文字列）</td></tr>
+<tr class="tr-hi2"><td class="tc-p">-></td><td>settings -&gt; 'level'</td><td class="tc-p">jsonb</td><td>3（JSONB数値、比較はキャスト必要）</td></tr>
+<tr class="tr-hi3"><td class="tc-y">@></td><td>settings @&gt; '{"theme":"dark"}'::jsonb</td><td>boolean</td><td>true（包含チェック）</td></tr>
+<tr class="tr-hi4"><td class="tc-o">?</td><td>settings ? 'theme'</td><td>boolean</td><td>true（キーの存在チェック）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">jsonb_set での部分更新の仕組み</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>jsonb_set による部分更新 — 他キーに影響しない</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>更新前 settings</th><th>jsonb_set の操作</th><th class="tc-g">更新後 settings</th></tr>
+<tr class="tr-hi2"><td>{"theme":"dark","language":"en","notifications":true}</td><td>'{language}' を 'ja' に変更</td><td class="tc-g">{"theme":"dark","language":"ja","notifications":true}</td></tr>
+</table></div>
+</div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>GINインデックスで @> を高速化</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックスなし</th><th>GINインデックスあり</th></tr>
+<tr class="tr-hi"><td class="tc-r">全行スキャン（Seq Scan）</td><td class="tc-g">GINインデックス使用（Bitmap Index Scan）</td></tr>
+<tr><td colspan="2">CREATE INDEX idx_settings ON user_settings USING GIN(settings);</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：JSON vs JSONB の選び方：</strong>PostgreSQL には JSON 型と JSONB 型の2種類があります。JSON はテキストを保存しキーの順序・空白を保持しますが、インデックスが貼れません。JSONB はバイナリ変換して格納し、GINインデックスが使えて検索が高速です。<strong>実務では基本的に JSONB を選ぶ</strong>のが推奨です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>->> と -> のどちらを使うか：</strong><code>-&gt;&gt;</code> はテキスト型を返すので WHERE や GROUP BY での比較に便利。<code>-&gt;</code> は JSONB 型を返すのでネストされた JSON（<code>settings -&gt; 'address' -&gt;&gt; 'city'</code>）をたどるときに使います。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>jsonb_set vs || 演算子：</strong><code>settings || '{"language":"ja"}'::jsonb</code> でも部分更新できます。|| はキーを上書き（なければ追加）しますが、ネストされたキーの更新には jsonb_set が必要です。シンプルなトップレベルのキー変更なら || が簡潔です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>jsonb_each / jsonb_array_elements：</strong><code>SELECT * FROM user_settings, jsonb_each(settings)</code> で JSONB のキー・値ペアを行に展開できます。動的なキーのレポートや JSONB 内の配列を行に展開する <code>jsonb_array_elements</code> と組み合わせると、複雑な JSON 集計も SQL 内で完結できます。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>UPDATE で WHERE を忘れる：</strong><code>UPDATE user_settings SET settings = jsonb_set(settings, '{language}', '"ja"'::jsonb)</code> と WHERE なしで実行すると全ユーザーの language が書き換わります。UPDATE 文には必ず WHERE を書くこと。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>検索可能な属性を JSONB だけに頼る：</strong>頻繁に検索・集計するカラム（user_idや状態フラグ）を JSONB 内だけに格納すると、インデックス設計が複雑になりパフォーマンスが劣化します。よく使うカラムは通常の列として持ち、補助的な可変属性だけ JSONB に入れる設計が鉄則です。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：ユーザー設定APIとJSONBの使い所</div>
+<div class="column-body">
+ユーザー設定（テーマ・通知設定・UI言語など）は追加項目が多く、RDBの列追加コストが高い領域です。<strong>JSONB は「スキーマが変わりやすい補助属性」に向いており、追加項目ごとにALTER TABLEが不要</strong>というメリットがあります。ただし「ユーザーIDや登録日時」など必ず検索するカラムは通常の列に残し、JSONB は補完的なデータに使うというバランスが重要です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  差分更新バッチ — CTE + MERGE / INSERT+UPDATE+DELETE
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "差分更新バッチ — CTEで変更分類して INSERT / UPDATE / DELETE を一括実行",
+  tags: [["r","CTE + DML"],["fn","EXCEPT / INTERSECT"],["g","差分更新"],["o","データ同期バッチ"]],
+  premise: `<p>外部システムとのデータ同期バッチでは、「全件DELETEしてINSERT」よりも<em>差分のみを更新</em>する方が安全・高速です。CTEを使って「追加すべき行・更新すべき行・削除すべき行」を分類し、1トランザクションで実行するパターンを学びます。</p>
+<pre><span class="kw">WITH</span>
+  <span class="tbl">to_insert</span> <span class="kw">AS</span> (
+    <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">新データ</span>
+    <span class="kw">EXCEPT</span>       <span class="cmt">-- 新データにあって現データにない → INSERT対象</span>
+    <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">現データ</span>
+  ),
+  <span class="tbl">to_delete</span> <span class="kw">AS</span> (
+    <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">現データ</span>
+    <span class="kw">EXCEPT</span>       <span class="cmt">-- 現データにあって新データにない → DELETE対象</span>
+    <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">新データ</span>
+  )
+<span class="kw">INSERT INTO</span> ... <span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">to_insert</span>;</pre>
+<div class="callout ok"><strong>EXCEPT とは：</strong>左側の結果セットから右側の結果セットに含まれる行を除いた差集合を返します。INTERSECT は両方に含まれる行（積集合）を返します。標準SQL演算子です。</div>`,
+  question: `<p><code>products_current</code>（現在のDB内データ）と <code>products_new</code>（外部システムから取得した最新データ）を比較して、①<em>新規追加すべき商品をINSERT</em>し、②<em>不要になった商品をDELETE</em>し、③<em>変更のあった商品をUPDATE</em>する差分更新バッチを書いてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ products_current（現在DB）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>name</th><th>price</th></tr>
+        <tr><td>P01</td><td>コーヒー</td><td>300</td></tr>
+        <tr><td>P02</td><td>紅茶</td><td>250</td></tr>
+        <tr><td>P03</td><td>緑茶</td><td>200</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ products_new（外部取得）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>name</th><th>price</th></tr>
+        <tr><td>P01</td><td>コーヒー</td><td>350</td></tr>
+        <tr><td>P02</td><td>紅茶</td><td>250</td></tr>
+        <tr><td>P04</td><td>ほうじ茶</td><td>220</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>実行後の products_current テーブル：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>product_id</th><th>name</th><th>price</th><th>変更内容</th></tr>
+<tr class="tr-hi4"><td>P01</td><td>コーヒー</td><td class="tc-y">350</td><td class="tc-y">UPDATE（price 300→350）</td></tr>
+<tr><td>P02</td><td>紅茶</td><td>250</td><td>変更なし</td></tr>
+<tr class="tr-hi2"><td>P04</td><td>ほうじ茶</td><td class="tc-g">220</td><td class="tc-g">INSERT（新規追加）</td></tr>
+</table></div>
+<p>P03（緑茶）は products_new に存在しないため <span class="tc-r">DELETE</span> される。</p>`,
+  answer: `<pre><span class="cmt">-- 差分更新バッチ：1トランザクション内で INSERT / DELETE / UPDATE を実行</span>
+<span class="kw">BEGIN</span>;  <span class="cmt">-- 【超基礎】トランザクション開始（3つのDMLを一括でコミット or ロールバック）</span>
+
+<span class="cmt">-- ① 新規追加: products_new にあって products_current にない product_id を INSERT</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">products_current</span> (product_id, name, price)
+<span class="kw">SELECT</span> n.product_id, n.name, n.price
+<span class="kw">FROM</span>   <span class="tbl">products_new</span> n
+<span class="kw">WHERE</span>  n.product_id <span class="kw">NOT IN</span> (           <span class="cmt">-- 現在DBに存在しないものだけを選ぶ</span>
+  <span class="kw">SELECT</span> product_id <span class="kw">FROM</span> <span class="tbl">products_current</span>
+);
+
+<span class="cmt">-- ② 削除: products_current にあって products_new にない product_id を DELETE</span>
+<span class="kw">DELETE FROM</span> <span class="tbl">products_current</span>
+<span class="kw">WHERE</span> product_id <span class="kw">NOT IN</span> (              <span class="cmt">-- 新データに存在しないものを削除</span>
+  <span class="kw">SELECT</span> product_id <span class="kw">FROM</span> <span class="tbl">products_new</span>
+);
+
+<span class="cmt">-- ③ 更新: 同じ product_id で name または price が変わったものを UPDATE</span>
+<span class="kw">UPDATE</span> <span class="tbl">products_current</span> c
+<span class="kw">SET</span>
+  name  <span class="op">=</span> n.name,
+  price <span class="op">=</span> n.price
+<span class="kw">FROM</span>   <span class="tbl">products_new</span> n
+<span class="kw">WHERE</span>  c.product_id <span class="op">=</span> n.product_id      <span class="cmt">-- 同じ product_id の行を突き合わせる</span>
+  <span class="kw">AND</span> (c.name <span class="op"><></span> n.name <span class="kw">OR</span> c.price <span class="op"><></span> n.price);  <span class="cmt">-- 実際に変更がある行だけ UPDATE（変化なしはスキップ）</span>
+
+<span class="kw">COMMIT</span>;  <span class="cmt">-- 全て成功したらコミット（途中でエラー → ROLLBACK して全て巻き戻す）</span>
+
+<span class="cmt">/*
+  実行順序（差分更新バッチ）:
+  1. BEGIN                    → トランザクション開始
+  2. INSERT（①）              → P04(ほうじ茶)を新規追加（P01,P02は既存なのでスキップ）
+  3. DELETE（②）              → P03(緑茶)を削除（P01,P02は新データにも存在するので保持）
+  4. UPDATE（③）              → P01のprice 300→350 に更新（P02は変更なしなのでスキップ）
+  5. COMMIT                   → 3つのDMLを一括確定
+
+  ※ エラー発生時は ROLLBACK → INSERT/DELETE/UPDATE 全て巻き戻される
+  ※ 変更行のみ UPDATE することで不要な行ロックとWALログを削減できる
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>差分分析 — 2テーブルの突き合わせで3種類に分類</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>product_id</th><th>products_current</th><th>products_new</th><th class="tc-g">操作</th></tr>
+<tr class="tr-hi4"><td>P01</td><td>price=300</td><td>price=350（変化あり）</td><td class="tc-y">UPDATE</td></tr>
+<tr><td>P02</td><td>price=250</td><td>price=250（変化なし）</td><td>何もしない</td></tr>
+<tr class="tr-hi"><td>P03</td><td>price=200</td><td class="null">存在しない</td><td class="tc-r">DELETE</td></tr>
+<tr class="tr-hi2"><td>P04</td><td class="null">存在しない</td><td>ほうじ茶/220</td><td class="tc-g">INSERT</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">全件TRUNCATE+INSERT との比較</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>差分更新 vs 全件置換（TRUNCATE + INSERT）の比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>手法</th><th>処理量</th><th>空テーブル期間</th><th class="tc-g">推奨度</th></tr>
+<tr class="tr-hi4"><td>TRUNCATE + INSERT 全件</td><td class="tc-r">常に全行書き換え</td><td class="tc-r">他クエリが空を参照するリスク</td><td class="tc-r">非推奨（参照系バッチと競合）</td></tr>
+<tr class="tr-hi2"><td class="tc-g">差分更新（INSERT+DELETE+UPDATE）</td><td class="tc-g">変更分のみ</td><td class="tc-g">なし（既存データを保持）</td><td class="tc-g">推奨</td></tr>
+</table></div>
+</div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>UPDATE 条件の「変更あり行だけ」絞り込みの効果</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>行</th><th>c.price vs n.price</th><th>c.name vs n.name</th><th class="tc-g">UPDATEされるか</th></tr>
+<tr class="tr-hi4"><td>P01</td><td>300 ≠ 350</td><td>同じ</td><td class="tc-y">される（price変化あり）</td></tr>
+<tr><td>P02</td><td>250 = 250</td><td>同じ</td><td class="tc-g">されない（変化なし）</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：NOT IN vs NOT EXISTS の違い：</strong>NOT IN はサブクエリの結果に NULL が1つでも含まれると全行がマッチしなくなる（NULL の三値論理の罠）。サブクエリにNULLが入りうる場合は <code>NOT EXISTS (...)</code> か <code>LEFT JOIN ... WHERE ... IS NULL</code> パターンが安全です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>EXCEPT / INTERSECT での差分検出：</strong>前提のコードで示した EXCEPT を使うと「全列が一致する行の差集合」が取れます。主キーだけでなく全カラムの差分を見たい場合に便利です。大量データでは NOT IN / NOT EXISTS より EXCEPT のほうが可読性が高い場合があります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PostgreSQL の MERGE 文（v15+）：</strong>PostgreSQL 15 から MERGE が使えます。<code>MERGE INTO products_current USING products_new ON (条件) WHEN MATCHED AND 変化あり THEN UPDATE ... WHEN NOT MATCHED BY TARGET THEN INSERT ... WHEN NOT MATCHED BY SOURCE THEN DELETE</code> と1文で差分更新が書けます。バージョンを確認して積極的に使いましょう。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>updated_at タイムスタンプで変更追跡：</strong>UPDATE 後に <code>updated_at = NOW()</code> をセットすることで「いつ同期されたか」を追跡できます。障害発生時に「最後の同期時刻」を確認して、再実行すべき範囲を特定するのに役立ちます。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>全件 TRUNCATE + INSERT：</strong>同期バッチ実行中に他のAPI・クエリがテーブルを参照すると空テーブルを見てしまう。また全行書き換えはWALログ・インデックス再構築コストが差分更新より大幅に高い。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>トランザクションを張らずに分割実行：</strong>INSERT/DELETE/UPDATE を別々にコミットすると、途中でエラーが起きたとき「INSERTだけ完了してDELETEは未実行」という中途半端な状態になる。3操作を必ず同一トランザクションでまとめること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：外部システム同期バッチのエラー設計</div>
+<div class="column-body">
+差分更新バッチは <strong>BEGIN → INSERT/DELETE/UPDATE → COMMIT</strong> の1トランザクションにすることで冪等性（何度実行しても同じ結果）が保てます。さらに「どの行をINSERT/DELETE/UPDATEしたか」をログテーブルに書き込んでおくと障害発生時の調査が容易になります。CTE を使って <code>WITH ins AS (...INSERT ... RETURNING *) INSERT INTO sync_log SELECT ...</code> とすることで、メイン処理とログ書き込みを同一トランザクション内で行う設計も実務でよく使われます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  EXPLAIN ANALYZE — スロークエリ分析とインデックス設計
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "EXPLAIN ANALYZE — スロークエリを読み解きインデックスで改善する",
+  tags: [["r","EXPLAIN ANALYZE"],["fn","INDEX"],["g","パフォーマンス"],["o","チューニング"]],
+  premise: `<p><strong>EXPLAIN ANALYZE</strong> はクエリの実行計画と実際の実行時間・行数を出力するコマンドです。「なぜ遅いのか」の原因（インデックス未使用・大量行スキャン等）を特定するための基本ツールです。</p>
+<pre><span class="kw">EXPLAIN ANALYZE</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">WHERE</span> user_id <span class="op">=</span> <span class="str">'U01'</span>;
+
+<span class="cmt">-- 代表的な出力:
+-- Seq Scan on orders (cost=0.00..12.50 rows=1 width=50)
+--              ↑全件スキャン（インデックス未使用）
+-- Index Scan using idx_orders_user_id on orders
+--              ↑インデックス使用（高速）</span></pre>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>出力キーワード</th><th>意味</th><th>対処</th></tr>
+<tr class="tr-hi"><td class="tc-r">Seq Scan</td><td>全行スキャン（インデックス未使用）</td><td>検索条件の列にインデックスを作成</td></tr>
+<tr class="tr-hi2"><td class="tc-g">Index Scan</td><td>インデックスを使って行を特定</td><td>良い状態</td></tr>
+<tr class="tr-hi3"><td class="tc-p">Hash Join</td><td>ハッシュを使った JOIN（大テーブル向き）</td><td>JOIN キーにインデックスを貼ると Nested Loop に変わることも</td></tr>
+<tr class="tr-hi4"><td class="tc-y">rows= 推定 vs 実際</td><td>統計情報の精度</td><td>大きくズレる場合は ANALYZE でテーブル統計を更新</td></tr>
+</table></div>
+<div class="callout warn"><strong>EXPLAIN ANALYZE は実際にクエリを実行します。</strong>UPDATE/DELETEを EXPLAIN ANALYZE するときはトランザクション内で実行して ROLLBACK すること。</div>`,
+  question: `<p>下記の遅いクエリがあります。<em>EXPLAIN で問題を特定し、適切なインデックスを作成</em>してください。さらに<em>複合インデックスが有効なケース</em>も示してください。</p>
+<div class="data-section">
+  <div class="data-label">遅いクエリ（大量データ想定）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ 問題のあるクエリ</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>クエリ</th><th>問題</th></tr>
+        <tr><td>SELECT * FROM orders WHERE user_id = 'U01'</td><td>user_id に INDEX なし → Seq Scan</td></tr>
+        <tr><td>SELECT * FROM orders WHERE user_id='U01' AND status='paid' ORDER BY ordered_at DESC</td><td>複合条件 → 複合インデックス未使用</td></tr>
+        <tr><td>SELECT * FROM products WHERE LOWER(name) = 'coffee'</td><td>関数適用 → インデックス未使用</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>各問題への対処策（インデックス作成 + EXPLAIN 結果の変化）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>クエリ</th><th class="tc-r">対処前</th><th class="tc-g">対処後</th></tr>
+<tr class="tr-hi"><td>WHERE user_id = 'U01'</td><td class="tc-r">Seq Scan（全件）</td><td class="tc-g">Index Scan（高速）</td></tr>
+<tr class="tr-hi2"><td>WHERE user_id AND status ORDER BY ordered_at</td><td class="tc-r">Seq Scan または非効率なIndex Scan</td><td class="tc-g">Index Scan（複合インデックス完全活用）</td></tr>
+<tr class="tr-hi3"><td>WHERE LOWER(name) = 'coffee'</td><td class="tc-r">Seq Scan（関数でインデックス無効化）</td><td class="tc-g">Index Scan（関数インデックス）</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ============================================================
+-- Step 1: EXPLAIN で実行計画を確認（実際にはクエリ実行なし）
+-- ============================================================</span>
+<span class="kw">EXPLAIN</span> (<span class="kw">ANALYZE</span>, <span class="kw">BUFFERS</span>, <span class="kw">FORMAT</span> TEXT)
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">WHERE</span> user_id <span class="op">=</span> <span class="str">'U01'</span>;
+<span class="cmt">-- ANALYZE: 実際に実行して実測値を取得
+-- BUFFERS: ディスクI/Oとキャッシュヒット率を表示（I/O ボトルネック特定）
+-- FORMAT TEXT: テキスト形式で読みやすく出力（JSON/YAMLも選択可）</span>
+
+<span class="cmt">-- ============================================================
+-- Step 2: 問題① 単一列インデックス作成（Seq Scan → Index Scan）
+-- ============================================================</span>
+<span class="kw">CREATE INDEX</span> <span class="kw">CONCURRENTLY</span>             <span class="cmt">-- CONCURRENTLY: テーブルロックなしでインデックス作成（本番DB推奨）</span>
+  idx_orders_user_id                   <span class="cmt">-- インデックス名（わかりやすい命名を）</span>
+<span class="kw">ON</span> <span class="tbl">orders</span> (user_id);                   <span class="cmt">-- orders テーブルの user_id 列にBTreeインデックスを作成</span>
+
+<span class="cmt">-- ============================================================
+-- Step 3: 問題② 複合インデックス（user_id + status + ordered_at）
+-- ============================================================</span>
+<span class="kw">CREATE INDEX</span> <span class="kw">CONCURRENTLY</span>
+  idx_orders_user_status_date
+<span class="kw">ON</span> <span class="tbl">orders</span> (user_id, status, ordered_at <span class="kw">DESC</span>);
+<span class="cmt">-- 複合インデックスはWHEREの等値条件列を先に、ORDER BY列を最後に書く
+-- このインデックスで「WHERE user_id=X AND status=Y ORDER BY ordered_at DESC」
+-- を Index Scan だけでカバーできる（インデックスオンリースキャンの可能性も）</span>
+
+<span class="cmt">-- ============================================================
+-- Step 4: 問題③ 関数インデックス（LOWER(name) の検索を高速化）
+-- ============================================================</span>
+<span class="kw">CREATE INDEX</span> <span class="kw">CONCURRENTLY</span>
+  idx_products_name_lower
+<span class="kw">ON</span> <span class="tbl">products</span> (<span class="fn">LOWER</span>(name));             <span class="cmt">-- 関数インデックス: LOWER(name) の結果を事前に保存</span>
+<span class="cmt">-- WHERE LOWER(name) = 'coffee' がこのインデックスを使えるようになる
+-- ※ WHERE name ILIKE 'coffee' の場合は pg_trgm の GINインデックスが有効</span>
+
+<span class="cmt">-- ============================================================
+-- Step 5: 統計情報の更新（プランナの推定精度を上げる）
+-- ============================================================</span>
+<span class="kw">ANALYZE</span> <span class="tbl">orders</span>;                        <span class="cmt">-- テーブルの統計情報（行数・分布）を最新化</span>
+<span class="cmt">-- EXPLAIN の rows= 推定値と実際値が大きくズレるときに実行する
+-- autovacuum が自動実行するが、大量INSERT後は手動で実行することも</span>
+
+<span class="cmt">/*
+  インデックス選択の判断フロー:
+  1. EXPLAIN ANALYZE で Seq Scan を確認
+  2. WHERE の等値条件列 → BTree 単一列インデックス
+  3. WHERE 複数列 + ORDER BY → 複合インデックス（等値条件を先に）
+  4. LOWER()/UPPER()等の関数 → 関数インデックス
+  5. JSONB の @> 検索 → GINインデックス
+  6. LIKE '%keyword%' → pg_trgm の GINインデックス
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>EXPLAIN ANALYZE の出力の読み方</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>出力項目</th><th>意味</th><th>着目ポイント</th></tr>
+<tr class="tr-hi"><td>Seq Scan / Index Scan</td><td>走査方法</td><td class="tc-r">Seq Scan → インデックスなし</td></tr>
+<tr class="tr-hi2"><td>cost=X..Y</td><td>推定コスト（開始..完了）</td><td>Yが大きいほど重い</td></tr>
+<tr class="tr-hi3"><td>rows=N (actual rows=M)</td><td>推定行数 vs 実際の行数</td><td>大きくズレ → ANALYZE 必要</td></tr>
+<tr class="tr-hi4"><td>actual time=X..Y ms</td><td>実際の実行時間</td><td>Yが大きい処理がボトルネック</td></tr>
+<tr class="tr-hi"><td>Buffers: hit=N read=M</td><td>キャッシュヒット/ディスク読込</td><td class="tc-r">read が多い → I/O ボトルネック</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">複合インデックスの列順序が重要</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>複合インデックスの列順序ルール</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>クエリ条件</th><th>インデックス (user_id, status, ordered_at)</th><th class="tc-g">効果</th></tr>
+<tr class="tr-hi2"><td>WHERE user_id=X AND status=Y ORDER BY ordered_at DESC</td><td>3列すべてカバー</td><td class="tc-g">最大効率 ✓</td></tr>
+<tr class="tr-hi"><td>WHERE user_id=X AND status=Y</td><td>先頭2列カバー</td><td class="tc-g">効果あり ✓</td></tr>
+<tr class="tr-hi"><td>WHERE user_id=X</td><td>先頭1列カバー</td><td class="tc-g">効果あり ✓</td></tr>
+<tr><td>WHERE status=Y（user_id スキップ）</td><td>先頭列スキップ</td><td class="tc-r">効果なし ✗</td></tr>
+</table></div>
+</div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>インデックスの種類と使いどき</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックス種類</th><th>適したケース</th><th>作成例</th></tr>
+<tr class="tr-hi"><td class="tc-g">BTree（デフォルト）</td><td>=, &lt;, &gt;, BETWEEN, ORDER BY</td><td>ON orders (user_id)</td></tr>
+<tr class="tr-hi2"><td class="tc-g">GIN</td><td>JSONB @&gt;, 配列, 全文検索</td><td>USING GIN (settings)</td></tr>
+<tr class="tr-hi3"><td class="tc-g">関数インデックス</td><td>LOWER(), UPPER(), 式</td><td>ON products (LOWER(name))</td></tr>
+<tr class="tr-hi4"><td class="tc-g">部分インデックス</td><td>WHERE条件つき（少ない行）</td><td>ON orders (user_id) WHERE status='active'</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：インデックスとは何か：</strong>インデックスは「本の巻末索引」のようなものです。索引なし（Seq Scan）は本の全ページをめくって探す状態、索引あり（Index Scan）はページ番号が記載された索引を引く状態です。WHERE で頻繁に検索される列に作成します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CONCURRENTLY の重要性：</strong>本番DBで <code>CREATE INDEX</code>（CONCURRENTLY なし）はテーブル全体をロックして、インデックス作成が終わるまでINSERT/UPDATE/SELECTが待機状態になります。<code>CONCURRENTLY</code> を付けるとロックなしで作成でき、本番トラフィックへの影響を最小化できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>インデックスの副作用：</strong>インデックスはSELECTを高速にしますが、INSERT/UPDATE/DELETE 時にインデックスも更新されるためその分だけ書き込みが遅くなります。また、ストレージ容量を消費します。使われていないインデックスは <code>pg_stat_user_indexes</code> で確認して削除しましょう。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>pg_stat_statements でスロークエリを特定：</strong><code>SELECT query, total_exec_time, calls FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;</code> で累計実行時間の多いクエリ（= 改善効果が大きいクエリ）を特定できます。EXPLAIN は特定後に使うツールです。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE で関数を使って既存インデックスを無効化：</strong><code>WHERE LOWER(name) = 'coffee'</code> は name 列のインデックスを使えません（BTreeインデックスはLOWER後の値を知らないため）。関数インデックスを作るか、最初からデータをlowercaseで保存するか、生成列（Generated Column）を使うこと。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE で型が合わずインデックスが効かない：</strong><code>WHERE user_id = 1</code>（整数）と書いたが user_id 列が VARCHAR 型の場合、型キャストが発生してインデックスが効かないことがあります。<code>WHERE user_id = '1'</code>（文字列）と合わせること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：インデックス設計の現場判断</div>
+<div class="column-body">
+インデックスは「全てに貼れば速くなる」わけではありません。<strong>「検索が多く更新が少ない列」「カーディナリティ（値の種類）が高い列」が効果的</strong>です。例えばステータス列（active/inactive の2値）にインデックスを貼っても、全行の半数が取得対象になるためプランナが Seq Scan を選ぶことが多いです。本番で困ったときは <code>EXPLAIN ANALYZE</code> → ボトルネック特定 → 最小限のインデックス追加 → 再度 EXPLAIN で効果確認、というサイクルを繰り返すことが実務の基本です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10  ROLLUP / CUBE — 多次元集計レポート生成
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "ROLLUP / CUBE — 多次元集計レポートを1クエリで生成する",
+  tags: [["r","ROLLUP / CUBE"],["fn","GROUPING SETS"],["g","多次元集計"],["o","レポートバッチ"]],
+  premise: `<p><strong>ROLLUP</strong> は階層的な小計・合計を自動で付加するGROUP BYの拡張です。<strong>CUBE</strong> は全組み合わせの集計を生成します。<strong>GROUPING SETS</strong> はそれらを柔軟に指定できる一般化版です。バッチ集計レポートで複数の GROUP BY クエリを1本化できます。</p>
+<pre><span class="kw">GROUP BY</span> <span class="kw">ROLLUP</span>(col1, col2)
+<span class="cmt">-- col1+col2の集計、col1だけの小計、全体合計の3段階を自動生成</span>
+
+<span class="kw">GROUP BY</span> <span class="kw">CUBE</span>(col1, col2)
+<span class="cmt">-- (col1,col2), (col1), (col2), () の全4パターンの集計を生成</span>
+
+<span class="kw">GROUP BY</span> <span class="kw">GROUPING SETS</span>((col1, col2), (col1), ())
+<span class="cmt">-- 任意の集計パターンを列挙する（ROLLUP/CUBEの一般化版）</span></pre>
+<div class="callout"><strong>GROUPING() 関数：</strong><code>GROUPING(col1)</code> は小計・合計行で列が集計されていると 1 を返します。これを使って小計行の NULL を '合計' 等の文字列に置き換えることができます。</div>`,
+  question: `<p><code>sales</code> テーブルから、<em>年・月・カテゴリ別の売上合計</em>を ROLLUP を使って取得してください。年合計・全体合計（小計行）も含め、GROUPING() 関数で NULL を分かりやすいラベルに置き換えること。さらに同じテーブルで CUBE を使った全組み合わせ集計も示してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sales</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>sale_id</th><th>year</th><th>month</th><th>category</th><th>amount</th></tr>
+        <tr><td>1</td><td>2024</td><td>1</td><td>food</td><td>3000</td></tr>
+        <tr><td>2</td><td>2024</td><td>1</td><td>drink</td><td>2000</td></tr>
+        <tr><td>3</td><td>2024</td><td>2</td><td>food</td><td>4000</td></tr>
+        <tr><td>4</td><td>2024</td><td>2</td><td>drink</td><td>1500</td></tr>
+        <tr><td>5</td><td>2023</td><td>12</td><td>food</td><td>5000</td></tr>
+        <tr><td>6</td><td>2023</td><td>12</td><td>drink</td><td>3000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>ROLLUP（年→月→カテゴリの階層集計）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th class="tc-hi">year_label</th><th class="tc-g">month_label</th><th class="tc-p">category_label</th><th class="tc-y">total_amount</th></tr>
+<tr class="tr-hi"><td class="tc-hi">2023</td><td class="tc-g">12</td><td class="tc-p">drink</td><td class="tc-y">3000</td></tr>
+<tr class="tr-hi"><td class="tc-hi">2023</td><td class="tc-g">12</td><td class="tc-p">food</td><td class="tc-y">5000</td></tr>
+<tr class="tr-hi"><td class="tc-hi">2023</td><td class="tc-g">12月計</td><td class="tc-p">—</td><td class="tc-y">8000</td></tr>
+<tr class="tr-hi"><td class="tc-hi">2023年計</td><td class="tc-g">—</td><td class="tc-p">—</td><td class="tc-y">8000</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024</td><td class="tc-g">1</td><td class="tc-p">drink</td><td class="tc-y">2000</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024</td><td class="tc-g">1</td><td class="tc-p">food</td><td class="tc-y">3000</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024</td><td class="tc-g">1月計</td><td class="tc-p">—</td><td class="tc-y">5000</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024</td><td class="tc-g">2</td><td class="tc-p">drink</td><td class="tc-y">1500</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024</td><td class="tc-g">2</td><td class="tc-p">food</td><td class="tc-y">4000</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024</td><td class="tc-g">2月計</td><td class="tc-p">—</td><td class="tc-y">5500</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024年計</td><td class="tc-g">—</td><td class="tc-p">—</td><td class="tc-y">10500</td></tr>
+<tr class="tr-hi4"><td class="tc-hi">総計</td><td class="tc-g">—</td><td class="tc-p">—</td><td class="tc-y">18500</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① ROLLUP: 年→月→カテゴリの階層集計（小計・合計付き）</span>
+<span class="kw">SELECT</span>
+  <span class="cmt">-- GROUPING(year)=1 のとき小計/合計行 → '総計' に置き換え</span>
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> <span class="fn">GROUPING</span>(year)  <span class="op">=</span> <span class="num">1</span>  <span class="kw">THEN</span> <span class="str">'総計'</span>          <span class="cmt">-- year が集計対象 → 全体合計行</span>
+    <span class="kw">WHEN</span> <span class="fn">GROUPING</span>(month) <span class="op">=</span> <span class="num">1</span>  <span class="kw">THEN</span> year<span class="op">::</span><span class="kw">TEXT</span> <span class="op">||</span> <span class="str">'年計'</span>  <span class="cmt">-- month が集計対象 → 年合計行</span>
+    <span class="kw">ELSE</span>                          year<span class="op">::</span><span class="kw">TEXT</span>
+  <span class="kw">END</span>                     <span class="kw">AS</span> year_label,
+
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> <span class="fn">GROUPING</span>(month) <span class="op">=</span> <span class="num">1</span>  <span class="kw">THEN</span> <span class="str">'—'</span>               <span class="cmt">-- 合計行は '—' で表示</span>
+    <span class="kw">WHEN</span> <span class="fn">GROUPING</span>(category) <span class="op">=</span> <span class="num">1</span> <span class="kw">THEN</span> month<span class="op">::</span><span class="kw">TEXT</span> <span class="op">||</span> <span class="str">'月計'</span> <span class="cmt">-- category が集計対象 → 月合計行</span>
+    <span class="kw">ELSE</span>                          month<span class="op">::</span><span class="kw">TEXT</span>
+  <span class="kw">END</span>                     <span class="kw">AS</span> month_label,
+
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> <span class="fn">GROUPING</span>(category) <span class="op">=</span> <span class="num">1</span> <span class="kw">THEN</span> <span class="str">'—'</span>             <span class="cmt">-- 小計行はカテゴリ列を '—' にする</span>
+    <span class="kw">ELSE</span>                          category
+  <span class="kw">END</span>                     <span class="kw">AS</span> category_label,
+
+  <span class="fn">SUM</span>(amount)             <span class="kw">AS</span> total_amount          <span class="cmt">-- 各グループの合計売上</span>
+<span class="kw">FROM</span>   <span class="tbl">sales</span>
+<span class="kw">GROUP BY</span> <span class="kw">ROLLUP</span>(year, month, category)              <span class="cmt">-- 年→月→カテゴリ の階層的な小計を自動生成</span>
+<span class="kw">ORDER BY</span>
+  <span class="fn">GROUPING</span>(year),                                  <span class="cmt">-- GROUPING=0（明細）を先に、1（合計）を後に</span>
+  year <span class="kw">NULLS LAST</span>,                                 <span class="cmt">-- NULL（合計行）を末尾に</span>
+  <span class="fn">GROUPING</span>(month),
+  month <span class="kw">NULLS LAST</span>,
+  <span class="fn">GROUPING</span>(category),
+  category <span class="kw">NULLS LAST</span>;
+
+<span class="cmt">-- ② CUBE: 全組み合わせ集計（year × category の4パターン）</span>
+<span class="kw">SELECT</span>
+  year,
+  category,
+  <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount,
+  <span class="fn">GROUPING</span>(year)     <span class="kw">AS</span> g_year,      <span class="cmt">-- 1 = yearが集計対象（合計行）</span>
+  <span class="fn">GROUPING</span>(category) <span class="kw">AS</span> g_category   <span class="cmt">-- 1 = categoryが集計対象（小計行）</span>
+<span class="kw">FROM</span>   <span class="tbl">sales</span>
+<span class="kw">GROUP BY</span> <span class="kw">CUBE</span>(year, category)          <span class="cmt">-- (year,category),(year),(category),() の4パターン</span>
+<span class="kw">ORDER BY</span> year <span class="kw">NULLS LAST</span>, category <span class="kw">NULLS LAST</span>;
+
+<span class="cmt">/*
+  ROLLUP(year, month, category) が生成するグループ:
+  1. (year, month, category)  → 明細行（最も細かい粒度）
+  2. (year, month)            → 月合計行（category が NULL/集計）
+  3. (year)                   → 年合計行（month, category が NULL/集計）
+  4. ()                       → 全体合計行（全列が NULL/集計）
+
+  CUBE(year, category) が生成するグループ:
+  1. (year, category)  → year × category の明細
+  2. (year)            → year ごとの合計
+  3. (category)        → category ごとの合計
+  4. ()                → 全体合計
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>ROLLUP が生成する集計レベルの構造</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>集計レベル</th><th>year</th><th>month</th><th>category</th><th class="tc-y">SUM</th><th>説明</th></tr>
+<tr class="tr-hi"><td>明細</td><td>2024</td><td>1</td><td>food</td><td class="tc-y">3000</td><td>最も細かい粒度</td></tr>
+<tr class="tr-hi"><td>月計</td><td>2024</td><td>1</td><td class="null">NULL</td><td class="tc-y">5000</td><td>2024年1月の合計</td></tr>
+<tr class="tr-hi"><td>年計</td><td>2024</td><td class="null">NULL</td><td class="null">NULL</td><td class="tc-y">10500</td><td>2024年の合計</td></tr>
+<tr class="tr-hi4"><td>全体</td><td class="null">NULL</td><td class="null">NULL</td><td class="null">NULL</td><td class="tc-y">18500</td><td>全期間全カテゴリの合計</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">GROUPING() 関数で NULL が「合計行のNULL」か「データが空のNULL」かを区別</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>GROUPING() 関数の戻り値</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>行の種類</th><th>GROUPING(year)</th><th>GROUPING(month)</th><th>GROUPING(category)</th></tr>
+<tr class="tr-hi2"><td>明細行（year+month+category）</td><td>0</td><td>0</td><td>0</td></tr>
+<tr class="tr-hi4"><td>月計行（year+monthのみ）</td><td>0</td><td>0</td><td class="tc-g">1</td></tr>
+<tr class="tr-hi"><td>年計行（yearのみ）</td><td>0</td><td class="tc-g">1</td><td class="tc-g">1</td></tr>
+<tr class="tr-hi3"><td>全体合計行</td><td class="tc-g">1</td><td class="tc-g">1</td><td class="tc-g">1</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">ROLLUP vs CUBE vs GROUPING SETS の使い分け</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>3種の多次元集計の生成パターン数の比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>構文</th><th>ROLLUP(A,B,C)</th><th>CUBE(A,B)</th><th>GROUPING SETS</th></tr>
+<tr class="tr-hi"><td>生成パターン数</td><td>n+1 パターン（4パターン）</td><td>2^n パターン（4パターン）</td><td>任意</td></tr>
+<tr class="tr-hi2"><td>用途</td><td>年→月→日 の階層集計</td><td>軸ごとの全組み合わせ</td><td>必要な組み合わせだけ指定</td></tr>
+<tr class="tr-hi4"><td>代替</td><td colspan="2">GROUPING SETS で両方表現可能</td><td>最も柔軟な一般化版</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：ROLLUP の NULL は「集計のNULL」：</strong>ROLLUP が生成する合計・小計行では、集計されたレベルの列が NULL になります。これはデータが空なのではなく「この列は集計対象（全てを合算）」を意味します。GROUPING() 関数でデータNULLと区別できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ROLLUP は「階層の順序が重要」：</strong>ROLLUP(year, month, category) は「year &gt; month &gt; category」の順に階層集計します。ROLLUP(category, year) と書くと「category &gt; year」になり意味が変わります。必ず「大 → 小」の粒度順で書くこと。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>GROUPING SETS で完全な制御：</strong><code>GROUP BY GROUPING SETS ((year, month), (year), ())</code> は ROLLUP(year, month) と同等です。「year×category と year のみ」のような非階層な組み合わせが必要なときは GROUPING SETS で直接列挙します。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>UNION ALL との違い（パフォーマンス）：</strong>ROLLUP は複数の GROUP BY クエリを UNION ALL したのと等価ですが、内部的に1回のテーブルスキャンで全集計レベルを処理します（DB次第）。複数の GROUP BY + UNION ALL クエリを ROLLUP に置き換えることで、I/O と実行時間を削減できます。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ROLLUP の NULL をデータ欠損と誤解する：</strong>ROLLUP の集計行に現れる NULL は「全体を集計している」印です。WHERE で <code>year IS NOT NULL</code> と書くと合計行が消えてしまいます。GROUPING() を使ってラベルを置き換えた後に表示上の処理をすること。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CUBE を使って不要なパターンまで生成する：</strong>CUBE(year, month, category) は 2^3=8パターンを生成します。大量データや列数が多い場合に不要なパターンまで計算してパフォーマンスに影響します。本当に必要な組み合わせだけを GROUPING SETS で指定することが最適です。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：BIツール連携と多次元集計</div>
+<div class="column-body">
+Redash・Metabase・Tableau などのBIツールに渡す集計クエリでは、<strong>ROLLUP/CUBE を使うことで「ドリルダウン（全体→年→月→カテゴリ）に必要な全粒度のデータを1クエリで生成</strong>できます。アプリ側で「全体合計クエリ」「年別クエリ」「月別クエリ」を別々に実行する手間がなくなり、バッチ処理の設計が大幅にシンプルになります。結果をキャッシュして配信するレポートバッチの実装に特に向いています。
+</div>
+</div>
+`
+}
+
+];
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p', fn:'tag-p'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c] || 'tag-r'}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力','期待出力',q.output)}
+      ${acc('✅','pill-red','解答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+</script>
+</body>
+</html>
