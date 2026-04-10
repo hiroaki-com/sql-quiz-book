@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQLパフォーマンス最適化10選 — インデックス・実行計画・チューニングの王道パターン（基礎編）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw); font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  .viz-flow { margin: 6px 0 14px; }
+  .step-block { margin-bottom: 8px; }
+  .step-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; }
+  .step-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .sn1 { background: #1a2744; color: var(--accent); }
+  .sn2 { background: #1a2e1a; color: var(--green); }
+  .sn3 { background: #2e1a2e; color: var(--purple); }
+  .sn4 { background: #2e1a0a; color: var(--orange); }
+  .step-desc { color: var(--dim); }
+  .step-desc strong { color: var(--text); }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+  .tr-hi  td { background: #0e1e33 !important; }
+  .tr-hi2 td { background: #0e1e0e !important; }
+  .tr-hi3 td { background: #1e1433 !important; }
+  .tr-hi4 td { background: #1e1a0a !important; }
+  .tr-dim td { opacity: 0.4; }
+  .tc-hi { color: var(--accent) !important; font-weight: 700; }
+  .tc-g  { color: var(--green)  !important; font-weight: 700; }
+  .tc-p  { color: var(--purple) !important; font-weight: 700; }
+  .tc-y  { color: var(--yellow) !important; font-weight: 700; }
+  .tc-o  { color: var(--orange) !important; font-weight: 700; }
+  .tc-r  { color: var(--red)    !important; font-weight: 700; }
+  .null  { color: var(--dim)    !important; font-style: italic; }
+
+  .arrow { text-align: center; padding: 4px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .arrow-text { color: var(--dim); font-size: 11px; }
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em { color: var(--yellow); }
+  .insight-body code { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code { font-size: 11px; }
+
+  .column-box {
+    background: #0d1520; border: 1px solid #1c3550; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+    border-left: 3px solid var(--fn);
+  }
+  .column-title {
+    font-size: 11px; font-weight: 700; color: var(--fn); letter-spacing: 0.5px;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--fn); }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">PERF</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">パフォーマンス最適化で学ぶ SQL 基礎10選（INDEX／EXPLAIN／SARGable／EXISTS／部分INDEX／カバリングINDEX／複合INDEX／統計情報／クエリリライト編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★ 基礎</span>
+      <span class="htag">パフォーマンス</span>
+      <span class="htag">チューニング</span>
+      <span class="htag">PostgreSQL対応</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  インデックスの基本 — CREATE INDEX / Seq Scan vs Index Scan
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "CREATE INDEX — シーケンシャルスキャンとインデックススキャンの違い",
+  tags: [["r","INDEX"],["r","CREATE INDEX"],["o","Seq Scan"],["g","Index Scan"]],
+  premise: `<p><strong>インデックス（索引）</strong>とは、特定の列の値を「どの物理位置に格納されているか」を記録したデータ構造です。本の巻末索引と同じ仕組みで、目的の行を<em>全ページを読まずに</em>素早く見つけられます。</p>
+<pre><span class="cmt">-- インデックスを作成する基本構文</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_id        <span class="cmt">-- インデックス名（慣習: idx_テーブル名_列名）</span>
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id);              <span class="cmt">-- 対象テーブルと列を指定</span>
+
+<span class="cmt">-- 不要になったインデックスを削除する</span>
+<span class="kw">DROP INDEX</span> idx_orders_user_id;        <span class="cmt">-- インデックス名を指定して削除</span></pre>
+<div class="callout"><strong>2種類のスキャン方法：</strong><br>
+・<code>Seq Scan（シーケンシャルスキャン）</code> → テーブルを先頭から末尾まで全行読む。小テーブルや大量行を返すときは速い。<br>
+・<code>Index Scan（インデックススキャン）</code> → インデックスで位置を特定してから必要な行だけ読む。少数行を返すときに圧倒的に速い。</div>
+<p>インデックスは<em>自動的には作成されない</em>（PRIMARY KEY / UNIQUE 制約は例外）。WHERE句や JOIN ON で頻繁に使う列には積極的に作成します。</p>`,
+  question: `<p><code>orders</code> テーブルには100万件のデータが入っています。<em>user_id = 'U001' の注文だけを取得するクエリ</em>が遅い原因を調べ、適切なインデックスを作成してください。また、インデックス作成前後でスキャン方法がどう変わるかも説明してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル（簡略）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（100万行）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id (PK)</th><th>user_id</th><th>amount</th><th>status</th><th>created_at</th></tr>
+        <tr><td>1</td><td>U001</td><td>3000</td><td>completed</td><td>2024-01-10</td></tr>
+        <tr><td>2</td><td>U002</td><td>5000</td><td>pending</td><td>2024-01-11</td></tr>
+        <tr><td>3</td><td>U001</td><td>1200</td><td>completed</td><td>2024-01-12</td></tr>
+        <tr><td class="null">…</td><td class="null">…</td><td class="null">…</td><td class="null">…</td><td class="null">…</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<p>遅いクエリ（インデックスなし）：</p>
+<pre><span class="kw">SELECT</span> order_id, amount, status
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>;           <span class="cmt">-- user_id に何もインデックスがない状態</span></pre>`,
+  output: `<p>期待する成果物：<em>インデックス作成SQL</em> と、<em>スキャン変化の説明</em></p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>状態</th><th>スキャン種別</th><th>読込行数</th><th>速度感</th></tr>
+<tr class="tr-hi"><td class="tc-r">インデックスなし</td><td class="tc-r">Seq Scan</td><td class="tc-r">100万行（全件）</td><td class="tc-r">遅い</td></tr>
+<tr class="tr-hi2"><td class="tc-g">インデックスあり</td><td class="tc-g">Index Scan</td><td class="tc-g">数十行（対象のみ）</td><td class="tc-g">高速</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① インデックス作成（user_id列に対してBTreeインデックスを作る）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_id    <span class="cmt">-- 【超基礎】インデックスの名前（任意だが命名規則を統一する）</span>
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id);          <span class="cmt">-- 【超基礎】どのテーブルのどの列にインデックスを張るか</span>
+
+<span class="cmt">-- ② インデックス作成後も、クエリ自体は変わらない</span>
+<span class="kw">SELECT</span> order_id, amount, status   <span class="cmt">-- 【超基礎】必要な列だけ指定（SELECT * は使わない）</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>                    <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>;         <span class="cmt">-- 【超基礎】インデックスが張られた列で絞り込む → Index Scan が発動</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. FROM orders              → 【超基礎】テーブルを参照
+  2. Index Scan on user_id   → 【超基礎】インデックスで 'U001' の物理位置を特定（全件を読まない）
+  3. WHERE user_id = 'U001'  → 【超基礎】インデックスで絞り込まれた行だけ取得
+  4. SELECT order_id, ...    → 【超基礎】必要な列だけ返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>インデックスなし → Seq Scan（全100万行をスキャン）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>読込順</th><th>order_id</th><th>user_id</th><th>条件一致？</th></tr>
+<tr><td>1行目</td><td>1</td><td>U001</td><td class="tc-g">✓ 返す</td></tr>
+<tr><td>2行目</td><td>2</td><td>U002</td><td class="tc-r">✗ 読み捨て</td></tr>
+<tr><td>3行目</td><td>3</td><td>U001</td><td class="tc-g">✓ 返す</td></tr>
+<tr class="tr-dim"><td class="null">…</td><td class="null">…</td><td class="null">…</td><td class="null">100万行まで全部読む</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">CREATE INDEX idx_orders_user_id ON orders (user_id) を実行</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>インデックスあり → Index Scan（対象行の物理位置を直接特定）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックス（BTree）</th><th>user_id</th><th>物理位置(ctid)</th></tr>
+<tr class="tr-hi2"><td>インデックスエントリ</td><td class="tc-g">U001</td><td class="tc-g">→ Page4/Row1, Page7/Row3 … のみ取得</td></tr>
+<tr class="tr-dim"><td>（スキップ）</td><td class="tc-r">U002〜U999</td><td class="tc-r">読まない</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>インデックスは「列の値 → 行の物理位置」を記録した索引です。WHEREで絞り込む列にインデックスがあると、DB全行を読む（Seq Scan）ではなく、該当行の場所だけを素早く特定（Index Scan）できるためクエリが劇的に速くなります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>インデックスが効く列の目安：</strong>① WHERE句で等値・範囲検索する列、② JOIN ON で結合キーとなる列、③ ORDER BY・GROUP BY で頻繁に使う列。PRIMARY KEY と UNIQUE 制約には自動でインデックスが作られます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>インデックスのコスト：</strong>インデックスはINSERT/UPDATE/DELETE のたびに更新されるため、書き込みが多いテーブルでは書き込みが遅くなります。「読み取り頻度が高い列」に絞って作成するのが基本方針です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>Seq Scan が選ばれる場合：</strong>テーブルが小さい（数百行程度）か、返す行が全体の10〜15%を超える場合、DBオプティマイザはあえてSeq Scanを選ぶことがあります。インデックスを張っても使われないケースがある点を覚えておきましょう。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>全ての列にインデックスを張る：</strong>インデックスが多すぎるとINSERT/UPDATE/DELETEが遅くなります。バッチ処理で大量書き込みをするテーブルにはインデックスを最小限にとどめ、書き込み完了後にインデックスを再構築するパターンもあります。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>インデックスを張ったのに使われない：</strong><code>WHERE UPPER(email) = 'TEST@EXAMPLE.COM'</code> のように列に関数を適用するとインデックスが無効化されます（後述Q3参照）。また、カーディナリティ（値の種類数）が極端に低い列（例：is_deleted に true/false しかない）はインデックスの効果が薄いです。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：インデックスはいつ作るか</div>
+<div class="column-body">
+開発初期に全てのインデックスを先読みして設計するのは困難です。実務では<strong>「スロークエリログを監視して、実際に遅いクエリの WHERE／JOIN 列にインデックスを追加する」</strong>リアクティブなアプローチが主流です。PostgreSQL では <code>pg_stat_statements</code>、MySQLでは <code>slow_query_log</code> を使い、本番環境のクエリパターンを定期的にレビューする習慣が品質維持の鍵になります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  EXPLAIN / EXPLAIN ANALYZE — 実行計画の読み方
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "EXPLAIN / EXPLAIN ANALYZE — 実行計画を読んでボトルネックを特定する",
+  tags: [["r","EXPLAIN"],["r","ANALYZE"],["o","実行計画"],["g","チューニング"]],
+  premise: `<p><strong>EXPLAIN</strong> はSQLを実際には実行せずに「DBがどう処理するか（実行計画）」を表示します。<strong>EXPLAIN ANALYZE</strong> は実際に実行して実測値も表示します。パフォーマンス問題の診断における最重要コマンドです。</p>
+<pre><span class="cmt">-- 実行計画だけ見る（実際には実行しない）</span>
+<span class="kw">EXPLAIN</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">WHERE</span> user_id <span class="op">=</span> <span class="str">'U001'</span>;
+
+<span class="cmt">-- 実際に実行して実測時間も表示する</span>
+<span class="kw">EXPLAIN ANALYZE</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">WHERE</span> user_id <span class="op">=</span> <span class="str">'U001'</span>;</pre>
+<div class="callout warn"><strong>EXPLAIN ANALYZE の注意点：</strong>SELECT は問題ないが、INSERT/UPDATE/DELETE に使うと<em>実際にデータが変更される</em>。変更系は必ず <code>BEGIN; EXPLAIN ANALYZE …; ROLLBACK;</code> でトランザクションに包むこと。</div>
+<p>出力の主要キーワード：<code>cost=0.00..XXX</code>（推定コスト）、<code>rows=XXX</code>（推定/実際の行数）、<code>actual time=XXX</code>（実測時間ms）、<strong>Seq Scan</strong>（全件スキャン）、<strong>Index Scan</strong>（インデックス使用）。</p>`,
+  question: `<p>以下の2つのクエリに <code>EXPLAIN ANALYZE</code> を付けて実行計画を確認し、<em>どちらが速いか・なぜ速いかを実行計画の出力から読み取って</em>ください。</p>
+<div class="data-section">
+  <div class="data-label">比較するクエリ（ordersテーブル 100万行、user_id にはインデックスあり）</div>
+</div>
+<pre><span class="cmt">-- クエリA（問題あり）</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  <span class="fn">DATE</span>(created_at) <span class="op">=</span> <span class="str">'2024-01-15'</span>;
+
+<span class="cmt">-- クエリB（改善版）</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  created_at <span class="op">&gt;=</span> <span class="str">'2024-01-15 00:00:00'</span>
+  <span class="kw">AND</span>  created_at  <span class="op">&lt;</span>  <span class="str">'2024-01-16 00:00:00'</span>;</pre>`,
+  output: `<p>EXPLAINで確認できる実行計画の違い：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>クエリ</th><th>スキャン種別</th><th>cost</th><th>判定</th></tr>
+<tr class="tr-hi"><td>クエリA</td><td class="tc-r">Seq Scan（全件）</td><td class="tc-r">cost=0..28000</td><td class="tc-r">❌ 遅い</td></tr>
+<tr class="tr-hi2"><td>クエリB</td><td class="tc-g">Index Scan</td><td class="tc-g">cost=0..85</td><td class="tc-g">✅ 高速</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① クエリAの実行計画を確認（DATE()関数適用でインデックス無効）</span>
+<span class="kw">EXPLAIN ANALYZE</span>                   <span class="cmt">-- 【超基礎】実行計画の表示コマンド（ANALYZEで実測値も表示）</span>
+<span class="kw">SELECT</span> <span class="op">*</span>                          <span class="cmt">-- ここでは比較のため * を使用</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  <span class="fn">DATE</span>(created_at) <span class="op">=</span> <span class="str">'2024-01-15'</span>; <span class="cmt">-- 列に関数を適用 → インデックス無効 → Seq Scan</span>
+
+<span class="cmt">-- 出力例（抜粋）:
+--   Seq Scan on orders  (cost=0.00..28450.00 rows=500 width=80)
+--                        実際に全行を読んでいる ↑
+--   Filter: (date(created_at) = '2024-01-15')
+--   Rows Removed by Filter: 999500  ← 無駄に捨てた行数</span>
+
+<span class="cmt">-- ② クエリBの実行計画を確認（範囲検索でインデックス有効）</span>
+<span class="kw">EXPLAIN ANALYZE</span>                   <span class="cmt">-- 【超基礎】同じコマンドで改善版を比較</span>
+<span class="kw">SELECT</span> <span class="op">*</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  created_at <span class="op">&gt;=</span> <span class="str">'2024-01-15 00:00:00'</span>  <span class="cmt">-- 列に関数を使わず直接比較 → Index Scan が有効</span>
+  <span class="kw">AND</span>  created_at  <span class="op">&lt;</span>  <span class="str">'2024-01-16 00:00:00'</span>; <span class="cmt">-- 翌日の00:00未満で1日分を切り取る</span>
+
+<span class="cmt">-- 出力例（抜粋）:
+--   Index Scan using idx_orders_created_at on orders
+--                   (cost=0.56..85.32 rows=500 width=80)
+--   Index Cond: (created_at >= '2024-01-15' AND created_at < '2024-01-16')</span>
+
+<span class="cmt">/*
+  実行順序（EXPLAINで読む評価順）:
+  1. EXPLAIN ANALYZE      → DBに「この計画を立てて実行し計測せよ」と指示
+  2. FROM orders          → テーブル参照
+  3. スキャン方法の決定   → クエリAはSeq Scan / クエリBはIndex Scan
+  4. WHERE フィルタ適用   → 条件に合致する行だけ絞り込み
+  5. SELECT *             → 列を返す
+  6. 計測値の表示         → actual time, rows, loops が出力に追加される
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>クエリA：DATE(created_at) → 列を加工するためインデックスが使えない</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>行</th><th>created_at（元の値）</th><th>DATE(created_at)（加工後）</th><th>= '2024-01-15'?</th></tr>
+<tr><td>1行目</td><td>2024-01-14 22:00:00</td><td>2024-01-14</td><td class="tc-r">✗</td></tr>
+<tr><td>2行目</td><td>2024-01-15 09:30:00</td><td class="tc-g">2024-01-15</td><td class="tc-g">✓</td></tr>
+<tr class="tr-dim"><td class="null">…100万行を全部加工してから判定…</td><td class="null">…</td><td class="null">…</td><td class="null">…</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">クエリBはインデックスの範囲検索で対象行のアドレスを直接取得</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>クエリB：列を加工せず範囲比較 → Index Scan で対象行だけ取得</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックスの参照</th><th>created_at</th><th>範囲内？</th></tr>
+<tr class="tr-hi2"><td>index entry</td><td class="tc-g">2024-01-15 09:30:00</td><td class="tc-g">✓ 直接取得</td></tr>
+<tr class="tr-hi2"><td>index entry</td><td class="tc-g">2024-01-15 14:00:00</td><td class="tc-g">✓ 直接取得</td></tr>
+<tr class="tr-dim"><td>（スキップ）</td><td class="tc-r">他の日付は参照せず</td><td class="tc-r">読まない</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>EXPLAIN は「SQLを実行する前に、DBがどんな手順で処理するかを見せてくれるコマンド」です。遅いSQLを見つけたときに、まず EXPLAIN ANALYZE を実行してSeq Scanがないかを確認するのが、パフォーマンス調査の第一歩です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>EXPLAINの読み方3点：</strong>① <em>Seq Scan</em> が出たら「全件を読んでいる＝インデックスが使えていない」サイン。② <em>cost</em> の数値が大きいほど推定コストが高い。③ <em>actual time</em>（ms）の大きいノードがボトルネック。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>Rows Removed by Filter：</strong>EXPLAINの出力に <code>Rows Removed by Filter: 999500</code> のような行があれば、「フィルタをくぐり抜けるために99万行以上を読んで捨てている」証拠。インデックスを使えばこの無駄をなくせます。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>本番のDML（INSERT/UPDATE/DELETE）にそのままEXPLAIN ANALYZEを使う：</strong>EXPLAIN ANALYZEはSQLを実際に実行するため、UPDATEに付けると本当にデータが書き換わります。必ず <code>BEGIN; EXPLAIN ANALYZE UPDATE …; ROLLBACK;</code> でトランザクション内で行い、最後にROLLBACKしてください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>EXPLAINの結果を信じすぎる：</strong>EXPLAINの <code>cost</code> と <code>rows</code> は統計情報に基づく「推定値」です。統計情報が古いと現実と大きくズレることがあります。<code>ANALYZE テーブル名;</code> で統計を更新してから再確認するとより正確になります。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：チューニングのワークフロー</div>
+<div class="column-body">
+実務でのスロークエリ対応の流れは、① スロークエリログで対象SQLを特定 → ② <code>EXPLAIN ANALYZE</code> で実行計画を確認（Seq Scan・コスト・Rows Removed を確認）→ ③ インデックス追加やSQLリライトで改善 → ④ 改善後に再度 EXPLAIN ANALYZE で効果確認、という4ステップが基本です。<strong>「勘でインデックスを増やす」前に、必ずEXPLAINで根拠を確認する</strong>習慣がチューニングの品質を高めます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  SARGable — インデックスを無効化するWHERE句のアンチパターン
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "SARGable条件 — インデックスを殺すWHERE句の書き方と回避策",
+  tags: [["r","SARGable"],["r","WHERE"],["o","インデックス無効化"],["g","リライト"]],
+  premise: `<p><strong>SARGable（Search ARGument ABLE）</strong>とは、DBオプティマイザがインデックスを活用できる条件式の性質のことです。「SARGable でない」条件を書くと、インデックスがあっても必ずSeq Scanになります。</p>
+<div class="callout warn"><strong>インデックスが無効化される代表パターン：</strong><br>
+① <code>WHERE UPPER(email) = 'TEST@…'</code> — 列に関数を適用<br>
+② <code>WHERE amount + 1000 > 5000</code> — 列を演算に使用<br>
+③ <code>WHERE status LIKE '%complete%'</code> — 前方一致でない LIKE（先頭が %）<br>
+④ <code>WHERE CAST(user_id AS TEXT) = '123'</code> — 暗黙の型変換</div>
+<p>解決策は<em>「列には手を加えず、比較対象の定数側を変換する」</em>か、<em>関数インデックス（式インデックス）</em>を使うことです。</p>`,
+  question: `<p>以下の3つの「遅いWHERE句」を、インデックスが有効になるように書き直してください。<code>users</code> テーブルには <code>email</code>・<code>created_at</code>・<code>status</code> の3列にインデックスが作成済みです。</p>
+<pre><span class="cmt">-- NG-1: email 列に LOWER() を適用（インデックス無効）</span>
+<span class="kw">WHERE</span> <span class="fn">LOWER</span>(email) <span class="op">=</span> <span class="str">'test@example.com'</span>
+
+<span class="cmt">-- NG-2: 日付列に DATE() を適用（インデックス無効）</span>
+<span class="kw">WHERE</span> <span class="fn">DATE</span>(created_at) <span class="op">=</span> <span class="str">'2024-06-01'</span>
+
+<span class="cmt">-- NG-3: 文字列の前方に % を使った LIKE（インデックス無効）</span>
+<span class="kw">WHERE</span> status <span class="kw">LIKE</span> <span class="str">'%active%'</span></pre>`,
+  output: `<p>SARGable に書き直した3つの条件：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>#</th><th class="tc-r">NG（インデックス無効）</th><th class="tc-g">OK（インデックス有効）</th></tr>
+<tr><td>1</td><td class="tc-r">LOWER(email) = '…'</td><td class="tc-g">email = LOWER('…') または 関数インデックス</td></tr>
+<tr><td>2</td><td class="tc-r">DATE(created_at) = '2024-06-01'</td><td class="tc-g">created_at >= '…' AND created_at &lt; '…'</td></tr>
+<tr><td>3</td><td class="tc-r">status LIKE '%active%'</td><td class="tc-g">status = 'active' （完全一致に変更）</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- NG-1の修正：列に関数を使わず、定数側を変換する</span>
+<span class="cmt">-- ❌ NG: LOWER(email) = 'test@example.com'  ← 全行に関数を適用してからIndex参照</span>
+<span class="kw">WHERE</span> email <span class="op">=</span> <span class="fn">LOWER</span>(<span class="str">'TEST@EXAMPLE.COM'</span>)   <span class="cmt">-- ✅ OK: 定数側を変換。列は加工しない</span>
+
+<span class="cmt">-- さらに良い方法: 関数インデックス（式インデックス）を作成して元のクエリを活かす</span>
+<span class="kw">CREATE INDEX</span> idx_users_email_lower
+    <span class="kw">ON</span> <span class="tbl">users</span> (<span class="fn">LOWER</span>(email));             <span class="cmt">-- 列の加工済み値でインデックスを作る</span>
+<span class="cmt">-- 上記後なら LOWER(email) = '…' でもインデックスが効く</span>
+
+<span class="cmt">-- NG-2の修正：DATE()を使わず範囲指定に変換する</span>
+<span class="cmt">-- ❌ NG: DATE(created_at) = '2024-06-01'  ← 全行にDATE()を適用</span>
+<span class="kw">WHERE</span> created_at <span class="op">&gt;=</span> <span class="str">'2024-06-01 00:00:00'</span>   <span class="cmt">-- ✅ OK: 範囲の開始点</span>
+  <span class="kw">AND</span> created_at  <span class="op">&lt;</span>  <span class="str">'2024-06-02 00:00:00'</span>   <span class="cmt">-- ✅ OK: 翌日00:00未満で1日分を切り取る</span>
+
+<span class="cmt">-- NG-3の修正：前後の%をなくし完全一致か前方一致に変える</span>
+<span class="cmt">-- ❌ NG: status LIKE '%active%'  ← 先頭に%があるとBTreeインデックスが使えない</span>
+<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'active'</span>                    <span class="cmt">-- ✅ OK: 完全一致ならIndex Scan が有効</span>
+<span class="cmt">-- もし部分一致が必須なら全文検索インデックス(GINなど)を使う</span>
+
+<span class="cmt">/*
+  実行順序（各クエリ共通）:
+  1. FROM users              → テーブル参照
+  2. インデックス評価         → SARGable条件なら Index Scan / 非SARGableなら Seq Scan
+  3. WHERE フィルタ適用       → 条件を満たす行だけ絞り込む
+  4. SELECT 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>なぜ「列への関数適用」がインデックスを無効にするのか</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックス（emailのBTree）</th><th>格納されている値</th></tr>
+<tr><td>インデックスエントリ1</td><td>admin@example.com</td></tr>
+<tr><td>インデックスエントリ2</td><td>test@example.com</td></tr>
+<tr><td>インデックスエントリ3</td><td>user@example.com</td></tr>
+</table></div>
+<p style="font-size:12px;margin-top:6px;color:var(--dim)">インデックスは<span style="color:var(--tbl)">元の値</span>で作られている。<code>LOWER(email)</code>のように列を加工すると「加工後の値」と一致するエントリがインデックスにないためSeq Scanになる。</p>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">定数側を変換すれば列の値はそのままなのでインデックスが使える</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>SARGable vs 非SARGable の対照表</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>パターン</th><th class="tc-r">非SARGable（❌）</th><th class="tc-g">SARGable（✅）</th></tr>
+<tr><td>文字列変換</td><td class="tc-r">LOWER(col) = 'abc'</td><td class="tc-g">col = LOWER('ABC')</td></tr>
+<tr><td>日付変換</td><td class="tc-r">DATE(col) = '2024-01-01'</td><td class="tc-g">col >= '2024-01-01' AND col &lt; '2024-01-02'</td></tr>
+<tr><td>算術演算</td><td class="tc-r">col * 2 &gt; 100</td><td class="tc-g">col &gt; 50</td></tr>
+<tr><td>LIKE</td><td class="tc-r">col LIKE '%word%'</td><td class="tc-g">col LIKE 'word%'（前方一致のみ可）</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>インデックスは「元の列の値」をキーに作られています。WHERE句で列の値を加工してしまうと、加工前の値でしか検索できないインデックスが「使えない」状態になります。ルールは単純で「<em>列はそのまま、加工するなら定数側を変える</em>」です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>関数インデックス（式インデックス）：</strong>どうしても列に関数を使う必要がある場合は、<code>CREATE INDEX ON users (LOWER(email))</code> のように加工後の値でインデックスを作成します。アプリ側のクエリを変えられない場合に有効な手段です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>LIKE '%xxx%' の代替：</strong>前後に % が必要な全文検索は、BTreeインデックスでは対応できません。PostgreSQLなら <code>pg_trgm</code> 拡張のGINインデックス、専用全文検索エンジン（Elasticsearch等）を使うのが実務の正解です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>型の不一致による暗黙変換：</strong><code>WHERE user_id = 123</code> で user_id がVARCHAR型の場合、DBは暗黙的に <code>CAST(user_id AS INTEGER)</code> を行いSeq Scanになります。型を合わせて <code>WHERE user_id = '123'</code> と書くか、列の型定義を見直すことが大切です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NULL 判定に = を使う：</strong><code>WHERE col = NULL</code> は常に FALSE（SQLにおけるNULLは「= で比較できない不明な値」）。<code>WHERE col IS NULL</code> と書く必要があります。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：ORMが生成するSQLに潜むSARGable問題</div>
+<div class="column-body">
+RailsのActiveRecordやDjangoのORMは便利ですが、日付フィルタリングなどで <code>DATE(created_at) = ?</code> のような非SARGableなSQLを自動生成することがあります。特にデータ量が増えてから発覚するため、<strong>機能リリース前にスロークエリが起きやすいエンドポイントのSQLをEXPLAIN ANALYZEで確認する</strong>ことをチームの習慣にしておくと、本番トラブルを未然に防げます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  複合インデックス — 列の順序と選択性
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "複合インデックス — 列の順序と選択性が性能を決める",
+  tags: [["r","複合INDEX"],["r","カーディナリティ"],["o","列順序"],["g","選択性"]],
+  premise: `<p><strong>複合インデックス（Composite Index）</strong>は2列以上を組み合わせたインデックスです。<em>列の順序</em>が非常に重要で、「先頭列が一致するクエリ」にしか効きません。</p>
+<pre><span class="cmt">-- 複合インデックスの作成</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_status
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id, status);   <span class="cmt">-- 先頭列が user_id、2列目が status</span></pre>
+<div class="callout"><strong>複合インデックスが使われる条件：</strong><br>
+・<code>WHERE user_id = 'U01'</code> → ✅ 先頭列のみでも使われる<br>
+・<code>WHERE user_id = 'U01' AND status = 'completed'</code> → ✅ 2列とも使われる（最も効率的）<br>
+・<code>WHERE status = 'completed'</code> → ❌ 先頭列なしでは使われない（Seq Scan）</div>
+<p><strong>カーディナリティ（選択性）</strong>が高い列（値の種類が多い列）を先頭に置くと効率が上がります。</p>`,
+  question: `<p><code>orders</code> テーブルで以下の2つのクエリが高頻度で実行されます。<em>1つの複合インデックスで両方を効率化</em>するにはどう設計すべきかを示し、列の順序の理由も説明してください。</p>
+<div class="data-section">
+  <div class="data-label">高頻度クエリ</div>
+</div>
+<pre><span class="cmt">-- クエリ1: ユーザー別の完了注文を取得</span>
+<span class="kw">SELECT</span> order_id, amount
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>
+  <span class="kw">AND</span>  status  <span class="op">=</span> <span class="str">'completed'</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>;
+
+<span class="cmt">-- クエリ2: ユーザー別の全注文を取得（statusは問わない）</span>
+<span class="kw">SELECT</span> order_id, amount, status
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>;</pre>
+<div class="data-section">
+  <div class="data-label">ordersテーブルのカーディナリティ参考値</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>列</th><th>値の種類数</th><th>カーディナリティ</th></tr>
+    <tr><td>user_id</td><td>10万種類</td><td class="tc-g">高い（選択性◎）</td></tr>
+    <tr><td>status</td><td>4種類</td><td class="tc-r">低い（選択性△）</td></tr>
+    <tr><td>created_at</td><td>ほぼ一意</td><td class="tc-g">高い（選択性◎）</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>設計すべきインデックスと適用範囲：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックス</th><th>クエリ1</th><th>クエリ2</th><th>理由</th></tr>
+<tr class="tr-hi2"><td class="tc-g">idx_orders_user_status_created</td><td class="tc-g">✅ 最適</td><td class="tc-g">✅ 先頭列で有効</td><td>user_id（高選択性）を先頭に</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- 複合インデックスの設計：先頭に選択性が高い列を置く</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_status_created
+    <span class="kw">ON</span> <span class="tbl">orders</span> (
+        user_id,     <span class="cmt">-- 【先頭】カーディナリティが高い（10万種類）→ 最初に絞り込む力が強い</span>
+        status,      <span class="cmt">-- 【2番目】クエリ1の絞り込み条件。先頭列の後に評価される</span>
+        created_at   <span class="cmt">-- 【3番目】ORDER BY の並び替えにも使われる（ソートが不要になる）</span>
+    );
+
+<span class="cmt">-- クエリ1: 複合インデックスの全列が活用される</span>
+<span class="kw">SELECT</span> order_id, amount             <span class="cmt">-- 【超基礎】必要な列だけ取得（SELECT * は避ける）</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>            <span class="cmt">-- 先頭列 → インデックスで絞り込み開始</span>
+  <span class="kw">AND</span>  status  <span class="op">=</span> <span class="str">'completed'</span>      <span class="cmt">-- 2列目 → さらに絞り込み</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>;         <span class="cmt">-- 3列目 → インデックス順序と一致するためソート不要</span>
+
+<span class="cmt">-- クエリ2: 先頭列（user_id）だけでもインデックスが有効</span>
+<span class="kw">SELECT</span> order_id, amount, status
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>            <span class="cmt">-- 先頭列のみでもインデックスが使われる</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>;
+
+<span class="cmt">/*
+  実行順序（クエリ1）:
+  1. FROM orders                        → テーブル参照
+  2. Index Scan（user_id → status）     → 複合インデックスで2段階絞り込み
+  3. ORDER BY created_at                → インデックスの3列目と一致するためソート不要
+  4. SELECT order_id, amount            → 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>複合インデックスの内部構造（左端から順に絞り込む）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>BTree の絞り込み順</th><th>user_id</th><th>status</th><th>created_at</th><th>→物理行</th></tr>
+<tr class="tr-hi2"><td>①先頭列で絞る</td><td class="tc-g">U001</td><td>completed</td><td>2024-01-15</td><td class="tc-g">Row 5</td></tr>
+<tr class="tr-hi2"><td>②2列目で絞る</td><td class="tc-g">U001</td><td class="tc-g">completed</td><td>2024-01-10</td><td class="tc-g">Row 12</td></tr>
+<tr class="tr-dim"><td>（スキップ）</td><td class="tc-r">U002</td><td>…</td><td>…</td><td class="tc-r">読まない</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">クエリ2は先頭列（user_id）だけでもインデックスが有効</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>インデックス有効 / 無効の判定表（このインデックスの場合）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>WHERE句の条件</th><th>インデックス使用</th><th>理由</th></tr>
+<tr class="tr-hi2"><td>user_id = 'U001'</td><td class="tc-g">✅ 有効</td><td>先頭列のみでもOK</td></tr>
+<tr class="tr-hi2"><td>user_id + status</td><td class="tc-g">✅ 有効（最適）</td><td>先頭2列を活用</td></tr>
+<tr class="tr-hi"><td>status = 'completed' のみ</td><td class="tc-r">❌ 無効</td><td>先頭列（user_id）なし</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>複合インデックスは「先頭列から順番にしか使えない」というルールがあります。本の索引で「著者名→書名の順に並んでいる場合、書名だけでは索引を使えない」のと同じ原理です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>カーディナリティと順序：</strong>選択性が高い列（値の種類が多い）を先頭に置くと、最初の絞り込みで対象行数を大幅に減らせます。逆に選択性が低い列（たとえば true/false しかない is_deleted）を先頭にすると効果が薄くなります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>ORDER BY との連携：</strong>複合インデックスの3列目に ORDER BY に使う列を含めると、インデックス順序とソート順が一致するため「追加のソート処理（Sort node）」が不要になりさらに高速化できます。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>単一インデックスを複数作って複合インデックスの代わりにする：</strong><code>idx_user_id</code> と <code>idx_status</code> を別々に作っても、DBが両方を使う「Index Merge」は通常複合インデックスより非効率です。頻繁に組み合わせて使う列は複合インデックスにまとめましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>インデックスを増やしすぎる：</strong>テーブルに10個以上のインデックスを作ると、INSERT/UPDATE/DELETE のたびに全インデックスを更新するコストが増大します。複合インデックスで複数クエリをカバーして、インデックス数を最小化することが重要です。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：インデックス設計のベストプラクティス</div>
+<div class="column-body">
+複合インデックスの設計では「最も多く使われるWHERE句の組み合わせ」を最初にリストアップし、<strong>「最高頻度クエリ1つに最適化した複合インデックス」を作り、他のクエリはそのインデックスをどこまで活用できるかで評価する</strong>アプローチが実務的です。全クエリを満足させようとして列数が増えすぎると、インデックスのサイズが肥大化しメモリを圧迫します。クエリ頻度と重要度でトレードオフを判断することが設計の醍醐味です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  SELECT * の問題点 — カバリングインデックスとの関係
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "SELECT * の問題点 — カバリングインデックスで「テーブルを読まない」最適化",
+  tags: [["r","SELECT *"],["r","カバリングINDEX"],["o","Index Only Scan"],["g","転送量削減"]],
+  premise: `<p><code>SELECT *</code> は「全列を取得する」便利な書き方ですが、パフォーマンスの観点では<em>3つの問題</em>を抱えています。①不要な列も転送するため通信コストが増える、②インデックスだけで完結できる「Index Only Scan」が使えなくなる、③将来の列追加でAPIの応答形式が暗黙的に変わるリスクがある。</p>
+<div class="callout ok"><strong>カバリングインデックス（Covering Index）：</strong>クエリが必要とする全列がインデックスに含まれている場合、DBはテーブル本体を読まずにインデックスだけで結果を返せます。これを <code>Index Only Scan</code> といい、通常のIndex Scanよりさらに高速です。</div>`,
+  question: `<p><code>orders</code> テーブルに対して、以下の集計クエリが高頻度で実行されています。<em>カバリングインデックスを使ってIndex Only Scanが発動するように</em>インデックスを設計し、SELECT列を適切に絞ってください。</p>
+<pre><span class="cmt">-- 現在の遅いクエリ（SELECT * を使用）</span>
+<span class="kw">SELECT</span> <span class="op">*</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>
+  <span class="kw">AND</span>  status  <span class="op">=</span> <span class="str">'completed'</span>;</pre>
+<div class="data-section">
+  <div class="data-label">ordersテーブルの列一覧</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>列名</th><th>型</th><th>APIで使う？</th></tr>
+    <tr><td>order_id</td><td>INTEGER PK</td><td class="tc-g">✅ 使う</td></tr>
+    <tr><td>user_id</td><td>VARCHAR</td><td class="tc-g">✅ 使う</td></tr>
+    <tr><td>amount</td><td>NUMERIC</td><td class="tc-g">✅ 使う</td></tr>
+    <tr><td>status</td><td>VARCHAR</td><td class="tc-g">✅ 使う</td></tr>
+    <tr><td>internal_memo</td><td>TEXT</td><td class="tc-r">❌ 使わない（内部メモ）</td></tr>
+    <tr><td>raw_payload</td><td>JSONB</td><td class="tc-r">❌ 使わない（大きなJSONB）</td></tr>
+    <tr><td>created_at</td><td>TIMESTAMPTZ</td><td class="tc-g">✅ 使う</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>カバリングインデックス + 列を絞ったクエリで Index Only Scan が発動：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>改善点</th><th class="tc-r">Before</th><th class="tc-g">After</th></tr>
+<tr><td>スキャン種別</td><td class="tc-r">Index Scan（テーブル読む）</td><td class="tc-g">Index Only Scan（テーブル不要）</td></tr>
+<tr><td>取得列</td><td class="tc-r">全7列（大きなJSONBも含む）</td><td class="tc-g">必要な5列のみ</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- カバリングインデックスを作成する</span>
+<span class="cmt">-- INCLUDE句：WHERE/JOINには使わないが SELECT に必要な列を「付録」としてインデックスに含める</span>
+<span class="kw">CREATE INDEX</span> idx_orders_covering
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id, status)           <span class="cmt">-- 【超基礎】絞り込みに使う列（BTreeのキー）</span>
+    <span class="kw">INCLUDE</span> (order_id, amount, created_at); <span class="cmt">-- 【超基礎】SELECT に必要なだけ付録として含める（キーにはしない）</span>
+
+<span class="cmt">-- 改善後のクエリ：SELECT列を必要なものだけに絞る</span>
+<span class="kw">SELECT</span>
+    order_id,    <span class="cmt">-- 【超基礎】必要な列のみ明示的に指定する</span>
+    user_id,
+    amount,
+    status,
+    created_at   <span class="cmt">-- ここまでの5列が全てインデックスに含まれている</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>              <span class="cmt">-- インデックスのキー列で絞り込み</span>
+  <span class="kw">AND</span>  status  <span class="op">=</span> <span class="str">'completed'</span>;        <span class="cmt">-- インデックスのキー列で絞り込み</span>
+
+<span class="cmt">-- SELECT * では internal_memo（TEXT）、raw_payload（JSONB）も取得してしまう
+-- → インデックスに含まれない列があるとテーブルにアクセスが必要になり Index Only Scan にならない</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders                    → テーブル参照（だが実際はインデックスだけ読む）
+  2. Index Only Scan（user_id+status） → インデックスだけで絞り込みと列取得を完結
+  3. WHERE user_id+status           → インデックス内でフィルタ（テーブル本体不要）
+  4. SELECT 5列                     → インデックスから直接返す（テーブルアクセスなし）
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>通常のIndex Scan：インデックスで位置を特定 → テーブルへのアクセスも発生</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>処理</th><th>内容</th><th>コスト</th></tr>
+<tr><td>①インデックス参照</td><td>user_id='U001' AND status='completed' → 物理位置を特定</td><td class="tc-y">低</td></tr>
+<tr class="tr-hi"><td>②テーブル本体アクセス（Heap Fetch）</td><td>物理位置からテーブルを読んで全列を取得</td><td class="tc-r">追加コスト発生</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">カバリングインデックスなら②のテーブルアクセスが消える</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>Index Only Scan：インデックスだけで完結（テーブルを読まない）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックス（カバリング）</th><th>user_id</th><th>status</th><th>order_id(付録)</th><th>amount(付録)</th><th>created_at(付録)</th></tr>
+<tr class="tr-hi2"><td>エントリ1</td><td class="tc-g">U001</td><td class="tc-g">completed</td><td>101</td><td>3000</td><td>2024-01-10</td></tr>
+<tr class="tr-hi2"><td>エントリ2</td><td class="tc-g">U001</td><td class="tc-g">completed</td><td>203</td><td>5000</td><td>2024-01-15</td></tr>
+</table></div>
+<p style="font-size:12px;margin-top:6px;color:var(--dim)">SELECTに必要な全列がインデックス内にあるため<span style="color:var(--green)">テーブル本体を読む必要がない</span>。</p>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong><code>SELECT *</code> は手軽ですが「本当に必要な列だけ指定する」ことがSQLの基本です。必要な列を明示することで①データ転送量削減、②カバリングインデックス活用、③コードの意図が明確になる、という3つのメリットがあります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>INCLUDE句（PostgreSQL 11以降）：</strong><code>INCLUDE(col)</code> で追加した列はBTreeのキー構造には影響せず、「インデックスリーフページに付録として乗せる」だけです。ORDER BY・JOIN ON・WHERE には使えませんが、SELECT専用の列を低コストで含められます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>大きな列（TEXT/JSONB/BLOB）をSELECT *で取得するコスト：</strong>大きな列はメモリや通信帯域を大量に消費します。APIが不要な列まで毎回取得していると、スループット（同時処理件数）が大幅に低下します。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>全列をINCLUDEに入れてカバリングインデックスを作る：</strong>INCLUDE列が増えすぎるとインデックスサイズが肥大化し、メモリに乗りにくくなります。「よく使うクエリで必要な列」に絞ることが重要です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SELECT * をORMの「お手軽取得」として常用する：</strong>ActiveRecordの <code>Model.all</code> や DjangoのORM デフォルトは全列取得です。必要な列だけ取る <code>.only(:id, :name)</code> や <code>.values('id', 'name')</code> を意識的に使いましょう。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：APIのレスポンス設計とSQLの列選択</div>
+<div class="column-body">
+APIのレスポンスを設計する際に「とりあえず全列返す」にしてしまうと、後からフィールドを追加・変更するたびにクライアントへの影響が出ます。<strong>「APIレスポンスに必要な列だけをSQLのSELECTに書く」</strong>設計原則は、パフォーマンスとAPI設計品質の両方を同時に高めます。GraphQLのようにクライアントが必要フィールドを指定できる仕組みとも相性が良く、バックエンドで「リクエストされたフィールドのみSELECTする」動的クエリ生成パターンにもつながります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6  EXISTS vs IN — 大量データでの使い分け
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "EXISTS vs IN — 大量データでの相関サブクエリの使い分け",
+  tags: [["r","EXISTS"],["r","IN"],["o","サブクエリ"],["g","パフォーマンス比較"]],
+  premise: `<p><strong>EXISTS</strong> と <strong>IN</strong> はどちらも「別テーブルとの存在確認」に使いますが、データ量や状況によってパフォーマンスが大きく異なります。</p>
+<pre><span class="cmt">-- IN を使った書き方</span>
+<span class="kw">SELECT</span> user_id <span class="kw">FROM</span> <span class="tbl">users</span>
+<span class="kw">WHERE</span>  user_id <span class="kw">IN</span> (<span class="kw">SELECT</span> user_id <span class="kw">FROM</span> <span class="tbl">orders</span>);
+
+<span class="cmt">-- EXISTS を使った書き方</span>
+<span class="kw">SELECT</span> user_id <span class="kw">FROM</span> <span class="tbl">users</span> u
+<span class="kw">WHERE</span>  <span class="kw">EXISTS</span> (
+    <span class="kw">SELECT</span> <span class="num">1</span>                          <span class="cmt">-- EXISTS は存在確認だけなので SELECT 1 が慣習</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span> o
+    <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id     <span class="cmt">-- 外側の行と突き合わせる「相関サブクエリ」</span>
+);</pre>
+<div class="callout warn"><strong>INとEXISTSの挙動の違い：</strong><br>
+・<code>IN</code>：サブクエリを全件実行してリストを作り、外側の値がそのリストに含まれるか判定。リストにNULLが含まれると予期しない結果になる。<br>
+・<code>EXISTS</code>：1件でも条件に合致すればTRUEで即座に次の行へ進む（Short-circuit）。NULLに対して安全。</div>`,
+  question: `<p><code>users</code>（10万件）と <code>orders</code>（500万件）のテーブルで、<em>注文を1件以上持つユーザー</em>を取得してください。INとEXISTSの両方で書き、<em>パフォーマンスの観点からどちらが推奨か</em>を説明してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users（10万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id(PK)</th><th>name</th></tr>
+        <tr><td>U001</td><td>田中</td></tr>
+        <tr><td>U002</td><td>鈴木</td></tr>
+        <tr><td>U003</td><td>佐藤</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（500万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id(PK)</th><th>user_id</th><th>amount</th></tr>
+        <tr><td>1</td><td>U001</td><td>3000</td></tr>
+        <tr><td>2</td><td>U001</td><td>5000</td></tr>
+        <tr><td>3</td><td>U003</td><td>1500</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>注文を1件以上持つユーザー（U002は注文なし → 除外）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th></tr>
+<tr class="tr-hi2"><td>U001</td><td>田中</td></tr>
+<tr class="tr-hi2"><td>U003</td><td>佐藤</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① IN を使った書き方（わかりやすいが大規模サブクエリは注意）</span>
+<span class="kw">SELECT</span> user_id, name              <span class="cmt">-- 【超基礎】取得する列を明示</span>
+<span class="kw">FROM</span>   <span class="tbl">users</span>
+<span class="kw">WHERE</span>  user_id <span class="kw">IN</span> (              <span class="cmt">-- 【超基礎】サブクエリが返す値のリストに含まれる行を取得</span>
+    <span class="kw">SELECT</span> user_id               <span class="cmt">-- 【超基礎】サブクエリ: ordersから全user_idを取得</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span>               <span class="cmt">-- 500万件全件を読んでリストを生成 → メモリを使う</span>
+);
+
+<span class="cmt">-- ② EXISTS を使った書き方（大規模テーブルで推奨）</span>
+<span class="kw">SELECT</span> u.user_id, u.name         <span class="cmt">-- 【超基礎】外側テーブルの列を取得</span>
+<span class="kw">FROM</span>   <span class="tbl">users</span> u                  <span class="cmt">-- 【超基礎】メインのテーブル（エイリアス u）</span>
+<span class="kw">WHERE</span>  <span class="kw">EXISTS</span> (                  <span class="cmt">-- 【超基礎】サブクエリが1件でも返せばTRUE</span>
+    <span class="kw">SELECT</span> <span class="num">1</span>                    <span class="cmt">-- 【超基礎】存在確認だけなので値は何でもよい（1が慣習）</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span> o             <span class="cmt">-- 【超基礎】サブクエリ内のテーブル（エイリアス o）</span>
+    <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id <span class="cmt">-- 【超基礎】外側の u.user_id と内側の o.user_id を突き合わせる（相関）</span>
+);                               <span class="cmt">-- 1件でも見つかれば即座にTRUE → 残りは読まない（Short-circuit）</span>
+
+<span class="cmt">-- ③ JOINを使った代替（モダンなオプティマイザでは同等か速いことも）</span>
+<span class="kw">SELECT DISTINCT</span> u.user_id, u.name <span class="cmt">-- DISTINCT で重複を除去（複数注文のユーザーが重複しないよう）</span>
+<span class="kw">FROM</span>   <span class="tbl">users</span>  u
+<span class="kw">JOIN</span>   <span class="tbl">orders</span> o <span class="kw">ON</span> o.user_id <span class="op">=</span> u.user_id; <span class="cmt">-- 一致しない行（注文なし）は自動で除外される</span>
+
+<span class="cmt">/*
+  実行順序（EXISTSの場合）:
+  1. FROM users u               → 外側テーブルを1行ずつ処理
+  2. EXISTS サブクエリ評価       → 各 u.user_id に対してordersを検索
+  3. Short-circuit               → ordersで1件でも一致したら即TRUE、残りはスキップ
+  4. WHERE EXISTS = TRUE の行のみ → 条件を通過した行を保持
+  5. SELECT user_id, name        → 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>IN：サブクエリを全件実行してリスト化 → 外側と比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>処理ステップ</th><th>内容</th><th>コスト</th></tr>
+<tr class="tr-hi"><td>① サブクエリを先に全件実行</td><td>ordersの500万件からuser_id全件を取得してリスト化</td><td class="tc-r">高（全件読む）</td></tr>
+<tr class="tr-hi4"><td>② リストにNULLが含まれると…</td><td>WHERE col IN (1, 2, NULL) → NULL比較は常にFALSE → 予期しない結果</td><td class="tc-r">バグリスク</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">EXISTSは「見つかった瞬間に処理を止める」Short-circuitが働く</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>EXISTS：外側の行ごとにサブクエリ評価 → 1件一致で即打ち切り</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>外側（users）</th><th>ordersを検索</th><th>1件でも一致？</th><th>結果</th></tr>
+<tr class="tr-hi2"><td>U001（田中）</td><td>order_id=1（U001）を発見</td><td class="tc-g">✓ → 即TRUE</td><td class="tc-g">含める</td></tr>
+<tr class="tr-hi"><td>U002（鈴木）</td><td>U002の注文を全検索</td><td class="tc-r">✗ → FALSE</td><td class="tc-r">除外</td></tr>
+<tr class="tr-hi2"><td>U003（佐藤）</td><td>order_id=3（U003）を発見</td><td class="tc-g">✓ → 即TRUE</td><td class="tc-g">含める</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>EXISTSは「サブクエリが1件でも結果を返すか？」だけを確認します。<code>SELECT 1</code>と書くのは「何を返すかではなく、返せるかどうかだけ確認する」という意図の表明です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>EXISTSのShort-circuit（短絡評価）：</strong>EXISTSは1件一致した時点でそのユーザーの評価を終了し次の行に進みます。U001が500万件の注文を持っていても、最初の1件を見つけた時点で終了します。INは全リストを先に作るため、この最適化が使えません。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>モダンなオプティマイザの現実：</strong>PostgreSQL 14以降などでは、INとEXISTSを同等の実行計画に変換できるケースも多く、実際の差は小さいこともあります。ただし、NULLの扱いとコードの意図の明確さから、<em>存在確認はEXISTSを使う</em>のがベストプラクティスです。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>IN のサブクエリにNULLが混入する：</strong><code>WHERE user_id NOT IN (SELECT user_id FROM orders)</code> のように <code>NOT IN</code> を使うと、ordersのuser_idにNULLが1件でもあると結果が全件0件になります（NULLとの比較は常にUNKNOWN）。NOT INは <code>NOT EXISTS</code> で書き直すのが安全です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>EXISTSでSELECT *を使う：</strong><code>EXISTS (SELECT * FROM orders WHERE …)</code> と書いても動作しますが、<code>SELECT 1</code> の方が「値を返す必要がなく存在確認だけ」という意図が明確です。チームの可読性のためにも <code>SELECT 1</code> を使いましょう。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：JOINとEXISTSの使い分け</div>
+<div class="column-body">
+「注文を持つユーザー」のような<em>存在確認だけが目的</em>なら EXISTS が最も意図が明確です。JOINを使うと1ユーザーが複数注文を持つ場合に行が重複するため、<code>DISTINCT</code>やサブクエリが必要になり複雑化します。<strong>「相手テーブルのデータ（列）は不要で、存在するかどうかだけを確認したい」</strong>場面では迷わず EXISTS を選ぶことで、意図が明確でパフォーマンスも安定したSQLになります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  部分インデックス — WHERE条件付きインデックスで容量とコストを削減
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "部分インデックス（Partial Index）— 条件付きインデックスでサイズと速度を両立",
+  tags: [["r","部分INDEX"],["r","Partial Index"],["o","WHERE付きINDEX"],["g","サイズ削減"]],
+  premise: `<p><strong>部分インデックス（Partial Index）</strong>は、<em>テーブルの全行ではなく特定の条件を満たす行だけ</em>にインデックスを作成します。インデックスのサイズを削減しながら、特定クエリパターンへの高速化を実現します。</p>
+<pre><span class="cmt">-- 通常のインデックス（全行が対象）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_status
+    <span class="kw">ON</span> <span class="tbl">orders</span> (status);           <span class="cmt">-- 全100万行に対してインデックスを作成</span>
+
+<span class="cmt">-- 部分インデックス（条件付き）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_pending
+    <span class="kw">ON</span> <span class="tbl">orders</span> (created_at)
+    <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'pending'</span>;     <span class="cmt">-- pending の行だけ（例えば1万行）に作成 → サイズ1/100</span></pre>
+<div class="callout ok"><strong>部分インデックスが有効なシナリオ：</strong>① 「未処理のみ」「アクティブのみ」など、特定ステータスを頻繁に検索する、② 削除済みフラグ（is_deleted=false）を常に絞り込む、③ NULL以外の行だけを対象にする</div>`,
+  question: `<p><code>orders</code> テーブルに100万件あり、そのうち <em>status='pending'（処理待ち）は全体の1%（約1万件）</em>です。バッチ処理が5分ごとに「pending の注文を created_at 昇順で取得」しています。<em>部分インデックスを作成</em>して、このバッチクエリを最適化してください。</p>
+<div class="data-section">
+  <div class="data-label">ordersテーブル ステータス分布</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>status</th><th>件数</th><th>割合</th></tr>
+    <tr class="tr-hi"><td>pending</td><td class="tc-y">10,000件</td><td class="tc-y">1%（バッチの対象）</td></tr>
+    <tr class="tr-dim"><td>completed</td><td class="null">850,000件</td><td class="null">85%</td></tr>
+    <tr class="tr-dim"><td>cancelled</td><td class="null">140,000件</td><td class="null">14%</td></tr>
+  </table></div>
+</div>
+<pre><span class="cmt">-- 最適化対象のバッチクエリ</span>
+<span class="kw">SELECT</span> order_id, user_id, amount, created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'pending'</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">ASC</span>
+<span class="kw">LIMIT</span>  <span class="num">100</span>;</pre>`,
+  output: `<p>部分インデックス作成前後の比較：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th></th><th class="tc-r">通常インデックス</th><th class="tc-g">部分インデックス</th></tr>
+<tr><td>インデックスサイズ</td><td class="tc-r">100万行分</td><td class="tc-g">1万行分（1/100）</td></tr>
+<tr><td>スキャン範囲</td><td class="tc-r">全インデックスを探索</td><td class="tc-g">pendingのみの小さなインデックス</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- 部分インデックスの作成（pendingの行だけを対象）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_pending_created  <span class="cmt">-- 名前に条件を反映させると意図が伝わりやすい</span>
+    <span class="kw">ON</span> <span class="tbl">orders</span> (created_at)             <span class="cmt">-- 【超基礎】バッチクエリのORDER BYに使う列をキーにする</span>
+    <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'pending'</span>;           <span class="cmt">-- 【超基礎】インデックスに含める行の条件（pendingだけ）</span>
+
+<span class="cmt">-- バッチクエリ（変更なし）: 部分インデックスが自動的に使われる</span>
+<span class="kw">SELECT</span>                                 <span class="cmt">-- 【超基礎】必要な列だけ指定</span>
+    order_id,
+    user_id,
+    amount,
+    created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span>                         <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'pending'</span>             <span class="cmt">-- 【超基礎】部分インデックスのWHERE条件と一致 → 発動</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">ASC</span>              <span class="cmt">-- 【超基礎】インデックスのキー順と同じ → Sort不要</span>
+<span class="kw">LIMIT</span>  <span class="num">100</span>;                           <span class="cmt">-- 【超基礎】上位100件だけ取得（早期終了も可能）</span>
+
+<span class="cmt">-- NG: 部分インデックスの条件と合わないクエリでは使われない
+-- WHERE status = 'completed' → 部分インデックスの対象外（Seq Scan or 別Indexが必要）</span>
+
+<span class="cmt">/*
+  実行順序（バッチクエリ）:
+  1. FROM orders                       → テーブル参照
+  2. 部分Index Scan（pendingのみの索引） → 1万行のみの小さなインデックスを使う
+  3. WHERE status='pending'            → インデックスが既にpendingのみなのでフィルタ不要
+  4. ORDER BY created_at ASC           → インデックスのキー順なのでSort不要
+  5. LIMIT 100                         → 先頭100件で早期終了
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>通常インデックス vs 部分インデックスのサイズ比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックス種別</th><th>対象行数</th><th>インデックスサイズ目安</th><th>バッチ効率</th></tr>
+<tr class="tr-hi"><td>通常 idx_orders_status</td><td class="tc-r">100万行（全件）</td><td class="tc-r">大（全件のエントリ）</td><td class="tc-r">普通</td></tr>
+<tr class="tr-hi2"><td>部分 idx_orders_pending_created</td><td class="tc-g">1万行（pending のみ）</td><td class="tc-g">1/100のサイズ</td><td class="tc-g">高速</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">小さいインデックスはキャッシュに乗りやすく、ディスクI/Oも激減</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>ORDER BY + LIMIT との組み合わせ：先頭100件で早期終了</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>created_at（インデックス順）</th><th>status（インデックス条件）</th><th>取得</th></tr>
+<tr class="tr-hi2"><td class="tc-g">2024-01-01 00:01:00</td><td class="tc-g">pending</td><td class="tc-g">✓ 1件目</td></tr>
+<tr class="tr-hi2"><td class="tc-g">2024-01-01 00:05:00</td><td class="tc-g">pending</td><td class="tc-g">✓ 2件目</td></tr>
+<tr class="tr-dim"><td class="null">…</td><td class="null">…</td><td class="null">100件で終了</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>部分インデックスは「インデックスを作る対象の行を絞る」技術です。全体の1%しかないpendingレコードのためだけに100万行分のインデックスを維持するのは非効率です。部分インデックスは必要な行だけを対象にするため、サイズが小さくメモリにも乗りやすくなります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>バッチ処理との相性：</strong>「処理待ちのデータを順番に取り出す」ようなバッチクエリは部分インデックスが最も効く典型例です。ORDER BY + LIMIT と組み合わせると、インデックスを先頭から読んでLIMIT件数に達した時点で終了（早期終了）するため非常に高速です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>is_deleted への応用：</strong><code>WHERE is_deleted = false</code> のような「論理削除フラグ」を全クエリで絞り込む設計では、<code>CREATE INDEX ON t (col) WHERE is_deleted = false</code> とすることで削除済みレコードをインデックスから除外でき、サイズと速度を両立できます。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>部分インデックスの条件と一致しないWHERE句で使おうとする：</strong><code>WHERE status = 'pending'</code> の部分インデックスは、<code>WHERE status = 'completed'</code> のクエリには使われません。部分インデックスは「条件が完全に一致するクエリ専用」と理解しておきましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>変化するステータスに対してインデックスを過信する：</strong>pending → completed に更新されると、インデックスから削除・追加が発生します。頻繁にステータスが更新されるテーブルでは、書き込みコストが増加する点も考慮が必要です。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：キューテーブルとしてのorders設計</div>
+<div class="column-body">
+ordersテーブルのpending行は「処理待ちキュー」として機能します。部分インデックスを活用した <code>SELECT … WHERE status='pending' ORDER BY created_at ASC LIMIT 100</code> + <code>FOR UPDATE SKIP LOCKED</code>（PostgreSQL）を組み合わせると、<strong>複数バッチワーカーが重複なく並列処理できるジョブキュー</strong>が実現できます。RedisなどのKVSを使わずにRDBMSだけで安全なキューを実装するモダンなパターンとして実務で広く使われています。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  LIMIT による早期打ち切りとページネーション最適化
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "LIMIT早期打ち切り vs OFFSETページネーション — Keyset Paginationへの移行",
+  tags: [["r","LIMIT"],["r","OFFSET"],["o","Keyset Pagination"],["g","ページネーション"]],
+  premise: `<p><strong>OFFSET ページネーション</strong>（<code>LIMIT 20 OFFSET 1000</code>）は実装が簡単ですが、OFFSETが大きくなるとパフォーマンスが劣化します。DBはOFFSET分の行を「読んで捨てる」ため、後半ページになるほど遅くなります。</p>
+<pre><span class="cmt">-- OFFSETベースのページネーション（問題あり）</span>
+<span class="kw">SELECT</span> id, title <span class="kw">FROM</span> <span class="tbl">articles</span>
+<span class="kw">ORDER BY</span> id
+<span class="kw">LIMIT</span>  <span class="num">20</span> <span class="kw">OFFSET</span> <span class="num">10000</span>;  <span class="cmt">-- 1万行を読み飛ばす（遅い）</span>
+
+<span class="cmt">-- Keyset Pagination（カーソルベース）</span>
+<span class="kw">SELECT</span> id, title <span class="kw">FROM</span> <span class="tbl">articles</span>
+<span class="kw">WHERE</span>  id <span class="op">&gt;</span> <span class="num">10000</span>          <span class="cmt">-- 前のページの最後のIDから続きを取得</span>
+<span class="kw">ORDER BY</span> id
+<span class="kw">LIMIT</span>  <span class="num">20</span>;</pre>
+<div class="callout warn"><strong>OFFSETの問題：</strong>OFFSET N は「N行分を読んで捨てる」処理です。N=100,000なら10万行を読み捨ててから20行返すため、ページが深くなるほど線形に遅くなります。</div>`,
+  question: `<p><code>articles</code> テーブル（500万件）で、<em>id の降順</em>で記事一覧を返すAPIを実装します。現在OFFSET方式を使っていますが、ページが深くなると遅くなっています。<em>Keyset Pagination（カーソルベース）に書き直してください</em>。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ articles（500万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>id(PK)</th><th>title</th><th>created_at</th></tr>
+        <tr><td>5000000</td><td>最新記事</td><td>2024-12-01</td></tr>
+        <tr><td>4999999</td><td>2番目の記事</td><td>2024-11-30</td></tr>
+        <tr class="tr-dim"><td class="null">…</td><td class="null">…</td><td class="null">…</td></tr>
+        <tr><td>1</td><td>最初の記事</td><td>2020-01-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 現在のOFFSETページネーション（遅い）</span>
+<span class="cmt">-- ページ501（1件あたり20件表示、深いページ）</span>
+<span class="kw">SELECT</span> id, title, created_at
+<span class="kw">FROM</span>   <span class="tbl">articles</span>
+<span class="kw">ORDER BY</span> id <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">20</span> <span class="kw">OFFSET</span> <span class="num">10000</span>;   <span class="cmt">-- 1万行読み捨て → 遅い</span></pre>`,
+  output: `<p>Keyset Pagination の返すデータ例（前ページ最後のid=4989980から続く20件）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>id</th><th>title</th><th>next_cursor（APIが返す）</th></tr>
+<tr class="tr-hi2"><td>4989979</td><td>…</td><td rowspan="3" class="tc-g" style="vertical-align:middle">cursor=4989960<br>（次のリクエストで使用）</td></tr>
+<tr class="tr-hi2"><td>4989978</td><td>…</td></tr>
+<tr class="tr-hi2"><td class="null">… 20件 …</td><td class="null">…</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① OFFSETページネーション（現状・問題あり）</span>
+<span class="kw">SELECT</span> id, title, created_at     <span class="cmt">-- 【超基礎】必要な列を指定</span>
+<span class="kw">FROM</span>   <span class="tbl">articles</span>
+<span class="kw">ORDER BY</span> id <span class="kw">DESC</span>                <span class="cmt">-- 【超基礎】新しい順（降順）に並び替え</span>
+<span class="kw">LIMIT</span>  <span class="num">20</span> <span class="kw">OFFSET</span> <span class="num">10000</span>;       <span class="cmt">-- ❌ 1万行を読んで捨ててから20行返す → 深いページほど遅い</span>
+
+<span class="cmt">-- ② Keyset Pagination（改善版）</span>
+<span class="cmt">-- ※ APIリクエスト: GET /articles?cursor=4989980&limit=20</span>
+<span class="cmt">-- ※ cursor は前のページの最後の id</span>
+<span class="kw">SELECT</span> id, title, created_at    <span class="cmt">-- 【超基礎】必要な列を指定</span>
+<span class="kw">FROM</span>   <span class="tbl">articles</span>
+<span class="kw">WHERE</span>  id <span class="op">&lt;</span> <span class="num">4989980</span>            <span class="cmt">-- 【超基礎】カーソル（前ページ最後のid）より小さい行を取得</span>
+<span class="kw">ORDER BY</span> id <span class="kw">DESC</span>               <span class="cmt">-- 【超基礎】降順で並べる（新→旧）</span>
+<span class="kw">LIMIT</span>  <span class="num">20</span>;                     <span class="cmt">-- 【超基礎】20件取得（何ページ目でもコストは一定）</span>
+
+<span class="cmt">-- ③ 次のカーソル値をAPIレスポンスに含める方法（アプリ側の処理）</span>
+<span class="cmt">-- 取得した結果の最後の行の id を next_cursor としてAPIレスポンスに含める
+-- クライアントは次回リクエストで ?cursor=<next_cursor> を渡す</span>
+
+<span class="cmt">/*
+  実行順序（Keyset Paginationの場合）:
+  1. FROM articles              → テーブル参照
+  2. Index Scan on id DESC     → id のインデックスを逆順で走査
+  3. WHERE id < 4989980        → カーソル値でインデックスの開始位置を直接特定
+  4. LIMIT 20                  → 20件取得したら即終了（何ページ目でも同じコスト）
+  5. SELECT id, title, ...     → 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>OFFSETの問題：ページが深くなるほどコストが線形に増加</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ページ番号</th><th>OFFSET値</th><th>読み捨てる行数</th><th>返す行数</th><th>コスト</th></tr>
+<tr class="tr-hi2"><td>1ページ目</td><td>0</td><td class="tc-g">0行</td><td>20行</td><td class="tc-g">低</td></tr>
+<tr class="tr-hi4"><td>100ページ目</td><td>1,980</td><td class="tc-y">約2,000行捨て</td><td>20行</td><td class="tc-y">中</td></tr>
+<tr class="tr-hi"><td>501ページ目</td><td>10,000</td><td class="tc-r">1万行捨て</td><td>20行</td><td class="tc-r">高（遅い）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">Keysetはカーソル位置からインデックスで直接スキャン開始 → 何ページ目でも同じコスト</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>Keyset：WHERE id &lt; cursor でインデックスの特定位置から20件だけ取得</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックス（id DESC）</th><th>id</th><th>カーソル未満？</th><th>取得</th></tr>
+<tr class="tr-dim"><td>（スキップ）</td><td class="tc-r">5000000 ～ 4989980</td><td class="tc-r">以上なのでスキップ</td><td class="tc-r">読まない</td></tr>
+<tr class="tr-hi2"><td>開始点</td><td class="tc-g">4989979</td><td class="tc-g">✓ 1件目</td><td class="tc-g">取得</td></tr>
+<tr class="tr-hi2"><td></td><td class="tc-g">4989978</td><td class="tc-g">✓ 2件目</td><td class="tc-g">取得</td></tr>
+<tr class="tr-dim"><td class="null">…20件で終了…</td><td class="null">…</td><td class="null">…</td><td class="null">LIMIT で打ち切り</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>OFFSETは「n行飛ばして次を返す」命令です。飛ばすためには飛ばす行を先に読まなければならないため、OFFSETが大きいほどDBへの負荷が増えます。Keyset Paginationは「前のページの最後のIDから始める」方式なので、何ページ目でも常に同じ量だけ読みます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Keysetの制約：</strong>カーソルベースは「任意ページへのジャンプ（ページ番号指定）」ができません。「前へ」「次へ」の無限スクロール型UIには最適ですが、「100ページ目に直接ジャンプ」する管理画面などではOFFSETの方が実装が簡単な場合もあります。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>ソート列の一意性：</strong>Keyset Paginationでは<code>ORDER BY</code>に使う列が一意（またはユニークな組み合わせ）でないと同一値の行で境界が曖昧になります。<code>ORDER BY created_at DESC, id DESC</code> のようにタイブレーカーとして一意なid列を必ず追加します。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BYなしでLIMIT/OFFSETを使う：</strong>ORDER BYを省略すると、DBは行を任意の順序で返すため、ページをめくるたびに同じ行が出たり行が抜けたりします。LIMITを使うときは必ずORDER BYを付け、順序を確定させてください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COUNT(*)と組み合わせる「全件数取得」：</strong>OFFSET型で「全〇〇件中」の表示のためにCOUNT(*)を毎回実行するのは大規模テーブルでは致命的に遅いです。概算値（<code>pg_class.reltuples</code> など）を使うか、全件数表示を仕様から削除することを検討しましょう。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：APIのページネーション設計とLeaf-Node Cache</div>
+<div class="column-body">
+REST APIのページネーション方式は、<code>?page=3</code>（OFFSET型）より<code>?cursor=xxx</code>（Keyset型）が近年のベストプラクティスです。GitHub API・Stripe API・Twitter APIなど主要なAPIはカーソル型を採用しています。また、Keyset Paginationはインデックスのリーフノードを先頭から順に読むだけなので、<strong>DBのバッファキャッシュにも乗りやすく、繰り返しアクセスでさらに高速化</strong>される利点もあります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  統計情報とANALYZE — オプティマイザに正確な情報を与える
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "統計情報とANALYZE — オプティマイザが誤った計画を立てるとき",
+  tags: [["r","ANALYZE"],["r","統計情報"],["o","オプティマイザ"],["g","Autovacuum"]],
+  premise: `<p>PostgreSQLのクエリオプティマイザは<strong>統計情報</strong>（テーブルの行数・列値の分布など）を元に「どの実行計画が最も速いか」を推定します。統計情報が古いと、オプティマイザが誤った計画（Seq Scanを選ぶなど）を選択することがあります。</p>
+<pre><span class="cmt">-- 統計情報を手動で更新する</span>
+<span class="kw">ANALYZE</span> <span class="tbl">orders</span>;               <span class="cmt">-- ordersテーブルの統計情報をサンプリングして更新</span>
+
+<span class="cmt">-- テーブルの推定行数などを確認する（pg_classの統計情報）</span>
+<span class="kw">SELECT</span> relname, reltuples, relpages
+<span class="kw">FROM</span>   pg_class
+<span class="kw">WHERE</span>  relname <span class="op">=</span> <span class="str">'orders'</span>;    <span class="cmt">-- reltuples: 推定行数, relpages: ページ数</span></pre>
+<div class="callout"><strong>Autovacuumとの関係：</strong>PostgreSQLにはANALYZEを自動実行する <code>autovacuum</code> が常駐していますが、大量データを一括INSERTした直後などは統計情報が追いついていない場合があります。その場合は手動でANALYZEを実行します。</div>`,
+  question: `<p>バッチ処理で100万件のデータを一括INSERTした直後に、以下のクエリが予想外にSeq Scanを使っていました（EXPLAINで確認済み）。<em>なぜSeq Scanが選ばれたか、どう対処するか</em>を示してください。また、統計情報を確認・更新するSQLも書いてください。</p>
+<pre><span class="cmt">-- EXPLAIN ANALYZEで確認したら Seq Scan になっていたクエリ</span>
+<span class="kw">SELECT</span> order_id, amount
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'pending'</span>
+  <span class="kw">AND</span>  created_at <span class="op">&gt;=</span> <span class="str">'2024-12-01'</span>;
+<span class="cmt">-- ↑ created_at と status には複合インデックスがあるのに Seq Scan になっている</span></pre>
+<div class="data-section">
+  <div class="data-label">状況</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>タイミング</th><th>テーブルの実際の行数</th><th>統計情報の行数（reltuples）</th></tr>
+    <tr><td>バッチ前</td><td>1万行</td><td class="tc-g">1万行（正確）</td></tr>
+    <tr class="tr-hi"><td>バッチ後（現在）</td><td class="tc-g">101万行</td><td class="tc-r">1万行（古い！）</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>対処法と統計情報更新後の変化：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th></th><th class="tc-r">統計情報が古い状態</th><th class="tc-g">ANALYZE後</th></tr>
+<tr><td>オプティマイザの認識行数</td><td class="tc-r">1万行（古い）</td><td class="tc-g">101万行（正確）</td></tr>
+<tr><td>実行計画</td><td class="tc-r">Seq Scan（誤った選択）</td><td class="tc-g">Index Scan（正しい選択）</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 現在の統計情報（推定行数）を確認する</span>
+<span class="kw">SELECT</span>
+    relname                           <span class="cmt">-- テーブル名</span>
+    , reltuples::bigint <span class="kw">AS</span> est_rows  <span class="cmt">-- オプティマイザが使う推定行数（古い可能性がある）</span>
+    , relpages          <span class="kw">AS</span> pages    <span class="cmt">-- テーブルが使うディスクページ数</span>
+<span class="kw">FROM</span>   pg_class                       <span class="cmt">-- 【超基礎】PostgreSQLのシステムカタログ（テーブルのメタ情報）</span>
+<span class="kw">WHERE</span>  relname <span class="op">=</span> <span class="str">'orders'</span>;           <span class="cmt">-- 対象テーブル名</span>
+
+<span class="cmt">-- 出力例（バッチ直後）:
+--  relname | est_rows | pages
+--  orders  | 10000    | 60    ← 実際は101万行なのに1万行と認識している（古い）</span>
+
+<span class="cmt">-- ② 統計情報を手動で更新する（バッチ直後に実行）</span>
+<span class="kw">ANALYZE</span> <span class="tbl">orders</span>;                     <span class="cmt">-- 【超基礎】テーブルをサンプリングして統計情報を更新する</span>
+
+<span class="cmt">-- ③ ANALYZE後に再確認する</span>
+<span class="kw">SELECT</span> relname, reltuples::bigint <span class="kw">AS</span> est_rows, relpages <span class="kw">AS</span> pages
+<span class="kw">FROM</span>   pg_class
+<span class="kw">WHERE</span>  relname <span class="op">=</span> <span class="str">'orders'</span>;
+<span class="cmt">-- 出力例（ANALYZE後）:
+--  relname | est_rows  | pages
+--  orders  | 1010000   | 6200  ← 正確な値になった</span>
+
+<span class="cmt">-- ④ ANALYZE後にEXPLAIN ANALYZEで再確認</span>
+<span class="kw">EXPLAIN ANALYZE</span>
+<span class="kw">SELECT</span> order_id, amount
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'pending'</span>
+  <span class="kw">AND</span>  created_at <span class="op">&gt;=</span> <span class="str">'2024-12-01'</span>; <span class="cmt">-- 統計更新後は Index Scan が選ばれるはず</span>
+
+<span class="cmt">/*
+  対処の流れ:
+  1. pg_class で reltuples（推定行数）を確認 → 実際の行数と大きくズレていることを発見
+  2. ANALYZE orders → 統計情報をサンプリングして更新
+  3. EXPLAIN ANALYZE で再実行 → Index Scan が選ばれることを確認
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>統計情報が古いとオプティマイザが誤った計画を立てるしくみ</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>オプティマイザの判断ロジック</th><th>古い統計（バッチ前）</th><th>正確な統計（ANALYZE後）</th></tr>
+<tr><td>テーブルの認識行数</td><td class="tc-r">1万行（古い）</td><td class="tc-g">101万行（正確）</td></tr>
+<tr><td>Seq Scan の推定コスト</td><td class="tc-r">低（行数が少ないと思っているため）</td><td class="tc-g">高（101万行なので）</td></tr>
+<tr><td>Index Scan の推定コスト</td><td class="tc-r">相対的に高く見える</td><td class="tc-g">低（インデックスで絞り込み有利）</td></tr>
+<tr><td>選択された計画</td><td class="tc-r">Seq Scan（誤り）</td><td class="tc-g">Index Scan（正しい）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">ANALYZE でサンプリングして統計情報を更新 → オプティマイザの判断が正確に</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>ANALYZE後：統計情報が正確になりIndex Scanが選ばれる</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>確認先</th><th>確認内容</th><th>期待値</th></tr>
+<tr class="tr-hi2"><td>pg_class.reltuples</td><td>推定行数</td><td class="tc-g">約101万（ANALYZE後に更新される）</td></tr>
+<tr class="tr-hi2"><td>EXPLAIN実行計画</td><td>スキャン方法</td><td class="tc-g">Index Scan（正しく選択）</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>SQLオプティマイザは「テーブルには何行くらいある」「どんな値の分布か」という統計情報を元に実行計画を選びます。インデックスがあっても、統計情報が古いと「このテーブルは小さいからSeq Scanの方が速い」と誤判断することがあります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ANALYZEのタイミング：</strong>① 大量データの一括INSERT/DELETE後、② テーブル構成が大きく変わった後、③ インデックスを新規作成した後（PostgreSQLはCREATE INDEX後に自動でANALYZEする）。Autovacuumが動いていれば通常は自動ですが、急激な変化には手動実行が確実です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>VACUUM との違い：</strong>ANALYZEは統計情報を更新するコマンドです。VACUUMは削除済み行の領域を再利用可能にするコマンドです。どちらも重要ですが役割は別物。両方実行する場合は <code>VACUUM ANALYZE テーブル名</code> でまとめて実行できます。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>インデックスを追加しても遅いままで原因究明しない：</strong>インデックスを追加したのにEXPLAINでSeq Scanになっている場合、統計情報が古い・SARGableでない・カーディナリティが低いなど複数の原因があります。「インデックスを追加したから速くなるはず」と思い込まず、必ずEXPLAIN ANALYZEで確認する習慣を持ちましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>本番でANALYZEを実行するのを避ける：</strong>ANALYZEはテーブルのサンプリングを行いますが、テーブルを長時間ロックしません（読み取りロックのみ）。通常は本番実行OK。ただし、大テーブルのANALYZEはI/Oを多く使うため、低トラフィック時間帯に実行するのが望ましいです。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：Autovacuumの設定と大量バッチ処理</div>
+<div class="column-body">
+PostgreSQLのAutovacuumは <code>autovacuum_analyze_threshold</code>（デフォルト50行）と <code>autovacuum_analyze_scale_factor</code>（デフォルト0.2=20%）の変化があったときにANALYZEを自動実行します。1億行テーブルの20%＝2000万行の変化を待ってから統計更新するのは遅すぎます。大きなテーブルには <code>ALTER TABLE orders SET (autovacuum_analyze_scale_factor = 0.01)</code> のようにテーブル単位で閾値を調整する設定が実務で重要になります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10  クエリリライト — サブクエリをJOIN/CTEで書き直してパフォーマンス改善
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "クエリリライト — 相関サブクエリをJOIN/CTEで書き直して高速化",
+  tags: [["r","クエリリライト"],["r","CTE"],["o","相関サブクエリ"],["g","JOIN最適化"]],
+  premise: `<p><strong>相関サブクエリ（Correlated Subquery）</strong>は外側クエリの行ごとにサブクエリが実行されるため、外側テーブルがN行あるとサブクエリがN回実行されます。これは事実上の<em>SQLレベルのN+1問題</em>です。</p>
+<pre><span class="cmt">-- 相関サブクエリ（外側の行ごとにサブクエリが実行される）</span>
+<span class="kw">SELECT</span>
+    u.user_id,
+    (<span class="kw">SELECT</span> <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">FROM</span> <span class="tbl">orders</span> o       <span class="cmt">-- usersの各行に対してこのサブクエリが実行される</span>
+     <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id) <span class="kw">AS</span> cnt  <span class="cmt">-- u.user_id が行ごとに変わる（相関）</span>
+<span class="kw">FROM</span> <span class="tbl">users</span> u;                               <span class="cmt">-- users が10万行あれば10万回サブクエリが走る</span></pre>
+<div class="callout warn"><strong>相関サブクエリを避けるべき場面：</strong>SELECT句で使う「行ごとの集計値取得」、WHERE句で大量の行に対して使う場合など。JOINやCTEで書き直すことで1パスで処理できます。</div>`,
+  question: `<p>以下の「相関サブクエリを使った遅いクエリ」を、<em>JOINとGROUP BYを使って1パスで処理できるように書き直してください</em>。さらに、CTEを使った可読性の高いバージョンも作成してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users（10万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th><th>plan</th></tr>
+        <tr><td>U001</td><td>田中</td><td>premium</td></tr>
+        <tr><td>U002</td><td>鈴木</td><td>free</td></tr>
+        <tr><td>U003</td><td>佐藤</td><td>premium</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（500万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th></tr>
+        <tr><td>1</td><td>U001</td><td>3000</td></tr>
+        <tr><td>2</td><td>U001</td><td>5000</td></tr>
+        <tr><td>3</td><td>U003</td><td>1500</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 遅い相関サブクエリ（users10万行 × サブクエリ実行 = N+1問題）</span>
+<span class="kw">SELECT</span>
+    u.user_id,
+    u.name,
+    (<span class="kw">SELECT</span> <span class="fn">COUNT</span>(<span class="op">*</span>)  <span class="kw">FROM</span> <span class="tbl">orders</span> o <span class="kw">WHERE</span> o.user_id <span class="op">=</span> u.user_id) <span class="kw">AS</span> order_count,
+    (<span class="kw">SELECT</span> <span class="fn">SUM</span>(amount) <span class="kw">FROM</span> <span class="tbl">orders</span> o <span class="kw">WHERE</span> o.user_id <span class="op">=</span> u.user_id) <span class="kw">AS</span> total_amount
+<span class="kw">FROM</span>   <span class="tbl">users</span> u
+<span class="kw">WHERE</span>  u.plan <span class="op">=</span> <span class="str">'premium'</span>;</pre>`,
+  output: `<p>書き直し後の期待出力（注文なしのユーザーは0件・0円）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th class="tc-g">order_count</th><th class="tc-y">total_amount</th></tr>
+<tr class="tr-hi2"><td>U001</td><td>田中</td><td class="tc-g">2</td><td class="tc-y">8000</td></tr>
+<tr class="tr-hi2"><td>U003</td><td>佐藤</td><td class="tc-g">1</td><td class="tc-y">1500</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① JOIN + GROUP BY を使ったリライト（推奨・高速）</span>
+<span class="kw">SELECT</span>
+    u.user_id,                              <span class="cmt">-- 【超基礎】外側テーブル（users）の列</span>
+    u.name,
+    <span class="fn">COUNT</span>(o.order_id)    <span class="kw">AS</span> order_count,  <span class="cmt">-- 【超基礎】JOINした行数をカウント（NULLはカウントされない）</span>
+    <span class="fn">COALESCE</span>(<span class="fn">SUM</span>(o.amount), <span class="num">0</span>) <span class="kw">AS</span> total_amount  <span class="cmt">-- 【超基礎】SUM結果がNULLなら0に変換（注文なしユーザー対策）</span>
+<span class="kw">FROM</span>       <span class="tbl">users</span>  u                        <span class="cmt">-- 【超基礎】メインテーブル</span>
+<span class="kw">LEFT JOIN</span>  <span class="tbl">orders</span> o                        <span class="cmt">-- 【超基礎】LEFT JOINで注文なしユーザーも残す</span>
+           <span class="kw">ON</span> o.user_id <span class="op">=</span> u.user_id       <span class="cmt">-- 【超基礎】結合条件: user_idが一致する行を紐付ける</span>
+<span class="kw">WHERE</span>  u.plan <span class="op">=</span> <span class="str">'premium'</span>               <span class="cmt">-- 【超基礎】JOINの前にusersを絞り込む</span>
+<span class="kw">GROUP BY</span> u.user_id, u.name;              <span class="cmt">-- 【超基礎】ユーザーごとにグループ化して集計</span>
+
+<span class="cmt">-- ② CTEを使ったリライト（可読性重視）</span>
+<span class="kw">WITH</span> order_summary <span class="kw">AS</span> (              <span class="cmt">-- 【超基礎】CTEでordersの集計を先に行う（名前付き一時クエリ）</span>
+    <span class="kw">SELECT</span>
+        user_id,
+        <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count,  <span class="cmt">-- 【超基礎】ユーザーごとの注文件数</span>
+        <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount  <span class="cmt">-- 【超基礎】ユーザーごとの合計金額</span>
+    <span class="kw">FROM</span>     <span class="tbl">orders</span>
+    <span class="kw">GROUP BY</span> user_id                  <span class="cmt">-- 【超基礎】user_idごとに集計</span>
+)
+<span class="kw">SELECT</span>                               <span class="cmt">-- 【超基礎】CTEの結果とusersを結合する</span>
+    u.user_id,
+    u.name,
+    <span class="fn">COALESCE</span>(os.order_count,   <span class="num">0</span>) <span class="kw">AS</span> order_count,   <span class="cmt">-- 注文なしはNULL → 0に変換</span>
+    <span class="fn">COALESCE</span>(os.total_amount, <span class="num">0</span>) <span class="kw">AS</span> total_amount  <span class="cmt">-- 注文なしはNULL → 0に変換</span>
+<span class="kw">FROM</span>      <span class="tbl">users</span>        u
+<span class="kw">LEFT JOIN</span> order_summary os <span class="kw">ON</span> os.user_id <span class="op">=</span> u.user_id  <span class="cmt">-- 集計済みCTEとJOIN</span>
+<span class="kw">WHERE</span>     u.plan <span class="op">=</span> <span class="str">'premium'</span>;
+
+<span class="cmt">/*
+  実行順序（JOIN版）:
+  1. FROM users u                   → usersテーブルを読む
+  2. WHERE u.plan = 'premium'       → premiumユーザーだけ絞り込む
+  3. LEFT JOIN orders o ON ...      → ordersを1回だけ結合（相関サブクエリと違いN回実行しない）
+  4. GROUP BY u.user_id, u.name     → ユーザーごとにグループ化
+  5. COUNT / SUM                    → 各グループを集計
+  6. SELECT / COALESCE              → 列を返す（NULLを0に変換）
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>相関サブクエリ：usersの各行ごとにサブクエリが実行される（N+1問題）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>外側（users）</th><th>サブクエリの実行回数</th><th>ordersのスキャン</th></tr>
+<tr class="tr-hi"><td>U001（田中）1行目</td><td class="tc-r">1回目のサブクエリ実行</td><td class="tc-r">ordersを検索…</td></tr>
+<tr class="tr-hi"><td>U002（鈴木）2行目</td><td class="tc-r">2回目のサブクエリ実行</td><td class="tc-r">ordersを検索…</td></tr>
+<tr class="tr-dim"><td class="null">…10万行…</td><td class="null">…10万回実行…</td><td class="null">…合計10万回のordersスキャン</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">JOIN + GROUP BY ならordersのスキャンは1回だけ</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>LEFT JOIN + GROUP BY：ordersを1パスで集計してusersと結合</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>orders結合後</th><th class="tc-g">order_count</th><th class="tc-y">total_amount</th></tr>
+<tr class="tr-hi2"><td>U001</td><td>田中</td><td>order 1(3000), order 2(5000)</td><td class="tc-g">2</td><td class="tc-y">8000</td></tr>
+<tr class="tr-hi2"><td>U003</td><td>佐藤</td><td>order 3(1500)</td><td class="tc-g">1</td><td class="tc-y">1500</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>相関サブクエリは「外側の行ごとに毎回サブクエリが実行される」ため、外側テーブルが大きいほど実行回数が増えます。JOINを使うとDBはテーブルを1回だけ読んでから結合するため、根本的に効率が違います。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCE の役割：</strong><code>COALESCE(expr, 0)</code> は「値がNULLなら0を返す」関数です。LEFT JOINで注文がないユーザーは COUNT や SUM が NULL になるため、COALESCE で 0 に変換してAPIレスポンスにNULLが混入しないようにします。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CTEによる可読性向上：</strong>CTEで集計を先に分離することで「ordersの集計ロジック」と「usersとの結合ロジック」が明確に分かれ、コードレビューや仕様変更時の修正が容易になります。複雑なクエリはCTEで段階的に分解するのが実務の定石です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>COUNT(o.order_id) vs COUNT(*)の違い：</strong>LEFT JOIN使用時、<code>COUNT(*)</code> はNULL行（注文なしユーザー）も1件とカウントします。<code>COUNT(o.order_id)</code> はNULL列を除外するため、注文なしユーザーが正しく0件になります。LEFT JOINと組み合わせるときは <code>COUNT(結合テーブルの列)</code> を使います。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTEを「パフォーマンス改善の魔法」と思う：</strong>PostgreSQL 12以前ではCTEはマテリアライズ（一時テーブルに実体化）されるため、必ずしも速くはありませんでした。PostgreSQL 12以降はオプティマイザがCTEをインライン展開できますが、複雑なケースでは <code>WITH order_summary AS MATERIALIZED (…)</code> vs <code>NOT MATERIALIZED</code> の選択が必要です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LEFT JOINで意図せず行が増える：</strong>「1対多」の関係でLEFT JOINすると、1側のテーブルの1行が多側の複数行と結合して行が増えます。GROUP BYを付けずに結果を使うと期待より多い行数になります。結合後の行数を常に意識し、GROUP BYやDISTINCTの必要性を判断してください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：ORMのN+1問題との戦い方</div>
+<div class="column-body">
+RailsのActiveRecordで <code>User.where(plan: 'premium').each { |u| u.orders.count }</code> のようなコードを書くと、SQLレベルで相関サブクエリと同等のN+1クエリが発生します。<strong>ORMレベルでは <code>includes</code>・<code>eager_load</code>・<code>joins</code> を使い、DBレベルでは相関サブクエリをJOIN+GROUP BYで書き直す</strong>ことが根本的な解決策です。NewRelic・Datadog APMなどのトレースツールで「クエリが100回以上実行されているエンドポイント」を定期的にチェックし、N+1を早期発見する習慣が実務の品質維持に直結します。
+</div>
+</div>
+`
+}
+
+];
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p', fn:'tag-p'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c] || 'tag-r'}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力','期待出力',q.output)}
+      ${acc('✅','pill-red','解答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+</script>
+</body>
+</html>
