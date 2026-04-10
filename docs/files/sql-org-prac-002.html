@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQLステップアップ10選 — 実務で差がつく応用パターン</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  /* ── Header ── */
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--red); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--red); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  /* ── Tabs ── */
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--red); border-bottom-color: var(--red); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--red); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--red); transition: width 0.2s; }
+
+  /* ── Layout ── */
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Question Header ── */
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent);  border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green);   border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange);  border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple);  border: 1px solid #3a2060; }
+  .tag-y { background: #2e2a16; color: var(--yellow);  border: 1px solid #4a451e; }
+
+  /* ── Accordion ── */
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon  { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill  { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  /* ── Typography ── */
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  /* ── Code blocks ── */
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw);     font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt);    font-style: italic; }
+  .op  { color: var(--orange); }
+
+  /* ── Callouts ── */
+  .callout        { border-left: 3px solid var(--accent); background: #0e1e33; padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  /* ── Data section ── */
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables   { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  /* ── Step visualizer ── */
+  .viz-flow   { margin: 6px 0 14px; }
+  .step-block { margin-bottom: 8px; }
+  .step-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; }
+  .step-num   { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .sn1 { background: #1a2744; color: var(--accent); }
+  .sn2 { background: #1a2e1a; color: var(--green); }
+  .sn3 { background: #2e1a2e; color: var(--purple); }
+  .sn4 { background: #2e1a0a; color: var(--orange); }
+  .step-desc        { color: var(--dim); }
+  .step-desc strong { color: var(--text); }
+
+  /* ── Tables ── */
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+  .tr-hi  td { background: #0e1e33 !important; }
+  .tr-hi2 td { background: #0e1e0e !important; }
+  .tr-hi3 td { background: #1e1433 !important; }
+  .tr-hi4 td { background: #1e1a0a !important; }
+  .tr-dim td { opacity: 0.4; }
+  .tc-hi { color: var(--accent)  !important; font-weight: 700; }
+  .tc-g  { color: var(--green)   !important; font-weight: 700; }
+  .tc-p  { color: var(--purple)  !important; font-weight: 700; }
+  .tc-y  { color: var(--yellow)  !important; font-weight: 700; }
+  .tc-o  { color: var(--orange)  !important; font-weight: 700; }
+  .tc-r  { color: var(--red)     !important; font-weight: 700; }
+  .null  { color: var(--dim)     !important; font-style: italic; }
+  .arrow      { text-align: center; padding: 4px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .arrow-text { color: var(--dim); font-size: 11px; }
+
+  /* ── Info boxes — shared flex row ── */
+  .flex-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+
+  .insight-box   { background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px; padding: 14px 16px; margin-top: 14px; }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-icon  { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em     { color: var(--yellow); }
+  .insight-body code   { font-size: 11px; }
+
+  .anti-box   { background: #160a0a; border: 1px solid #3a1515; border-radius: 8px; padding: 14px 16px; margin-top: 10px; }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code   { font-size: 11px; }
+
+  .practical-box   { background: #0d1b14; border: 1px solid #1a3b26; border-radius: 8px; padding: 14px 16px; margin-top: 10px; }
+  .practical-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--green); letter-spacing: 1px; margin-bottom: 10px; }
+  .practical-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .practical-body strong { color: var(--green); }
+  .practical-body code   { font-size: 11px; }
+
+  /* ── Navigation ── */
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: #1e0a0a; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width: 520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">応用10</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">実務で差がつくSQLステップアップ10選 — 複雑なビジネスロジックを解き明かす応用パターン</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★★ 応用</span>
+      <span class="htag">高度なウィンドウ関数</span>
+      <span class="htag">クロス集計(PIVOT)</span>
+      <span class="htag">WITH RECURSIVE</span>
+      <span class="htag">RFM分析</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1 累積和・移動平均 (SUM OVER, ROWS BETWEEN)
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "ウィンドウ関数応用 — 累積売上と移動平均",
+  tags: [["r","SUM() OVER"],["o","ROWS BETWEEN"],["g","ウィンドウ関数"],["p","トレンド分析"]],
+  premise: `<p>ウィンドウ関数は集計範囲（フレーム）を詳細にコントロールできます。<strong>累積和（累計）</strong>や<strong>移動平均</strong>は、時系列データのトレンドを可視化する実務の基本です。</p>
+<pre><span class="cmt">-- 累積和（行が追加されるごとに足していく）</span>
+<span class="fn">SUM</span>(sales) <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> date)  <span class="cmt">-- ORDER BYのみを指定すると「先頭行から現在の行まで」の集計になる</span>
+
+<span class="cmt">-- 移動平均（直近N日間の平均）</span>
+<span class="fn">AVG</span>(sales) <span class="kw">OVER</span> (
+  <span class="kw">ORDER BY</span> date
+  <span class="kw">ROWS BETWEEN</span> <span class="num">2</span> <span class="kw">PRECEDING AND CURRENT ROW</span> <span class="cmt">-- 現在の行と「2行前」までの計3行を対象にする</span>
+)</pre>
+<div class="callout"><strong>フレーム指定の構文：</strong><br>
+<code>ROWS BETWEEN [開始] AND [終了]</code><br>
+・<code>N PRECEDING</code> : N行前<br>
+・<code>CURRENT ROW</code> : 現在の行<br>
+・<code>UNBOUNDED PRECEDING</code> : 先頭行（ORDER BYのデフォルト開始位置）</div>`,
+  question: `<p>daily_sales テーブルを用いて、日ごとの<em>売上、その月内の累積売上、直近3日間（当日含む）の移動平均</em>を算出してください。</p>
+<p>累積売上は月が変わったらリセットされるようにします。日付の昇順で出力してください。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ daily_sales</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>sales_date</th><th>amount</th></tr>
+        <tr><td>2025-05-29</td><td>10,000</td></tr>
+        <tr><td>2025-05-30</td><td>15,000</td></tr>
+        <tr><td>2025-05-31</td><td>20,000</td></tr>
+        <tr><td>2025-06-01</td><td>12,000</td></tr>
+        <tr><td>2025-06-02</td><td>18,000</td></tr>
+        <tr><td>2025-06-03</td><td>24,000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>sales_date</th><th>amount</th><th class="tc-hi">cumulative_sales</th><th class="tc-g">moving_avg_3d</th></tr>
+<tr><td>2025-05-29</td><td>10,000</td><td class="tc-hi">10,000</td><td class="tc-g">10,000</td></tr>
+<tr><td>2025-05-30</td><td>15,000</td><td class="tc-hi">25,000</td><td class="tc-g">12,500</td></tr>
+<tr><td>2025-05-31</td><td>20,000</td><td class="tc-hi">45,000</td><td class="tc-g">15,000</td></tr>
+<tr><td>2025-06-01</td><td>12,000</td><td class="tc-o">12,000</td><td class="tc-g">15,667</td></tr>
+<tr><td>2025-06-02</td><td>18,000</td><td class="tc-o">30,000</td><td class="tc-g">16,667</td></tr>
+<tr><td>2025-06-03</td><td>24,000</td><td class="tc-o">54,000</td><td class="tc-g">18,000</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ cumulative_salesは月ごとにリセット。moving_avg_3dは月を跨いでも直近3日の平均を計算（整数に四捨五入）。</p>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  sales_date,
+  amount,
+
+  <span class="cmt">-- 累積売上（月ごとの累計）</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">OVER</span> (
+    <span class="kw">PARTITION BY</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, sales_date) <span class="cmt">-- 月ごとに集計範囲をリセット</span>
+    <span class="kw">ORDER BY</span>     sales_date                       <span class="cmt">-- 日付順に足し上げる</span>
+  ) <span class="kw">AS</span> cumulative_sales,
+  <span class="cmt">-- ORDER BYを指定した時点で暗黙的に「ROWS BETWEEN 先頭 AND 現在の行」になる</span>
+
+  <span class="cmt">-- 直近3日間の移動平均（当日＋過去2日）</span>
+  <span class="fn">ROUND</span>(
+    <span class="fn">AVG</span>(amount) <span class="kw">OVER</span> (
+      <span class="kw">ORDER BY</span> sales_date
+      <span class="kw">ROWS BETWEEN</span> <span class="num">2</span> <span class="kw">PRECEDING AND CURRENT ROW</span>    <span class="cmt">-- 2行前 ～ 現在の行 (計3行) を対象</span>
+    ),
+    <span class="num">0</span>
+  ) <span class="kw">AS</span> moving_avg_3d
+
+<span class="kw">FROM</span>  <span class="tbl">daily_sales</span>
+<span class="kw">ORDER BY</span> sales_date;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM daily_sales           → テーブル全6行を読み込む
+  2. SUM() OVER(PARTITION BY..) → 月で区切り、日順で累積和を計算（6月1日でリセット）
+  3. AVG() OVER(ROWS BETWEEN..) → 月区切りなしで、現在の行を含めた直近3行の平均を計算
+  4. SELECT ...                 → 計算列を出力（ROUNDで整数化）
+  5. ORDER BY sales_date        → 日付の昇順で並べ替え
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>PARTITION BY + ORDER BY</strong> — 累積和（月ごとのリセット）</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>sales_date</th><th>amount</th><th class="tc-hi">累積計算プロセス</th><th class="tc-hi">cumulative</th></tr>
+<tr class="tr-hi"><td>05-29</td><td>10,000</td><td class="tc-g">10,000</td><td class="tc-hi">10,000</td></tr>
+<tr class="tr-hi"><td>05-30</td><td>15,000</td><td class="tc-g">10,000 + 15,000</td><td class="tc-hi">25,000</td></tr>
+<tr class="tr-hi"><td>05-31</td><td>20,000</td><td class="tc-g">10,000 + 15,000 + 20,000</td><td class="tc-hi">45,000</td></tr>
+<tr class="tr-hi4"><td>06-01</td><td>12,000</td><td class="tc-o">12,000 (月替わりでリセット)</td><td class="tc-o">12,000</td></tr>
+<tr class="tr-hi4"><td>06-02</td><td>18,000</td><td class="tc-o">12,000 + 18,000</td><td class="tc-o">30,000</td></tr>
+</table></div>
+</div>
+<div class="step-block" style="margin-top:10px;">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>ROWS BETWEEN</strong> — 移動平均（直近3行の枠をスライド）</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>sales_date</th><th>対象となる行（amount）</th><th>計算内訳</th><th class="tc-g">moving_avg</th></tr>
+<tr><td>05-29</td><td>[10,000]</td><td>10,000 ÷ 1</td><td class="tc-g">10,000</td></tr>
+<tr><td>05-30</td><td>[10,000, 15,000]</td><td>25,000 ÷ 2</td><td class="tc-g">12,500</td></tr>
+<tr><td>05-31</td><td class="tc-hi">[10,000, 15,000, 20,000]</td><td>45,000 ÷ 3</td><td class="tc-g">15,000</td></tr>
+<tr><td>06-01</td><td class="tc-o">[15,000, 20,000, 12,000]</td><td>47,000 ÷ 3</td><td class="tc-g">15,667</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>集計関数（SUMやAVG）に <code>OVER()</code> を付けるとウィンドウ関数になります。その中で <code>ORDER BY</code> だけを書くと、自動的に「先頭行から現在の行まで」が計算対象（累積）になります。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>欠損日の影響：</strong><code>ROWS BETWEEN</code> は「物理的な行数」を見ます。もし「5月30日のデータが抜けている」場合、5月31日の移動平均は「5/28, 5/29, 5/31」の3行で計算されてしまいます。実務ではカレンダーテーブル等を使って全ての日付行を生成しておく必要があります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY を忘れて SUM を OVER する：</strong><code>SUM(sales) OVER (PARTITION BY month)</code> のように ORDER BY を書き忘れると、累積和ではなく「その月の合計値（全行同じ値）」が出力されます。累積計算には順序が必須です。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>BIツールに渡す前の必須加工</strong><br>「今月の目標達成ペース（累積）」や「曜日変動を均したトレンド（7日移動平均）」はダッシュボードで必ず求められます。BIツール側でも計算できますが、SQLで計算済みのデータマートを作っておくことで、どんなツールから接続しても同じ指標を高速に表示できるようになります。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2 クロス集計 (PIVOT)
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "クロス集計 — CASE式と集計関数で行を列に変換する",
+  tags: [["r","SUM(CASE)"],["o","クロス集計"],["g","PIVOT"],["p","レポート作成"]],
+  premise: `<p>DBには「縦（行）」にデータが蓄積されますが、人間が見るレポートは「横（列）」に展開された<strong>クロス集計表</strong>が求められます。これをSQLで実現する定石が <code>SUM(CASE WHEN ... THEN ... ELSE 0 END)</code> です。</p>
+<pre><span class="cmt">-- 行から列への変換（PIVOT）</span>
+<span class="kw">SELECT</span>
+  category,
+  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> month <span class="op">=</span> <span class="num">1</span> <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> jan_sales,
+  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> month <span class="op">=</span> <span class="num">2</span> <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> feb_sales
+<span class="kw">FROM</span> <span class="tbl">sales</span>
+<span class="kw">GROUP BY</span> category;</pre>
+<div class="callout ok"><strong>なぜ SUM を使うのか？：</strong><br>
+GROUP BY すると複数行が1行に圧縮されます。条件に合致する値（それ以外は0）を足し合わせることで、該当月の売上だけがその列に残るという仕組みです。</div>`,
+  question: `<p>dept_monthly_sales テーブルは「部署×月」の行データを持っています。これを<em>部署ごとに1行にまとめ、1月・2月・3月の売上をそれぞれ列として展開</em>してください。</p>
+<p>また、最後に3ヶ月の「合計売上」の列も追加してください。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（縦持ちデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ dept_monthly_sales</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>dept_name</th><th>month_num</th><th>amount</th></tr>
+        <tr><td>営業部</td><td>1</td><td>500,000</td></tr>
+        <tr><td>営業部</td><td>2</td><td>600,000</td></tr>
+        <tr><td>営業部</td><td>3</td><td>450,000</td></tr>
+        <tr><td>開発部</td><td>1</td><td>200,000</td></tr>
+        <tr><td>開発部</td><td>3</td><td>300,000</td></tr>
+        <tr><td>マーケ部</td><td>2</td><td>400,000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th class="tc-hi">jan_sales</th><th class="tc-g">feb_sales</th><th class="tc-p">mar_sales</th><th class="tc-o">total_sales</th></tr>
+<tr><td>営業部</td><td class="tc-hi">500,000</td><td class="tc-g">600,000</td><td class="tc-p">450,000</td><td class="tc-o">1,550,000</td></tr>
+<tr><td>開発部</td><td class="tc-hi">200,000</td><td class="tc-g">0</td><td class="tc-p">300,000</td><td class="tc-o">500,000</td></tr>
+<tr><td>マーケ部</td><td class="tc-hi">0</td><td class="tc-g">400,000</td><td class="tc-p">0</td><td class="tc-o">400,000</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ 開発部の2月など、データが存在しない月は0として集計。</p>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  dept_name,
+
+  <span class="cmt">-- 1月の売上のみを抽出し、それ以外は0にして合計</span>
+  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> month_num <span class="op">=</span> <span class="num">1</span> <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> jan_sales,
+
+  <span class="cmt">-- 2月の売上のみを抽出</span>
+  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> month_num <span class="op">=</span> <span class="num">2</span> <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> feb_sales,
+
+  <span class="cmt">-- 3月の売上のみを抽出</span>
+  <span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> month_num <span class="op">=</span> <span class="num">3</span> <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> mar_sales,
+
+  <span class="cmt">-- 条件なしで全月の売上を合計</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_sales
+
+<span class="kw">FROM</span> <span class="tbl">dept_monthly_sales</span>
+<span class="kw">GROUP BY</span> dept_name          <span class="cmt">-- 部署ごとに1行に圧縮</span>
+<span class="kw">ORDER BY</span> total_sales <span class="kw">DESC</span>;   <span class="cmt">-- 合計売上の高い順で並べ替え</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM dept_monthly_sales   → 全6行を読み込む
+  2. GROUP BY dept_name        → 部署ごとにグループ化（営業部3行、開発部2行、マーケ部1行）
+  3. SUM(CASE WHEN...)         → 各グループ内でCASEを評価し、該当する月だけを足し上げる
+                                  データがない月はELSE 0により0が足される
+  4. SELECT ...                → 各部署の列展開された値を出力
+  5. ORDER BY total_sales DESC → 合計金額の降順で表示
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>GROUP BY 前の CASE の評価</strong> — 各行で列を判定</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>month_num</th><th>amount</th><th class="tc-hi">month=1 THEN</th><th class="tc-g">month=2 THEN</th><th class="tc-p">month=3 THEN</th></tr>
+<tr class="tr-hi"><td>営業部</td><td>1</td><td>500,000</td><td class="tc-hi">500,000</td><td class="tc-g">0</td><td class="tc-p">0</td></tr>
+<tr class="tr-hi"><td>営業部</td><td>2</td><td>600,000</td><td class="tc-hi">0</td><td class="tc-g">600,000</td><td class="tc-p">0</td></tr>
+<tr class="tr-hi"><td>営業部</td><td>3</td><td>450,000</td><td class="tc-hi">0</td><td class="tc-g">0</td><td class="tc-p">450,000</td></tr>
+<tr class="tr-hi2"><td>開発部</td><td>1</td><td>200,000</td><td class="tc-hi">200,000</td><td class="tc-g">0</td><td class="tc-p">0</td></tr>
+<tr class="tr-hi2"><td>開発部</td><td>3</td><td>300,000</td><td class="tc-hi">0</td><td class="tc-g">0</td><td class="tc-p">300,000</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">GROUP BY dept_name ＋ SUM() でグループ内の値を足し上げる</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>SUM() による圧縮</strong> — 縦の列を合計して1行にする</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th class="tc-hi">jan_sales (SUM)</th><th class="tc-g">feb_sales (SUM)</th><th class="tc-p">mar_sales (SUM)</th></tr>
+<tr class="tr-hi"><td>営業部</td><td class="tc-hi">500,000 + 0 + 0 = 500,000</td><td class="tc-g">0 + 600,000 + 0 = 600,000</td><td class="tc-p">0 + 0 + 450,000 = 450,000</td></tr>
+<tr class="tr-hi2"><td>開発部</td><td class="tc-hi">200,000 + 0 = 200,000</td><td class="tc-g">0 + 0 = 0</td><td class="tc-p">0 + 300,000 = 300,000</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>CASE</code> 式はIF文のようなものです。<code>WHEN 条件 THEN 真の値 ELSE 偽の値 END</code> と書きます。ここでは「自分の担当月なら売上額を返し、それ以外の月なら 0 を返す」という判定を行ごとに実行しています。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COUNT による存在チェック展開：</strong>金額の合計ではなく「その月にアクションがあったか（件数）」を展開したい場合は、<code>SUM(CASE WHEN...)</code> の代わりに <code>COUNT(CASE WHEN month_num = 1 THEN 1 ELSE NULL END)</code> または単に <code>SUM(CASE WHEN month_num = 1 THEN 1 ELSE 0 END)</code> を使います。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>動的な列の生成（1〜12月を自動で増やしたい）：</strong>標準SQLでは「データの中身を見て列数を動的に変える」ことはできません。列を作るには、1月〜12月まで12個の CASE 式を手書きする必要があります。動的に展開したい場合はBIツールのピボット機能を使うか、アプリ側で処理するのが一般的です。</div></div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE 0 を書き忘れる：</strong><code>SUM()</code> は NULL を無視するため結果は同じになることが多いですが、集計後に別の列と足し算などをする場合、NULLが含まれていると結果全体が NULL になる事故が起きます。金額の集計では明示的に <code>ELSE 0</code> を書きましょう。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>「縦持ち」と「横持ち」の使い分け</strong><br>DBに保存するデータは、列が増減しない「縦持ち（行追加）」が正規化の観点で正解です。しかし、エクセルのようなレポート出力では「横持ち（列展開）」が必須です。この間を埋めるのがSQLのクロス集計技術です。分析ダッシュボードを作る際、このPIVOTの書き方をマスターしていると劇的に自由度が上がります。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3 FIRST_VALUE / LAST_VALUE
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "FIRST_VALUE / LAST_VALUE — グループ内の最初と最後の値を取得",
+  tags: [["r","FIRST_VALUE()"],["o","LAST_VALUE()"],["g","ウィンドウ関数"],["p","顧客分析"]],
+  premise: `<p>各ユーザーの「初回の購入日」は <code>MIN(date)</code> で取得できますが、「初回購入日に買った<strong>商品名</strong>」は MIN では取得できません。そこで、指定した順序での先頭行・末尾行の値を返すウィンドウ関数を使用します。</p>
+<pre><span class="cmt">-- グループ内の最初の値を返す</span>
+<span class="fn">FIRST_VALUE</span>(item_name) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> user_id
+  <span class="kw">ORDER BY</span>     purchase_date <span class="kw">ASC</span>
+) <span class="kw">AS</span> first_item</pre>
+<div class="callout warn"><strong>LAST_VALUE の罠：</strong><br>
+ウィンドウ関数のデフォルトフレームは「先頭行から現在の行まで」です。そのため <code>LAST_VALUE</code> をそのまま使うと「現在の行」を返してしまいます。末尾を取得するには <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code>（先頭から末尾まで）の指定が必須です。<br>
+実務では「ORDER BY を DESC にして FIRST_VALUE を使う」方が罠がなく安全です。</div>`,
+  question: `<p>user_purchases テーブルを使って、各ユーザーの<em>全購入金額の合計と、最初に購入した商品名、最後に購入した商品名</em>を1行で表示してください。</p>
+<p>※ LAST_VALUE のフレームの罠を回避するため、最後の商品も FIRST_VALUE + ORDER BY DESC で取得してください。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ user_purchases</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>purchase_date</th><th>item_name</th><th>price</th></tr>
+        <tr><td>U01</td><td>2025-01-10</td><td>お試しセット</td><td>1,000</td></tr>
+        <tr><td>U01</td><td>2025-02-15</td><td>定期コース</td><td>5,000</td></tr>
+        <tr><td>U01</td><td>2025-03-20</td><td>プレミアムコース</td><td>8,000</td></tr>
+        <tr><td>U02</td><td>2025-02-01</td><td>単発チケット</td><td>3,000</td></tr>
+        <tr><td>U02</td><td>2025-04-10</td><td>定期コース</td><td>5,000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>total_spent</th><th class="tc-hi">first_purchased_item</th><th class="tc-g">last_purchased_item</th></tr>
+<tr><td>U01</td><td>14,000</td><td class="tc-hi">お試しセット</td><td class="tc-g">プレミアムコース</td></tr>
+<tr><td>U02</td><td>8,000</td><td class="tc-hi">単発チケット</td><td class="tc-g">定期コース</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ ユーザー単位で1行に集約する（GROUP BY相当の処理が必要）。</p>`,
+  answer: `<pre><span class="cmt">-- DISTINCT を使って、計算されたウィンドウ関数の結果をユーザーごとに1行に絞る</span>
+<span class="kw">SELECT DISTINCT</span>
+  user_id,
+
+  <span class="cmt">-- ユーザーごとの合計金額</span>
+  <span class="fn">SUM</span>(price) <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> user_id) <span class="kw">AS</span> total_spent,
+
+  <span class="cmt">-- 初回購入商品（日付の昇順での先頭値）</span>
+  <span class="fn">FIRST_VALUE</span>(item_name) <span class="kw">OVER</span> (
+    <span class="kw">PARTITION BY</span> user_id
+    <span class="kw">ORDER BY</span> purchase_date <span class="kw">ASC</span>
+  ) <span class="kw">AS</span> first_purchased_item,
+
+  <span class="cmt">-- 最終購入商品（日付の降順での先頭値 ＝ 最後の値）</span>
+  <span class="fn">FIRST_VALUE</span>(item_name) <span class="kw">OVER</span> (
+    <span class="kw">PARTITION BY</span> user_id
+    <span class="kw">ORDER BY</span> purchase_date <span class="kw">DESC</span>    <span class="cmt">-- DESCにすることで最後の行が先頭に来る</span>
+  ) <span class="kw">AS</span> last_purchased_item
+
+<span class="kw">FROM</span> <span class="tbl">user_purchases</span>
+<span class="kw">ORDER BY</span> user_id;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM user_purchases      → 全5行を読み込む
+  2. SUM() OVER(...)          → ユーザーごとに合計を計算（全行に付与）
+  3. FIRST_VALUE(ASC) OVER    → ユーザーごとの最も古い日付の商品名を全行に付与
+  4. FIRST_VALUE(DESC) OVER   → ユーザーごとの最も新しい日付の商品名を全行に付与
+  5. SELECT DISTINCT ...      → ユーザーIDごとに全く同じ内容の行が複製されているため、
+                                 DISTINCT で重複を排除し1行に圧縮する
+  6. ORDER BY user_id         → ユーザーID昇順に並べ替え
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>ウィンドウ関数による計算（DISTINCT前）</strong> — 全行に結果が付与される</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>purchase_date</th><th>item_name</th><th class="tc-hi">first_item (ASC)</th><th class="tc-g">last_item (DESC)</th></tr>
+<tr class="tr-hi"><td>U01</td><td>01-10</td><td>お試しセット</td><td class="tc-hi">お試しセット</td><td class="tc-g">プレミアムコース</td></tr>
+<tr class="tr-hi"><td>U01</td><td>02-15</td><td>定期コース</td><td class="tc-hi">お試しセット</td><td class="tc-g">プレミアムコース</td></tr>
+<tr class="tr-hi"><td>U01</td><td>03-20</td><td>プレミアムコース</td><td class="tc-hi">お試しセット</td><td class="tc-g">プレミアムコース</td></tr>
+<tr class="tr-hi2"><td>U02</td><td>02-01</td><td>単発チケット</td><td class="tc-hi">単発チケット</td><td class="tc-g">定期コース</td></tr>
+<tr class="tr-hi2"><td>U02</td><td>04-10</td><td>定期コース</td><td class="tc-hi">単発チケット</td><td class="tc-g">定期コース</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">SELECT DISTINCT をかけると、同じ user_id の行は全て同じ内容なので1行にまとまる</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>DISTINCT による圧縮</strong> — GROUP BY に似た結果を得る</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>total_spent</th><th class="tc-hi">first_item</th><th class="tc-g">last_item</th></tr>
+<tr class="tr-hi"><td>U01</td><td>14,000</td><td class="tc-hi">お試しセット</td><td class="tc-g">プレミアムコース</td></tr>
+<tr class="tr-hi2"><td>U02</td><td>8,000</td><td class="tc-hi">単発チケット</td><td class="tc-g">定期コース</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>通常、ユーザーごとに1行にまとめるには <code>GROUP BY user_id</code> を使いますが、<code>FIRST_VALUE</code> などのウィンドウ関数は <code>GROUP BY</code> と同時に使えません（集計後にウィンドウ関数が評価されるため）。そのため、ウィンドウ関数で全行に同じ値を計算させてから、最後に <code>DISTINCT</code> で重複を消すというテクニックがよく使われます。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>同日時の並び順：</strong><code>ORDER BY purchase_date</code> だけだと、全く同じ日時に複数購入があった場合、どちらが先頭になるか不定です。実務では <code>ORDER BY purchase_date ASC, id ASC</code> のように一意なキーを追加して順序を確定させます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LAST_VALUE を安易に使う：</strong><code>LAST_VALUE(item_name) OVER (PARTITION BY user_id ORDER BY purchase_date ASC)</code> と書くと、デフォルトフレームが「現在の行まで」なので、結果は常に「その行の item_name（自分自身）」になってしまいます。回避するには <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> という長大な指定が必要になるため、<code>FIRST_VALUE + ORDER BY DESC</code> で代用するのが賢明です。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>ユーザーの「ジャーニー」を切り取る</strong><br>マーケティング分析では「最初にどの商品から入ってきたか（入口商品）」「最新の購入商品は何か（現在のステータス）」の比較が非常に重要です。入口商品ごとでのLTV（顧客生涯価値）を計算する際、この <code>FIRST_VALUE</code> によるフラグ付けがデータ集計の第一歩になります。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4 STRING_AGG / GROUP_CONCAT
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "文字列の集約 — 複数行のデータを1つのカンマ区切り文字列にまとめる",
+  tags: [["r","STRING_AGG()"],["o","GROUP_CONCAT()"],["g","文字列集約"],["p","明細統合"]],
+  premise: `<p>1つの注文に対して複数の商品が紐づく「1対多」のデータをそのままJOINすると行数が増えてしまいます。一覧表などで<strong>「購入商品: りんご, みかん, ばなな」のように1行にまとめて表示したい</strong>場合に文字列集約関数を使います。</p>
+<pre><span class="cmt">-- PostgreSQL / SQL Server</span>
+<span class="fn">STRING_AGG</span>(item_name, <span class="str">', '</span>)    <span class="cmt">-- 列名と、区切り文字を指定</span>
+
+<span class="cmt">-- MySQL</span>
+<span class="fn">GROUP_CONCAT</span>(item_name <span class="kw">SEPARATOR</span> <span class="str">', '</span>)
+
+<span class="cmt">-- 集約する順番を指定することも可能（PostgreSQL例）</span>
+<span class="fn">STRING_AGG</span>(item_name, <span class="str">', '</span> <span class="kw">ORDER BY</span> price <span class="kw">DESC</span>)</pre>
+<div class="callout warn"><strong>本問の構文：</strong>解答は標準的でよく使われる PostgreSQL の <code>STRING_AGG</code> 構文で記載します。</div>`,
+  question: `<p>orders と order_items テーブルを結合し、<em>注文ごとの合計金額と、購入した全商品名のカンマ区切りリスト</em>を出力してください。</p>
+<p>商品リストは、価格の高い順に並べてカンマとスペース（<code>, </code>）で結合してください。合計金額の降順で表示します。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>customer_name</th></tr>
+        <tr><td>101</td><td>山田商事</td></tr>
+        <tr><td>102</td><td>佐藤工業</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ order_items</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>item_name</th><th>price</th></tr>
+        <tr><td>101</td><td>モニター</td><td>25,000</td></tr>
+        <tr><td>101</td><td>マウス</td><td>3,000</td></tr>
+        <tr><td>101</td><td>キーボード</td><td>8,000</td></tr>
+        <tr><td>102</td><td>PC本体</td><td>120,000</td></tr>
+        <tr><td>102</td><td>ケーブル</td><td>1,500</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>customer_name</th><th class="tc-hi">total_amount</th><th class="tc-g">purchased_items</th></tr>
+<tr><td>102</td><td>佐藤工業</td><td class="tc-hi">121,500</td><td class="tc-g">PC本体, ケーブル</td></tr>
+<tr><td>101</td><td>山田商事</td><td class="tc-hi">36,000</td><td class="tc-g">モニター, キーボード, マウス</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ 山田商事の商品は、価格が高い順（モニター25000→キーボード8000→マウス3000）で結合されている。</p>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  o.order_id,
+  o.customer_name,
+  <span class="fn">SUM</span>(oi.price) <span class="kw">AS</span> total_amount,
+
+  <span class="cmt">-- 紐づく商品名をカンマ区切りで結合する（価格の高い順）</span>
+  <span class="fn">STRING_AGG</span>(
+    oi.item_name,                     <span class="cmt">-- 結合したい列</span>
+    <span class="str">', '</span>                              <span class="cmt">-- 区切り文字（カンマ＋スペース）</span>
+    <span class="kw">ORDER BY</span> oi.price <span class="kw">DESC</span>            <span class="cmt">-- 集約する際の並び順（PostgreSQLの構文）</span>
+  ) <span class="kw">AS</span> purchased_items
+
+<span class="kw">FROM</span>       <span class="tbl">orders</span> o
+<span class="kw">INNER JOIN</span> <span class="tbl">order_items</span> oi
+  <span class="kw">ON</span> o.order_id <span class="op">=</span> oi.order_id
+<span class="kw">GROUP BY</span>
+  o.order_id,
+  o.customer_name
+<span class="kw">ORDER BY</span>
+  total_amount <span class="kw">DESC</span>;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM orders o             → 親テーブル読み込み
+  2. INNER JOIN order_items oi → 明細テーブルとJOIN（101が3行、102が2行に増える）
+  3. GROUP BY o.order_id,...   → 注文ごとにグループ化し、再び101を1行、102を1行に圧縮
+  4. SUM(price)                → グループ内の価格を合計
+  5. STRING_AGG(...)           → グループ内の商品名を価格降順にカンマ区切りでまとめる
+  6. SELECT ...                → 出力列の確定
+  7. ORDER BY total_amount     → 合計金額の高い順に並べ替え
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>JOIN による行の増殖</strong> — 1対多の結合</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>customer_name</th><th>item_name</th><th>price</th></tr>
+<tr class="tr-hi"><td>101</td><td>山田商事</td><td>モニター</td><td>25,000</td></tr>
+<tr class="tr-hi"><td>101</td><td>山田商事</td><td>マウス</td><td>3,000</td></tr>
+<tr class="tr-hi"><td>101</td><td>山田商事</td><td>キーボード</td><td>8,000</td></tr>
+<tr class="tr-hi2"><td>102</td><td>佐藤工業</td><td>PC本体</td><td>120,000</td></tr>
+<tr class="tr-hi2"><td>102</td><td>佐藤工業</td><td>ケーブル</td><td>1,500</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">GROUP BY order_id + SUM と STRING_AGG</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>STRING_AGG による圧縮</strong> — 行を減らしつつ情報を横に残す</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>SUM(price)</th><th class="tc-g">STRING_AGG(item_name, ', ' ORDER BY price DESC)</th></tr>
+<tr class="tr-hi"><td>101</td><td>36,000</td><td class="tc-g">モニター(25k), キーボード(8k), マウス(3k)</td></tr>
+<tr class="tr-hi2"><td>102</td><td>121,500</td><td class="tc-g">PC本体(120k), ケーブル(1.5k)</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>集計関数（SUMやCOUNTなど）は複数行を1つの数値にまとめますが、<code>STRING_AGG</code> は複数行の「文字列」を1つの長文文字列にまとめます。結果として行数が圧縮されます。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>MySQL の場合の書き方：</strong>MySQLでは <code>GROUP_CONCAT(item_name ORDER BY price DESC SEPARATOR ', ')</code> という固有の構文になります。DBによって関数名が全く異なるため注意が必要です。</div></div>
+<div class="flex-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>重複の排除：</strong>「購入した商品のカテゴリ」など重複が発生する列をまとめる場合、<code>STRING_AGG(DISTINCT category, ', ')</code> のように DISTINCT を挟むことで、一意な要素だけのリストを作ることができます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>集約文字列が長すぎる：</strong>DBの設定によっては、GROUP_CONCAT等の結果が一定文字数（デフォルトで1024文字など）を超えると切り捨てられる場合があります。大量の行を集約する場合は上限設定の変更や、上位N件だけをサブクエリで絞ってから集約する工夫が必要です。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>ビジネスサイドへのレポート提供で大活躍</strong><br>「全注文のリストを出して」と言われたとき、明細レベルでJOINした複数行データ（101番の注文が3行になっている状態）を渡すと、「注文IDの重複を取り除かないと全体件数が数えられない！」とクレームが来ます。ビジネス職がExcelで分析しやすい「1注文1行」の粒度を保ちつつ、明細情報を失わせないこのテクニックは実務の必須スキルです。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5 COALESCE と NULLIF による実務対応
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "COALESCE / NULLIF — 欠損値の補完とゼロ除算エラーの回避",
+  tags: [["r","NULLIF()"],["o","COALESCE()"],["g","エラーハンドリング"],["p","実務の罠"]],
+  premise: `<p>実務のデータは汚く、NULL や 0 が予期せず混入します。計算エラーでクエリが停止するのを防ぐのが <strong>NULLIF</strong> と <strong>COALESCE</strong> のコンビネーションです。</p>
+<pre><span class="cmt">-- 1. NULLIF: 値が一致したら NULL を返す</span>
+<span class="fn">NULLIF</span>(impressions, <span class="num">0</span>)
+<span class="cmt">-- impressionsが 0 なら NULL を返す。0以外ならそのまま impressions を返す。</span>
+<span class="cmt">-- 割り算の分母に使うことで「ゼロ除算（Division by zero）エラー」を防ぐ。</span>
+
+<span class="cmt">-- 2. COALESCE: 最初の NULL 以外の値を返す</span>
+<span class="fn">COALESCE</span>(clicks, <span class="num">0</span>)
+<span class="cmt">-- clicks が NULL なら 0 を返す。NULLによる計算結果の伝播を防ぐ。</span></pre>
+<div class="callout warn"><strong>SQLの四則演算とNULL：</strong><br>
+SQLでは <code>100 + NULL</code> の結果は <code>100</code> ではなく <code>NULL</code> になります。また、<code>100 / 0</code> は即座にクエリエラーとなり処理が停止します。この2つは実務バグの2大原因です。</div>`,
+  question: `<p>campaign_results テーブルから、各キャンペーンの <em>クリック率（CTR: clicks ÷ impressions × 100）</em> をパーセントで算出してください。</p>
+<p>clicks や impressions には <code>NULL</code> や <code>0</code> が含まれる可能性があります。ゼロ除算エラーを回避し、結果が計算できない場合は <code>0.0</code> を返してください。小数第1位まで表示します。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ campaign_results</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>campaign_id</th><th>impressions</th><th>clicks</th></tr>
+        <tr><td>C01</td><td>10,000</td><td>250</td></tr>
+        <tr><td>C02</td><td class="tc-o">0</td><td>0</td></tr>
+        <tr><td>C03</td><td class="null">NULL</td><td>50</td></tr>
+        <tr><td>C04</td><td>5,000</td><td class="null">NULL</td></tr>
+        <tr><td>C05</td><td>2,000</td><td>15</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>campaign_id</th><th>impressions</th><th>clicks</th><th class="tc-hi">ctr_percent</th></tr>
+<tr><td>C01</td><td>10,000</td><td>250</td><td class="tc-hi">2.5</td></tr>
+<tr><td>C02</td><td class="tc-o">0</td><td>0</td><td class="tc-r">0.0</td></tr>
+<tr><td>C03</td><td class="null">NULL</td><td>50</td><td class="tc-r">0.0</td></tr>
+<tr><td>C04</td><td>5,000</td><td class="null">NULL</td><td class="tc-r">0.0</td></tr>
+<tr><td>C05</td><td>2,000</td><td>15</td><td class="tc-hi">0.8</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ impressionsが0やNULLの場合、エラーにならずに0.0が出力される。</p>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  campaign_id,
+  impressions,
+  clicks,
+
+  <span class="cmt">-- CTRの安全な計算ロジック</span>
+  <span class="fn">COALESCE</span>(
+    <span class="fn">ROUND</span>(
+      <span class="cmt">-- 分子: clicksがNULLなら0にする。* 100.0で小数計算にする</span>
+      <span class="fn">COALESCE</span>(clicks, <span class="num">0</span>) * <span class="num">100.0</span>
+      <span class="op">/</span>
+      <span class="cmt">-- 分母: impressionsが0ならNULLにする（ゼロ除算回避）</span>
+      <span class="fn">NULLIF</span>(impressions, <span class="num">0</span>),
+      <span class="num">1</span> <span class="cmt">-- 小数第1位で四捨五入</span>
+    ),
+    <span class="num">0.0</span> <span class="cmt">-- 分母がNULLだった結果全体がNULLになるため、最終的に0.0に置換</span>
+  ) <span class="kw">AS</span> ctr_percent
+
+<span class="kw">FROM</span> <span class="tbl">campaign_results</span>
+<span class="kw">ORDER BY</span> campaign_id;
+
+<span class="cmt">/*
+  SQL実行順序 (行ごとの評価):
+  [C01] 250*100 / 10000 = 2.5 → COALESCE(2.5, 0.0) = 2.5
+  [C02] 0*100 / NULLIF(0,0) → 0 / NULL = NULL → COALESCE(NULL, 0.0) = 0.0
+  [C03] 50*100 / NULLIF(NULL,0) → 5000 / NULL = NULL → COALESCE(NULL, 0.0) = 0.0
+  [C04] COALESCE(NULL,0)*100 / 5000 → 0 / 5000 = 0 → 0.0
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>危険な計算の問題点</strong> — なぜエラーやバグになるのか</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ID</th><th>単純な計算 <code>clicks / impressions</code></th><th class="tc-r">結果</th></tr>
+<tr class="tr-hi4"><td>C02</td><td>0 / 0</td><td class="tc-r">実行エラー（Division by zero）でクエリ全体が即死</td></tr>
+<tr class="tr-hi3"><td>C03</td><td>50 / NULL</td><td class="tc-p">NULL（エラーにはならないがデータが欠落）</td></tr>
+<tr class="tr-hi3"><td>C04</td><td>NULL / 5000</td><td class="tc-p">NULL（同上）</td></tr>
+</table></div>
+</div>
+<div class="step-block" style="margin-top:10px;">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>安全な計算のステップ</strong> — COALESCE と NULLIF で守る</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ID</th><th>分子 <code>COALESCE(clk,0)</code></th><th>分母 <code>NULLIF(imp,0)</code></th><th>割り算結果</th><th class="tc-g">最終 <code>COALESCE(結果,0)</code></th></tr>
+<tr><td>C02</td><td>0</td><td class="tc-o">NULL（0を回避）</td><td class="null">NULL</td><td class="tc-g">0.0</td></tr>
+<tr><td>C03</td><td>5000</td><td class="null">NULL</td><td class="null">NULL</td><td class="tc-g">0.0</td></tr>
+<tr><td>C04</td><td class="tc-o">0（NULL回避）</td><td>5000</td><td>0</td><td class="tc-g">0.0</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>割り算を行う際は<strong>常に分母が0になる可能性を疑う</strong>のがSQLの鉄則です。<code>NULLIF(列, 0)</code> を分母に挟むだけで、0によるエラーを安全な NULL（計算不能）に変換できます。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCE は複数引数を取れる：</strong><code>COALESCE(email, phone, address, '連絡先不明')</code> のように3つ以上の引数を渡すと、「最初に見つかった NULL でない値」を返します。優先順位をつけた値の取得に便利です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CASE式でゼロ除算を回避する（冗長）：</strong><code>CASE WHEN impressions = 0 THEN 0 ELSE clicks / impressions END</code> でも回避は可能ですが、コードが長くなり可読性が下がります。<code>NULLIF</code> を使う方がプロフェッショナルで簡潔な書き方です。</div></div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>集計前に COALESCE しない：</strong>売上の合計などを計算する際、<code>SUM(price) + SUM(tax)</code> で片方が NULL だと結果が NULL になります。正しくは <code>COALESCE(SUM(price), 0) + COALESCE(SUM(tax), 0)</code> と書くか、元の列の時点で <code>SUM(COALESCE(price, 0))</code> とします。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>バッチ処理の停止を防ぐ防御的プログラミング</strong><br>夜間のデータ集計バッチが「Division by zero」エラーで異常終了し、朝にダッシュボードが更新されていない…というのはデータ基盤あるあるです。テスト環境には0のデータが存在しなくても、本番データには異常値（インプレッション0件）が必ず混入します。割り算に <code>NULLIF</code> を挟むのは、実務で自分の首を絞めないための「防御的SQL」の第一歩です。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6 非等価結合 (期間の重複判定)
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "非等価結合 — BETWEENや不等号を使ったJOIN（期間判定）",
+  tags: [["r","非等価JOIN"],["o","BETWEEN"],["g","期間判定"],["p","イベントトラッキング"]],
+  premise: `<p>JOINの <code>ON</code> 条件は <code>=</code>（等価）である必要はありません。<code>BETWEEN</code> や <code>&lt;</code> などの不等号を使った結合を<strong>非等価結合（Non-Equi JOIN）</strong>と呼びます。</p>
+<pre><span class="kw">FROM</span>       <span class="tbl">users</span> u
+<span class="kw">INNER JOIN</span> <span class="tbl">campaigns</span> c
+  <span class="cmt">-- ユーザーの登録日時が、キャンペーンの開始日と終了日の「間」にあるか</span>
+  <span class="kw">ON</span> u.signup_date <span class="kw">BETWEEN</span> c.start_date <span class="kw">AND</span> c.end_date</pre>
+<div class="callout ok"><strong>非等価結合の主な用途：</strong><br>
+・ある日時が、マスタに定義された「有効期間（start〜end）」に含まれるかの判定<br>
+・点数から成績グレード（90〜100点はA、80〜89点はB…）へのマッピング<br>
+・過去の自分自身の行（累計計算などで使う自己非等価結合）</div>`,
+  question: `<p>users テーブルと campaigns テーブルを使って、<em>各ユーザーがどのキャンペーン期間中に登録したか</em>を判定し、キャンペーン名を出力してください。</p>
+<p>どのキャンペーン期間にも該当しないユーザーは除外（INNER JOIN）してください。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>signup_date</th></tr>
+        <tr><td>U01</td><td>2025-01-05</td></tr>
+        <tr><td>U02</td><td>2025-02-14</td></tr>
+        <tr><td>U03</td><td>2025-03-20</td></tr>
+        <tr><td>U04</td><td>2025-05-01</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ campaigns（キャンペーンマスタ）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>campaign_name</th><th>start_date</th><th>end_date</th></tr>
+        <tr><td>お正月祭</td><td>2025-01-01</td><td>2025-01-15</td></tr>
+        <tr><td>バレンタイン</td><td>2025-02-01</td><td>2025-02-15</td></tr>
+        <tr><td>GWセール</td><td>2025-04-25</td><td>2025-05-05</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>signup_date</th><th class="tc-hi">campaign_name</th></tr>
+<tr><td>U01</td><td>2025-01-05</td><td class="tc-hi">お正月祭</td></tr>
+<tr><td>U02</td><td>2025-02-14</td><td class="tc-hi">バレンタイン</td></tr>
+<tr><td>U04</td><td>2025-05-01</td><td class="tc-hi">GWセール</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ U03（3月20日登録）は該当するキャンペーン期間がないため除外される。</p>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  u.user_id,
+  u.signup_date,
+  c.campaign_name
+<span class="kw">FROM</span>       <span class="tbl">users</span> u
+<span class="kw">INNER JOIN</span> <span class="tbl">campaigns</span> c
+  <span class="cmt">-- 結合条件: 登録日が開始日〜終了日の範囲内に収まっていること</span>
+  <span class="cmt">-- BETWEEN a AND b は、a以上 b以下 (a &lt;= X &lt;= b) を意味する</span>
+  <span class="kw">ON</span> u.signup_date <span class="kw">BETWEEN</span> c.start_date <span class="kw">AND</span> c.end_date
+
+<span class="kw">ORDER BY</span> u.user_id;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM users u
+  2. INNER JOIN campaigns c
+     → データベースはusersの各行に対して、campaignsの全行の期間条件をチェックする
+     [U01] 01-05 は 01-01〜01-15 の間か？ → YES（お正月祭と結合）
+     [U02] 02-14 は 02-01〜02-15 の間か？ → YES（バレンタインと結合）
+     [U03] 03-20 はいずれの期間にも含まれない → INNER JOINなので除外
+     [U04] 05-01 は 04-25〜05-05 の間か？ → YES（GWセールと結合）
+  3. SELECT ... → 結合に成功した行のみを出力
+  4. ORDER BY ... → ユーザーID昇順でソート
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>BETWEEN による結合判定</strong> — ユーザーごとに全キャンペーンの期間をチェック</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>signup_date</th><th>campaignsとの評価</th><th>結果</th></tr>
+<tr class="tr-hi"><td>U01</td><td>01-05</td><td class="tc-g">01-01 &lt;= 01-05 &lt;= 01-15</td><td class="tc-hi">結合 ✓（お正月祭）</td></tr>
+<tr class="tr-hi"><td>U02</td><td>02-14</td><td class="tc-g">02-01 &lt;= 02-14 &lt;= 02-15</td><td class="tc-hi">結合 ✓（バレンタイン）</td></tr>
+<tr class="tr-hi4"><td>U03</td><td>03-20</td><td class="tc-r">全キャンペーンの範囲外</td><td class="tc-o">除外 ✗</td></tr>
+<tr class="tr-hi"><td>U04</td><td>05-01</td><td class="tc-g">04-25 &lt;= 05-01 &lt;= 05-05</td><td class="tc-hi">結合 ✓（GWセール）</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>JOINは「IDのイコール一致」で繋ぐものと思い込みがちですが、<code>ON</code> 句には <code>WHERE</code> と全く同じようにどんな条件式でも書けます。「AがBより大きい」「文字が含まれている」といった条件でも結合可能です。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>期間の重複や空白に注意：</strong>キャンペーンマスタの期間が被っている（例：1/1〜1/15 と 1/10〜1/20）場合、1/12に登録したユーザーは<strong>2行に増殖</strong>してしまいます。非等価結合をする際は、マスタ側の期間が排他的（被りがない）であることを確認する必要があります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>パフォーマンスの悪化（クロスジョインの発生）：</strong>等価結合（<code>=</code>）はハッシュ結合などの高速なアルゴリズムが使われますが、非等価結合（<code>BETWEEN</code>等）は実質的に「全行と全行を掛け合わせてから条件で絞る（Nested Loop）」動きになりがちです。ユーザーが100万人、キャンペーンが1000個あると非常に重いクエリになります。実務では結合前に極力データを絞り込む工夫が必要です。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>SCD Type 2（履歴保持マスタ）との結合</strong><br>実務のデータウェアハウスでは「商品価格マスタ」が上書きされず、<code>start_date</code> と <code>end_date</code> を持って履歴として保存される設計（Slowly Changing Dimension Type 2）がよく採用されます。「売上が発生した当時の価格」をJOINで取得するためには、この非等価結合の技術が必須になります。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7 再帰CTE (WITH RECURSIVE)
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "再帰CTE — 組織の階層（ツリー構造）をすべて辿る",
+  tags: [["r","WITH RECURSIVE"],["o","階層データ"],["g","ツリー構造"],["p","自己参照"]],
+  premise: `<p>親子関係を持つデータ（上司と部下、カテゴリの小中大など）の階層の深さは可変です。自己結合（SELF JOIN）では固定の段数しか辿れませんが、<strong>WITH RECURSIVE（再帰CTE）</strong>を使えば一番下まで自動でループ処理して辿ることができます。</p>
+<pre><span class="kw">WITH RECURSIVE</span> cte_name <span class="kw">AS</span> (
+  <span class="cmt">-- 1. 非再帰項（ベースとなる最初の行。社長やトップカテゴリなど）</span>
+  <span class="kw">SELECT</span> ...
+  <span class="kw">UNION ALL</span>
+  <span class="cmt">-- 2. 再帰項（CTE自身を参照し、ループして次の階層を呼び出す）</span>
+  <span class="kw">SELECT</span> ... <span class="kw">FROM</span> table <span class="kw">JOIN</span> cte_name <span class="kw">ON</span> ...
+)
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> cte_name;</pre>
+<div class="callout ok"><strong>ループが止まる条件：</strong><br>
+再帰項の JOIN で「これ以上部下がいない（一致する行がない）」状態になると、UNION ALL される行が 0 になり、自動的に再帰処理が終了します。</div>`,
+  question: `<p>employees テーブルは <code>manager_id</code> で上司の <code>emp_id</code> を参照しています。</p>
+<p><em>山田太郎（社長: manager_id IS NULL）をレベル 1（トップ）として、全社員の階層レベル（depth）</em>を計算してください。</p>
+<p>※ PostgreSQL/MySQL8.0等の標準的な <code>WITH RECURSIVE</code> を使用します。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employees</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>manager_id</th></tr>
+        <tr><td>1</td><td>山田 太郎</td><td class="null">NULL</td></tr>
+        <tr><td>2</td><td>田中 一郎</td><td>1</td></tr>
+        <tr><td>3</td><td>佐藤 花子</td><td>2</td></tr>
+        <tr><td>4</td><td>鈴木 次郎</td><td>2</td></tr>
+        <tr><td>5</td><td>高橋 三郎</td><td>1</td></tr>
+        <tr><td>6</td><td>木村 四郎</td><td>4</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th class="tc-hi">depth</th><th>emp_id</th><th>emp_name</th><th>manager_id</th></tr>
+<tr><td class="tc-hi">1</td><td>1</td><td>山田 太郎</td><td class="null">NULL</td></tr>
+<tr><td class="tc-hi">2</td><td>2</td><td>田中 一郎</td><td>1</td></tr>
+<tr><td class="tc-hi">2</td><td>5</td><td>高橋 三郎</td><td>1</td></tr>
+<tr><td class="tc-hi">3</td><td>3</td><td>佐藤 花子</td><td>2</td></tr>
+<tr><td class="tc-hi">3</td><td>4</td><td>鈴木 次郎</td><td>2</td></tr>
+<tr><td class="tc-hi">4</td><td>6</td><td>木村 四郎</td><td>4</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ 山田(社長)→田中(部長)→鈴木(課長)→木村(係長) のように深さが＋1されている。</p>`,
+  answer: `<pre><span class="kw">WITH RECURSIVE</span> org_tree <span class="kw">AS</span> (
+  <span class="cmt">-- ------------------------------------------------</span>
+  <span class="cmt">-- ① 非再帰項（アンカー）: ループの起点となる行を取得</span>
+  <span class="cmt">-- ------------------------------------------------</span>
+  <span class="kw">SELECT</span>
+    <span class="num">1</span> <span class="kw">AS</span> depth,         <span class="cmt">-- 起点なので階層レベルを1とする</span>
+    emp_id,
+    emp_name,
+    manager_id
+  <span class="kw">FROM</span> <span class="tbl">employees</span>
+  <span class="kw">WHERE</span> manager_id <span class="kw">IS NULL</span>   <span class="cmt">-- 上司がいない人（山田太郎）を起点にする</span>
+
+  <span class="kw">UNION ALL</span>
+
+  <span class="cmt">-- ------------------------------------------------</span>
+  <span class="cmt">-- ② 再帰項: 前のループで見つかった人（親）の部下を探す</span>
+  <span class="cmt">-- ------------------------------------------------</span>
+  <span class="kw">SELECT</span>
+    parent.depth <span class="op">+</span> <span class="num">1</span>,   <span class="cmt">-- 親のレベルに +1 したものを自分のレベルとする</span>
+    child.emp_id,
+    child.emp_name,
+    child.manager_id
+  <span class="kw">FROM</span>       <span class="tbl">employees</span> child           <span class="cmt">-- 部下テーブル</span>
+  <span class="kw">INNER JOIN</span> org_tree  parent          <span class="cmt">-- ★CTE自身(親の行)とJOINする</span>
+    <span class="kw">ON</span> child.manager_id <span class="op">=</span> parent.emp_id <span class="cmt">-- 部下のmanager_idが親のemp_idと一致</span>
+)
+
+<span class="cmt">-- ③ ループ完了後、最終結果を出力</span>
+<span class="kw">SELECT</span>
+  depth,
+  emp_id,
+  emp_name,
+  manager_id
+<span class="kw">FROM</span> org_tree
+<span class="kw">ORDER BY</span>
+  depth <span class="kw">ASC</span>,
+  emp_id <span class="kw">ASC</span>;
+
+<span class="cmt">/*
+  SQL実行順序 (再帰のループ):
+  ループ0回目 (非再帰): 山田(id=1, depth=1) を org_tree に入れる
+  ループ1回目 (再帰)  : org_tree にいる 山田(id=1) を親とする部下を探す
+                        → 田中(id=2)と高橋(id=5) が見つかる。depth=1+1=2 として org_tree に入れる
+  ループ2回目 (再帰)  : 今回新しく入った 田中と高橋 を親とする部下を探す
+                        → 田中の部下として 佐藤(id=3)と鈴木(id=4) が見つかる。depth=3
+  ループ3回目 (再帰)  : 佐藤と鈴木 を親とする部下を探す
+                        → 鈴木の部下として 木村(id=6) が見つかる。depth=4
+  ループ4回目 (再帰)  : 木村 を親とする部下を探す → 誰もいない（0行）→ 再帰終了！
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>階層ツリーの可視化と depth の変化</strong></span></div>
+<div class="callout" style="font-family:'JetBrains Mono',monospace;font-size:12px;">
+[Depth 1] 山田 太郎 (社長) <br>
+ ├── [Depth 2] 田中 一郎<br>
+ │    ├── [Depth 3] 佐藤 花子<br>
+ │    └── [Depth 3] 鈴木 次郎<br>
+ │         └── [Depth 4] 木村 四郎<br>
+ └── [Depth 2] 高橋 三郎<br>
+</div>
+</div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>再帰項の JOIN の仕組み</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>org_tree (親としての評価対象)</th><th class="tc-g">ON child.manager_id = parent.emp_id</th><th>child (新たに見つかった部下)</th></tr>
+<tr><td>山田 (emp_id=1, depth=1)</td><td class="tc-g">manager_id = 1 を探す</td><td class="tc-hi">田中(depth=2), 高橋(depth=2)</td></tr>
+<tr><td>田中 (emp_id=2, depth=2)</td><td class="tc-g">manager_id = 2 を探す</td><td class="tc-hi">佐藤(depth=3), 鈴木(depth=3)</td></tr>
+<tr><td>高橋 (emp_id=5, depth=2)</td><td class="tc-g">manager_id = 5 を探す</td><td class="tc-dim">なし</td></tr>
+<tr><td>佐藤・鈴木 (depth=3)</td><td class="tc-g">manager_id = 3, 4 を探す</td><td class="tc-hi">木村(depth=4)</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>再帰CTEは難しく見えますが、構造は「①最初の行を決める」＋「UNION ALL」＋「②前の行のデータを使って次の行を取ってくる」というパターンの繰り返しです。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>日付の連続生成（カレンダーテーブル）：</strong>再帰CTEは階層データだけでなく、「1日ずつ日付を足して1ヶ月分の日付リストを作る」といった連番生成にも非常に頻繁に使われます。（PostgreSQLなら <code>GENERATE_SERIES</code> 関数で代用可能ですが、MySQL等では再帰CTEを使います）</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>無限ループに陥るデータ：</strong>Aさんの上司がBさん、Bさんの上司がAさん…という循環参照（データ不整合）があると、再帰が終わらずにDBがクラッシュ（または強制タイムアウト）します。実務では <code>depth &lt; 20</code> のようなストッパー条件を WHERE 句に保険として入れておくことが推奨されます。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>BOM（部品表）展開の必須技術</strong><br>製造業やECの実務では「親カテゴリの中に子カテゴリがあり、その中に孫カテゴリがある」「パソコン(親)は、CPU(子)とメモリ(子)からなり、メモリはさらに基盤とチップからなる」といったツリー構造（BOM）が至る所に存在します。この深さ不定のツリー構造をSQLだけでフラットな表に展開する唯一の手段が WITH RECURSIVE です。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8 複数CTEによる処理の分割
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "複数CTE — 複雑なロジックを段階的に整理する",
+  tags: [["r","複数CTE"],["o","WITH"],["g","中間テーブル"],["p","ロジック整理"]],
+  premise: `<p>実務のSQLは何百行にもなることがあり、1つの巨大なクエリの中に全ての JOIN や GROUP BY を詰め込むと「どの粒度（行の単位）で結合しているのか」が全く分からなくなります。<strong>複数のCTE</strong> をカンマ区切りで定義して、処理を部品化しましょう。</p>
+<pre><span class="kw">WITH</span>
+  cte1 <span class="kw">AS</span> ( <span class="kw">SELECT</span> ... ),              <span class="cmt">-- 1つ目の中間テーブル</span>
+  cte2 <span class="kw">AS</span> ( <span class="kw">SELECT</span> ... <span class="kw">FROM</span> cte1 ),    <span class="cmt">-- cte1を利用して2つ目を作る</span>
+  cte3 <span class="kw">AS</span> ( <span class="kw">SELECT</span> ... )               <span class="cmt">-- 独立した別の集計を作る</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> cte2 <span class="kw">JOIN</span> cte3 ...;      <span class="cmt">-- 最後に綺麗に結合する</span></pre>
+<div class="callout ok"><strong>鉄則「1対多のテーブルを先に集計してからJOINする」：</strong><br>
+明細テーブルをそのままマスタにJOINすると行が増殖し、他の集計がおかしくなります（ファントムリード/ファン・トラップ）。明細テーブルはCTE内で <code>GROUP BY</code> して <strong>「ユーザー1人に1行」の粒度にしてから</strong> 本流のクエリにJOINするのが安全です。</div>`,
+  question: `<p>users テーブルに対して、page_views テーブルからの「総アクセス数」と、orders テーブルからの「総購入金額」を結合したいです。</p>
+<p><em>アクセス集計CTE、購入集計CTE を別々に作成し、最後に users テーブルと LEFT JOIN して統合</em>してください。アクセスや購入がない場合は 0 を表示します。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th></tr>
+        <tr><td>1</td><td>田中</td></tr>
+        <tr><td>2</td><td>佐藤</td></tr>
+        <tr><td>3</td><td>山田</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ page_views</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>views</th></tr>
+        <tr><td>1</td><td>10</td></tr>
+        <tr><td>1</td><td>5</td></tr>
+        <tr><td>2</td><td>20</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>amount</th></tr>
+        <tr><td>1</td><td>3,000</td></tr>
+        <tr><td>3</td><td>5,000</td></tr>
+        <tr><td>3</td><td>2,000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th class="tc-hi">total_views</th><th class="tc-g">total_amount</th></tr>
+<tr><td>1</td><td>田中</td><td class="tc-hi">15</td><td class="tc-g">3,000</td></tr>
+<tr><td>2</td><td>佐藤</td><td class="tc-hi">20</td><td class="tc-o">0</td></tr>
+<tr><td>3</td><td>山田</td><td class="tc-o">0</td><td class="tc-g">7,000</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ CTEで「ユーザーごとの集計表」を作ってからJOINしているため、行の増殖バグが起きない。</p>`,
+  answer: `<pre><span class="kw">WITH</span>
+<span class="cmt">-- 1. アクセス数をユーザー単位(1行)に集計するCTE</span>
+user_views <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    user_id,
+    <span class="fn">SUM</span>(views) <span class="kw">AS</span> sum_views
+  <span class="kw">FROM</span> <span class="tbl">page_views</span>
+  <span class="kw">GROUP BY</span> user_id
+),
+
+<span class="cmt">-- 2. 購入金額をユーザー単位(1行)に集計するCTE</span>
+user_orders <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    user_id,
+    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> sum_amount
+  <span class="kw">FROM</span> <span class="tbl">orders</span>
+  <span class="kw">GROUP BY</span> user_id
+)
+
+<span class="cmt">-- 3. 最後に users を起点にして安全な粒度(1対1)でJOINする</span>
+<span class="kw">SELECT</span>
+  u.user_id,
+  u.name,
+  <span class="fn">COALESCE</span>(v.sum_views, <span class="num">0</span>)  <span class="kw">AS</span> total_views,  <span class="cmt">-- LEFT JOINでNULLになるため0に補完</span>
+  <span class="fn">COALESCE</span>(o.sum_amount, <span class="num">0</span>) <span class="kw">AS</span> total_amount
+<span class="kw">FROM</span>       <span class="tbl">users</span> u
+<span class="kw">LEFT JOIN</span>  user_views  v <span class="kw">ON</span> u.user_id <span class="op">=</span> v.user_id
+<span class="kw">LEFT JOIN</span>  user_orders o <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id
+
+<span class="kw">ORDER BY</span> u.user_id;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. user_views CTE  → page_views を集計し、[id1: 15], [id2: 20] のマートを作る
+  2. user_orders CTE → orders を集計し、[id1: 3000], [id3: 7000] のマートを作る
+  3. FROM users u    → 起点となる全3行
+  4. LEFT JOIN       → CTEの結果をJOIN。id2のorders、id3のviewsは結合先がないためNULL
+  5. SELECT ...      → COALESCEでNULLを0に変換して出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>危険な書き方（アンチパターン）</strong> — もしCTEを使わずに直接JOINしたら？</span></div>
+<div class="callout danger" style="font-size:12px;">
+<code>FROM users LEFT JOIN page_views LEFT JOIN orders</code><br>
+田中(id=1) は views が <strong>2行</strong>、orders が <strong>1行</strong> あります。<br>
+直接JOINすると 1行×2行×1行 ＝ <strong>2行に増殖</strong> します。<br>
+その結果、オーダー金額(3,000)が2行に複製され、合計すると <strong>6,000円と二重計上</strong> されてしまう深刻なバグ（ファン・トラップ）が発生します。
+</div>
+</div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>CTE による「粒度の統一」</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>テーブル・CTE名</th><th>粒度（1行の意味）</th><th>状態</th></tr>
+<tr><td>users</td><td>1ユーザー</td><td class="tc-g">OK</td></tr>
+<tr class="tr-hi4"><td>page_views（元）</td><td>1アクセスイベント</td><td class="tc-r">NG（複数行あり）</td></tr>
+<tr><td>user_views（CTE）</td><td>1ユーザー</td><td class="tc-g">GROUP BY済・OK</td></tr>
+<tr class="tr-hi4"><td>orders（元）</td><td>1回の注文</td><td class="tc-r">NG（複数行あり）</td></tr>
+<tr><td>user_orders（CTE）</td><td>1ユーザー</td><td class="tc-g">GROUP BY済・OK</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>CTE（Common Table Expression）を複数つなげる場合、<code>WITH</code> は最初の1回だけ書き、2つ目以降は <code>,（カンマ）</code> で区切って <code>名前 AS ( SELECT... )</code> を続けます。最後のCTEの後にはカンマを付けず、本流の SELECT を書きます。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CTE同士の参照：</strong><code>cte2</code> の中で <code>FROM cte1</code> のように、先に定義した CTE を参照することも可能です。ロジックを段階的に深めたい場合に威力を発揮します。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>サブクエリのネスト（マトリョーシカ状態）：</strong>CTEを使わず <code>FROM (SELECT ... FROM (SELECT ...))</code> のようにサブクエリを入れ子にしていくと、コードが右にどんどんインデントされ、読み解くのが不可能になります。「CTEで上から下へ読む」スタイルが現代SQLのスタンダードです。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>実務コードの9割はこの「複数CTE」スタイル</strong><br>複雑なビジネスロジック（例：アクティブユーザー定義、割引クーポンの適応、税率計算）を1つのSQLで書く場合、10個以上のCTEをカンマで繋いで1000行のクエリを書くことも珍しくありません。「データクレンジングのCTE」「集計のCTE」「結合のCTE」と役割ごとにブロックを分けることで、バグが起きにくく他人がレビューしやすい保守性の高いコードになります。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9 各グループの最新行取得 (ROW_NUMBERの真価)
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "相関サブクエリ応用 — 各ユーザーの「最新のステータス」を取得",
+  tags: [["r","ROW_NUMBER()"],["o","最新行の取得"],["g","ウィンドウ関数"],["p","履歴テーブル操作"]],
+  premise: `<p>実務で頻出する「履歴テーブル（ログ）から、各ユーザーの最新の行だけを全列抽出する」問題です。相関サブクエリ（<code>WHERE date = (SELECT MAX(date)...)</code>）を使う古典的な方法もありますが、現在では <strong>ROW_NUMBER() + CTE</strong> の組み合わせが最も読みやすく、高速な定石です。</p>
+<pre><span class="kw">WITH</span> ranked_log <span class="kw">AS</span> (
+  <span class="kw">SELECT</span> *,
+    <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> user_id         <span class="cmt">-- ユーザーごとにグループ化</span>
+      <span class="kw">ORDER BY</span>     updated_at <span class="kw">DESC</span> <span class="cmt">-- 日時の「降順（新しい順）」で連番</span>
+    ) <span class="kw">AS</span> rn
+  <span class="kw">FROM</span> <span class="tbl">status_history</span>
+)
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> ranked_log <span class="kw">WHERE</span> rn <span class="op">=</span> <span class="num">1</span>;  <span class="cmt">-- 1番（最新）だけを残す</span></pre>`,
+  question: `<p>subscription_history テーブルは、ユーザーの有料プランの変更履歴を保持しています。</p>
+<p><em>各ユーザーの「現在の（最も新しい）プラン」と、その変更日時</em>を取得してください。取得したいのは最新の1行のみです。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ subscription_history</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>history_id</th><th>user_id</th><th>plan_name</th><th>changed_at</th></tr>
+        <tr><td>1</td><td>U10</td><td>Free</td><td>2025-01-01</td></tr>
+        <tr><td>2</td><td>U10</td><td>Basic</td><td>2025-03-10</td></tr>
+        <tr><td>3</td><td>U10</td><td>Premium</td><td>2025-06-20</td></tr>
+        <tr><td>4</td><td>U20</td><td>Premium</td><td>2025-02-15</td></tr>
+        <tr><td>5</td><td>U20</td><td>Free (解約)</td><td>2025-05-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th class="tc-hi">current_plan</th><th class="tc-g">last_changed_at</th></tr>
+<tr><td>U10</td><td class="tc-hi">Premium</td><td class="tc-g">2025-06-20</td></tr>
+<tr><td>U20</td><td class="tc-hi">Free (解約)</td><td class="tc-g">2025-05-01</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ U10は3回の変更のうち最新のPremium、U20は最新のFreeが抽出される。</p>`,
+  answer: `<pre><span class="kw">WITH</span> ranked_history <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    user_id,
+    plan_name,
+    changed_at,
+    <span class="cmt">-- ユーザーごとに、変更日時の新しい順で 1,2,3... と番号を振る</span>
+    <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> user_id
+      <span class="kw">ORDER BY</span> changed_at <span class="kw">DESC</span>   <span class="cmt">-- 最新が「1」になるようにDESC指定</span>
+    ) <span class="kw">AS</span> rn
+  <span class="kw">FROM</span> <span class="tbl">subscription_history</span>
+)
+
+<span class="kw">SELECT</span>
+  user_id,
+  plan_name  <span class="kw">AS</span> current_plan,
+  changed_at <span class="kw">AS</span> last_changed_at
+<span class="kw">FROM</span> ranked_history
+<span class="kw">WHERE</span> rn <span class="op">=</span> <span class="num">1</span>                    <span class="cmt">-- 各ユーザーの最新行（rn=1）だけをフィルタ</span>
+<span class="kw">ORDER BY</span> user_id;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. ranked_history CTE → 履歴テーブル全5行に対し、ユーザーごとに日時の降順で連番を付与
+                           [U10] 06-20は 1、03-10は 2、01-01は 3
+                           [U20] 05-01は 1、02-15は 2
+  2. FROM ranked_history → CTEの結果を読み込む
+  3. WHERE rn = 1        → 連番が1の行（最新行）だけを残す
+  4. SELECT ...          → 必要な列名にエイリアスをつけて出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE内での ROW_NUMBER 付与</strong> — 最新を「1」にする</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>changed_at</th><th>plan_name</th><th class="tc-hi">rn (ORDER BY DESC)</th></tr>
+<tr class="tr-hi"><td>U10</td><td class="tc-g">06-20 (最新)</td><td>Premium</td><td class="tc-hi">1</td></tr>
+<tr class="tr-dim"><td>U10</td><td>03-10</td><td>Basic</td><td>2</td></tr>
+<tr class="tr-dim"><td>U10</td><td>01-01 (最古)</td><td>Free</td><td>3</td></tr>
+<tr class="tr-hi"><td>U20</td><td class="tc-g">05-01 (最新)</td><td>Free (解約)</td><td class="tc-hi">1</td></tr>
+<tr class="tr-dim"><td>U20</td><td>02-15</td><td>Premium</td><td>2</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">WHERE rn = 1 でフィルタリング</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>なぜ MAX() + GROUP BY ではダメなのか？</strong></span></div>
+<div class="callout warn" style="font-size:12px;">
+<code>SELECT user_id, MAX(changed_at), plan_name FROM ... GROUP BY user_id</code><br>
+のように書くと、「最大の変更日」は取れますが、<strong>その日時の plan_name</strong> を紐付けることができません（標準SQLではエラーになります）。他列の情報もまるごと引き連れて行を残すには、行単位でフラグを立てる <code>ROW_NUMBER()</code> が最適解になります。
+</div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>中級Q10の復習ですが、ウィンドウ関数は <code>WHERE</code> に直接書けないため必ず CTE かサブクエリで包む必要があります。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>初回の行を取りたい場合：</strong>「最初に登録したプラン」を取りたい場合は、<code>ORDER BY changed_at ASC</code> に変更するだけで取得できます。要件変更に非常に強い書き方です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>相関サブクエリを使う（古典的で遅い）：</strong><br>
+<code>WHERE changed_at = (SELECT MAX(changed_at) FROM history h2 WHERE h2.user_id = h1.user_id)</code><br>
+昔のMySQL（ウィンドウ関数が使えなかった時代）ではこの書き方が主流でしたが、ユーザー数が多いとサブクエリが何百万回も実行されて激重になります。現在は ROW_NUMBER を使うのがモダンなSQLです。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>イベントログは常にこのパターンで捌く</strong><br>アクセスログ・購買ログ・ステータス変更履歴など、DBに追記（INSERT）され続けるテーブルから「現在の最新状態（Snapshot）」を復元する処理は、データ基盤構築（ETL処理）の最重要ステップです。「各IDの最新行を取る」と言われたら、脊髄反射で <code>WITH CTE AS (ROW_NUMBER() OVER(PARTITION BY id ORDER BY date DESC))</code> を書けるようにしましょう。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10 総合問題 (RFMスコアリング)
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "総合問題: RFM分析 — 複雑なビジネス要件をSQLで実現する",
+  tags: [["r","RFM分析"],["o","CASE式応用"],["g","複数CTE"],["p","実務データマート"]],
+  premise: `<p><strong>RFM分析</strong>は、マーケティングで顧客を分類するための古典的かつ強力なフレームワークです。</p>
+<ul style="font-size:13px; margin-left:20px; margin-bottom:10px;">
+  <li><strong>R (Recency)</strong> : 最新購入日からの経過日数（直近に買ったか）</li>
+  <li><strong>F (Frequency)</strong> : 累計購入回数（何度リピートしたか）</li>
+  <li><strong>M (Monetary)</strong> : 累計購入金額（いくら使ったか）</li>
+</ul>
+<p>この総合問題では、「日付計算」「グループ集計」「複数CTE」「CASE式による条件分岐」というこれまで学んだ応用技術を総動員して、顧客のクラスタリング（セグメント化）を行うデータマートを作成します。</p>`,
+  question: `<p>order_history テーブルから、各顧客の R・F・M を算出し、以下のルールに従って <code>customer_segment</code>（顧客ランク）を判定してください。</p>
+<ul style="font-size:13px; margin-left:20px; margin-bottom:10px;">
+  <li><strong>優良顧客</strong> : F(購入回数)が 3回以上 <strong>かつ</strong> M(累計金額)が 20,000以上</li>
+  <li><strong>離反注意</strong> : R(経過日数)が 90日より大きい（90日以上購入がない）</li>
+  <li><strong>一般顧客</strong> : 上記のどちらにも当てはまらない</li>
+</ul>
+<p>※分析の基準日（現在の日付）は <code>'2025-06-01'</code> とします。経過日数の計算には <code>CURRENT_DATE</code> の代わりにこの固定日を使ってください。顧客IDの昇順で出力します。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ order_history</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>customer_id</th><th>order_date</th><th>amount</th></tr>
+        <tr><td>C01</td><td>2025-05-15</td><td>8,000</td></tr>
+        <tr><td>C01</td><td>2025-05-20</td><td>15,000</td></tr>
+        <tr><td>C01</td><td>2025-05-30</td><td>5,000</td></tr>
+        <tr><td>C02</td><td>2024-12-10</td><td>12,000</td></tr>
+        <tr><td>C02</td><td>2025-01-05</td><td>8,000</td></tr>
+        <tr><td>C03</td><td>2025-05-10</td><td>4,000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>customer_id</th><th class="tc-g">recency_days</th><th class="tc-g">frequency</th><th class="tc-g">monetary</th><th class="tc-hi">customer_segment</th></tr>
+<tr><td>C01</td><td class="tc-g">2</td><td class="tc-g">3</td><td class="tc-g">28,000</td><td class="tc-hi">優良顧客</td></tr>
+<tr><td>C02</td><td class="tc-r">147</td><td class="tc-g">2</td><td class="tc-g">20,000</td><td class="tc-o">離反注意</td></tr>
+<tr><td>C03</td><td class="tc-g">22</td><td class="tc-g">1</td><td class="tc-g">4,000</td><td class="tc-p">一般顧客</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ C01: 最新5/30から基準日6/1まで2日。回数3, 金額28,000 なので優良顧客。<br>C02: 最新1/5から147日経過しているため離反注意。</p>`,
+  answer: `<pre><span class="kw">WITH</span> rfm_metrics <span class="kw">AS</span> (
+  <span class="cmt">-- 1. まずは各顧客の R・F・M の数値を計算するCTE</span>
+  <span class="kw">SELECT</span>
+    customer_id,
+
+    <span class="cmt">-- Recency(R): 基準日 - 顧客の最も新しい(MAX)購入日 ＝ 経過日数</span>
+    <span class="cmt">-- PostgreSQLの場合、DATE型同士の引き算で日数がINTで返る</span>
+    (<span class="str">'2025-06-01'</span>::<span class="kw">DATE</span> <span class="op">-</span> <span class="fn">MAX</span>(order_date)) <span class="kw">AS</span> recency_days,
+    <span class="cmt">-- MySQLの場合: DATEDIFF('2025-06-01', MAX(order_date))</span>
+
+    <span class="cmt">-- Frequency(F): 購入回数</span>
+    <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> frequency,
+
+    <span class="cmt">-- Monetary(M): 累計購入金額</span>
+    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> monetary
+
+  <span class="kw">FROM</span> <span class="tbl">order_history</span>
+  <span class="kw">GROUP BY</span> customer_id
+)
+
+<span class="cmt">-- 2. 計算したRFM指標をもとに、CASE式でセグメントを判定する</span>
+<span class="kw">SELECT</span>
+  customer_id,
+  recency_days,
+  frequency,
+  monetary,
+
+  <span class="kw">CASE</span>
+    <span class="cmt">-- 条件① 優良顧客の判定（Fが3以上 かつ Mが20,000以上）</span>
+    <span class="kw">WHEN</span> frequency <span class="op">&gt;=</span> <span class="num">3</span> <span class="kw">AND</span> monetary <span class="op">&gt;=</span> <span class="num">20000</span>
+      <span class="kw">THEN</span> <span class="str">'優良顧客'</span>
+
+    <span class="cmt">-- 条件② 離反注意の判定（Rが90より大きい）</span>
+    <span class="cmt">-- CASE式は上から順に評価されるため、優良顧客でありかつ90日経過している場合は「優良顧客」が優先される設計</span>
+    <span class="kw">WHEN</span> recency_days <span class="op">&gt;</span> <span class="num">90</span>
+      <span class="kw">THEN</span> <span class="str">'離反注意'</span>
+
+    <span class="cmt">-- 条件③ 上記以外</span>
+    <span class="kw">ELSE</span> <span class="str">'一般顧客'</span>
+  <span class="kw">END</span> <span class="kw">AS</span> customer_segment
+
+<span class="kw">FROM</span> rfm_metrics
+<span class="kw">ORDER BY</span> customer_id;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. rfm_metrics CTE → 元テーブルを顧客単位(GROUP BY)に圧縮
+                       C01: 最新日付 5/30 → '2025-06-01' - '2025-05-30' = 2日 (R)
+                            回数 3回 (F), 金額 28,000 (M)
+                       C02: 最新日付 1/5 → 147日 (R) / 回数 2 (F) / 金額 20,000 (M)
+                       C03: 最新日付 5/10 → 22日 (R) / 回数 1 (F) / 金額 4,000 (M)
+  2. FROM rfm_metrics → 計算済みのCTEを読み込む
+  3. SELECT ...       → 計算済みの列を参照しながら、CASE式でセグメント判定
+                       C01: F>=3 AND M>=20000 に合致 → 優良顧客
+                       C02: recency > 90 に合致 → 離反注意
+                       C03: どちらも合致しない → 一般顧客
+  4. ORDER BY ...     → 顧客IDの昇順で出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>RFMの算出（CTE）</strong> — 生の明細データから指標を抽出</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ID</th><th>MAX(order_date)</th><th class="tc-g">Recency (基準日-MAX)</th><th class="tc-g">Frequency (COUNT)</th><th class="tc-g">Monetary (SUM)</th></tr>
+<tr><td>C01</td><td>2025-05-30</td><td class="tc-g">6/1 - 5/30 = 2日</td><td class="tc-g">3回</td><td class="tc-g">28,000円</td></tr>
+<tr><td>C02</td><td>2025-01-05</td><td class="tc-r">6/1 - 1/5 = 147日</td><td class="tc-g">2回</td><td class="tc-g">20,000円</td></tr>
+<tr><td>C03</td><td>2025-05-10</td><td class="tc-g">6/1 - 5/10 = 22日</td><td class="tc-g">1回</td><td class="tc-g">4,000円</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">CASE 式による条件分岐（上から順に評価される）</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>CASE式の評価ロジック</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ID</th><th>① 優良 (F>=3 且つ M>=20000)</th><th>② 離反 (R > 90)</th><th class="tc-hi">最終判定</th></tr>
+<tr class="tr-hi"><td>C01</td><td class="tc-hi">TRUE (3>=3, 28k>=20k)</td><td>未評価（①で決定）</td><td class="tc-hi">優良顧客</td></tr>
+<tr class="tr-hi4"><td>C02</td><td class="tc-dim">FALSE (Fが2)</td><td class="tc-o">TRUE (147 > 90)</td><td class="tc-o">離反注意</td></tr>
+<tr class="tr-hi3"><td>C03</td><td class="tc-dim">FALSE</td><td class="tc-dim">FALSE</td><td class="tc-p">一般顧客（ELSE）</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>CASE 式は <code>IF - ELSE IF - ELSE</code> の構文です。重要なのは「上の WHEN 条件に合致した時点で評価が終わり、下の WHEN は見られない」という点です。条件の優先順位を考えて記述する順序を決めます。</div></div>
+<div class="flex-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ロジックの分離の美しさ：</strong>このクエリでは、集計処理（CTE）と、ビジネスルールの判定（外側のSELECT）をきれいに分けています。もしCTEを使わずに書くと <code>CASE WHEN COUNT(*) >= 3 AND SUM(amount) >= 20000 THEN...</code> のように式が肥大化し、読みにくくなります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="flex-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>日付の計算を文字列で行おうとする：</strong><code>'2025-06-01' - '2025-05-30'</code> のような文字列同士の引き算はエラーになります。日付の差分を求める際は必ず日付型（<code>DATE</code> または <code>TIMESTAMP</code>）に変換して計算関数を使用します。DB製品によって日付関数の仕様が最も異なるため、使用中のDBのリファレンス確認が必須です。</div></div>
+</div>
+<div class="practical-box">
+<div class="practical-title">💼 PRACTICAL COLUMN</div>
+<div class="flex-row"><span class="insight-icon">🏢</span><div class="practical-body"><strong>SQLはビジネスの言葉を翻訳するツール</strong><br>「優良顧客にはVIPクーポンを、離反寸前の顧客には呼び戻しメールを送りたい」というマーケティング部門のふわっとした要望を、正確な数値と条件式に落とし込んでリスト化するのがデータエンジニアやアナリストの腕の見せ所です。基礎的な構文を組み合わせて複雑なビジネス要件を解き明かす、これが実務SQLの本当の楽しさです。応用編の完走、お疲れ様でした！</div></div>
+</div>`
+}
+
+]; // QS 配列 終了
+
+/* ─── 共通レンダリング関数 ─── */
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = { r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p', y:'tag-y' };
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].split(':')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue' ,'前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','要件とデータ',q.question)}
+      ${acc('📊','pill-orange','出力例','期待される出力結果',q.output)}
+      ${acc('✅','pill-red'  ,'模範回答','実務レベルの模範解答',q.answer)}
+      ${acc('🔍','pill-purple','解説','ステップ別解説とポイント',q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i===0?'disabled':''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i===QS.length-1?'disabled':''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+buildAll();
+</script>
+</body>
+</html>
