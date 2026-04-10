@@ -14,7 +14,7 @@ https://hiroaki-com.github.io/sql-quiz-book/
 docs/
 ├── index.html
 └── files/
-    ├── sql-batch-practical-001.html
+    ├── sql-batch-pract-001.html
     └── ...
 ````
 
