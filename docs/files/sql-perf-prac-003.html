@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQLパフォーマンス最適化10選 — カバリングINDEX／Window関数／EXPLAIN読解／N+1解決／Keyset Pagination／JSONB INDEX／Materialized View／UPSERT／EXISTS vs IN vs JOIN／バッチチャンク処理（応用編003）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #0a0e13;
+  --bg2:    #131920;
+  --bg3:    #1c2330;
+  --bg4:    #263040;
+  --border: #2a3545;
+  --text:   #cdd9e5;
+  --dim:    #768390;
+  --accent: #4dabf7;
+  --green:  #3fb950;
+  --orange: #f0883e;
+  --red:    #f85149;
+  --purple: #bc8cff;
+  --yellow: #e3b341;
+  --kw:     #ff7b72;
+  --fn:     #79c0ff;
+  --str:    #a5d6ff;
+  --num:    #f0c674;
+  --cmt:    #6a737d;
+  --tbl:    #ffa657;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;font-size:15px;line-height:1.6}
+.site-header{background:var(--bg2)}
+.header-inner{padding:16px}
+.header-flex{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+.header-badge{background:var(--bg3);border:1px solid var(--accent);border-radius:6px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--accent);line-height:1;white-space:nowrap}
+.header-text-wrap{flex:1}
+.header-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px}
+.header-tags{display:flex;gap:6px;flex-wrap:wrap}
+.htag{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 7px;border-radius:10px;border:1px solid var(--border);color:var(--dim)}
+.sticky-tabs{background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200}
+.tab-row{display:flex;overflow-x:auto;scrollbar-width:none}
+.tab-row::-webkit-scrollbar{display:none}
+.tab-btn{flex-shrink:0;background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:11px;padding:9px 14px;cursor:pointer;white-space:nowrap;transition:color .15s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--bg3)}
+.tab-num{margin-right:5px}
+.prog-wrap{height:2px;background:var(--bg4)}
+.prog-fill{height:100%;background:var(--accent);transition:width .2s}
+main{max-width:960px;margin:0 auto;padding:22px 14px 90px}
+.panel{display:none}
+.panel.active{display:block}
+.q-header{margin-bottom:18px}
+.q-number{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:2px;margin-bottom:4px}
+.q-title{font-size:18px;font-weight:700;margin-bottom:8px;line-height:1.3}
+.q-tags{display:flex;gap:6px;flex-wrap:wrap}
+.q-tag{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:3px;font-weight:600}
+.tag-r{background:#1a2c44;color:var(--accent);border:1px solid #1e4070}
+.tag-g{background:#162416;color:var(--green);border:1px solid #1e3a1e}
+.tag-o{background:#2e1e0a;color:var(--orange);border:1px solid #4a2e0a}
+.tag-p{background:#1e1433;color:var(--purple);border:1px solid #3a2060}
+.acc{background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:12px}
+.acc-head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none}
+.acc-head:hover{background:var(--bg3)}
+.acc-icon{font-size:14px;width:22px;text-align:center;flex-shrink:0}
+.acc-title{font-size:13px;font-weight:600;flex:1}
+.acc-pill{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:3px;flex-shrink:0}
+.pill-blue  {background:#112233;color:var(--accent);border:1px solid #1a3a55}
+.pill-green {background:#0e1f0e;color:var(--green);border:1px solid #1a3a1a}
+.pill-orange{background:#1e1205;color:var(--orange);border:1px solid #3a2010}
+.pill-red   {background:#1e0a0a;color:var(--red);border:1px solid #3a1010}
+.pill-purple{background:#160f2a;color:var(--purple);border:1px solid #3a1a60}
+.acc-chevron{color:var(--dim);font-size:11px;flex-shrink:0;transition:transform .2s}
+.acc.closed .acc-chevron{transform:rotate(-90deg)}
+.acc-body{padding:14px 16px;border-top:1px solid var(--border)}
+.acc.closed .acc-body{display:none}
+p{font-size:13.5px;margin-bottom:10px}
+p:last-child{margin-bottom:0}
+strong{color:var(--accent);font-weight:600}
+em{color:var(--yellow);font-style:normal;font-weight:600}
+code{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg4);padding:1px 5px;border-radius:3px;color:var(--tbl)}
+pre{background:#060a0f;border:1px solid var(--border);border-radius:6px;padding:14px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;margin:8px 0}
+.kw {color:var(--kw);font-weight:700}
+.fn {color:var(--fn)}
+.tbl{color:var(--tbl)}
+.str{color:var(--str)}
+.num{color:var(--num)}
+.cmt{color:var(--cmt);font-style:italic}
+.op {color:var(--orange)}
+.callout{border-left:3px solid var(--accent);background:#0e1e33;padding:9px 13px;border-radius:0 5px 5px 0;margin:10px 0;font-size:13px}
+.callout.warn  {border-left-color:var(--yellow);background:#1e1a08}
+.callout.danger{border-left-color:var(--red);background:#1e0e0e}
+.callout.ok    {border-left-color:var(--green);background:#0a1e0a}
+.data-section{margin:14px 0}
+.data-label{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tbl);letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.data-label::before{content:'';display:block;width:3px;height:12px;background:var(--tbl);border-radius:2px}
+.data-tables{display:flex;gap:14px;flex-wrap:wrap}
+.data-tbl-wrap{flex:1;min-width:220px}
+.data-tbl-name{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--orange);margin-bottom:4px}
+.tbl-wrap{overflow-x:auto;margin-bottom:4px}
+table.vtbl{border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:11.5px;background:#060a0f;border:1px solid var(--border);border-radius:4px;min-width:100%}
+table.vtbl th{background:var(--bg3);color:var(--tbl);padding:5px 11px;border:1px solid var(--border);text-align:left;white-space:nowrap;font-weight:600}
+table.vtbl td{padding:4px 11px;border:1px solid #1c2635;white-space:nowrap}
+table.vtbl tr:nth-child(even) td{background:#080c12}
+.tr-hi  td{background:#0e1e33!important}
+.tr-hi2 td{background:#0e1e0e!important}
+.tr-hi3 td{background:#1e1433!important}
+.tr-hi4 td{background:#1e1a0a!important}
+.tr-dim td{opacity:.4}
+.tc-hi{color:var(--accent)!important;font-weight:700}
+.tc-g {color:var(--green)!important;font-weight:700}
+.tc-p {color:var(--purple)!important;font-weight:700}
+.tc-y {color:var(--yellow)!important;font-weight:700}
+.tc-o {color:var(--orange)!important;font-weight:700}
+.tc-r {color:var(--red)!important;font-weight:700}
+.null {color:var(--dim)!important;font-style:italic}
+.viz-flow{margin:6px 0 14px}
+.step-block{margin-bottom:8px}
+.step-label{display:flex;align-items:center;gap:8px;font-size:11px;font-family:'JetBrains Mono',monospace;margin-bottom:5px}
+.step-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.sn1{background:#1a2744;color:var(--accent)}
+.sn2{background:#1a2e1a;color:var(--green)}
+.sn3{background:#2e1a2e;color:var(--purple)}
+.sn4{background:#2e1a0a;color:var(--orange)}
+.step-desc{color:var(--dim)}
+.step-desc strong{color:var(--text)}
+.arrow{text-align:center;padding:4px 0;font-size:13px;font-family:'JetBrains Mono',monospace}
+.arrow-text{color:var(--dim);font-size:11px}
+.insight-box{background:#0a1520;border:1px solid #1a3a55;border-radius:8px;padding:14px 16px;margin-top:14px}
+.insight-title{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);letter-spacing:1px;margin-bottom:10px}
+.insight-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+.insight-icon{font-size:13px;flex-shrink:0;margin-top:1px}
+.insight-body{font-size:12.5px;color:var(--text);line-height:1.6}
+.insight-body strong{color:var(--accent)}
+.insight-body em{color:var(--yellow)}
+.insight-body code{font-size:11px}
+.anti-box{background:#160a0a;border:1px solid #3a1515;border-radius:8px;padding:14px 16px;margin-top:10px}
+.anti-title{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--red);letter-spacing:1px;margin-bottom:10px}
+.anti-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+.anti-body{font-size:12.5px;color:var(--text);line-height:1.6}
+.anti-body strong{color:var(--red)}
+.anti-body code{font-size:11px}
+.column-box{background:#0d1520;border:1px solid #1c3550;border-left:3px solid var(--fn);border-radius:8px;padding:14px 16px;margin-top:10px}
+.column-title{font-size:11px;font-weight:700;color:var(--fn);letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.column-body{font-size:12.5px;color:var(--text);line-height:1.6}
+.column-body strong{color:var(--fn)}
+.nav-bar{display:flex;justify-content:space-between;align-items:center;margin-top:24px;gap:10px}
+.nav-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:9px 16px;border-radius:6px;cursor:pointer;flex-shrink:0;transition:border-color .15s,color .15s}
+.nav-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:#0e1e33}
+.nav-btn:disabled{opacity:.3;cursor:default}
+.nav-info{font-size:11px;color:var(--dim);font-family:'JetBrains Mono',monospace;text-align:center}
+@media(max-width:520px){
+  .header-inner{padding:12px 10px 6px}
+  .q-title{font-size:15px}
+  pre{font-size:11px;padding:10px}
+  table.vtbl{font-size:10.5px}
+  .acc-title{font-size:12px}
+  .header-badge{font-size:14px;padding:5px 8px}
+  main{padding:16px 10px 60px}
+  .data-tables{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">PRAC</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">パフォーマンス最適化で学ぶ SQL 応用10選（カバリングINDEX／Window関数 vs GROUP BY／EXPLAIN読解／N+1解決／Keyset Pagination／JSONB GINインデックス／Materialized View／UPSERT冪等性／EXISTS vs IN vs JOIN／バッチチャンク処理 編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★ 応用</span>
+      <span class="htag">パフォーマンス</span>
+      <span class="htag">チューニング</span>
+      <span class="htag">PostgreSQL対応</span>
+      <span class="htag">003</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  カバリングインデックス — ヒープアクセスをゼロにする
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "カバリングインデックス — ヒープアクセスをゼロにしてIndex Onlyを実現",
+  tags: [["r","Covering Index"],["r","Index Only Scan"],["o","ヒープアクセス排除"],["g","INCLUDE"]],
+  premise: `<p>通常のインデックスは検索条件の列だけを保持します。クエリがSELECTで追加の列を要求すると、インデックスで行を特定した後に<em>ヒープ（テーブル本体）へ再アクセス</em>が発生します。これを <strong>ヒープアクセス（Heap Fetch）</strong> と呼びます。</p>
+<p><strong>カバリングインデックス</strong> はSELECTで使う列もインデックスに含めることで、クエリをインデックスだけで完結させ（<em>Index Only Scan</em>）、ヒープアクセスを完全に排除します。PostgreSQL 11以降では <code>INCLUDE</code> 句で検索に使わない列もインデックスに追加できます。</p>
+<pre><span class="cmt">-- 通常インデックス: 検索後にヒープへ追加アクセスが発生する</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id);     <span class="cmt">-- user_id だけ格納 → amount を返すためヒープへ</span>
+
+<span class="cmt">-- カバリングインデックス: INCLUDE で追加列を格納 → ヒープ不要</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_covering
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id)
+    <span class="kw">INCLUDE</span> (amount, created_at);  <span class="cmt">-- SELECT列もインデックスに格納 → Index Only Scan</span></pre>
+<div class="callout ok"><strong>INCLUDE列はソートや絞り込みに使えない：</strong>INCLUDE句に入れた列はあくまで「値の格納」だけで、WHERE条件やORDER BYのインデックス利用はできません。絞り込みに使う列は必ず通常のインデックスキー列として指定してください。</div>`,
+  question: `<p><code>orders</code> テーブルで「ユーザーの最新注文一覧API」が遅い状況です。EXPLAIN ANALYZEで<em>Heap Fetches が大量発生</em>していることが確認されました。<em>カバリングインデックスを設計</em>して、Index Only Scan へ改善してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（300万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id(PK)</th><th>user_id</th><th>amount</th><th>status</th><th>created_at</th></tr>
+        <tr><td>1001</td><td>U001</td><td>3000</td><td>shipped</td><td>2024-06-01</td></tr>
+        <tr><td>1002</td><td>U001</td><td>5000</td><td>pending</td><td>2024-07-15</td></tr>
+        <tr><td>1003</td><td>U002</td><td>1200</td><td>shipped</td><td>2024-07-20</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 遅いクエリ（user_id のみのインデックスがある状態）</span>
+<span class="kw">SELECT</span> order_id, amount, status, created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">10</span>;</pre>
+<div class="data-section">
+  <div class="data-label">EXPLAIN ANALYZE（改善前）</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>ノード</th><th>コスト</th><th>Heap Fetches</th></tr>
+    <tr class="tr-hi"><td>Index Scan on idx_orders_user</td><td class="tc-r">cost=0.56..8420</td><td class="tc-r">29,800件</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>改善後のEXPLAIN ANALYZE（Index Only Scan でHeap Fetchesがゼロに）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ノード</th><th class="tc-g">コスト（改善後）</th><th class="tc-g">Heap Fetches</th></tr>
+<tr class="tr-hi2"><td>Index Only Scan on idx_orders_covering</td><td class="tc-g">cost=0.56..94</td><td class="tc-g">0件 ✅</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 旧インデックスを削除（任意。競合を避けるため）</span>
+<span class="kw">DROP INDEX IF EXISTS</span> idx_orders_user;
+
+<span class="cmt">-- ② カバリングインデックスを作成</span>
+<span class="kw">CREATE INDEX</span> idx_orders_covering
+    <span class="kw">ON</span> <span class="tbl">orders</span> (
+        user_id,              <span class="cmt">-- 【超基礎】WHERE user_id = ? の等値検索キー（先頭列）</span>
+        created_at <span class="kw">DESC</span>       <span class="cmt">-- 【応用】ORDER BY created_at DESC のソートをインデックスで吸収</span>
+    )
+    <span class="kw">INCLUDE</span> (               <span class="cmt">-- 【応用】SELECT列をインデックスに格納してヒープアクセスを排除</span>
+        amount,               <span class="cmt">-- SELECTで使うが検索・ソートには不要 → INCLUDEに入れる</span>
+        status,               <span class="cmt">-- 同上</span>
+        order_id              <span class="cmt">-- 同上（PK も格納してヒープへのポインタ参照も不要に）</span>
+    );
+
+<span class="cmt">-- ③ クエリ自体は変更なし（オプティマイザが自動でIndex Only Scanを選択する）</span>
+<span class="kw">SELECT</span> order_id, amount, status, created_at  <span class="cmt">-- 【超基礎】必要な列だけ指定</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id    <span class="op">=</span> <span class="str">'U001'</span>                  <span class="cmt">-- 【超基礎】インデックスキー列で等値絞り込み</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>                     <span class="cmt">-- インデックスの列順・方向と一致 → Sort不要</span>
+<span class="kw">LIMIT</span>  <span class="num">10</span>;                                  <span class="cmt">-- 【超基礎】最大取得件数を制限</span>
+
+<span class="cmt">-- ④ visibility map が更新されているか確認（Index Only Scan の前提条件）</span>
+<span class="kw">SELECT</span> relname, n_live_tup, n_dead_tup
+<span class="kw">FROM</span>   pg_stat_user_tables
+<span class="kw">WHERE</span>  relname <span class="op">=</span> <span class="str">'orders'</span>;                   <span class="cmt">-- dead tupleが多い場合はVACUUMを実行する</span>
+
+<span class="cmt">/*
+  実行順序（③のクエリ）:
+  1. FROM orders                  → テーブル参照（ただしヒープは読まない）
+  2. Index Only Scan              → インデックスから user_id='U001' の行を取得
+  3. created_at DESC 順に取得     → インデックスの並び順がそのまま結果順序に
+  4. LIMIT 10                     → 上位10件で打ち切り（インデックスの途中で停止）
+  5. SELECT 列を返す              → 全列がインデックス内に存在 → ヒープアクセスなし
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>通常インデックスのアクセスフロー（ヒープアクセスあり）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ステップ</th><th>アクセス先</th><th>取得できる列</th><th>コスト</th></tr>
+<tr class="tr-hi"><td>① Index Scan</td><td class="tc-y">インデックス（user_id）</td><td class="tc-y">TID（行のポインタ）のみ</td><td class="tc-r">低</td></tr>
+<tr class="tr-hi"><td>② Heap Fetch × 29,800</td><td class="tc-r">ヒープ（テーブル本体）</td><td class="tc-r">amount, status, created_at</td><td class="tc-r">高（ランダムI/O）</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">INCLUDEで必要な列をインデックスに追加すると…</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>カバリングインデックスのアクセスフロー（ヒープアクセスなし）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ステップ</th><th>アクセス先</th><th>取得できる列</th><th>コスト</th></tr>
+<tr class="tr-hi2"><td>① Index Only Scan</td><td class="tc-g">インデックスのみ</td><td class="tc-g">user_id + created_at + amount + status + order_id</td><td class="tc-g">低（シーケンシャルI/O）</td></tr>
+<tr class="tr-hi2"><td>② ヒープアクセス</td><td class="tc-g">不要</td><td class="tc-g">—</td><td class="tc-g">0</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">Visibility Mapの役割：全ページが可視と確認済みならヒープ参照ゼロ</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>インデックスキー列 vs INCLUDE列の使い分け</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>用途</th><th>配置場所</th><th>ソート・絞り込み</th><th>インデックスサイズへの影響</th></tr>
+<tr class="tr-hi"><td>WHERE / ORDER BY で使う</td><td class="tc-hi">インデックスキー列</td><td class="tc-g">✅ 使える</td><td class="tc-y">中（BTree構造で管理）</td></tr>
+<tr class="tr-hi3"><td>SELECTで返すだけ</td><td class="tc-p">INCLUDE列</td><td class="tc-r">❌ 使えない</td><td class="tc-g">小（末端ページにのみ格納）</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>インデックスは「本の索引」と同じです。通常の索引は「用語とページ番号」だけを持ち、本文は本（ヒープ）を開かないと読めません。カバリングインデックスは「用語・ページ番号・本文の要約」まで索引に載せるイメージです。本を開く手間（ヒープアクセス）がゼロになります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Index Only Scan の前提条件：</strong>PostgreSQLのIndex Only Scanは <em>Visibility Map（可視性マップ）</em> を参照します。VACUUMが十分に走っていないテーブルでは dead tuple があり、可視性が不明なページでは Heap Fetch が発生します。<code>VACUUM ANALYZE orders;</code> を実行してからEXPLAIN ANALYZEで再確認する習慣を持ちましょう。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>インデックスサイズとのトレードオフ：</strong>INCLUDE列を多く追加するとインデックスが肥大化し、書き込み（INSERT/UPDATE）のコストが増えます。頻繁に更新される列をINCLUDEに入れると逆効果になる場合があります。<em>「参照が多く更新が少ない列」</em>をINCLUDEに入れるのがベストプラクティスです。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SELECT * で全列を取得する：</strong><code>SELECT *</code> は全列を取得するため、インデックスにすべての列を含めない限りIndex Only Scanになりません。APIのレスポンス設計でも「必要な列だけSELECTする」習慣が、カバリングインデックスを活かす前提です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INCLUDEに絞り込みに使う列を入れる：</strong><code>WHERE status = 'shipped'</code> のように絞り込みに使う列をINCLUDEに入れてもインデックスが効きません。絞り込みに使う列は必ずキー列（INCLUDE前の括弧内）に配置してください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：API設計とカバリングインデックスのセット設計</div>
+<div class="column-body">
+実務では「APIのレスポンス仕様が決まったらカバリングインデックスを設計する」という順序が効果的です。例えば「注文一覧API: user_id で絞り込み、created_at の降順で order_id / amount / status を返す」という仕様があれば、<code>ON orders (user_id, created_at DESC) INCLUDE (order_id, amount, status)</code> が最適解として導けます。<strong>SELECT列 ＝ INCLUDE列、WHERE/ORDER BY列 ＝ キー列</strong>というマッピングを意識すると設計がシンプルになります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  Window関数 vs GROUP BY — 各ユーザーの最新注文を1行で取得
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "Window関数 vs GROUP BY — 各ユーザーの「最新1件」を効率的に取得する",
+  tags: [["r","ROW_NUMBER"],["r","Window関数"],["o","DISTINCT ON"],["p","サブクエリ最適化"]],
+  premise: `<p><strong>Window関数</strong> は <code>OVER()</code> 句を使い、グループ化を行わずに各行に集計・順位付けの結果を付与します。GROUP BYと異なり、<em>グループ内の全行を保持したまま</em>計算できるため「グループ内の最大・最小・順位」を持つクエリに向いています。</p>
+<pre><span class="cmt">-- ROW_NUMBER: パーティション内での連番を付与する</span>
+<span class="kw">SELECT</span>
+    user_id,
+    order_id,
+    created_at,
+    <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (
+        <span class="kw">PARTITION BY</span> user_id          <span class="cmt">-- ユーザーごとにリセットして連番を振る</span>
+        <span class="kw">ORDER BY</span>     created_at <span class="kw">DESC</span>  <span class="cmt">-- 最新順に1, 2, 3... と番号が付く</span>
+    ) <span class="kw">AS</span> rn
+<span class="kw">FROM</span> <span class="tbl">orders</span>;</pre>
+<div class="callout ok"><strong>PostgreSQL限定のDISTINCT ON：</strong>PostgreSQLには <code>SELECT DISTINCT ON (col)</code> という構文があり、グループ内の最初の1行だけを取得できます。Window関数より記述が短く済む場合があります。</div>`,
+  question: `<p><code>orders</code> テーブルから<em>各ユーザーの最新注文1件だけ</em>を取得するクエリを書いてください。現在の相関サブクエリ方式は全件スキャンで遅い状況です。<em>ROW_NUMBER() と DISTINCT ON の2通り</em>で改善してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（500万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at</th></tr>
+        <tr><td>1</td><td>U001</td><td>3000</td><td>2024-06-01</td></tr>
+        <tr><td>2</td><td>U001</td><td>5000</td><td>2024-07-15</td></tr>
+        <tr><td>3</td><td>U002</td><td>1200</td><td>2024-07-20</td></tr>
+        <tr><td>4</td><td>U002</td><td>8000</td><td>2024-09-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 遅い相関サブクエリ方式（各行ごとにサブクエリが実行される）</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span> o
+<span class="kw">WHERE</span> created_at <span class="op">=</span> (
+    <span class="kw">SELECT</span> <span class="fn">MAX</span>(created_at)             <span class="cmt">-- ❌ 外側の各行ごとにこのサブクエリが走る</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span>
+    <span class="kw">WHERE</span>  user_id <span class="op">=</span> o.user_id
+);</pre>`,
+  output: `<p>期待する結果（各ユーザーの最新注文1件のみ）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at</th></tr>
+<tr class="tr-hi2"><td>2</td><td>U001</td><td class="tc-g">5000</td><td class="tc-hi">2024-07-15</td></tr>
+<tr class="tr-hi2"><td>4</td><td>U002</td><td class="tc-g">8000</td><td class="tc-hi">2024-09-01</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① ROW_NUMBER() を使う方法（汎用・2件目以降も取得できる）</span>
+<span class="kw">SELECT</span> order_id, user_id, amount, created_at
+<span class="kw">FROM</span> (
+    <span class="kw">SELECT</span>
+        order_id,
+        user_id,
+        amount,
+        created_at,
+        <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (       <span class="cmt">-- 【超基礎】ウィンドウ関数の宣言。OVERが必須</span>
+            <span class="kw">PARTITION BY</span> user_id   <span class="cmt">-- 【超基礎】ユーザーごとに連番をリセット</span>
+            <span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>  <span class="cmt">-- 最新順に1番を振る（最新 = rn=1）</span>
+        ) <span class="kw">AS</span> rn
+    <span class="kw">FROM</span> <span class="tbl">orders</span>                    <span class="cmt">-- 【超基礎】対象テーブル</span>
+) <span class="kw">AS</span> ranked
+<span class="kw">WHERE</span> rn <span class="op">=</span> <span class="num">1</span>;                      <span class="cmt">-- 【超基礎】各ユーザーの1番（最新）だけ残す</span>
+
+<span class="cmt">-- ② DISTINCT ON を使う方法（PostgreSQL専用・より簡潔）</span>
+<span class="kw">SELECT DISTINCT ON</span> (user_id)      <span class="cmt">-- 【応用】user_id ごとに最初の1行だけを返す</span>
+    order_id, user_id, amount, created_at
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="kw">ORDER BY</span> user_id, created_at <span class="kw">DESC</span>; <span class="cmt">-- DISTINCT ON の列を ORDER BY の先頭に置く必要がある</span>
+
+<span class="cmt">-- ③ インデックス（両方のクエリに有効）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_created
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id, created_at <span class="kw">DESC</span>);  <span class="cmt">-- PARTITION BY + ORDER BY に対応</span>
+
+<span class="cmt">/*
+  実行順序（①のクエリ）:
+  1. FROM orders                → テーブル全体を参照（インデックス使用）
+  2. ROW_NUMBER() OVER(...)     → user_idごとにcreated_at降順で連番を付与
+  3. FROM (...) AS ranked       → 上記をサブクエリとして全行を一時保持
+  4. WHERE rn = 1               → 各ユーザーの最新行（rn=1）だけに絞り込む
+  5. SELECT 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>ROW_NUMBER()の動作：連番の付与過程</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>created_at</th><th class="tc-hi">rn（付与後）</th><th>最終結果</th></tr>
+<tr class="tr-hi2"><td>2</td><td>U001</td><td>2024-07-15</td><td class="tc-g">1</td><td class="tc-g">✅ 残る（rn=1）</td></tr>
+<tr class="tr-dim"><td>1</td><td>U001</td><td>2024-06-01</td><td class="tc-r">2</td><td class="tc-r">❌ 除外</td></tr>
+<tr class="tr-hi2"><td>4</td><td>U002</td><td>2024-09-01</td><td class="tc-g">1</td><td class="tc-g">✅ 残る（rn=1）</td></tr>
+<tr class="tr-dim"><td>3</td><td>U002</td><td>2024-07-20</td><td class="tc-r">2</td><td class="tc-r">❌ 除外</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">同順位の扱い：ROW_NUMBER は必ず一意、RANK は同値に同番号を付与</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>3つの方法のパフォーマンス比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>方法</th><th>スキャン回数</th><th>速度</th><th>使える場面</th></tr>
+<tr class="tr-hi"><td>相関サブクエリ（旧）</td><td class="tc-r">行数分だけサブクエリ実行</td><td class="tc-r">遅い</td><td>小規模のみ</td></tr>
+<tr class="tr-hi2"><td>ROW_NUMBER()</td><td class="tc-g">1パス + フィルタ</td><td class="tc-g">速い</td><td>2位以降も必要な場面</td></tr>
+<tr class="tr-hi3"><td>DISTINCT ON</td><td class="tc-g">1パス（より簡潔）</td><td class="tc-g">速い</td><td>PostgreSQL専用・最新1件のみ</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>Window関数は <code>関数() OVER(PARTITION BY ... ORDER BY ...)</code> という構文です。GROUP BYと違い、<em>元の行を削除せず</em>に計算結果を列として追加します。GROUP BY後はグループが1行になりますが、Window関数後は元の行数がそのまま残ります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ROW_NUMBER vs RANK vs DENSE_RANK：</strong>同順位が存在する場合の違いがあります。<code>ROW_NUMBER</code>は常に一意の連番（1,2,3）、<code>RANK</code>は同値に同番号で次がスキップ（1,1,3）、<code>DENSE_RANK</code>は同値に同番号でスキップなし（1,1,2）です。「最新1件を確実に1件取る」には <em>ROW_NUMBER</em> が最適です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>CTEで可読性を上げる：</strong>Window関数を含むサブクエリはCTEに切り出すと読みやすくなります。<code>WITH ranked AS (SELECT ..., ROW_NUMBER() OVER (...) AS rn FROM orders) SELECT * FROM ranked WHERE rn = 1</code> のようにCTEを使うと、チームのレビューでも意図が伝わりやすくなります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>相関サブクエリでMAX()を使う：</strong>今回の「旧方式」がこれです。外側のクエリが100万行あれば内側のサブクエリも100万回実行されます。Window関数に書き換えることでテーブルへのアクセスを1回に削減できます。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>DISTINCT ON で ORDER BY の先頭列を揃えない：</strong><code>SELECT DISTINCT ON (user_id) ... ORDER BY created_at DESC</code> はエラーになります。PostgreSQLの仕様で、DISTINCT ON に指定した列がORDER BYの先頭に来る必要があります。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：「直近N件」パターンの設計</div>
+<div class="column-body">
+実務では「ユーザーごとの直近3件の注文を返す」など N件パターンが頻出です。ROW_NUMBERを使って <code>WHERE rn &lt;= 3</code> とするだけで対応できます。DISTINCT ONは1件限定のため、N件取得にはROW_NUMBERの方が汎用的です。また、ダッシュボードなどで「カテゴリごとの売れ筋TOP3商品」のような集計もWindow関数1本で解決できます。<strong>「グループ内の順位」が絡む要件はまずWindow関数を検討する</strong>習慣を持ちましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  EXPLAIN ANALYZE の読み方 — ボトルネックを特定する
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "EXPLAIN ANALYZE の読み方 — ボトルネックノードを特定してチューニングに繋げる",
+  tags: [["r","EXPLAIN ANALYZE"],["r","実行計画"],["o","Seq Scan"],["g","コスト読解"]],
+  premise: `<p><strong>EXPLAIN ANALYZE</strong> はSQLの実行計画（どの順序・手法でデータを取得するか）と実際の実行時間を出力します。ツリー構造で表示され、<em>内側（インデント深い）のノードが先に実行</em>されます。各ノードの読み方を理解することがSQLチューニングの第一歩です。</p>
+<pre><span class="cmt">-- 基本構文（実際にクエリを実行して計画＋実測を返す）</span>
+<span class="kw">EXPLAIN ANALYZE</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">WHERE</span> user_id <span class="op">=</span> <span class="str">'U001'</span>;</pre>
+<div class="callout warn"><strong>EXPLAINとEXPLAIN ANALYZEの違い：</strong>EXPLAIN だけでは実際にはクエリを実行しない（推定コストのみ）。EXPLAIN ANALYZE は実際に実行するため、UPDATEやDELETEにはトランザクションでラップして <code>BEGIN; EXPLAIN ANALYZE UPDATE...; ROLLBACK;</code> とすることで副作用を防げます。</div>`,
+  question: `<p>以下のEXPLAIN ANALYZE出力を読み解き、<em>ボトルネックとなっているノードを特定</em>し、改善クエリとインデックスを提示してください。</p>
+<div class="data-section">
+  <div class="data-label">EXPLAIN ANALYZE 出力（遅いクエリ）</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>ノード</th><th>推定コスト</th><th>実測時間</th><th>行数（推定→実測）</th></tr>
+    <tr class="tr-hi"><td>Sort（amount DESC）</td><td class="tc-r">cost=58420..58470</td><td class="tc-r">actual=4820ms</td><td>2M→2M</td></tr>
+    <tr class="tr-hi"><td>&nbsp;&nbsp;→ Hash Join</td><td class="tc-r">cost=18000..52000</td><td class="tc-y">actual=2100ms</td><td>2M→2M</td></tr>
+    <tr class="tr-hi"><td>&nbsp;&nbsp;&nbsp;&nbsp;→ Seq Scan on orders</td><td class="tc-r">cost=0..38000</td><td class="tc-r">actual=3200ms</td><td>5M→2M</td></tr>
+    <tr><td>&nbsp;&nbsp;&nbsp;&nbsp;→ Hash on users</td><td>cost=400..400</td><td class="tc-g">actual=12ms</td><td>10K→10K</td></tr>
+  </table></div>
+</div>
+<pre><span class="cmt">-- 対象クエリ（遅い）</span>
+<span class="kw">SELECT</span> o.order_id, u.name, o.amount, o.created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o
+<span class="kw">JOIN</span>   <span class="tbl">users</span>  u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id
+<span class="kw">WHERE</span>  o.status     <span class="op">=</span> <span class="str">'shipped'</span>
+  <span class="kw">AND</span>  o.created_at <span class="op">&gt;=</span> <span class="str">'2024-01-01'</span>
+<span class="kw">ORDER BY</span> o.amount <span class="kw">DESC</span>;</pre>`,
+  output: `<p>ボトルネック特定と改善後のEXPLAIN ANALYZE：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ノード（改善後）</th><th class="tc-g">推定コスト</th><th class="tc-g">実測時間</th></tr>
+<tr class="tr-hi2"><td>Sort（amount DESC）</td><td class="tc-g">cost=280..295</td><td class="tc-g">actual=18ms</td></tr>
+<tr class="tr-hi2"><td>→ Nested Loop Join</td><td class="tc-g">cost=0.56..265</td><td class="tc-g">actual=9ms</td></tr>
+<tr class="tr-hi2"><td>&nbsp;&nbsp;→ Index Scan on orders（status+created_at）</td><td class="tc-g">cost=0.56..230</td><td class="tc-g">actual=7ms</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① ボトルネック分析のコメント</span>
+<span class="cmt">-- 問題1: Seq Scan on orders（5M行全件スキャン）が最大ボトルネック</span>
+<span class="cmt">--        → status と created_at にインデックスがなく全件読んでいる</span>
+<span class="cmt">-- 問題2: Sort（amount DESC）がメモリ上で 2M行 をソートしている</span>
+<span class="cmt">--        → 絞り込み後の行数を減らせばソートコストも減る</span>
+
+<span class="cmt">-- ② 複合インデックスの作成（Seq Scanをなくす）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_status_created
+    <span class="kw">ON</span> <span class="tbl">orders</span> (
+        status,               <span class="cmt">-- 【超基礎】WHERE status='shipped' の等値絞り込み（先頭列）</span>
+        created_at            <span class="cmt">-- 【超基礎】WHERE created_at >= の範囲絞り込み（2番目）</span>
+    );
+<span class="cmt">-- ※ amount はORDER BYのみで件数が多いためインデックスより絞り込み優先</span>
+
+<span class="cmt">-- ③ EXPLAIN ANALYZE で確認（UPDATEなどの副作用があるクエリはROLLBACKと組み合わせる）</span>
+<span class="kw">EXPLAIN</span> (<span class="fn">ANALYZE</span>, <span class="fn">BUFFERS</span>, <span class="fn">FORMAT</span> TEXT)   <span class="cmt">-- BUFFERSでキャッシュヒット率も確認</span>
+<span class="kw">SELECT</span> o.order_id, u.name, o.amount, o.created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o
+<span class="kw">JOIN</span>   <span class="tbl">users</span>  u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id      <span class="cmt">-- 【超基礎】JOINの結合条件</span>
+<span class="kw">WHERE</span>  o.status     <span class="op">=</span> <span class="str">'shipped'</span>              <span class="cmt">-- インデックス先頭列 → Index Scan で使える</span>
+  <span class="kw">AND</span>  o.created_at <span class="op">&gt;=</span> <span class="str">'2024-01-01'</span>          <span class="cmt">-- インデックス2列目 → 範囲絞り込みに使える</span>
+<span class="kw">ORDER BY</span> o.amount <span class="kw">DESC</span>;                       <span class="cmt">-- 絞り込み後の件数が少なければSortは速い</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders                  → テーブル参照
+  2. Index Scan（status+created） → インデックスで2条件に絞り込む（Seq Scan解消）
+  3. Nested Loop JOIN users       → 絞り込み後の少数行にuserをJOIN
+  4. ORDER BY amount DESC         → 絞り込み済みの少数行をソート（高速）
+  5. SELECT 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>EXPLAIN ANALYZEの主要フィールドの読み方</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>フィールド</th><th>意味</th><th>チューニングポイント</th></tr>
+<tr class="tr-hi"><td>cost=X..Y</td><td>X=最初の1行までのコスト / Y=全行取得までの推定コスト</td><td class="tc-y">Yが大きいほど重い</td></tr>
+<tr><td>actual time=A..B</td><td>A=最初の1行までの実測ms / B=全行実測ms</td><td class="tc-r">Bが大きいノードがボトルネック</td></tr>
+<tr class="tr-hi2"><td>rows=推定 / actual rows=実測</td><td>推定と実測が大きく乖離 → 統計情報が古い</td><td class="tc-g">乖離が大きければANALYZEを実行</td></tr>
+<tr><td>Seq Scan</td><td>テーブル全件スキャン</td><td class="tc-r">大テーブルでは要インデックス</td></tr>
+<tr class="tr-hi2"><td>Index Scan / Only</td><td>インデックス経由</td><td class="tc-g">基本的に良い状態</td></tr>
+<tr><td>Hash Join / Nested Loop</td><td>JOINの手法（件数で自動選択）</td><td class="tc-y">Nested Loopは件数少・Hash Joinは件数多に有利</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">ツリーの内側（インデント深い）ほど先に実行される</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>改善前後のコスト比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ノード</th><th>改善前（実測）</th><th>改善後（実測）</th><th>改善倍率</th></tr>
+<tr class="tr-hi"><td>Seq Scan（orders全件）</td><td class="tc-r">3200ms</td><td class="tc-g">—（消滅）</td><td class="tc-g">∞倍高速</td></tr>
+<tr class="tr-hi"><td>Sort</td><td class="tc-r">4820ms</td><td class="tc-g">18ms</td><td class="tc-g">267倍高速</td></tr>
+<tr class="tr-hi"><td>全体</td><td class="tc-r">~5000ms</td><td class="tc-g">~27ms</td><td class="tc-g">185倍高速</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>EXPLAIN ANALYZEの出力はツリー形式で、<em>インデントが深いノードほど先に実行</em>されます。ボトルネックは「actual time（実測時間）が最も大きいノード」を探すことで特定できます。コストは相対的な推定値のため、actual timeと合わせて判断します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>BUFFERS オプションを追加する：</strong><code>EXPLAIN (ANALYZE, BUFFERS)</code> とするとキャッシュヒット率も確認できます。<code>shared hit</code>（バッファキャッシュヒット）が多いほどI/Oコストは低く、<code>shared read</code>（ディスクI/O）が多いほど遅くなります。同じインデックスでも初回（cold）と2回目以降（warm）で速度が変わる理由がここで分かります。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>統計情報の鮮度を確認する：</strong>推定行数と実測行数が大きく乖離している場合、テーブルの統計情報が古い可能性があります。<code>ANALYZE テーブル名;</code> を実行して統計情報を更新すると、オプティマイザが適切なプランを選択できるようになります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>推定コストだけ見てチューニングする：</strong>EXPLAINのコストは推定値であり、実際の速度と乖離することがあります。必ずEXPLAIN ANALYZEで実測値を確認してからインデックスを追加してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>本番環境でEXPLAIN ANALYZEを実行する：</strong>EXPLAIN ANALYZEはクエリを実際に実行するため、重いクエリを本番DBで実行するとサービスに影響します。ステージング環境か、本番のリードレプリカで実行するのが安全です。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：pgBadgerとauto_explainによる自動ログ解析</div>
+<div class="column-body">
+実務では遅いクエリを手動で特定するのは困難です。PostgreSQLの <code>pg_stat_statements</code> 拡張を使うと「累積で最も時間がかかったクエリTOP N」を取得できます。さらに <code>auto_explain</code> 拡張を設定すると、一定時間を超えたクエリの実行計画をログに自動で記録します。<strong>遅いクエリを発見 → EXPLAIN ANALYZEで分析 → インデックス追加 → 再確認</strong>というサイクルを回す基盤として、これらの拡張をあらかじめ有効化しておくことが実務でのスタンダードです。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  N+1問題の解決 — JOINかサブクエリで1クエリに畳む
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "N+1問題の解決 — ORMが生むN回クエリをJOINで1クエリに畳む",
+  tags: [["r","N+1問題"],["r","JOIN"],["o","ORM"],["p","クエリ最適化"]],
+  premise: `<p><strong>N+1問題</strong>は、1回の「親」クエリでN行を取得した後、各行に対して「子」クエリをN回実行するパターンです。DBへのラウンドトリップ（接続のやり取り）がN+1回発生するため、Nが大きくなるほどレイテンシが線形増加します。</p>
+<pre><span class="cmt">-- N+1パターンの例（疑似コード）</span>
+<span class="cmt">-- ① 1回目のクエリ（1回）</span>
+orders = <span class="fn">query</span>(<span class="str">"SELECT * FROM orders WHERE status='shipped'"</span>);  <span class="cmt">-- N件取得</span>
+
+<span class="cmt">-- ② 各orderに対してuserを取得（N回）</span>
+<span class="kw">FOR</span> order <span class="kw">IN</span> orders:
+    user = <span class="fn">query</span>(<span class="str">"SELECT * FROM users WHERE user_id = ?"</span>, order.user_id);  <span class="cmt">-- ❌ N回</span></pre>
+<div class="callout danger"><strong>N+1は「動くが遅い」バグ：</strong>開発環境では件数が少なく気づきにくいですが、本番でN=10,000になると1万回のクエリが走ります。ORMのLazy Loadingが原因のことが多いため、発行されるSQLをログで確認する習慣が重要です。</div>`,
+  question: `<p>注文一覧APIで「N+1問題」が発生しています。以下の2クエリを<em>1つのSQLに統合</em>して、DB接続回数を削減してください。さらに、ユーザーごとの注文件数も同時に返してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（10万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>status</th></tr>
+        <tr><td>1</td><td>U001</td><td>3000</td><td>shipped</td></tr>
+        <tr><td>2</td><td>U001</td><td>5000</td><td>pending</td></tr>
+        <tr><td>3</td><td>U002</td><td>1200</td><td>shipped</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users（1万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id(PK)</th><th>name</th><th>email</th></tr>
+        <tr><td>U001</td><td>田中</td><td>tanaka@ex.com</td></tr>
+        <tr><td>U002</td><td>鈴木</td><td>suzuki@ex.com</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 問題のあるN+1パターン（2本のクエリが分かれている）</span>
+<span class="cmt">-- クエリ①: ordersを取得（1回）</span>
+<span class="kw">SELECT</span> order_id, user_id, amount, status <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'shipped'</span>;
+
+<span class="cmt">-- クエリ②: 各orderのuserを取得（orders件数分N回）</span>
+<span class="kw">SELECT</span> name, email <span class="kw">FROM</span> <span class="tbl">users</span> <span class="kw">WHERE</span> user_id <span class="op">=</span> ?;  <span class="cmt">-- ❌ N回実行される</span></pre>`,
+  output: `<p>統合後：1クエリでorder情報・user情報・注文件数を全取得：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_name</th><th>email</th><th>amount</th><th class="tc-hi">user_order_count</th></tr>
+<tr class="tr-hi2"><td>1</td><td>田中</td><td>tanaka@ex.com</td><td>3000</td><td class="tc-g">2</td></tr>
+<tr class="tr-hi2"><td>3</td><td>鈴木</td><td>suzuki@ex.com</td><td>1200</td><td class="tc-g">1</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- N+1を解消する統合クエリ（JOIN + Window関数で1回のDB接続に集約）</span>
+<span class="kw">SELECT</span>
+    o.order_id,                           <span class="cmt">-- 【超基礎】ordersテーブルの列（エイリアスoで参照）</span>
+    u.name        <span class="kw">AS</span> user_name,          <span class="cmt">-- 【超基礎】usersテーブルの列（エイリアスuで参照）</span>
+    u.email,
+    o.amount,
+    <span class="fn">COUNT</span>(o.order_id) <span class="kw">OVER</span> (              <span class="cmt">-- 【応用】Window関数で同じuser_idの注文件数を各行に付与</span>
+        <span class="kw">PARTITION BY</span> o.user_id            <span class="cmt">-- ユーザーごとにカウント（GROUP BYは不要）</span>
+    ) <span class="kw">AS</span> user_order_count
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o                          <span class="cmt">-- 【超基礎】主テーブル</span>
+<span class="kw">JOIN</span>   <span class="tbl">users</span>  u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id  <span class="cmt">-- 【超基礎】user_idを結合キーにしてusers情報を付与</span>
+<span class="kw">WHERE</span>  o.status <span class="op">=</span> <span class="str">'shipped'</span>;              <span class="cmt">-- 【超基礎】出荷済みのみを絞り込む</span>
+
+<span class="cmt">-- 補足: ORMでのEager Load（Railsの場合）</span>
+<span class="cmt">-- Order.where(status: 'shipped').includes(:user)  ← includesがJOINまたはIN句で一括取得</span>
+
+<span class="cmt">-- インデックス（WHERE + JOIN の両方に有効）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_status    <span class="kw">ON</span> <span class="tbl">orders</span> (status);     <span class="cmt">-- WHERE絞り込み用</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_id   <span class="kw">ON</span> <span class="tbl">orders</span> (user_id);    <span class="cmt">-- JOIN結合キー用</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders o WHERE status='shipped'  → インデックスでshippedのみ絞り込む
+  2. JOIN users u ON u.user_id=o.user_id   → 各orderにuserを結合（Nested Loop or Hash）
+  3. COUNT() OVER(PARTITION BY o.user_id)  → ウィンドウ関数でuser別件数を各行に追加
+  4. SELECT 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>N+1問題：クエリ発行回数の比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>パターン</th><th>DB接続回数</th><th>shipped件数1000の場合</th><th>総コスト</th></tr>
+<tr class="tr-hi"><td>N+1（旧）</td><td class="tc-r">1 + N回</td><td class="tc-r">1 + 1000 = 1001回</td><td class="tc-r">ラウンドトリップ×1001</td></tr>
+<tr class="tr-hi2"><td>統合クエリ（新）</td><td class="tc-g">1回</td><td class="tc-g">1回</td><td class="tc-g">ラウンドトリップ×1</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">ネットワーク往復コスト（1ms/回）だけで N+1 は 1000ms 余分にかかる</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>JOINによるテーブル統合の流れ</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id（orders）</th><th>JOIN後のuser情報</th><th>Window関数で追加</th></tr>
+<tr class="tr-hi"><td>1</td><td>U001</td><td class="tc-g">田中 / tanaka@ex.com</td><td class="tc-hi">user_order_count=2</td></tr>
+<tr class="tr-hi"><td>3</td><td>U002</td><td class="tc-g">鈴木 / suzuki@ex.com</td><td class="tc-hi">user_order_count=1</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>JOINは「2つのテーブルを1つの結果表に結合する」操作です。<code>ON A.key = B.key</code> で結合条件を指定します。N+1問題の本質は「ループの中でDBに問い合わせる」ことで、JOINを使って「SQLの中でループを解決する」のが正しいアプローチです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ORMのEager Loadを使う：</strong>Railsの <code>includes</code>、LaravelのEager Loading（<code>with</code>）など、ORMにはN+1を回避する仕組みがあります。ただしORMが生成するSQLを必ずログで確認してください。「includesしているのに別途クエリが走っている」場合はEager Loadが効いていない可能性があります。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>IN句バッチ取得：</strong>JOINが難しい場合のもう一つの解決策として「親のIDをまとめてIN句で子を一括取得する」方法があります。<code>SELECT * FROM users WHERE user_id IN (U001, U002, U003...)</code> のようにアプリ側で1回だけ子を取得してマッピングする方法で、N+1は2回のクエリに収まります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ループの中でDBアクセスする：</strong>どの言語・フレームワークでも「forループ内でSQLを発行する」パターンは N+1 問題そのものです。コードレビューでこのパターンが見えたら必ず指摘してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>JOINを避けてアプリ側でマージする：</strong>「JOINは遅い」という誤解からアプリ側でデータをマージするパターンがあります。適切なインデックスがあればJOINはDBに任せる方が高速です。アプリ側のマージはネットワーク転送量が増え、メモリも余分に使います。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：SlowQueryログでN+1を検出する</div>
+<div class="column-body">
+N+1問題は開発中に気づきにくいため、<strong>SlowQueryログ</strong>と合わせて「同じクエリのパターンが短時間に何百回も記録されている」ことで発見することが多いです。PostgreSQLでは <code>pg_stat_statements</code> で「最も実行回数が多いクエリ」を確認すると、N+1起因のクエリが上位に現れます。Railsなら <code>bullet</code> gem、Laravelなら <code>Laravel Debugbar</code> などのN+1検出ツールも開発環境で活用しましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  Keyset Pagination — OFFSETの落とし穴とカーソル方式
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "Keyset Pagination — OFFSET の落とし穴とカーソル方式で高速ページング",
+  tags: [["r","OFFSET"],["r","Keyset Pagination"],["o","ページング"],["g","カーソル"]],
+  premise: `<p>APIの一覧エンドポイントで最も一般的なページングは <code>LIMIT N OFFSET M</code> です。しかしOFFSETは<em>スキップする行もすべて読んでから捨てる</em>ため、後半ページになるほど線形に遅くなります。</p>
+<pre><span class="cmt">-- OFFSETページングの問題（10000ページ目）</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">20</span>
+<span class="kw">OFFSET</span> <span class="num">200000</span>;  <span class="cmt">-- ❌ 200000行読んでから捨てる → 後半ページほど遅い</span></pre>
+<div class="callout warn"><strong>Keyset（カーソル）Pagination：</strong>前ページの最後の行のキー値を使って「それより大きい/小さい行」に絞り込む方式です。スキップ行のスキャンが発生せず、どのページでも一定のパフォーマンスが維持されます。</div>`,
+  question: `<p><code>orders</code> テーブルに対する「前ページの最後のorder_id・created_atを受け取って次ページを返す」<em>Keyset Pagination クエリ</em>を実装してください。ソートは <code>created_at DESC, order_id DESC</code> です。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（500万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at</th></tr>
+        <tr><td>5</td><td>U001</td><td>3000</td><td>2024-09-10</td></tr>
+        <tr><td>4</td><td>U002</td><td>5000</td><td>2024-09-08</td></tr>
+        <tr><td>3</td><td>U003</td><td>1200</td><td>2024-09-08</td></tr>
+        <tr><td>2</td><td>U001</td><td>8000</td><td>2024-09-05</td></tr>
+        <tr><td>1</td><td>U002</td><td>2500</td><td>2024-09-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<p>前ページの最後の行: <code>created_at = '2024-09-08', order_id = 4</code></p>`,
+  output: `<p>Keyset Paginationによる次ページ（created_at降順の続き）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at</th></tr>
+<tr class="tr-hi2"><td>3</td><td>U003</td><td>1200</td><td class="tc-hi">2024-09-08</td></tr>
+<tr class="tr-hi2"><td>2</td><td>U001</td><td>8000</td><td class="tc-hi">2024-09-05</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① OFFSET方式（問題あり：後半ページで全件スキャンが発生）</span>
+<span class="kw">SELECT</span> order_id, user_id, amount, created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>, order_id <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">20</span>
+<span class="kw">OFFSET</span> <span class="num">200000</span>;    <span class="cmt">-- ❌ 前の200000行をスキャンしてから捨てる</span>
+
+<span class="cmt">-- ② Keyset Pagination（解決策：前ページの末尾キーを条件にする）</span>
+<span class="cmt">-- 前ページの最後: created_at='2024-09-08', order_id=4</span>
+<span class="kw">SELECT</span>
+    order_id, user_id, amount, created_at  <span class="cmt">-- 【超基礎】取得する列を指定</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>
+    (created_at, order_id)                 <span class="cmt">-- 【応用】行値コンストラクタで2列同時比較</span>
+    <span class="op">&lt;</span> (<span class="str">'2024-09-08'</span>, <span class="num">4</span>)                  <span class="cmt">-- ✅ (created_at < '2024-09-08')
+                                           --    OR (created_at = '2024-09-08' AND order_id < 4) と同義</span>
+<span class="kw">ORDER BY</span>
+    created_at <span class="kw">DESC</span>,                      <span class="cmt">-- 【超基礎】主ソートキー（新しい順）</span>
+    order_id   <span class="kw">DESC</span>                       <span class="cmt">-- 【超基礎】同一created_atのタイブレーカー</span>
+<span class="kw">LIMIT</span> <span class="num">20</span>;                                <span class="cmt">-- 【超基礎】次ページの件数を指定</span>
+
+<span class="cmt">-- ③ インデックス（ORDER BY と条件の両方に使える複合インデックス）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_created_id
+    <span class="kw">ON</span> <span class="tbl">orders</span> (created_at <span class="kw">DESC</span>, order_id <span class="kw">DESC</span>);  <span class="cmt">-- ソート順と一致させる</span>
+
+<span class="cmt">-- ④ レスポンスにnext_cursorを含めるAPIの例（アプリ側の実装パターン）</span>
+<span class="cmt">-- {
+--   "data": [...],
+--   "next_cursor": {           ← 次のページリクエストに含めるカーソル
+--     "created_at": "2024-09-05",
+--     "order_id": 2
+--   }
+-- }</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders                              → テーブル参照
+  2. WHERE (created_at, order_id) < (値, 値)  → インデックスで直接スタート位置へジャンプ
+  3. ORDER BY created_at DESC, order_id DESC  → インデックス順と一致 → Sort不要
+  4. LIMIT 20                                 → 20件取得で即停止 → 無駄読みなし
+  5. SELECT 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>OFFSETとKeysetのスキャン比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ページ目</th><th>OFFSETのスキャン行数</th><th>Keysetのスキャン行数</th></tr>
+<tr class="tr-hi2"><td>1ページ目（0件スキップ）</td><td class="tc-g">20行</td><td class="tc-g">20行</td></tr>
+<tr class="tr-hi"><td>100ページ目（1980件スキップ）</td><td class="tc-y">2000行</td><td class="tc-g">20行</td></tr>
+<tr class="tr-hi"><td>10000ページ目（199980件スキップ）</td><td class="tc-r">200000行</td><td class="tc-g">20行</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">Keysetはページ目に関わらず常に20行だけ読む</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>行値コンストラクタ比較の動作（created_at, order_id）&lt; ('2024-09-08', 4)</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>created_at</th><th>order_id</th><th>条件評価</th><th>含まれるか</th></tr>
+<tr class="tr-dim"><td>5</td><td>2024-09-10</td><td>5</td><td class="tc-r">2024-09-10 > 2024-09-08 → false</td><td class="tc-r">❌ 除外</td></tr>
+<tr class="tr-dim"><td>4</td><td>2024-09-08</td><td>4</td><td class="tc-r">= 同日かつ order_id=4（境界値）→ false</td><td class="tc-r">❌ 除外</td></tr>
+<tr class="tr-hi2"><td>3</td><td>2024-09-08</td><td>3</td><td class="tc-g">同日かつ order_id=3 &lt; 4 → true</td><td class="tc-g">✅ 含む</td></tr>
+<tr class="tr-hi2"><td>2</td><td>2024-09-05</td><td>2</td><td class="tc-g">2024-09-05 &lt; 2024-09-08 → true</td><td class="tc-g">✅ 含む</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong><code>LIMIT N OFFSET M</code> はMをどう計算するかというと「ページ番号 × 1ページの件数」です。例えば3ページ目（1ページ20件）は <code>OFFSET 40</code> です。OFFSETが大きいほどDBが「捨てる」行数が増えるため、後半ページほど遅くなります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Keysetのカーソルはタイブレーカーが必要：</strong>ソートキーが <code>created_at</code> だけだと、同じ日時の行が複数あるときにどこで区切るか判断できません。必ず一意性のある列（order_idやPK）をセカンダリキーとして追加してください。一意のソートがKeyset Paginationの絶対条件です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>Keysetの制約：「任意のページへのジャンプ」ができない：</strong>Keyset方式は前のページのカーソルがないと次ページを取得できないため、「100ページに飛ぶ」という操作ができません。SNSのフィード・チャット履歴・無限スクロールなど「次へ進む一方向のUI」には最適ですが、ページ番号ナビゲーションが必要なUIにはOFFSETが適しています。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ソートに一意性のない列だけを使う：</strong><code>ORDER BY created_at DESC</code> だけだと、同日時の行の順序が不定になります。ページをまたいで同じ行が重複したり行が抜けたりします。必ず <code>ORDER BY created_at DESC, order_id DESC</code> のように一意になるセカンダリキーを追加してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>カーソルにオフセット番号を使う：</strong><code>{"cursor": 200}</code> のようにオフセット番号をカーソルに使うとOFFSETと同じ問題が再発します。カーソルには必ず「最後の行のキー値」を使ってください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：GraphQL Relay ConnectionとKeysetの関係</div>
+<div class="column-body">
+GraphQLのRelay仕様（<code>edges/node/cursor</code>パターン）はKeyset Paginationを前提に設計されています。<code>after: "cursor文字列"</code> でページを進む方式は、内部的にはKeysetのカーソルをBase64エンコードしたものです。実務でGraphQL APIを設計するとき、Relay ConnectionとKeysetを合わせて実装することで、<strong>スケールしても常に一定速度のページング</strong>を実現できます。OFFSET方式でスタートして後でKeysetに移行するのはコストが高いため、設計段階での選択が重要です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6  JSONB GINインデックス — 半構造データの高速検索
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "JSONB GINインデックス — 半構造データを高速検索するインデックス設計",
+  tags: [["r","JSONB"],["r","GIN INDEX"],["o","@>演算子"],["p","半構造データ"]],
+  premise: `<p>PostgreSQLの <strong>JSONB</strong> 型はJSONをバイナリ形式で格納し、キー・値の検索や演算子が使えます。ただし通常のBTreeインデックスはJSONBに効かず、<em>GIN（Generalized Inverted Index）インデックス</em> を使う必要があります。</p>
+<pre><span class="cmt">-- GINインデックス: JSONB全体を対象にする</span>
+<span class="kw">CREATE INDEX</span> idx_meta_gin <span class="kw">ON</span> <span class="tbl">products</span> <span class="kw">USING GIN</span> (metadata);
+
+<span class="cmt">-- jsonb_path_ops: @> 演算子専用（サイズが小さく高速）</span>
+<span class="kw">CREATE INDEX</span> idx_meta_gin_path <span class="kw">ON</span> <span class="tbl">products</span> <span class="kw">USING GIN</span> (metadata <span class="fn">jsonb_path_ops</span>);</pre>
+<div class="callout ok"><strong>@> 演算子（containment）：</strong><code>metadata @&gt; '{"color":"red"}'</code> は「metadataがその JSON を含む」という意味です。GINインデックスと組み合わせることで、JSONBフィールドへの等値・コンテナ検索が高速になります。</div>`,
+  question: `<p><code>products</code> テーブルの <code>metadata</code> JSONB列に対して「colorがredかつsizeがMのアイテム」を検索するクエリが全件スキャンになっています。<em>GINインデックスを設計</em>して高速化し、合わせてJSONBの特定キーに対する<em>部分インデックス</em>も示してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ products（50万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>name</th><th>metadata（JSONB）</th></tr>
+        <tr><td>1</td><td>Tシャツ赤M</td><td>{"color":"red","size":"M","tags":["sale"]}</td></tr>
+        <tr><td>2</td><td>パンツ青L</td><td>{"color":"blue","size":"L","tags":[]}</td></tr>
+        <tr><td>3</td><td>ジャケット赤S</td><td>{"color":"red","size":"S","tags":["new"]}</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 遅いクエリ（Seq Scan が発生）</span>
+<span class="kw">SELECT</span> product_id, name
+<span class="kw">FROM</span>   <span class="tbl">products</span>
+<span class="kw">WHERE</span>  metadata <span class="op">@&gt;</span> <span class="str">'{"color":"red","size":"M"}'</span>;  <span class="cmt">-- GINインデックスなし → 全件スキャン</span></pre>`,
+  output: `<p>インデックス追加後（GIN Bitmap Index Scan）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>product_id</th><th>name</th></tr>
+<tr class="tr-hi2"><td>1</td><td class="tc-g">Tシャツ赤M</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① GINインデックス（@> 演算子専用・最も効率的）</span>
+<span class="kw">CREATE INDEX</span> idx_products_meta_gin
+    <span class="kw">ON</span> <span class="tbl">products</span> <span class="kw">USING GIN</span> (         <span class="cmt">-- 【超基礎】GINはJSONBや配列の逆引きインデックス</span>
+        metadata <span class="fn">jsonb_path_ops</span>       <span class="cmt">-- 【応用】@> 専用オプション（通常GINよりサイズ小・高速）</span>
+    );
+
+<span class="cmt">-- ② @> 演算子でコンテナ検索（インデックスが効く）</span>
+<span class="kw">SELECT</span> product_id, name
+<span class="kw">FROM</span>   <span class="tbl">products</span>
+<span class="kw">WHERE</span>  metadata <span class="op">@&gt;</span> <span class="str">'{"color":"red","size":"M"}'</span>;  <span class="cmt">-- ✅ GINインデックスが使われる</span>
+
+<span class="cmt">-- ③ JSONB特定キーへのアクセス方法（演算子の種類）</span>
+<span class="kw">SELECT</span>
+    metadata <span class="op">-&gt;</span>  <span class="str">'color'</span>  <span class="kw">AS</span> color_json,   <span class="cmt">-- 【超基礎】-&gt; : JSONBとして取得（ダブルクォートあり）</span>
+    metadata <span class="op">-&gt;&gt;</span> <span class="str">'color'</span>  <span class="kw">AS</span> color_text,   <span class="cmt">-- 【超基礎】-&gt;&gt;: テキストとして取得（ダブルクォートなし）</span>
+    metadata <span class="op">#&gt;&gt;</span> <span class="str">'{tags,0}'</span> <span class="kw">AS</span> first_tag    <span class="cmt">-- 【応用】#&gt;&gt;: パス配列でネスト要素にアクセス</span>
+<span class="kw">FROM</span>   <span class="tbl">products</span>
+<span class="kw">WHERE</span>  product_id <span class="op">=</span> <span class="num">1</span>;
+
+<span class="cmt">-- ④ 特定キーへの部分インデックス（colorキーのみの絞り込みが多い場合）</span>
+<span class="kw">CREATE INDEX</span> idx_products_color
+    <span class="kw">ON</span> <span class="tbl">products</span> ((metadata <span class="op">-&gt;&gt;</span> <span class="str">'color'</span>));  <span class="cmt">-- 【応用】特定キーの値を式インデックスにする</span>
+
+<span class="cmt">-- ④のインデックスを使うクエリ（-&gt;&gt;で等値比較）</span>
+<span class="kw">SELECT</span> product_id, name
+<span class="kw">FROM</span>   <span class="tbl">products</span>
+<span class="kw">WHERE</span>  metadata <span class="op">-&gt;&gt;</span> <span class="str">'color'</span> <span class="op">=</span> <span class="str">'red'</span>;         <span class="cmt">-- ✅ 式インデックスが使われる</span>
+
+<span class="cmt">/*
+  実行順序（②のクエリ）:
+  1. FROM products               → テーブル参照
+  2. GIN Index Scan              → @> 条件でGINインデックスを逆引き
+  3. Bitmap Heap Scan            → 対象の行IDを集めてヒープから取得
+  4. WHERE metadata @> '...'     → GINフィルタ済み（再確認フィルタ）
+  5. SELECT 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>JSONB演算子の種類と使い分け</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>演算子</th><th>返り値</th><th>例</th><th>インデックス</th></tr>
+<tr class="tr-hi"><td>-&gt; 'key'</td><td class="tc-y">JSONB型</td><td>metadata-&gt;'color' = "red"（JSON文字列）</td><td class="tc-r">GINのみ</td></tr>
+<tr class="tr-hi2"><td>-&gt;&gt; 'key'</td><td class="tc-g">TEXT型</td><td>metadata-&gt;&gt;'color' = 'red'（テキスト）</td><td class="tc-g">式インデックス可</td></tr>
+<tr class="tr-hi3"><td>@&gt; '{...}'</td><td class="tc-p">BOOLEAN</td><td>metadata@&gt;'{"color":"red"}'</td><td class="tc-g">GIN（最も高速）</td></tr>
+<tr><td>#&gt;&gt; '{a,b}'</td><td>TEXT型</td><td>ネスト要素をパスで取得</td><td class="tc-y">式インデックス可</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">GINインデックスとBTreeインデックスの使い分け</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>インデックス種別の比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>インデックス</th><th>対応演算子</th><th>サイズ</th><th>更新コスト</th><th>適したケース</th></tr>
+<tr class="tr-hi"><td>GIN (jsonb_path_ops)</td><td class="tc-g">@&gt; のみ</td><td class="tc-g">小</td><td class="tc-y">中</td><td>@&gt; で複数キーを同時検索</td></tr>
+<tr class="tr-hi3"><td>GIN (デフォルト)</td><td class="tc-g">@&gt;, ?, ?|, ?&amp;</td><td class="tc-r">大</td><td class="tc-r">高</td><td>キー存在チェックも使う</td></tr>
+<tr class="tr-hi2"><td>BTree（式インデックス）</td><td class="tc-y">= &lt; &gt; LIKE</td><td class="tc-g">小</td><td class="tc-g">低</td><td>特定1キーの等値・範囲検索</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>JSONBとJSONの違いは「バイナリ格納かテキスト格納か」です。JSONB はキーが自動ソートされ重複キーが除去されるため、<code>@&gt;</code> 演算子やインデックスが使えます。JSON型（非JSONB）はテキストのまま格納されるためインデックスが使えず、常にJSONBを選ぶべきです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>GINインデックスの更新コスト：</strong>GINインデックスは書き込み時に「ペンディングリスト」に溜めて非同期でインデックスに反映する仕組み（Fastupdate）を持ちます。書き込みが多い列にGINを張ると、Fastupdate のマージ処理が定期的に発生しI/Oが増えます。書き込み頻度が高い列には <code>WITH (fastupdate=off)</code> で無効化することも選択肢です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>JSONB vs 正規化テーブル：</strong>JSONBは「スキーマが頻繁に変わる」「カラムが多様でスパース」な場合に有効です。一方、「常にセットで使う」「型安全性が必要」「複雑なJOINを行う」場合は正規化した通常のテーブルの方が保守性・パフォーマンスともに優れます。JSONBは「正規化の例外」として使うべきものです。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>-&gt;&gt;演算子で取得してからアプリ側でフィルタ：</strong><code>SELECT * FROM products</code> で全件取得してアプリ側でJSONBのcolorをフィルタするパターンです。SQLのWHERE句でフィルタしてインデックスを効かせることが基本です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>JSON型（非JSONB）を使う：</strong>JSON型はインデックスも演算子も使えません。新しいプロジェクトではJSON型を使う理由はほぼないため、常にJSONBを選んでください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：EAV（Entity-Attribute-Value）のアンチパターンとJSONB</div>
+<div class="column-body">
+かつて「動的属性」を表現するために <code>(entity_id, attribute_name, value)</code> の3列テーブル（EAV）が使われていましたが、JOINが爆発的に複雑になり保守困難になりました。PostgreSQLのJSONBはこのEAVの代替として優れており、<strong>スキーマが不定な属性はJSONBに、固定スキーマの属性は通常カラムに</strong>というハイブリッド設計が実務ではベストプラクティスです。例えば <code>products(id, name, price, metadata JSONB)</code> のように共通属性はカラムで持ち、商品カテゴリごとの追加属性だけをJSONBに格納する設計が推奨されます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  Materialized View — 重い集計クエリのキャッシュ化
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "Materialized View — 重い集計クエリをMVでキャッシュしてダッシュボードを高速化",
+  tags: [["r","Materialized View"],["r","REFRESH"],["o","集計キャッシュ"],["g","ダッシュボード"]],
+  premise: `<p><strong>Materialized View（MV）</strong>はビューの一種ですが、クエリ結果をディスクに物理的に保存します。通常のビューは毎回クエリを実行しますが、MVは<em>保存済みの結果を直接返す</em>ため、重い集計クエリのキャッシュとして機能します。</p>
+<pre><span class="cmt">-- 通常ビュー: 参照するたびに内部クエリを実行する</span>
+<span class="kw">CREATE VIEW</span> v_summary <span class="kw">AS</span>
+    <span class="kw">SELECT</span> user_id, <span class="fn">SUM</span>(amount) <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">GROUP BY</span> user_id;
+
+<span class="cmt">-- Materialized View: 結果をディスクに保存して高速返却</span>
+<span class="kw">CREATE MATERIALIZED VIEW</span> mv_summary <span class="kw">AS</span>
+    <span class="kw">SELECT</span> user_id, <span class="fn">SUM</span>(amount) <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">GROUP BY</span> user_id;</pre>
+<div class="callout warn"><strong>REFRESH が必要：</strong>元テーブルのデータが変わってもMVは自動更新されません。<code>REFRESH MATERIALIZED VIEW</code> で手動更新します。CONCURRENTLY オプションを使うと参照をブロックせずに更新できます（一意インデックスが必要）。</div>`,
+  question: `<p>ダッシュボードの「月別売上集計」クエリが毎回5秒以上かかっています。<em>Materialized Viewを作成</em>してダッシュボードを高速化し、合わせてCONCURRENTLYでの定期更新クエリも示してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（1000万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at</th></tr>
+        <tr><td>1</td><td>U001</td><td>3000</td><td>2024-01-15</td></tr>
+        <tr><td>2</td><td>U002</td><td>5000</td><td>2024-01-20</td></tr>
+        <tr><td>3</td><td>U001</td><td>1200</td><td>2024-02-03</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 毎回5秒かかる集計クエリ（ダッシュボードで毎リクエスト実行）</span>
+<span class="kw">SELECT</span>
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at) <span class="kw">AS</span> month,
+    <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count,
+    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount,
+    <span class="fn">AVG</span>(amount) <span class="kw">AS</span> avg_amount
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">GROUP BY</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at)
+<span class="kw">ORDER BY</span> month;</pre>`,
+  output: `<p>MV作成後（ダッシュボードは mv_monthly_sales を参照 → 即時返却）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month</th><th>order_count</th><th>total_amount</th><th>avg_amount</th></tr>
+<tr class="tr-hi2"><td>2024-01-01</td><td class="tc-g">2</td><td class="tc-y">8000</td><td class="tc-hi">4000.00</td></tr>
+<tr class="tr-hi2"><td>2024-02-01</td><td class="tc-g">1</td><td class="tc-y">1200</td><td class="tc-hi">1200.00</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① Materialized View の作成（最初のREFRESHも同時に実行される）</span>
+<span class="kw">CREATE MATERIALIZED VIEW</span> mv_monthly_sales  <span class="cmt">-- 【超基礎】MVの名前を定義</span>
+<span class="kw">AS</span>
+<span class="kw">SELECT</span>
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at) <span class="kw">AS</span> month,  <span class="cmt">-- 【超基礎】月単位に丸める関数</span>
+    <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count,                 <span class="cmt">-- 【超基礎】各月の注文件数</span>
+    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount,                <span class="cmt">-- 【超基礎】各月の合計金額</span>
+    <span class="fn">AVG</span>(amount) <span class="kw">AS</span> avg_amount                   <span class="cmt">-- 【超基礎】各月の平均金額</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">GROUP BY</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at)
+<span class="kw">ORDER BY</span> month
+<span class="kw">WITH DATA</span>;                                     <span class="cmt">-- 【超基礎】作成直後にデータを格納する</span>
+
+<span class="cmt">-- ② CONCURRENTLY更新のための一意インデックス（必須）</span>
+<span class="kw">CREATE UNIQUE INDEX</span> idx_mv_monthly_sales_month
+    <span class="kw">ON</span> mv_monthly_sales (month);               <span class="cmt">-- CONCURRENTLYに一意インデックスが必須</span>
+
+<span class="cmt">-- ③ 定期更新（cron や pg_cron で実行 → ダッシュボードは古いデータを参照し続けられる）</span>
+<span class="kw">REFRESH MATERIALIZED VIEW CONCURRENTLY</span>        <span class="cmt">-- 【応用】参照ロックなしで更新（SELECT可能な状態を維持）</span>
+    mv_monthly_sales;                          <span class="cmt">-- 更新するMV名</span>
+
+<span class="cmt">-- ④ ダッシュボードクエリ（元の5秒クエリの代わりにMVを参照）</span>
+<span class="kw">SELECT</span> month, order_count, total_amount, avg_amount  <span class="cmt">-- 【超基礎】MVをテーブルのように参照</span>
+<span class="kw">FROM</span>   mv_monthly_sales
+<span class="kw">ORDER BY</span> month;                                <span class="cmt">-- 【超基礎】月順に並べる</span>
+
+<span class="cmt">-- ⑤ MVの最終更新時刻を確認する</span>
+<span class="kw">SELECT</span> schemaname, matviewname, last_refresh
+<span class="kw">FROM</span>   pg_matviews                             <span class="cmt">-- MVのメタ情報テーブル</span>
+<span class="kw">WHERE</span>  matviewname <span class="op">=</span> <span class="str">'mv_monthly_sales'</span>;
+
+<span class="cmt">/*
+  実行順序（④のクエリ）:
+  1. FROM mv_monthly_sales    → ディスクに保存済みの集計結果を直接読む（Seq Scan）
+  2. ORDER BY month           → 少数行（月数分）をソート
+  3. SELECT 列を返す          → 事前集計済みの結果を返す（集計処理は発生しない）
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>通常ビュー vs Materialized View の動作比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>種別</th><th>データの所在</th><th>参照速度</th><th>データの鮮度</th><th>更新操作</th></tr>
+<tr class="tr-hi"><td>通常 VIEW</td><td class="tc-r">毎回元テーブルから計算</td><td class="tc-r">遅い（5秒）</td><td class="tc-g">常に最新</td><td>不要</td></tr>
+<tr class="tr-hi2"><td>Materialized VIEW</td><td class="tc-g">ディスクに保存済み</td><td class="tc-g">速い（数ms）</td><td class="tc-y">REFRESH時点</td><td class="tc-y">手動/定期が必要</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">REFRESH CONCURRENTLY により参照をブロックせずに更新できる</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>REFRESH の種類と違い</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>REFRESH方式</th><th>参照ブロック</th><th>一意インデックス</th><th>動作</th></tr>
+<tr class="tr-hi"><td>REFRESH MATERIALIZED VIEW</td><td class="tc-r">ブロックあり（AccessExclusiveLock）</td><td>不要</td><td>全件洗い替え</td></tr>
+<tr class="tr-hi2"><td>REFRESH ... CONCURRENTLY</td><td class="tc-g">ブロックなし（参照可能）</td><td class="tc-r">必須</td><td>差分更新（重い）</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>Materialized Viewは「計算結果を保存したテーブル」と思ってください。ダッシュボードや分析画面など「リアルタイム性よりも速度を優先したい」場面に最適です。元テーブルが更新されてもMVには自動で反映されないため、「許容できる遅延時間」を要件として決めてからREFREHのスケジュールを設定します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>pg_cronで定期REFRESH：</strong>PostgreSQL拡張の <code>pg_cron</code> を使うと、DB内から定期的にREFRESHをスケジュールできます。<code>SELECT cron.schedule('*/10 * * * *', 'REFRESH MATERIALIZED VIEW CONCURRENTLY mv_monthly_sales')</code> で10分おきにREFRESHできます。外部のcronサーバーが不要になり、DB側で完結します。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>MVにインデックスを張れる：</strong>MVは通常テーブルと同様にインデックスを作成できます。CONCURRENT REFRESHに必要な一意インデックス以外にも、よく使うWHERE条件やJOIN条件用のインデックスをMVに追加することでさらに高速化できます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>リアルタイム性が必要な画面にMVを使う：</strong>注文確定直後に「最新の集計」を表示する画面にMVを使うと、REFRESHのタイミングまで古いデータが表示されます。MVは「多少古くても良い」ダッシュボード・分析・レポートに限定してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CONCURRENTLY なしでピーク時にREFRESHする：</strong>CONCURRENTLY なしのREFRESHは AccessExclusiveLock を取得するためMVへの参照が完全にブロックされます。トラフィックが多い時間帯に実行するとダッシュボードが数秒間応答不能になります。必ずCONCURRENTLYを使うか、低トラフィック時間帯に実行してください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：MVとRedisキャッシュの使い分け</div>
+<div class="column-body">
+ダッシュボードの集計結果をキャッシュする手段として「MVをREFRESH」と「Redisにキャッシュ」の2択がよく議論されます。<strong>MVはDB内で完結して整合性管理が容易</strong>、<strong>RedisはTTLで柔軟にコントロールでき非常に高速</strong>という特徴があります。「1分ごとに更新でよい集計」ならMV、「複数サービスで共有が必要」「サブ秒で返したい」ならRedis、という使い分けが実務のスタンダードです。両者を組み合わせてMVで集計しRedisにコピーする設計もあります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  UPSERT（INSERT ON CONFLICT） — 冪等なデータ更新
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "UPSERT（INSERT ON CONFLICT）— 冪等な書き込みパターンで二重挿入バグを防ぐ",
+  tags: [["r","INSERT ON CONFLICT"],["r","UPSERT"],["o","冪等性"],["p","楽観的ロック"]],
+  premise: `<p><strong>UPSERT</strong>（Update + Insert の合成語）は「レコードが存在しなければINSERT、存在すればUPDATE」を1回のクエリで安全に行うパターンです。PostgreSQLでは <code>INSERT ... ON CONFLICT</code> 構文で実現します。</p>
+<pre><span class="cmt">-- 基本構文</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">テーブル</span> (col1, col2)
+<span class="kw">VALUES</span> (val1, val2)
+<span class="kw">ON CONFLICT</span> (unique_col)         <span class="cmt">-- どの列の重複で衝突を検出するか</span>
+<span class="kw">DO UPDATE SET</span>                    <span class="cmt">-- 衝突時の更新内容</span>
+    col2 <span class="op">=</span> <span class="kw">EXCLUDED</span>.col2;        <span class="cmt">-- EXCLUDED = INSERTしようとした値（新しい値）</span></pre>
+<div class="callout ok"><strong>冪等性（Idempotency）：</strong>同じリクエストを何回実行しても結果が変わらない性質です。リトライが発生するAPIやバッチ処理では、冪等なDB書き込みが不可欠です。UPSERTを使うことで「二重実行しても最終状態が同じ」を保証できます。</div>`,
+  question: `<p>ECサイトのカート更新APIで「カートに商品を追加or数量更新」する処理があります。現在は「SELECT → 存在確認 → INSERT or UPDATE」という3ステップになっており、<em>並行リクエスト時に二重INSERT</em>が発生しています。<em>UPSERTで1クエリに統合</em>してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ cart_items（ユニーク制約あり）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>cart_id</th><th>product_id</th><th>quantity</th><th>updated_at</th></tr>
+        <tr><td>C001</td><td>P001</td><td>2</td><td>2024-09-01 10:00</td></tr>
+        <tr><td>C001</td><td>P002</td><td>1</td><td>2024-09-01 10:05</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--dim);margin-top:4px;">UNIQUE(cart_id, product_id)</p>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 問題のある3ステップ方式（並行リクエストで二重INSERT発生）</span>
+<span class="cmt">-- Step1: SELECT（存在確認）</span>
+<span class="kw">SELECT</span> <span class="num">1</span> <span class="kw">FROM</span> <span class="tbl">cart_items</span> <span class="kw">WHERE</span> cart_id<span class="op">=</span><span class="str">'C001'</span> <span class="kw">AND</span> product_id<span class="op">=</span><span class="str">'P001'</span>;
+<span class="cmt">-- Step2a: 存在しなければINSERT</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (cart_id, product_id, quantity) <span class="kw">VALUES</span> (<span class="str">'C001'</span>,<span class="str">'P001'</span>,<span class="num">1</span>);
+<span class="cmt">-- Step2b: 存在すればUPDATE</span>
+<span class="kw">UPDATE</span> <span class="tbl">cart_items</span> <span class="kw">SET</span> quantity<span class="op">=</span>quantity<span class="op">+</span><span class="num">1</span> <span class="kw">WHERE</span> cart_id<span class="op">=</span><span class="str">'C001'</span> <span class="kw">AND</span> product_id<span class="op">=</span><span class="str">'P001'</span>;</pre>`,
+  output: `<p>UPSERT実行後のcart_items（P001の数量が1→3に更新、P003が新規追加）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>cart_id</th><th>product_id</th><th class="tc-hi">quantity</th><th>updated_at</th></tr>
+<tr class="tr-hi2"><td>C001</td><td>P001</td><td class="tc-g">3（+1）</td><td class="tc-hi">2024-09-01 11:00</td></tr>
+<tr><td>C001</td><td>P002</td><td>1</td><td>2024-09-01 10:05</td></tr>
+<tr class="tr-hi2"><td>C001</td><td>P003</td><td class="tc-g">1（新規）</td><td class="tc-hi">2024-09-01 11:00</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 基本UPSERT：カートに商品を追加or数量を1増やす</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (         <span class="cmt">-- 【超基礎】INSERTのテーブルと列を指定</span>
+    cart_id, product_id, quantity, updated_at
+)
+<span class="kw">VALUES</span> (
+    <span class="str">'C001'</span>, <span class="str">'P001'</span>, <span class="num">1</span>, <span class="fn">NOW</span>()        <span class="cmt">-- 【超基礎】挿入する値（競合時はEXCLUDEDで参照できる）</span>
+)
+<span class="kw">ON CONFLICT</span> (cart_id, product_id) <span class="cmt">-- 【超基礎】この2列のUNIQUE制約で衝突を検出する</span>
+<span class="kw">DO UPDATE SET</span>                      <span class="cmt">-- 【超基礎】衝突（すでに存在）した場合の更新処理</span>
+    quantity   <span class="op">=</span> <span class="tbl">cart_items</span>.quantity <span class="op">+</span> <span class="kw">EXCLUDED</span>.quantity,  <span class="cmt">-- 既存量 + 新規量（加算）</span>
+    updated_at <span class="op">=</span> <span class="kw">EXCLUDED</span>.updated_at; <span class="cmt">-- 【応用】EXCLUDED=INSERTしようとした値</span>
+
+<span class="cmt">-- ② 無視パターン：同じ（cart_id, product_id）が来たら何もしない</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (cart_id, product_id, quantity, updated_at)
+<span class="kw">VALUES</span> (<span class="str">'C001'</span>, <span class="str">'P001'</span>, <span class="num">1</span>, <span class="fn">NOW</span>())
+<span class="kw">ON CONFLICT</span> (cart_id, product_id)
+<span class="kw">DO NOTHING</span>;                         <span class="cmt">-- 【応用】衝突時に何もしない（重複挿入防止のみ）</span>
+
+<span class="cmt">-- ③ 上書きパターン：新しい数量で強制上書き（在庫同期などに使う）</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (cart_id, product_id, quantity, updated_at)
+<span class="kw">VALUES</span> (<span class="str">'C001'</span>, <span class="str">'P003'</span>, <span class="num">5</span>, <span class="fn">NOW</span>())
+<span class="kw">ON CONFLICT</span> (cart_id, product_id)
+<span class="kw">DO UPDATE SET</span>
+    quantity   <span class="op">=</span> <span class="kw">EXCLUDED</span>.quantity,   <span class="cmt">-- 既存を無視して新しい値で上書き</span>
+    updated_at <span class="op">=</span> <span class="kw">EXCLUDED</span>.updated_at
+<span class="kw">WHERE</span>                                  <span class="cmt">-- 【応用】WHERE句で楽観ロック（古いデータなら上書きしない）</span>
+    <span class="tbl">cart_items</span>.updated_at <span class="op">&lt;</span> <span class="kw">EXCLUDED</span>.updated_at;  <span class="cmt">-- 既存の方が新しければスキップ</span>
+
+<span class="cmt">-- ④ 複数行をまとめてUPSERT（バッチ更新に使う）</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (cart_id, product_id, quantity, updated_at)
+<span class="kw">VALUES</span>
+    (<span class="str">'C001'</span>, <span class="str">'P001'</span>, <span class="num">2</span>, <span class="fn">NOW</span>()),      <span class="cmt">-- 行1</span>
+    (<span class="str">'C001'</span>, <span class="str">'P002'</span>, <span class="num">3</span>, <span class="fn">NOW</span>()),      <span class="cmt">-- 行2（複数行を1クエリでUPSERT）</span>
+    (<span class="str">'C001'</span>, <span class="str">'P004'</span>, <span class="num">1</span>, <span class="fn">NOW</span>())       <span class="cmt">-- 行3（新規挿入）</span>
+<span class="kw">ON CONFLICT</span> (cart_id, product_id)
+<span class="kw">DO UPDATE SET</span>
+    quantity   <span class="op">=</span> <span class="kw">EXCLUDED</span>.quantity,
+    updated_at <span class="op">=</span> <span class="kw">EXCLUDED</span>.updated_at;
+
+<span class="cmt">/*
+  実行順序（①のクエリ）:
+  1. INSERT VALUES を試みる         → 新規行として挿入を試みる
+  2. ON CONFLICT 検出               → (cart_id, product_id) のUNIQUE制約に違反を検知
+  3. DO UPDATE SET                  → 既存行を更新（quantity加算、updated_at更新）
+  4. 影響行数を返す                 → INSERT=0行, UPDATE=1行（または逆）
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>SELECT→INSERT/UPDATEとUPSERTの並行実行安全性比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>方式</th><th>DB往復回数</th><th>並行リクエストの安全性</th><th>二重INSERT発生</th></tr>
+<tr class="tr-hi"><td>SELECT→INSERT or UPDATE（旧）</td><td class="tc-r">2〜3回</td><td class="tc-r">❌ 危険（TOCTOU競合）</td><td class="tc-r">あり得る</td></tr>
+<tr class="tr-hi2"><td>INSERT ON CONFLICT（UPSERT）</td><td class="tc-g">1回</td><td class="tc-g">✅ 安全（アトミック）</td><td class="tc-g">発生しない</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">EXCLUDEDはINSERTしようとした（却下された）行の値を参照できる仮想テーブル</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>ON CONFLICT の3パターン使い分け</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>パターン</th><th>衝突時の動作</th><th>使用場面</th></tr>
+<tr class="tr-hi2"><td>DO UPDATE SET col = EXCLUDED.col + 既存.col</td><td>加算・マージ更新</td><td>カート数量追加・カウンタ加算</td></tr>
+<tr class="tr-hi"><td>DO UPDATE SET col = EXCLUDED.col</td><td>新しい値で上書き</td><td>在庫同期・設定の上書き</td></tr>
+<tr class="tr-hi3"><td>DO NOTHING</td><td>何もしない（無視）</td><td>重複挿入防止・べき等な初期化</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>UPSERT の ON CONFLICT は「挿入しようとしたがUNIQUE制約に違反した場合に何をするか」を指定します。<code>EXCLUDED</code> は「INSERTしようとしたが弾かれた行」を指す仮想テーブル名で、新しい値を参照するために使います。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ON CONFLICT の対象制約を明示する：</strong><code>ON CONFLICT ON CONSTRAINT constraint_name</code> のように制約名で指定することもできます。テーブルにUNIQUE制約が複数ある場合は、どの制約で衝突を判定するかを列名または制約名で明示してください。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>RETURNING句で更新結果を取得する：</strong><code>INSERT ... ON CONFLICT ... RETURNING *</code> を追加すると、INSERT/UPDATEいずれの場合でも最終的な行の状態を返します。「UPSERTした結果のIDや updated_at を返したい」APIに便利です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SELECT→INSERT/UPDATEパターン（TOCTOU競合）：</strong>SELECTで「存在しない」を確認した後、別のリクエストが先にINSERTする可能性があります（Time-Of-Check to Time-Of-Use競合）。UPSERTはこの競合をDBレベルでアトミックに解決します。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>UNIQUE制約なしにON CONFLICTを使う：</strong>ON CONFLICT の衝突検知には対象列にUNIQUE制約（またはUNIQUEインデックス）が必須です。制約がない場合はエラーになります。UPSERTを設計する前にUNIQUE制約を確認・追加してください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：バッチ処理でのUPSERT活用</div>
+<div class="column-body">
+外部APIやCSVからのデータ同期バッチでは、「すでに取り込み済みのデータは更新、新規は挿入」というパターンが頻出です。ループでSELECT→INSERT/UPDATEを繰り返すと N×2回のDB往復が発生しますが、<strong>複数行を1つのUPSERT（VALUES多行）にまとめる</strong>ことでDB往復を1回に削減できます。1回あたり1000〜5000行をまとめてUPSERTするチャンク設計が実務のベストプラクティスです（Q10のバッチチャンク処理と組み合わせると効果的）。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  EXISTS vs IN vs JOIN — サブクエリの使い分け
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "EXISTS vs IN vs JOIN — サブクエリの使い分けとパフォーマンス特性を理解する",
+  tags: [["r","EXISTS"],["r","IN"],["o","相関サブクエリ"],["g","Semi-Join"]],
+  premise: `<p>「テーブルAに関連するテーブルBのレコードが存在するかどうか」を判定するには <code>EXISTS</code>、<code>IN</code>、<code>JOIN</code> の3つのアプローチがあります。それぞれ動作が異なり、データの規模・NULL含有・インデックスの有無によって最適な選択が変わります。</p>
+<pre><span class="cmt">-- EXISTS: 相関サブクエリで存在確認（1件見つかれば即停止）</span>
+<span class="kw">WHERE EXISTS</span> (<span class="kw">SELECT</span> <span class="num">1</span> <span class="kw">FROM</span> <span class="tbl">B</span> <span class="kw">WHERE</span> B.id <span class="op">=</span> A.id);
+
+<span class="cmt">-- IN: サブクエリの結果リストに含まれるかを確認</span>
+<span class="kw">WHERE</span> A.id <span class="kw">IN</span> (<span class="kw">SELECT</span> id <span class="kw">FROM</span> <span class="tbl">B</span>);
+
+<span class="cmt">-- JOIN（INNER JOIN）: 結合して一致する行のみ返す</span>
+<span class="kw">FROM</span> <span class="tbl">A</span> <span class="kw">JOIN</span> <span class="tbl">B</span> <span class="kw">ON</span> A.id <span class="op">=</span> B.id;</pre>
+<div class="callout warn"><strong>NULLのINの罠：</strong>サブクエリの結果にNULLが含まれると、<code>NOT IN</code> は全件0件を返すバグが発生します（Q1基礎編で解説）。NOT INを使う際は必ずNULLを除外するかNOT EXISTSを使ってください。</div>`,
+  question: `<p>以下の3つの要件を、<em>EXISTS・IN・JOINそれぞれで実装</em>し、どの方式が適切かを判断してください。①購入実績のあるユーザー一覧、②購入実績のないユーザー一覧、③直近30日に購入したユーザーのメール一覧。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users（10万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id(PK)</th><th>name</th><th>email</th></tr>
+        <tr><td>U001</td><td>田中</td><td>tanaka@ex.com</td></tr>
+        <tr><td>U002</td><td>鈴木</td><td>suzuki@ex.com</td></tr>
+        <tr><td>U003</td><td>佐藤</td><td>sato@ex.com</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（500万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>created_at</th></tr>
+        <tr><td>1</td><td>U001</td><td>2024-09-01</td></tr>
+        <tr><td>2</td><td>U001</td><td>2024-09-15</td></tr>
+        <tr><td>3</td><td>U003</td><td>2024-08-20</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>各要件の期待結果：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>要件</th><th>対象ユーザー</th><th>推奨方式</th></tr>
+<tr class="tr-hi2"><td>①購入あり</td><td class="tc-g">U001, U003</td><td class="tc-hi">EXISTS / JOIN</td></tr>
+<tr class="tr-hi"><td>②購入なし</td><td class="tc-g">U002</td><td class="tc-hi">NOT EXISTS</td></tr>
+<tr class="tr-hi2"><td>③直近30日購入</td><td class="tc-g">U001（仮定）</td><td class="tc-hi">EXISTS（日付条件あり）</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 購入実績のあるユーザー（3方式の比較）</span>
+
+<span class="cmt">-- [EXISTS版] 相関サブクエリ（1件見つかれば即停止 → 大テーブル向き）</span>
+<span class="kw">SELECT</span> u.user_id, u.name
+<span class="kw">FROM</span>   <span class="tbl">users</span> u
+<span class="kw">WHERE</span>  <span class="kw">EXISTS</span> (                    <span class="cmt">-- 【超基礎】サブクエリが1行以上返ればtrue</span>
+    <span class="kw">SELECT</span> <span class="num">1</span>                        <span class="cmt">-- 【超基礎】SELECT 1 は存在確認なので値は不要</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span> o
+    <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id    <span class="cmt">-- 【超基礎】外側のuと内側のoを結合する相関条件</span>
+);
+
+<span class="cmt">-- [IN版] サブクエリ結果リストで絞り込む</span>
+<span class="kw">SELECT</span> user_id, name
+<span class="kw">FROM</span>   <span class="tbl">users</span>
+<span class="kw">WHERE</span>  user_id <span class="kw">IN</span> (               <span class="cmt">-- 【超基礎】サブクエリの結果セットに含まれればtrue</span>
+    <span class="kw">SELECT</span> <span class="kw">DISTINCT</span> user_id        <span class="cmt">-- 【応用】DISTINCTでIN句の重複を排除（オプティマイザが自動でやる場合も）</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span>
+);
+
+<span class="cmt">-- [JOIN版] INNER JOIN + DISTINCT（結合後に重複を除去）</span>
+<span class="kw">SELECT DISTINCT</span> u.user_id, u.name  <span class="cmt">-- 【超基礎】同一ユーザーが複数回一致するためDISTINCTで重複除去</span>
+<span class="kw">FROM</span>   <span class="tbl">users</span>  u
+<span class="kw">JOIN</span>   <span class="tbl">orders</span> o <span class="kw">ON</span> o.user_id <span class="op">=</span> u.user_id;  <span class="cmt">-- 【超基礎】結合するとorder件数分だけ行が増える</span>
+
+<span class="cmt">-- ② 購入実績のないユーザー（NOT EXISTS が安全・推奨）</span>
+<span class="kw">SELECT</span> u.user_id, u.name
+<span class="kw">FROM</span>   <span class="tbl">users</span> u
+<span class="kw">WHERE</span>  <span class="kw">NOT EXISTS</span> (                 <span class="cmt">-- 【超基礎】サブクエリが0行ならtrue（NOT IN とは違いNULL安全）</span>
+    <span class="kw">SELECT</span> <span class="num">1</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span> o
+    <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id    <span class="cmt">-- NULLがあってもUNKNOWNにならずに安全に動作</span>
+);
+
+<span class="cmt">-- ③ 直近30日に購入したユーザーのメール（EXISTS + 日付条件）</span>
+<span class="kw">SELECT</span> u.user_id, u.email
+<span class="kw">FROM</span>   <span class="tbl">users</span> u
+<span class="kw">WHERE</span>  <span class="kw">EXISTS</span> (
+    <span class="kw">SELECT</span> <span class="num">1</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span> o
+    <span class="kw">WHERE</span>  o.user_id   <span class="op">=</span> u.user_id              <span class="cmt">-- 相関条件</span>
+      <span class="kw">AND</span>  o.created_at <span class="op">&gt;=</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'30 days'</span>  <span class="cmt">-- 【超基礎】INTERVALで相対日付を指定</span>
+);
+
+<span class="cmt">/*
+  実行順序（① EXISTS版）:
+  1. FROM users u                 → usersテーブルを全行スキャン
+  2. EXISTS (SELECT 1 FROM orders WHERE o.user_id = u.user_id)
+                                  → 各userに対してordersをインデックス検索
+                                  → 1件でも見つかれば即STOP（Short-circuit）
+  3. WHERE EXISTS → true の行のみ  → 購入ありユーザーを絞り込む
+  4. SELECT 列を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>EXISTS / IN / JOIN の特性比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>方式</th><th>動作</th><th>NULL安全性</th><th>重複行</th><th>最適な場面</th></tr>
+<tr class="tr-hi"><td>EXISTS</td><td class="tc-g">1件見つかれば即停止（Short-circuit）</td><td class="tc-g">安全</td><td class="tc-g">自動で除外</td><td>大きいサブテーブル・NOT EXISTS</td></tr>
+<tr class="tr-hi2"><td>IN</td><td class="tc-y">サブクエリ全件をリスト化してから比較</td><td class="tc-r">NOT INは危険</td><td class="tc-g">自動で除外</td><td>小さい固定リスト・直接値リスト</td></tr>
+<tr class="tr-hi3"><td>INNER JOIN</td><td class="tc-y">両テーブルを結合してフィルタ</td><td class="tc-g">安全</td><td class="tc-r">重複発生→DISTINCT必要</td><td>追加の列も同時取得したい</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">PostgreSQLは内部的にEXISTSとINをSemi-Joinに変換して最適化することが多い</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>NOT IN の NULL 罠シミュレーション</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ordersのuser_id列</th><th>NOT IN の評価</th><th>結果</th></tr>
+<tr class="tr-hi2"><td>(U001, U003) ← NULLなし</td><td class="tc-g">正常に評価</td><td class="tc-g">U002が返る（正しい）</td></tr>
+<tr class="tr-hi"><td>(U001, U003, <span class="tc-r">NULL</span>)</td><td class="tc-r">U002 NOT IN (..., NULL) → UNKNOWN</td><td class="tc-r">0件（バグ！）</td></tr>
+<tr class="tr-hi2"><td>NOT EXISTSの場合（どちらでも）</td><td class="tc-g">NULLをUNKNOWNで無視</td><td class="tc-g">U002が返る（正しい）</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>EXISTSの <code>SELECT 1</code> は「値は何でも良い」という意味です。EXISTSはサブクエリが「1行以上存在するか」だけを見るため、SELECTの中身は関係なく慣例的に <code>SELECT 1</code> が使われます。<code>SELECT *</code> でも動作は同じですが、パフォーマンス上も <code>SELECT 1</code> が推奨されます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Semi-Join最適化：</strong>PostgreSQLは EXISTS / IN を内部的に「Semi-Join」という結合戦略に変換して実行計画を立てることが多いです。EXISTSとINは記述スタイルの違いはありますが、最近のオプティマイザはほぼ同等のプランを生成します。意味の明確さで選ぶなら「存在確認」にはEXISTS、「リストに含まれる」にはINが読みやすいです。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>JOINで追加列も取得する：</strong>「購入ありユーザーの名前と最新注文日を同時に返す」など、条件確認と同時に追加データを取得したい場合はJOINが最適です。EXISTSやINでは存在確認のみしか行えず、サブクエリ内の値を SELECT に持ち出すことができません。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NOT IN でNULLを含む可能性がある列を使う：</strong>NOT IN のサブクエリが返す列にNULLが含まれると、全件0件という致命的なバグが発生します。NOT INを使う際は必ず <code>WHERE col IS NOT NULL</code> を追加するか、NOT EXISTSに書き換えてください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>JOIN後にDISTINCTを忘れる：</strong>「購入ありユーザー」をINNER JOINで取得すると、購入件数分だけ同じユーザー行が重複します。DISTINCTを忘れると重複した行がAPIレスポンスに含まれます。EXISTS/INを使えばDISTINCTが不要になるケースでは積極的に使いましょう。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：EXPLAIN で Semi-Join の変換を確認する</div>
+<div class="column-body">
+PostgreSQLで <code>EXPLAIN SELECT ... WHERE EXISTS (...)</code> を実行すると、実行計画に <strong>「Hash Semi Join」</strong> や <strong>「Nested Loop Semi Join」</strong> が表示されることがあります。これはDBがEXISTS/INを内部的にSemi-Join（結合後に左テーブルの重複を自動除去する特殊JOIN）に変換した証拠です。同様にNOT EXISTSは「Anti-Join」に変換されます。EXISTSを使ってもEXPLAINでJoinノードが出ることを知っておくと、実行計画の読み間違いを防げます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10 バッチチャンク処理 — 大量データ更新のロック最小化
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "バッチチャンク処理 — 大量UPDATE/DELETEをチャンク分割してロックを最小化する",
+  tags: [["r","チャンク処理"],["r","バッチ"],["o","ロック最小化"],["p","大量DELETE"]],
+  premise: `<p>数百万行のUPDATEやDELETEを1クエリで実行すると、<em>長時間のロック保持・UNDOログ肥大化・レプリケーション遅延</em>など深刻な問題が発生します。本番稼働中のDBに対しては、処理を小さいチャンクに分割して実行する「チャンク処理」が必須です。</p>
+<pre><span class="cmt">-- NG: 全件を1クエリで削除（ロックが長時間かかる）</span>
+<span class="kw">DELETE FROM</span> <span class="tbl">logs</span>
+<span class="kw">WHERE</span>  created_at <span class="op">&lt;</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'90 days'</span>;  <span class="cmt">-- ❌ 300万行をロックし続ける</span></pre>
+<div class="callout danger"><strong>本番DB全件削除の3大リスク：</strong>① 長時間の行ロックで他のトランザクションが待機 ② PostgreSQLのdead tupleが急増してautovacuumが追い付かない ③ レプリケーションが遅延してスタンバイへの切り替え不可能になる。これらをチャンク処理で回避します。</div>`,
+  question: `<p><code>logs</code> テーブルの「90日以上前のログ」300万件を削除するバッチを作成してください。本番DBへの影響を最小化するため、<em>1チャンク1000件ずつ・チャンク間にsleepを入れる</em>方式で実装してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ logs（500万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>log_id(PK)</th><th>user_id</th><th>action</th><th>created_at</th></tr>
+        <tr><td>1</td><td>U001</td><td>login</td><td>2024-01-01</td></tr>
+        <tr><td>2</td><td>U002</td><td>purchase</td><td>2024-02-15</td></tr>
+        <tr><td>3</td><td>U001</td><td>logout</td><td>2024-09-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>チャンク削除の進捗ログ（イメージ）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>チャンク番号</th><th>削除件数</th><th>残り対象件数（推定）</th><th>処理時間</th></tr>
+<tr class="tr-hi2"><td>1</td><td class="tc-g">1000</td><td class="tc-y">2,999,000</td><td>0.12s</td></tr>
+<tr class="tr-hi2"><td>2</td><td class="tc-g">1000</td><td class="tc-y">2,998,000</td><td>0.11s</td></tr>
+<tr class="tr-hi4"><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+<tr class="tr-hi2"><td>3000</td><td class="tc-g">1000</td><td class="tc-g">0</td><td>0.10s</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① インデックスの確認（チャンク処理でも毎回使われる）</span>
+<span class="kw">CREATE INDEX</span> idx_logs_created_at
+    <span class="kw">ON</span> <span class="tbl">logs</span> (created_at);   <span class="cmt">-- 日付絞り込みをインデックスで高速化</span>
+
+<span class="cmt">-- ② 対象件数の事前確認（作業量の把握）</span>
+<span class="kw">SELECT</span> <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> target_count  <span class="cmt">-- 【超基礎】削除予定件数を事前に確認する</span>
+<span class="kw">FROM</span>   <span class="tbl">logs</span>
+<span class="kw">WHERE</span>  created_at <span class="op">&lt;</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'90 days'</span>;
+
+<span class="cmt">-- ③ チャンク削除クエリ（アプリ側ループから繰り返し実行する）</span>
+<span class="kw">DELETE FROM</span> <span class="tbl">logs</span>               <span class="cmt">-- 【超基礎】対象テーブルから削除</span>
+<span class="kw">WHERE</span>  log_id <span class="kw">IN</span> (             <span class="cmt">-- 【応用】削除対象のIDをサブクエリで取得</span>
+    <span class="kw">SELECT</span> log_id
+    <span class="kw">FROM</span>   <span class="tbl">logs</span>
+    <span class="kw">WHERE</span>  created_at <span class="op">&lt;</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'90 days'</span>   <span class="cmt">-- 90日以上前</span>
+    <span class="kw">ORDER BY</span> log_id              <span class="cmt">-- 【応用】IDの小さい順に削除（ページの断片化を最小化）</span>
+    <span class="kw">LIMIT</span>  <span class="num">1000</span>                  <span class="cmt">-- 【超基礎】1チャンクの件数上限（1000件ずつ処理）</span>
+);
+<span class="cmt">-- ※ アプリ側でaffected_rows=0になるまでループ実行し、各ループ後に100ms sleep</span>
+
+<span class="cmt">-- ④ PostgreSQL DO ブロックによるチャンク削除（DB内で完結させる場合）</span>
+<span class="kw">DO</span> $$                           <span class="cmt">-- 【応用】PostgreSQLの無名PL/pgSQL関数ブロック</span>
+<span class="kw">DECLARE</span>
+    deleted_count <span class="kw">INT</span>;          <span class="cmt">-- 削除件数を保持する変数</span>
+    total_deleted <span class="kw">INT</span> <span class="op">:=</span> <span class="num">0</span>;     <span class="cmt">-- 累計削除件数</span>
+<span class="kw">BEGIN</span>
+    <span class="kw">LOOP</span>                        <span class="cmt">-- 【超基礎】無限ループ（条件でEXIT）</span>
+        <span class="kw">DELETE FROM</span> <span class="tbl">logs</span>
+        <span class="kw">WHERE</span>  log_id <span class="kw">IN</span> (
+            <span class="kw">SELECT</span> log_id <span class="kw">FROM</span> <span class="tbl">logs</span>
+            <span class="kw">WHERE</span>  created_at <span class="op">&lt;</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'90 days'</span>
+            <span class="kw">ORDER BY</span> log_id
+            <span class="kw">LIMIT</span>  <span class="num">1000</span>
+        );
+
+        <span class="fn">GET DIAGNOSTICS</span> deleted_count <span class="op">=</span> <span class="fn">ROW_COUNT</span>;  <span class="cmt">-- 直前のDMLの影響行数を取得</span>
+        total_deleted <span class="op">:=</span> total_deleted <span class="op">+</span> deleted_count;
+
+        <span class="fn">RAISE NOTICE</span> <span class="str">'削除: % 件（累計: % 件）'</span>, deleted_count, total_deleted;  <span class="cmt">-- ログ出力</span>
+
+        <span class="kw">EXIT WHEN</span> deleted_count <span class="op">=</span> <span class="num">0</span>;    <span class="cmt">-- 削除件数が0になったらループ終了</span>
+        <span class="fn">PERFORM</span> <span class="fn">pg_sleep</span>(<span class="num">0.1</span>);        <span class="cmt">-- 【応用】0.1秒スリープ（DB負荷を分散）</span>
+    <span class="kw">END LOOP</span>;
+
+    <span class="fn">RAISE NOTICE</span> <span class="str">'完了: 合計 % 件を削除しました'</span>, total_deleted;
+<span class="kw">END</span>;
+$$;
+
+<span class="cmt">-- ⑤ チャンク削除後のVACUUM（dead tupleの回収）</span>
+<span class="kw">VACUUM ANALYZE</span> <span class="tbl">logs</span>;            <span class="cmt">-- 【応用】大量削除後はVACUUMでdead tupleを回収・統計更新</span>
+
+<span class="cmt">/*
+  実行順序（③のチャンク削除）:
+  1. サブクエリ: FROM logs WHERE created_at < 90日前 ORDER BY log_id LIMIT 1000
+                              → インデックスで対象範囲を特定し、IDの小さい1000件取得
+  2. DELETE FROM logs WHERE log_id IN (上記の1000件)
+                              → 1000件のみにロックをかけて削除（短時間で完了）
+  3. COMMIT                   → 1チャンクごとにコミット（ロック即解放）
+  4. アプリ側: 100ms sleep → 次のチャンクを実行 → 影響行数=0になるまで繰り返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>全件削除 vs チャンク削除のロック比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>方式</th><th>ロック保持時間</th><th>他トランザクションへの影響</th><th>レプリケーション</th></tr>
+<tr class="tr-hi"><td>全件DELETE（300万件）</td><td class="tc-r">数分〜数十分</td><td class="tc-r">長時間ブロック</td><td class="tc-r">大幅遅延</td></tr>
+<tr class="tr-hi2"><td>チャンク1000件ずつ（×3000回）</td><td class="tc-g">0.1〜0.2秒/チャンク</td><td class="tc-g">ほぼ影響なし</td><td class="tc-g">遅延なし</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">大量削除後はdead tupleが増えるためVACUUMが必要</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>チャンク処理後のテーブル状態変化</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>処理フェーズ</th><th>live tuples</th><th>dead tuples</th><th>必要なアクション</th></tr>
+<tr class="tr-hi"><td>チャンク削除前</td><td>500万行</td><td>少</td><td>—</td></tr>
+<tr class="tr-hi"><td>チャンク削除中（各チャンク後）</td><td>減少中</td><td class="tc-y">増加中</td><td>autovacuumが処理</td></tr>
+<tr class="tr-hi2"><td>チャンク削除完了後</td><td>200万行</td><td class="tc-r">300万のdead tuple</td><td class="tc-r">VACUUM ANALYZE 必須</td></tr>
+<tr class="tr-hi2"><td>VACUUM後</td><td>200万行</td><td class="tc-g">0</td><td class="tc-g">完了</td></tr>
+</table></div>
+</div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>チャンクサイズとsleep時間のチューニング目安</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>状況</th><th>推奨チャンクサイズ</th><th>推奨sleep</th><th>理由</th></tr>
+<tr class="tr-hi2"><td>低トラフィック時間帯（深夜）</td><td class="tc-g">5000〜10000件</td><td class="tc-g">0〜50ms</td><td>影響が少ないため大きく高速に</td></tr>
+<tr class="tr-hi4"><td>ピーク時間帯</td><td class="tc-y">100〜500件</td><td class="tc-y">200〜500ms</td><td>ロック時間を最短に、間隔を広く</td></tr>
+<tr class="tr-hi"><td>レプリケーション遅延が出始めた</td><td class="tc-r">50〜100件</td><td class="tc-r">1000ms以上</td><td>レプリカが追いつくまで待つ</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>PostgreSQLのDELETEは行を「dead tuple（不可視状態）」にするだけで、ディスク容量はすぐには回収されません。VACUUMを実行して初めてディスク領域が再利用可能になります。大量削除後は必ず <code>VACUUM ANALYZE</code> を実行してください。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>pg_sleepでレプリケーション遅延を監視しながら実行：</strong>バッチ実行中にレプリカの遅延を監視するには <code>SELECT pg_wal_lsn_diff(sent_lsn, replay_lsn) FROM pg_stat_replication</code> を別セッションで確認します。遅延が増え始めたらsleep時間を長くするか一時停止します。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>パーティショニングによる根本解決：</strong>ログなど「定期的に古いデータを削除する」テーブルにはパーティショニングが根本解決になります。月次・日次パーティションを作成しておくと、古いパーティションを <code>DROP TABLE</code> で瞬時に削除できます（ロック・VACUUM不要）。設計段階でパーティショニングを検討することが重要です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>本番ピーク時に全件DELETE/UPDATEを実行する：</strong>「深夜にやれば大丈夫」という思い込みで全件DMLを実行しても、処理が予想より長引きビジネス時間帯にかかる危険があります。常にチャンク分割で実行し、中断・再開できる設計にしてください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>チャンク処理に同一トランザクションを使う：</strong>1000チャンクを1つのトランザクションに収めてしまうと、全チャンク分のロックとUNDOが最後まで保持されます。必ず <em>チャンクごとに独立したトランザクションをCOMMIT</em> してください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：テーブルパーティショニングで大量削除を無くす設計</div>
+<div class="column-body">
+<code>logs</code> テーブルを月ごとのパーティションに分割する設計（Range Partitioning）にしておくと、90日前のパーティション（例: logs_2024_01, logs_2024_02, logs_2024_03）を <code>DROP TABLE logs_2024_01</code> するだけで瞬時に削除が完了します。これは内部的にファイルシステムのファイル削除と同じ操作のため、ロック・dead tuple・VACUUMのいずれも不要です。<strong>データ保持期間が決まっているテーブルには最初からパーティショニングを検討する</strong>ことが、後々のバッチ処理の複雑さをなくす設計上の最善手です。
+</div>
+</div>
+`
+}
+
+];
+
+/* ══════════════════════════════════════════════════
+   UI Builder
+══════════════════════════════════════════════════ */
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]||'tag-r'}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})">
+      <span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}
+    </button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length} — SERIES 003 応用編</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力','期待出力',q.output)}
+      ${acc('✅','pill-red','解答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント・アンチパターン）',q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i===0?'disabled':''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i===QS.length-1?'disabled':''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+  document.getElementById('progFill').style.width = ((i+1) / QS.length * 100) + '%';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+buildAll();
+</script>
+</body>
+</html>
