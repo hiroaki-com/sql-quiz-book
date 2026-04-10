@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL基礎10選 — API実務 × テーブル変化で理解する</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:     #0a0e13;
+    --bg2:    #131920;
+    --bg3:    #1c2330;
+    --bg4:    #263040;
+    --border: #2a3545;
+    --text:   #cdd9e5;
+    --dim:    #768390;
+    --accent: #4dabf7;
+    --green:  #3fb950;
+    --orange: #f0883e;
+    --red:    #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw:  #ff7b72;
+    --fn:  #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--green); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--green); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .header-desc  { font-size: 12px; color: var(--dim); margin-bottom: 8px; line-height: 1.6; }
+  .header-tags  { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+  .htag.hl { border-color: var(--green); color: var(--green); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--green); border-bottom-color: var(--green); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--green); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill  { height: 100%; background: var(--green); transition: width 0.25s ease; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title  { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags   { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag    { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent);  border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green);   border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange);  border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple);  border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon    { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title   { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill    { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent);  border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);   border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange);  border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);     border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple);  border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw);    font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout        { border-left: 3px solid var(--accent);  background: #0e1e33; padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables    { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap  { flex: 1; min-width: 220px; }
+  .data-tbl-name  { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  .viz-flow  { margin: 6px 0 14px; }
+  .step-block { margin-bottom: 6px; }
+  .step-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; }
+  .step-num   { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .sn1 { background: #1a2744; color: var(--accent); }
+  .sn2 { background: #1a2e1a; color: var(--green);  }
+  .sn3 { background: #2e1a2e; color: var(--purple); }
+  .sn4 { background: #2e1a0a; color: var(--orange); }
+  .step-desc        { color: var(--dim); }
+  .step-desc strong { color: var(--text); }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+  .tr-hi  td { background: #0e1e33 !important; }
+  .tr-hi2 td { background: #0e1e0e !important; }
+  .tr-hi3 td { background: #1e1433 !important; }
+  .tr-hi4 td { background: #1e1a0a !important; }
+  .tr-dim td { opacity: 0.35; }
+  .tc-hi { color: var(--accent)  !important; font-weight: 700; }
+  .tc-g  { color: var(--green)   !important; font-weight: 700; }
+  .tc-p  { color: var(--purple)  !important; font-weight: 700; }
+  .tc-y  { color: var(--yellow)  !important; font-weight: 700; }
+  .tc-o  { color: var(--orange)  !important; font-weight: 700; }
+  .tc-r  { color: var(--red)     !important; font-weight: 700; }
+  .null  { color: var(--dim)     !important; font-style: italic; }
+
+  .arrow      { text-align: center; padding: 4px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .arrow-text { color: var(--dim); font-size: 11px; }
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row   { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon  { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em     { color: var(--yellow); }
+  .insight-body code   { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row   { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code   { font-size: 11px; }
+
+  .column-box {
+    background: #0a1017; border: 1px solid #1a2333; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .column-title { font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: #8a9ad4; letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .column-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: #8a9ad4; }
+  .column-body code   { font-size: 11px; }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); background: #0a1e0a; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">基礎10</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">テーブル変化で理解する SQL 基礎10選（API実務編）</div>
+        <div class="header-desc">Web APIで毎日使う SELECT・JOIN・GROUP BY・CASE の基礎文法を、<br>実際のテーブル変化とともに体系的に理解する入門問題集。</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag hl">★☆☆ 初〜中級</span>
+      <span class="htag">API開発入門</span>
+      <span class="htag">Web開発</span>
+      <span class="htag">PostgreSQL対応</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const QS = [
+
+/* ══════════════════════════════════════════════════════
+   Q1  SELECT + WHERE — 条件を絞ってユーザー情報を取得する
+══════════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "SELECT + WHERE — 条件を指定してユーザー情報を取得する",
+  tags: [["r","SELECT"],["o","WHERE"],["g","基礎"],["p","ユーザーAPI"]],
+  premise: `<p>SQLの最も基本的な構文は <strong>SELECT〜FROM〜WHERE</strong> の3点セットです。<br>
+<code>SELECT</code> で<em>「何を取得するか（列）」</em>、<code>FROM</code> で<em>「どのテーブルから」</em>、<code>WHERE</code> で<em>「どの条件で絞るか」</em>を指定します。</p>
+<pre><span class="kw">SELECT</span> 列1, 列2        <span class="cmt">-- 取得したい列名をカンマ区切りで並べる</span>
+<span class="kw">FROM</span>   テーブル名      <span class="cmt">-- データの取得元テーブルを指定</span>
+<span class="kw">WHERE</span>  条件式;         <span class="cmt">-- この条件を満たす行だけが返される</span></pre>
+<div class="callout"><strong>SELECT * とは：</strong> <code>*</code>（アスタリスク）は「全列を取得する」ショートカットです。開発中の確認には便利ですが、本番APIでは必要な列だけを明示的に書く方が安全・高速です。</div>
+<p>WHEREで使える主な比較演算子：<code>=</code>（等しい）、<code>!=</code> または <code>&lt;&gt;</code>（等しくない）、<code>&gt;</code>・<code>&lt;</code>・<code>&gt;=</code>・<code>&lt;=</code>（大小比較）</p>`,
+  question: `<p>users テーブルから、<em>ステータスが <code>'active'</code> で、かつ年齢が 20 歳以上</em>のユーザーの <code>user_id</code>・<code>name</code>・<code>email</code>・<code>age</code> を取得してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th><th>email</th><th>age</th><th>status</th></tr>
+        <tr><td>1</td><td>田中</td><td>tanaka@example.com</td><td>28</td><td>active</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>sato@example.com</td><td>17</td><td>active</td></tr>
+        <tr><td>3</td><td>山田</td><td>yamada@example.com</td><td>35</td><td>inactive</td></tr>
+        <tr><td>4</td><td>鈴木</td><td>suzuki@example.com</td><td>22</td><td>active</td></tr>
+        <tr><td>5</td><td>高橋</td><td>takahashi@example.com</td><td>19</td><td>active</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>email</th><th>age</th></tr>
+<tr><td>1</td><td>田中</td><td>tanaka@example.com</td><td>28</td></tr>
+<tr><td>4</td><td>鈴木</td><td>suzuki@example.com</td><td>22</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>           <span class="cmt">-- 取得する列を指定する（必要な列だけ選ぶのが実務の基本）</span>
+  user_id,       <span class="cmt">-- ユーザーの一意なID</span>
+  name,          <span class="cmt">-- ユーザー名</span>
+  email,         <span class="cmt">-- メールアドレス</span>
+  age            <span class="cmt">-- 年齢（ここではstatusは不要なので含めない）</span>
+<span class="kw">FROM</span>  <span class="tbl">users</span>       <span class="cmt">-- FROM: データを取得するテーブルを指定</span>
+<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'active'</span>  <span class="cmt">-- 条件① statusが'active'の行だけに絞る</span>
+  <span class="kw">AND</span> age <span class="op">&gt;=</span> <span class="num">20</span>;          <span class="cmt">-- 条件② かつ ageが20以上の行だけに絞る（AND: 両方の条件が必要）</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. FROM users              → usersテーブル全体（5行）を読み込む
+  2. WHERE status = 'active' → active な行に絞る（row2・row3 を除外）
+      AND age >= 20          → さらに 20 歳以上に絞る（row5 も除外）
+  3. SELECT user_id, name... → 残った行から必要な列だけを取り出す
+  ※ WHERE の複数条件は AND（両方必須）や OR（どちらかでよい）でつなぐ
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>FROM users</strong> — まずテーブル全体が読み込まれる</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>age</th><th>status</th></tr>
+<tr><td>1</td><td>田中</td><td>28</td><td>active</td></tr>
+<tr><td>2</td><td>佐藤</td><td>17</td><td>active</td></tr>
+<tr><td>3</td><td>山田</td><td>35</td><td>inactive</td></tr>
+<tr><td>4</td><td>鈴木</td><td>22</td><td>active</td></tr>
+<tr><td>5</td><td>高橋</td><td>19</td><td>active</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">WHERE status = 'active' → inactive の行を除外</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>WHERE status = 'active'</strong> — inactive の山田が除外される</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>age</th><th>status</th></tr>
+<tr class="tr-hi"><td>1</td><td>田中</td><td>28</td><td class="tc-g">active ✓</td></tr>
+<tr class="tr-hi"><td>2</td><td>佐藤</td><td>17</td><td class="tc-g">active ✓</td></tr>
+<tr class="tr-dim"><td>3</td><td>山田</td><td>35</td><td class="tc-r">inactive ✗</td></tr>
+<tr class="tr-hi"><td>4</td><td>鈴木</td><td>22</td><td class="tc-g">active ✓</td></tr>
+<tr class="tr-hi"><td>5</td><td>高橋</td><td>19</td><td class="tc-g">active ✓</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">AND age >= 20 → 未満の佐藤・高橋を除外</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>AND age &gt;= 20</strong> — 20歳未満が除外されて最終2行が残る</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>email</th><th class="tc-hi">age</th></tr>
+<tr class="tr-hi2"><td>1</td><td>田中</td><td>tanaka@example.com</td><td class="tc-hi">28 ✓</td></tr>
+<tr class="tr-hi2"><td>4</td><td>鈴木</td><td>suzuki@example.com</td><td class="tc-hi">22 ✓</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>AND と OR の違い：</strong><code>AND</code> は「両方の条件を満たす行」だけを返します。<code>OR</code> は「どちらか一方でも満たす行」を返します。AND の方が条件が厳しくなるため、結果の件数は少なくなります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>SELECT * を避ける理由：</strong>本番APIで <code>SELECT *</code> を使うと、パスワードハッシュなど不要・危険な列まで返してしまう可能性があります。<em>必要な列だけを明示的に書く</em>のがセキュリティと可読性の基本です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>文字列の比較に = を使うとき、クォートを忘れる：</strong><code>WHERE status = active</code> と書くと、<code>active</code> が列名とみなされエラーになります。文字列は必ず <code>'active'</code> のようにシングルクォートで囲みます。数値はクォート不要（<code>age = 20</code>）です。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">「ユーザー詳細取得API（GET /users/:id）」では、<code>WHERE user_id = :id</code> の形でURLパラメータをWHEREに渡します。これが最もシンプルで頻繁に書くAPIパターンです。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════════
+   Q2  ORDER BY + LIMIT — 新着順・件数制限でAPIレスポンスを整形
+══════════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "ORDER BY + LIMIT — 新着順・件数制限でAPIレスポンスを整形",
+  tags: [["r","ORDER BY"],["o","LIMIT"],["g","OFFSET"],["p","一覧APIページング"]],
+  premise: `<p><strong>ORDER BY</strong> で結果を並べ替え、<strong>LIMIT</strong> で件数を制限します。一覧APIのページング（ページ切り替え）に必須のペアです。</p>
+<pre><span class="kw">ORDER BY</span> 列名 <span class="kw">ASC</span>   <span class="cmt">-- ASC: 昇順（小→大・古→新）。省略すると ASC</span>
+<span class="kw">ORDER BY</span> 列名 <span class="kw">DESC</span>  <span class="cmt">-- DESC: 降順（大→小・新→古）</span>
+<span class="kw">LIMIT</span>  N             <span class="cmt">-- 上から N 件だけ返す</span>
+<span class="kw">OFFSET</span> M             <span class="cmt">-- 先頭 M 件をスキップしてから返す（ページング時に使用）</span></pre>
+<div class="callout"><strong>LIMIT + OFFSET によるページング：</strong><br>
+1ページ目（10件）: <code>LIMIT 10 OFFSET 0</code><br>
+2ページ目（10件）: <code>LIMIT 10 OFFSET 10</code><br>
+3ページ目（10件）: <code>LIMIT 10 OFFSET 20</code></div>`,
+  question: `<p>orders テーブルから、<em>完了済み（<code>status = 'completed'</code>）の注文を新しい順</em>に並べ、<em>先頭5件</em>を取得してください。</p>
+<p>また、2ページ目（5件目〜9件目）を取得するクエリも作成してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（抜粋）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>ordered_at</th><th>amount</th><th>status</th></tr>
+        <tr><td>1</td><td>3</td><td>2024-01-05</td><td>12,000</td><td>completed</td></tr>
+        <tr><td>2</td><td>1</td><td>2024-01-10</td><td>8,000</td><td>pending</td></tr>
+        <tr><td>3</td><td>2</td><td>2024-01-15</td><td>22,000</td><td>completed</td></tr>
+        <tr><td>4</td><td>4</td><td>2024-02-01</td><td>5,500</td><td>completed</td></tr>
+        <tr><td>5</td><td>1</td><td>2024-02-10</td><td>34,000</td><td>cancelled</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>1ページ目（OFFSET 0）:</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>ordered_at</th><th>amount</th><th>status</th></tr>
+<tr><td>24</td><td>7</td><td>2024-04-18</td><td>48,000</td><td>completed</td></tr>
+<tr><td>21</td><td>2</td><td>2024-04-15</td><td>12,500</td><td>completed</td></tr>
+<tr><td>18</td><td>5</td><td>2024-04-10</td><td>7,800</td><td>completed</td></tr>
+<tr><td>14</td><td>3</td><td>2024-04-02</td><td>31,000</td><td>completed</td></tr>
+<tr><td>11</td><td>1</td><td>2024-03-28</td><td>9,200</td><td>completed</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 1ページ目: completed の注文を新しい順に5件取得</span>
+<span class="kw">SELECT</span>
+  order_id,
+  user_id,
+  ordered_at,
+  amount,
+  status
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'completed'</span>    <span class="cmt">-- 完了済みだけに絞る</span>
+<span class="kw">ORDER BY</span> ordered_at <span class="kw">DESC</span>      <span class="cmt">-- DESC: 新しい順（日付が大きい＝新しい）に並べる</span>
+<span class="kw">LIMIT</span> <span class="num">5</span>;                       <span class="cmt">-- 先頭の5件だけを返す</span>
+
+<span class="cmt">-- ② 2ページ目: 先頭5件をスキップして次の5件を取得</span>
+<span class="kw">SELECT</span>
+  order_id,
+  user_id,
+  ordered_at,
+  amount,
+  status
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'completed'</span>
+<span class="kw">ORDER BY</span> ordered_at <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">5</span>                       <span class="cmt">-- 5件取得</span>
+<span class="kw">OFFSET</span> <span class="num">5</span>;                      <span class="cmt">-- OFFSET 5: 先頭5件をスキップしてから取得する</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. FROM orders             → テーブル全体を読み込む
+  2. WHERE status='completed'→ 完了済みの行のみに絞る
+  3. ORDER BY ordered_at DESC→ 新しい日付順に全体を並べ替える
+  4. LIMIT 5                 → 並べた結果の上から5件だけ返す
+  5. (OFFSET 5 の場合)       → 5件飛ばしてから5件返す → 6〜10件目が返る
+  ※ ORDER BY なしで LIMIT を使うと毎回違う行が返る可能性があるため、
+     ORDER BY と LIMIT は必ずセットで書く！
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>ORDER BY ordered_at DESC で並べ替え後のイメージ（全件）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>行番号</th><th>order_id</th><th>ordered_at</th><th>status</th><th>範囲</th></tr>
+<tr class="tr-hi"><td>1</td><td>24</td><td>2024-04-18</td><td>completed</td><td class="tc-g">← 1ページ目 (LIMIT 5)</td></tr>
+<tr class="tr-hi"><td>2</td><td>21</td><td>2024-04-15</td><td>completed</td><td class="tc-g">← 1ページ目</td></tr>
+<tr class="tr-hi"><td>3</td><td>18</td><td>2024-04-10</td><td>completed</td><td class="tc-g">← 1ページ目</td></tr>
+<tr class="tr-hi"><td>4</td><td>14</td><td>2024-04-02</td><td>completed</td><td class="tc-g">← 1ページ目</td></tr>
+<tr class="tr-hi"><td>5</td><td>11</td><td>2024-03-28</td><td>completed</td><td class="tc-g">← 1ページ目</td></tr>
+<tr class="tr-hi2"><td>6</td><td>9</td><td>2024-03-22</td><td>completed</td><td class="tc-hi">← 2ページ目 (OFFSET 5)</td></tr>
+<tr class="tr-hi2"><td>7</td><td>7</td><td>2024-03-15</td><td>completed</td><td class="tc-hi">← 2ページ目</td></tr>
+<tr class="tr-hi2"><td>8</td><td>5</td><td>2024-03-08</td><td>completed</td><td class="tc-hi">← 2ページ目</td></tr>
+<tr class="tr-dim"><td>...</td><td>...</td><td>...</td><td>...</td><td class="null">→ 以降のページ</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">LIMIT 5 OFFSET 0 → 行1〜5 / LIMIT 5 OFFSET 5 → 行6〜10</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>OFFSET の仕組み</strong> — ページネーション計算式</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ページ</th><th>LIMIT</th><th class="tc-hi">OFFSET</th><th>取得する行番号</th><th>計算式</th></tr>
+<tr class="tr-hi"><td>1ページ目</td><td>5</td><td class="tc-hi">0</td><td>1〜5行目</td><td>(1-1) × 5 = 0</td></tr>
+<tr class="tr-hi2"><td>2ページ目</td><td>5</td><td class="tc-g">5</td><td>6〜10行目</td><td>(2-1) × 5 = 5</td></tr>
+<tr class="tr-hi3"><td>3ページ目</td><td>5</td><td class="tc-p">10</td><td>11〜15行目</td><td>(3-1) × 5 = 10</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>ORDER BY なしで LIMIT は危険：</strong>並び順が未指定だと、DBが内部的に決めた順序で返ります。毎回同じ結果が返る保証がないため、<em>LIMIT を使うときは必ず ORDER BY も指定する</em>のが鉄則です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>OFFSET の計算式：</strong><code>OFFSET = (ページ番号 - 1) × 1ページあたりの件数</code> で計算できます。APIではクエリパラメータ <code>?page=2&limit=5</code> を受け取り、バックエンドがこの計算を行います。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>大きな OFFSET でのパフォーマンス問題：</strong>OFFSET が大きくなるほど（例：<code>OFFSET 100000</code>）、DBは読み飛ばす行数が増えて遅くなります。大量データでは <code>WHERE id &gt; last_seen_id</code> のようなカーソルページング方式が推奨されます。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">ECサイトの「商品一覧API」やSNSの「タイムラインAPI」では、<code>ORDER BY created_at DESC LIMIT 20 OFFSET N</code> のパターンが基本形です。フロントエンドの「もっと見る」ボタンやページ送りはこの仕組みで動いています。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════════
+   Q3  INNER JOIN — 2テーブルを結合してユーザー名付き注文一覧を作る
+══════════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "INNER JOIN — 2テーブルを結合してユーザー名付き注文一覧を作る",
+  tags: [["r","INNER JOIN"],["o","ON句"],["g","テーブル結合"],["p","注文一覧API"]],
+  premise: `<p><strong>INNER JOIN</strong>（単に JOIN とも書く）は、2つのテーブルで指定した列の値が一致する行だけを結合します。両テーブルに存在するデータのみが結果に残ります。</p>
+<pre><span class="kw">SELECT</span> u.name, o.order_id, o.amount
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o              <span class="cmt">-- o: テーブルの別名（エイリアス）。長いテーブル名を短縮できる</span>
+<span class="kw">JOIN</span>   <span class="tbl">users</span>  u              <span class="cmt">-- JOIN = INNER JOIN。省略可能</span>
+  <span class="kw">ON</span>   o.user_id <span class="op">=</span> u.user_id  <span class="cmt">-- ON: 結合の条件（どの列で照合するか）</span></pre>
+<div class="callout"><strong>エイリアス（別名）：</strong> <code>FROM orders o</code> や <code>FROM orders AS o</code> のように、テーブルに短い別名を付けると、列名を <code>o.amount</code> のように修飾でき、2テーブルで列名が被っても区別できます。</div>`,
+  question: `<p>orders テーブルと users テーブルを結合して、<em>ユーザー名（<code>name</code>）付きの注文一覧</em>を取得してください。</p>
+<p>出力列は <code>order_id</code>・<code>user_id</code>・<code>name</code>・<code>ordered_at</code>・<code>amount</code>・<code>status</code> で、<code>ordered_at</code> の降順に並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>ordered_at</th><th>amount</th><th>status</th></tr>
+        <tr><td>1</td><td>1</td><td>2024-01-05</td><td>12,000</td><td>completed</td></tr>
+        <tr><td>2</td><td>3</td><td>2024-01-10</td><td>8,000</td><td>pending</td></tr>
+        <tr><td>3</td><td>2</td><td>2024-01-15</td><td>22,000</td><td>completed</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th><th>email</th></tr>
+        <tr><td>1</td><td>田中</td><td>tanaka@example.com</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>sato@example.com</td></tr>
+        <tr><td>3</td><td>山田</td><td>yamada@example.com</td></tr>
+        <tr><td>4</td><td>鈴木</td><td>suzuki@example.com</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>name</th><th>ordered_at</th><th>amount</th><th>status</th></tr>
+<tr><td>3</td><td>2</td><td>佐藤</td><td>2024-01-15</td><td>22,000</td><td>completed</td></tr>
+<tr><td>2</td><td>3</td><td>山田</td><td>2024-01-10</td><td>8,000</td><td>pending</td></tr>
+<tr><td>1</td><td>1</td><td>田中</td><td>2024-01-05</td><td>12,000</td><td>completed</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  o.order_id,              <span class="cmt">-- o.列名: orders テーブルの列（テーブル名を明示して曖昧さを排除）</span>
+  o.user_id,
+  u.name,                  <span class="cmt">-- u.列名: users テーブルの列（両テーブルで同名列がある場合に必須）</span>
+  o.ordered_at,
+  o.amount,
+  o.status
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o            <span class="cmt">-- ordersテーブルに別名 o を付ける（FROM テーブル名 別名 または AS 別名）</span>
+<span class="kw">JOIN</span>   <span class="tbl">users</span>  u            <span class="cmt">-- JOIN = INNER JOIN: 両テーブルで一致する行だけを結合</span>
+  <span class="kw">ON</span> o.user_id <span class="op">=</span> u.user_id  <span class="cmt">-- ON: どの列の値が等しい行を結合するか指定（結合キー）</span>
+<span class="kw">ORDER BY</span> o.ordered_at <span class="kw">DESC</span>; <span class="cmt">-- ORDER BY: 注文日の新しい順（降順）に並べる</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. FROM orders o           → ordersテーブルを準備（別名 o）
+  2. JOIN users u ON ...     → o.user_id と u.user_id が一致する行をくっつける
+                               ※ users に存在しない user_id の注文行は除外される（INNER）
+  3. SELECT o.order_id, ...  → 結合された行から必要な列を選ぶ
+  4. ORDER BY o.ordered_at   → 結果を ordered_at の降順で並べる
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>結合前の2テーブル</strong> — user_id が共通のキー</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th colspan="3" style="text-align:center;color:var(--orange)">orders</th><th colspan="2" style="text-align:center;color:var(--green)">users（結合元）</th></tr>
+<tr><th>order_id</th><th class="tc-hi">user_id</th><th>amount</th><th class="tc-hi">user_id</th><th>name</th></tr>
+<tr><td>1</td><td class="tc-hi">1</td><td>12,000</td><td class="tc-hi">1 ←一致</td><td>田中</td></tr>
+<tr><td>2</td><td class="tc-hi">3</td><td>8,000</td><td class="tc-hi">2</td><td>佐藤</td></tr>
+<tr><td>3</td><td class="tc-hi">2</td><td>22,000</td><td class="tc-hi">3 ←一致</td><td>山田</td></tr>
+<tr><td></td><td></td><td></td><td class="tc-hi">4</td><td>鈴木（注文なし→除外）</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">ON o.user_id = u.user_id — 一致する行を横にくっつける</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>JOIN後の結合結果</strong> — 両テーブルの情報が1行にまとまる</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th class="tc-g">name（usersより）</th><th>ordered_at</th><th>amount</th></tr>
+<tr class="tr-hi"><td>1</td><td>1</td><td class="tc-g">田中</td><td>2024-01-05</td><td>12,000</td></tr>
+<tr class="tr-hi2"><td>2</td><td>3</td><td class="tc-g">山田</td><td>2024-01-10</td><td>8,000</td></tr>
+<tr class="tr-hi3"><td>3</td><td>2</td><td class="tc-g">佐藤</td><td>2024-01-15</td><td>22,000</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">ORDER BY ordered_at DESC — 日付の新しい順に並べる</span></div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>INNER JOIN の「INNER」の意味：</strong>「内側だけ」＝両テーブルに一致するデータが存在する行だけを返します。今回、鈴木（user_id=4）は orders テーブルに注文がないため結果に出てきません。注文のないユーザーも出したい場合は Q4 の LEFT JOIN を使います。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>テーブル別名（エイリアス）の必要性：</strong>両テーブルに <code>user_id</code> など同名の列がある場合、<code>o.user_id</code>・<code>u.user_id</code> のように修飾しないとどちらの列か不明でエラーになります。別名を付けることでコードも短く読みやすくなります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ON 句の列名を間違える：</strong><code>ON o.user_id = u.id</code> のように結合キーの列名を誤ると、全行が不一致になり0件が返ります（またはエラー）。必ずER図やテーブル定義でどの列が対応するか確認してから書きます。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">「注文一覧API」では orders だけを返しても、フロントエンドはユーザー名を表示できません。JOIN で users.name を一緒に取得することで、API1回のリクエストで画面表示に必要な情報がすべて揃います。これが JOIN の最大の実務価値です。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════════
+   Q4  LEFT JOIN + IS NULL — 注文のないユーザーを検出する
+══════════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "LEFT JOIN + IS NULL — 注文のないユーザーを検出する",
+  tags: [["r","LEFT JOIN"],["o","IS NULL"],["g","欠損検出"],["p","非アクティブユーザーAPI"]],
+  premise: `<p><strong>LEFT JOIN</strong>（左外部結合）は、左側テーブルの行を<em>すべて残し</em>、右側テーブルに一致する行がない場合は右側の列を <code>NULL</code> にして返します。INNER JOIN との決定的な違いです。</p>
+<pre><span class="kw">FROM</span>   <span class="tbl">users</span> u            <span class="cmt">-- 左テーブル: 全行が必ず残る</span>
+<span class="kw">LEFT JOIN</span> <span class="tbl">orders</span> o        <span class="cmt">-- 右テーブル: 一致しない場合は NULL になる</span>
+  <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id</pre>
+<div class="callout"><strong>IS NULL / IS NOT NULL：</strong> NULL は「値が存在しない」状態で、通常の比較演算子（= や !=）では比較できません。NULL かどうかを調べるには <code>IS NULL</code>（NULL である）や <code>IS NOT NULL</code>（NULL でない）を使います。</div>
+<div class="callout warn"><strong>LEFT JOIN + WHERE IS NULL のパターン：</strong><br>
+右側テーブルの列が NULL の行だけを抽出する = 「右テーブルに存在しない行」を見つける鉄板パターンです。</div>`,
+  question: `<p>users テーブルと orders テーブルを LEFT JOIN して、<em>一度も注文をしたことがないユーザー</em>の一覧を取得してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th><th>email</th></tr>
+        <tr><td>1</td><td>田中</td><td>tanaka@example.com</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>sato@example.com</td></tr>
+        <tr><td>3</td><td>山田</td><td>yamada@example.com</td></tr>
+        <tr><td>4</td><td>鈴木</td><td>suzuki@example.com</td></tr>
+        <tr><td>5</td><td>高橋</td><td>takahashi@example.com</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（抜粋）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th></tr>
+        <tr><td>1</td><td>1</td><td>12,000</td></tr>
+        <tr><td>2</td><td>3</td><td>8,000</td></tr>
+        <tr><td>3</td><td>1</td><td>5,500</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>email</th></tr>
+<tr><td>2</td><td>佐藤</td><td>sato@example.com</td></tr>
+<tr><td>4</td><td>鈴木</td><td>suzuki@example.com</td></tr>
+<tr><td>5</td><td>高橋</td><td>takahashi@example.com</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  u.user_id,
+  u.name,
+  u.email
+<span class="kw">FROM</span>      <span class="tbl">users</span>  u        <span class="cmt">-- 左テーブル: users の全行（5行）が必ず出力に残る</span>
+<span class="kw">LEFT JOIN</span> <span class="tbl">orders</span> o        <span class="cmt">-- 右テーブル: 一致する注文がない場合は o の列が NULL になる</span>
+  <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id  <span class="cmt">-- 結合キー: users と orders の user_id が一致する行をくっつける</span>
+<span class="kw">WHERE</span> o.order_id <span class="kw">IS NULL</span>    <span class="cmt">-- IS NULL: LEFT JOIN で一致しなかった行（= 注文なし）だけを残す</span>
+<span class="kw">ORDER BY</span> u.user_id;          <span class="cmt">-- ユーザーIDの昇順で出力</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. FROM users u            → usersテーブル全5行を準備
+  2. LEFT JOIN orders o      → user_id で照合し、注文があれば横にくっつける
+                               注文がないユーザーは o の列がすべて NULL になる
+  3. WHERE o.order_id IS NULL→ o.order_id が NULL の行 = 注文がないユーザーだけ残す
+  4. SELECT u.user_id, ...   → 必要な列を取り出す
+  5. ORDER BY u.user_id      → 昇順で並べる
+  ※ INNER JOIN を使うと、注文のあるユーザーしか残らず、目的の逆になってしまう
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>LEFT JOIN 直後の状態</strong> — users 全行が残り、注文なしは NULL</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>u.user_id</th><th>u.name</th><th class="tc-hi">o.order_id</th><th>注文有無</th></tr>
+<tr class="tr-hi2"><td>1</td><td>田中</td><td class="tc-g">1（一致）</td><td>注文あり</td></tr>
+<tr class="tr-hi"><td>2</td><td>佐藤</td><td class="null">NULL ←注文なし</td><td class="tc-r">注文なし ← 残す</td></tr>
+<tr class="tr-hi2"><td>3</td><td>山田</td><td class="tc-g">2（一致）</td><td>注文あり</td></tr>
+<tr class="tr-hi"><td>4</td><td>鈴木</td><td class="null">NULL ←注文なし</td><td class="tc-r">注文なし ← 残す</td></tr>
+<tr class="tr-hi"><td>5</td><td>高橋</td><td class="null">NULL ←注文なし</td><td class="tc-r">注文なし ← 残す</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">WHERE o.order_id IS NULL → NULL の行のみ残す</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>INNER JOIN との比較</strong> — どちらを使うべきか</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>JOINの種類</th><th>残る行</th><th>用途</th></tr>
+<tr class="tr-hi"><td>INNER JOIN</td><td class="tc-g">両テーブルに存在する行のみ（田中・山田）</td><td>両方に存在するデータを取る</td></tr>
+<tr class="tr-hi2"><td>LEFT JOIN</td><td class="tc-hi">左テーブル全行（全5人）</td><td>左テーブルを軸に、右テーブルに<em>ない</em>行を検出</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>NULL の比較は特別：</strong><code>WHERE o.order_id = NULL</code> は<em>必ず偽</em>になります。NULL は「値が不明」な状態なので、等号での比較は機能しません。<em>必ず <code>IS NULL</code> を使います。</em></div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>「〜に存在しないものを探す」パターン：</strong>LEFT JOIN + WHERE IS NULL は「Aにあって Bにない」を見つける王道パターンです。サブクエリの <code>NOT IN</code> や <code>NOT EXISTS</code> でも同じ結果が得られますが、LEFT JOIN + IS NULL がパフォーマンス上も好まれます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE に NULL 比較を = で書く：</strong><code>WHERE o.order_id = NULL</code> は常に偽になり、結果が0件になります。これは NULL の仕様で、<code>= NULL</code> は絶対に使ってはいけません。必ず <code>IS NULL</code> を使います。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">「登録から30日間注文のないユーザーへのリマインドメール送信」「非アクティブユーザーの管理画面での可視化」など、マーケティングオートメーションのAPIでこのパターンは日常的に使われます。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════════
+   Q5  GROUP BY + COUNT / SUM — 集計でユーザーごとの購入実績を算出
+══════════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "GROUP BY + COUNT / SUM — ユーザーごとの購入実績を集計する",
+  tags: [["r","GROUP BY"],["o","COUNT"],["g","SUM"],["p","実績集計API"]],
+  premise: `<p><strong>GROUP BY</strong> は指定した列の値が同じ行をまとめ（グループ化し）、その各グループに対して集計関数を適用します。</p>
+<pre><span class="kw">SELECT</span>  user_id, <span class="fn">COUNT</span>(*), <span class="fn">SUM</span>(amount)
+<span class="kw">FROM</span>    <span class="tbl">orders</span>
+<span class="kw">GROUP BY</span> user_id  <span class="cmt">-- user_id ごとに行をまとめる</span></pre>
+<p>主な集計関数：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>関数</th><th>意味</th><th>NULL の扱い</th></tr>
+<tr><td>COUNT(*)</td><td>全行数を数える</td><td>NULL も数える</td></tr>
+<tr><td>COUNT(列名)</td><td>その列が NULL でない行数を数える</td><td>NULL は除外</td></tr>
+<tr><td>SUM(列名)</td><td>合計値</td><td>NULL は無視（0扱いではない）</td></tr>
+<tr><td>AVG(列名)</td><td>平均値</td><td>NULL は除外して計算</td></tr>
+<tr><td>MAX(列名)</td><td>最大値</td><td>NULL は無視</td></tr>
+<tr><td>MIN(列名)</td><td>最小値</td><td>NULL は無視</td></tr>
+</table></div>`,
+  question: `<p>orders テーブルを使い、<em>ユーザーごとの注文回数（<code>order_count</code>）・合計金額（<code>total_amount</code>）・平均注文金額（<code>avg_amount</code>）</em>を集計してください。</p>
+<p>合計金額の降順で出力し、<code>avg_amount</code> は小数点以下を切り捨てて整数で表示してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>status</th></tr>
+        <tr><td>1</td><td>1</td><td>12,000</td><td>completed</td></tr>
+        <tr><td>2</td><td>1</td><td>8,000</td><td>completed</td></tr>
+        <tr><td>3</td><td>2</td><td>22,000</td><td>completed</td></tr>
+        <tr><td>4</td><td>1</td><td>5,500</td><td>pending</td></tr>
+        <tr><td>5</td><td>3</td><td>18,000</td><td>completed</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>order_count</th><th>total_amount</th><th>avg_amount</th></tr>
+<tr><td>1</td><td>3</td><td>25,500</td><td>8,500</td></tr>
+<tr><td>2</td><td>1</td><td>22,000</td><td>22,000</td></tr>
+<tr><td>3</td><td>1</td><td>18,000</td><td>18,000</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  user_id,                      <span class="cmt">-- GROUP BY の基準列。各グループの代表値として選べる</span>
+  <span class="fn">COUNT</span>(*)         <span class="kw">AS</span> order_count,  <span class="cmt">-- COUNT(*): グループ内の行数（= 注文回数）</span>
+  <span class="fn">SUM</span>(amount)      <span class="kw">AS</span> total_amount, <span class="cmt">-- SUM: グループ内の amount の合計</span>
+  <span class="fn">FLOOR</span>(<span class="fn">AVG</span>(amount)) <span class="kw">AS</span> avg_amount   <span class="cmt">-- AVG: 平均値。FLOOR: 小数点以下を切り捨てる</span>
+<span class="kw">FROM</span>  <span class="tbl">orders</span>                        <span class="cmt">-- FROM: ordersテーブルを対象とする</span>
+<span class="kw">GROUP BY</span> user_id                     <span class="cmt">-- GROUP BY: user_id の値が同じ行をまとめる</span>
+<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;          <span class="cmt">-- ORDER BY: 合計金額の高い順（降順）で並べる</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. FROM orders               → 全注文データを準備
+  2. GROUP BY user_id          → user_id ごとにデータをまとめる
+                                 例: user_id=1 の行が3行 → 1グループになる
+  3. COUNT(*) / SUM / AVG      → 各グループ内で集計計算を実行
+  4. FLOOR(AVG(...))           → 平均値の小数点以下を切り捨て
+  5. ORDER BY total_amount DESC→ 合計金額の高い順に並べる
+  ※ GROUP BY を使うと、SELECT に書ける列は
+     「GROUP BY に書いた列」か「集計関数の結果」だけになる
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>GROUP BY user_id 前</strong> — 5行が全部バラバラに存在</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th class="tc-hi">user_id</th><th>amount</th></tr>
+<tr class="tr-hi"><td>1</td><td class="tc-hi">1</td><td>12,000</td></tr>
+<tr class="tr-hi"><td>2</td><td class="tc-hi">1</td><td>8,000</td></tr>
+<tr class="tr-hi2"><td>3</td><td class="tc-g">2</td><td>22,000</td></tr>
+<tr class="tr-hi"><td>4</td><td class="tc-hi">1</td><td>5,500</td></tr>
+<tr class="tr-hi3"><td>5</td><td class="tc-p">3</td><td>18,000</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">GROUP BY user_id — 同じ user_id をひとまとめにする</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>GROUP BY 後</strong> — 3グループに凝縮される</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th class="tc-hi">user_id</th><th>グループ内の行</th><th class="tc-g">COUNT(*)</th><th class="tc-p">SUM(amount)</th><th class="tc-y">AVG(amount)</th></tr>
+<tr class="tr-hi"><td class="tc-hi">1</td><td>12,000 / 8,000 / 5,500</td><td class="tc-g">3</td><td class="tc-p">25,500</td><td class="tc-y">8,500</td></tr>
+<tr class="tr-hi2"><td class="tc-g">2</td><td>22,000</td><td class="tc-g">1</td><td class="tc-p">22,000</td><td class="tc-y">22,000</td></tr>
+<tr class="tr-hi3"><td class="tc-p">3</td><td>18,000</td><td class="tc-g">1</td><td class="tc-p">18,000</td><td class="tc-y">18,000</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>GROUP BY の大鉄則：</strong>GROUP BY を使ったとき、SELECT に書ける列は <em>「GROUP BY に書いた列」か「集計関数で包んだ列」だけ</em>です。例えば <code>SELECT user_id, amount, COUNT(*)</code> と書くとエラーになります（amount は集計されていないため）。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>FLOOR vs ROUND：</strong><code>FLOOR(8500.6)</code> → 8500（常に切り捨て）、<code>ROUND(8500.6)</code> → 8501（四捨五入）、<code>CEIL(8500.1)</code> → 8501（切り上げ）。ユースケースに合わせて使い分けます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BY していない列を SELECT に書く：</strong><code>SELECT user_id, order_id, COUNT(*) FROM orders GROUP BY user_id</code> は PostgreSQL ではエラーです。<code>order_id</code> は集計されていないため、どの order_id を返すか不定になります。MySQLでは動く場合がありますが、意図しない値が返る危険なコードです。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">「マイページAPI」でユーザーの購入実績サマリーを返す場面や、「管理画面のユーザーランキング」表示に直結します。COUNT・SUM はSQLの中で最も使用頻度が高い関数のひとつです。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════════
+   Q6  HAVING — グループ化後に条件で絞り込む
+══════════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "HAVING — グループ集計後に条件で絞り込む",
+  tags: [["r","HAVING"],["o","GROUP BY"],["g","集計フィルタ"],["p","ヘビーユーザー検出"]],
+  premise: `<p><strong>HAVING</strong> は <code>GROUP BY</code> で集計した結果に対して条件を絞り込む句です。<code>WHERE</code> との違いが重要です。</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>句</th><th>いつ絞る？</th><th>集計関数は使える？</th><th>例</th></tr>
+<tr><td>WHERE</td><td>GROUP BY より前（行単位）</td><td>❌ 使えない</td><td>WHERE status = 'active'</td></tr>
+<tr><td>HAVING</td><td>GROUP BY より後（グループ単位）</td><td>✅ 使える</td><td>HAVING COUNT(*) >= 3</td></tr>
+</table></div>
+<pre><span class="kw">GROUP BY</span> user_id
+<span class="kw">HAVING</span>   <span class="fn">COUNT</span>(*) <span class="op">&gt;=</span> <span class="num">3</span>   <span class="cmt">-- 集計後のグループに条件をかける</span></pre>`,
+  question: `<p>orders テーブルから、<em>注文回数が3回以上</em>かつ<em>合計購入金額が 20,000 円以上</em>のユーザーを抽出してください。</p>
+<p>ステータスが <code>'cancelled'</code> の注文は対象外とします。合計金額の降順で出力してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>status</th></tr>
+        <tr><td>1</td><td>1</td><td>8,000</td><td>completed</td></tr>
+        <tr><td>2</td><td>1</td><td>6,000</td><td>completed</td></tr>
+        <tr><td>3</td><td>1</td><td>9,000</td><td>completed</td></tr>
+        <tr><td>4</td><td>2</td><td>15,000</td><td>completed</td></tr>
+        <tr><td>5</td><td>2</td><td>11,000</td><td>completed</td></tr>
+        <tr><td>6</td><td>3</td><td>50,000</td><td>cancelled</td></tr>
+        <tr><td>7</td><td>3</td><td>2,000</td><td>completed</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>order_count</th><th>total_amount</th></tr>
+<tr><td>1</td><td>3</td><td>23,000</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  user_id,
+  <span class="fn">COUNT</span>(*) <span class="kw">AS</span> order_count,    <span class="cmt">-- グループ内の件数（cancell 除外後）</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount  <span class="cmt">-- グループ内の合計金額</span>
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="kw">WHERE</span> status <span class="op">!=</span> <span class="str">'cancelled'</span>     <span class="cmt">-- ① GROUP BY の前: キャンセル行を先に除外（行単位の条件）</span>
+<span class="kw">GROUP BY</span> user_id               <span class="cmt">-- ② user_id ごとにまとめる（WHERE 通過後の行のみが対象）</span>
+<span class="kw">HAVING</span>
+  <span class="fn">COUNT</span>(*) <span class="op">&gt;=</span> <span class="num">3</span>              <span class="cmt">-- ③ GROUP BY の後: 注文回数が3回以上のグループだけ残す</span>
+  <span class="kw">AND</span> <span class="fn">SUM</span>(amount) <span class="op">&gt;=</span> <span class="num">20000</span>  <span class="cmt">-- ③ かつ合計金額が20,000以上のグループだけ残す</span>
+<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;   <span class="cmt">-- 合計金額の高い順に並べる</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. FROM orders               → 全注文を準備
+  2. WHERE status != 'cancelled' → キャンセル行を先に除外する（行単位）
+  3. GROUP BY user_id          → 残った行を user_id ごとにグループ化
+  4. COUNT(*) / SUM(amount)    → 各グループで集計
+  5. HAVING COUNT(*) >= 3 ...  → 集計後のグループに条件をかける（グループ単位）
+  6. ORDER BY total_amount DESC→ 合計金額の降順で並べる
+  ※ WHERE で集計関数（COUNT・SUMなど）は使えない。使うなら HAVING を使う。
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>WHERE で cancelled を除外</strong> — GROUP BY 前の行絞り込み</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>amount</th><th>status</th></tr>
+<tr class="tr-hi2"><td>1</td><td>1</td><td>8,000</td><td class="tc-g">completed ✓</td></tr>
+<tr class="tr-hi2"><td>2</td><td>1</td><td>6,000</td><td class="tc-g">completed ✓</td></tr>
+<tr class="tr-hi2"><td>3</td><td>1</td><td>9,000</td><td class="tc-g">completed ✓</td></tr>
+<tr class="tr-hi"><td>4</td><td>2</td><td>15,000</td><td class="tc-g">completed ✓</td></tr>
+<tr class="tr-hi"><td>5</td><td>2</td><td>11,000</td><td class="tc-g">completed ✓</td></tr>
+<tr class="tr-dim"><td>6</td><td>3</td><td>50,000</td><td class="tc-r">cancelled ✗ 除外</td></tr>
+<tr class="tr-hi3"><td>7</td><td>3</td><td>2,000</td><td class="tc-g">completed ✓</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">GROUP BY user_id → COUNT / SUM を計算</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>GROUP BY 後の集計結果</strong> — HAVING 前の全グループ</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th class="tc-g">order_count</th><th class="tc-hi">total_amount</th><th>HAVING 条件</th></tr>
+<tr class="tr-hi2"><td>1</td><td class="tc-g">3 ✓</td><td class="tc-hi">23,000 ✓</td><td class="tc-g">両方OK → 残る</td></tr>
+<tr class="tr-dim"><td>2</td><td class="tc-r">2 ✗（3未満）</td><td class="tc-hi">26,000 ✓</td><td class="tc-r">回数が足りない → 除外</td></tr>
+<tr class="tr-dim"><td>3</td><td class="tc-r">1 ✗（3未満）</td><td class="tc-r">2,000 ✗</td><td class="tc-r">両方NG → 除外</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>WHERE と HAVING の役割分担：</strong>「行を絞る（行単位）」→ WHERE、「グループを絞る（集計結果単位）」→ HAVING と覚えます。<em>集計関数（COUNT・SUM など）を条件に使いたいときは必ず HAVING を使います。</em></div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>WHERE と HAVING の併用：</strong>今回のように「まず不要な行を WHERE で除外してから、グループ集計して HAVING で絞る」という組み合わせは非常に頻出です。WHERE を先に通すことで集計対象データが減り、パフォーマンスも向上します。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE に集計関数を書く：</strong><code>WHERE COUNT(*) >= 3</code> は構文エラーです。WHERE は行単位の処理であり、集計結果はまだ計算されていないためです。<em>集計関数を条件にしたい場合は必ず HAVING を使います。</em></div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">「月3回以上購入したヘビーユーザー向けの特典メール対象者リスト」「売上合計 10 万円以上の得意先一覧」など、BI・マーケティング業務でHAVINGは必須です。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════════
+   Q7  サブクエリ — 平均以上の注文を持つユーザーを抽出する
+══════════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "サブクエリ — 平均以上の注文金額を持つユーザーを抽出する",
+  tags: [["r","サブクエリ"],["o","WHERE"],["g","スカラーサブクエリ"],["p","動的閾値フィルタ"]],
+  premise: `<p><strong>サブクエリ</strong>はSQLの中に別のSQLを埋め込む構造です。括弧 <code>( )</code> で囲んで書き、WHERE句・FROM句・SELECT句の中で使えます。</p>
+<pre><span class="kw">WHERE</span> amount <span class="op">&gt;</span> (<span class="kw">SELECT AVG</span>(amount) <span class="kw">FROM</span> <span class="tbl">orders</span>)
+<span class="cmt">--           ↑ サブクエリが1つの値（スカラー値）を返す → スカラーサブクエリ</span></pre>
+<div class="callout"><strong>サブクエリの実行順序：</strong> 内側の <code>( )</code> が先に実行され、その結果が外側のクエリで使われます。DBが自動的に最適化するため、効率的なSQLが書けます。</div>`,
+  question: `<p>orders テーブルから、<em>自分の合計購入金額が全ユーザーの平均合計購入金額以上</em>のユーザーを抽出してください。</p>
+<p>ステータスが <code>'completed'</code> の注文のみを対象とし、合計金額の降順で出力してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>status</th></tr>
+        <tr><td>1</td><td>1</td><td>30,000</td><td>completed</td></tr>
+        <tr><td>2</td><td>1</td><td>20,000</td><td>completed</td></tr>
+        <tr><td>3</td><td>2</td><td>8,000</td><td>completed</td></tr>
+        <tr><td>4</td><td>3</td><td>15,000</td><td>completed</td></tr>
+        <tr><td>5</td><td>4</td><td>5,000</td><td>completed</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>total_amount</th></tr>
+<tr><td>1</td><td>50,000</td></tr>
+<tr><td>3</td><td>15,000</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① まず外側のクエリ: ユーザーごとに合計を集計して平均以上のものを抽出</span>
+<span class="kw">SELECT</span>
+  user_id,
+  <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount   <span class="cmt">-- ユーザーごとの合計金額</span>
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'completed'</span>        <span class="cmt">-- completed 注文のみ対象</span>
+<span class="kw">GROUP BY</span> user_id               <span class="cmt">-- ユーザーごとに集約</span>
+<span class="kw">HAVING</span> <span class="fn">SUM</span>(amount) <span class="op">&gt;=</span> (        <span class="cmt">-- HAVING: 集計後の合計金額に条件をかける</span>
+
+  <span class="cmt">-- ② サブクエリ（内側）: 全ユーザーの平均合計金額を1つの数値として返す</span>
+  <span class="kw">SELECT</span> <span class="fn">AVG</span>(user_total)         <span class="cmt">-- AVG: 全ユーザーの合計金額の平均</span>
+  <span class="kw">FROM</span> (
+    <span class="cmt">-- ③ 最内側のサブクエリ: まず各ユーザーの合計を出す</span>
+    <span class="kw">SELECT</span> <span class="fn">SUM</span>(amount) <span class="kw">AS</span> user_total  <span class="cmt">-- ユーザーごと合計</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span>
+    <span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'completed'</span>       <span class="cmt">-- 同じ条件: completed のみ</span>
+    <span class="kw">GROUP BY</span> user_id                  <span class="cmt">-- ユーザーごとに集約</span>
+  ) <span class="kw">AS</span> totals                        <span class="cmt">-- サブクエリには必ず別名（AS totals）が必要</span>
+
+)
+<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;         <span class="cmt">-- 合計金額の高い順</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. 最内側サブクエリ          → 各ユーザーの合計金額 [50000, 8000, 15000, 5000] を算出
+  2. 内側サブクエリ            → 上記の平均 = (50000+8000+15000+5000)/4 = 19500 を返す
+  3. 外側クエリ FROM orders    → completed 注文を user_id でグループ化・集計
+  4. HAVING SUM >= 19500      → 合計19500以上のグループだけ残す（user_id 1 と 3）
+  5. ORDER BY total_amount    → 合計金額の降順で出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>サブクエリの実行順序</strong> — 内側から順番に処理される</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>実行順</th><th>クエリ部分</th><th class="tc-hi">返す値</th></tr>
+<tr class="tr-hi3"><td>① 最内側</td><td>各ユーザーの合計金額を集計</td><td class="tc-p">[50,000 / 8,000 / 15,000 / 5,000]</td></tr>
+<tr class="tr-hi"><td>② 内側</td><td>上記の AVG(user_total)</td><td class="tc-hi">19,500（= 平均値スカラー）</td></tr>
+<tr class="tr-hi2"><td>③ 外側</td><td>HAVING SUM(amount) >= 19,500</td><td class="tc-g">user_id 1（50,000）と 3（15,000 ← 確認）</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">サブクエリが19,500という閾値を動的に計算 → HAVING で比較</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>各ユーザーの合計と平均との比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>total_amount</th><th class="tc-hi">平均（19,500）との比較</th><th>結果</th></tr>
+<tr class="tr-hi2"><td>1</td><td>50,000</td><td class="tc-g">50,000 >= 19,500 ✓</td><td class="tc-g">残る</td></tr>
+<tr class="tr-dim"><td>2</td><td>8,000</td><td class="tc-r">8,000 &lt; 19,500 ✗</td><td class="tc-r">除外</td></tr>
+<tr class="tr-hi2"><td>3</td><td>15,000</td><td class="tc-r">15,000 &lt; 19,500 ✗</td><td class="tc-r">除外</td></tr>
+<tr class="tr-dim"><td>4</td><td>5,000</td><td class="tc-r">5,000 &lt; 19,500 ✗</td><td class="tc-r">除外</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>サブクエリの使い所：</strong>「動的に計算した値を閾値に使いたい」場合にサブクエリが活躍します。<em>ハードコードで閾値を書くより、データが変わっても自動的に正しい結果が返る</em>という大きなメリットがあります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>FROM 句のサブクエリには別名が必須：</strong>FROM 句に書いたサブクエリ（インラインビュー）には、<code>AS totals</code> のような別名（エイリアス）を必ず付けます。付けないとエラーになります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>FROM 句のサブクエリに別名を付け忘れる：</strong><code>FROM (SELECT ...) </code> と別名なしで書くとエラーになります。必ず <code>FROM (SELECT ...) AS 別名</code> と書きます。これはPostgreSQL・MySQLいずれも必須のルールです。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">「平均購入額以上の顧客へのプレミアム案内」「平均応答時間を超えたAPIエンドポイントの検出」など、動的な閾値でのフィルタリングはBI・監視システム双方で頻出パターンです。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════════
+   Q8  LIKE / BETWEEN / IN — 複数条件でデータを柔軟に絞り込む
+══════════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "LIKE / BETWEEN / IN — 文字列・範囲・リスト条件で柔軟に絞り込む",
+  tags: [["r","LIKE"],["o","BETWEEN"],["g","IN"],["p","検索・フィルターAPI"]],
+  premise: `<p>WHERE句で使える代表的な3つの絞り込み演算子です。検索・フィルターAPIで毎日使います。</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>演算子</th><th>使い方</th><th>意味</th></tr>
+<tr><td>LIKE</td><td>WHERE name LIKE '田%'</td><td>「田」で始まる文字列。%=0文字以上の任意の文字列</td></tr>
+<tr><td>LIKE</td><td>WHERE name LIKE '%田%'</td><td>「田」を含む文字列</td></tr>
+<tr><td>LIKE</td><td>WHERE name LIKE '田_'</td><td>「田」+任意の1文字。_=任意の1文字</td></tr>
+<tr><td>BETWEEN</td><td>WHERE age BETWEEN 20 AND 30</td><td>20以上30以下（両端を含む）</td></tr>
+<tr><td>IN</td><td>WHERE status IN ('a', 'b')</td><td>リストの値のどれかに一致する</td></tr>
+<tr><td>NOT IN</td><td>WHERE status NOT IN ('c')</td><td>リストの値のどれにも一致しない</td></tr>
+</table></div>
+<div class="callout warn"><strong>NOT IN と NULL の罠：</strong> リストの中に NULL が含まれると NOT IN は常に偽を返します。<code>NOT IN (1, 2, NULL)</code> は動作しません。</div>`,
+  question: `<p>users テーブルから、次の条件に当てはまるユーザーを取得してください。</p>
+<p>① 名前に「田」が含まれる、② 年齢が 25 歳以上 40 歳以下、③ ステータスが <code>'active'</code> または <code>'pending'</code>、の3つ<em>すべて</em>を満たすユーザーを <code>user_id</code> の昇順で出力してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th><th>age</th><th>status</th></tr>
+        <tr><td>1</td><td>田中</td><td>28</td><td>active</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>32</td><td>active</td></tr>
+        <tr><td>3</td><td>山田</td><td>36</td><td>pending</td></tr>
+        <tr><td>4</td><td>田村</td><td>22</td><td>active</td></tr>
+        <tr><td>5</td><td>中田</td><td>30</td><td>inactive</td></tr>
+        <tr><td>6</td><td>田沢</td><td>29</td><td>pending</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>age</th><th>status</th></tr>
+<tr><td>1</td><td>田中</td><td>28</td><td>active</td></tr>
+<tr><td>3</td><td>山田</td><td>36</td><td>pending</td></tr>
+<tr><td>6</td><td>田沢</td><td>29</td><td>pending</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  user_id,
+  name,
+  age,
+  status
+<span class="kw">FROM</span>  <span class="tbl">users</span>
+<span class="kw">WHERE</span>
+  <span class="cmt">-- ① LIKE: 名前に「田」という文字を含む行を抽出</span>
+  <span class="cmt">-- % は「0文字以上の任意の文字列」を意味するワイルドカード</span>
+  name <span class="kw">LIKE</span> <span class="str">'%田%'</span>
+
+  <span class="cmt">-- ② BETWEEN: 年齢が25以上40以下の範囲（両端の値を含む）</span>
+  <span class="cmt">-- BETWEEN A AND B は A &lt;= age AND age &lt;= B と同じ意味</span>
+  <span class="kw">AND</span> age <span class="kw">BETWEEN</span> <span class="num">25</span> <span class="kw">AND</span> <span class="num">40</span>
+
+  <span class="cmt">-- ③ IN: status が 'active' または 'pending' のどちらかである行</span>
+  <span class="cmt">-- IN (...) は OR で複数の = 条件を書くより簡潔で読みやすい</span>
+  <span class="kw">AND</span> status <span class="kw">IN</span> (<span class="str">'active'</span>, <span class="str">'pending'</span>)
+
+<span class="kw">ORDER BY</span> user_id <span class="kw">ASC</span>;  <span class="cmt">-- user_id の昇順（小さい順）で並べる</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. FROM users              → 全6行を準備
+  2. WHERE LIKE '%田%'       → 「田」を含まない 佐藤(2) を除外 → 5行残る
+  3.   AND BETWEEN 25 AND 40 → 22歳の田村(4) を除外 → 4行残る
+  4.   AND IN (...)          → inactive の中田(5) を除外 → 3行残る
+  5. ORDER BY user_id ASC    → user_id の昇順で並べる（1, 3, 6）
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>各条件の適用イメージ</strong> — AND で3条件すべてを通過した行が残る</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>name</th><th>age</th><th>status</th><th class="tc-hi">LIKE %田%</th><th class="tc-g">BETWEEN 25-40</th><th class="tc-p">IN (active,pending)</th><th>結果</th></tr>
+<tr class="tr-hi"><td>田中</td><td>28</td><td>active</td><td class="tc-hi">✓</td><td class="tc-g">✓</td><td class="tc-p">✓</td><td class="tc-g">残る</td></tr>
+<tr class="tr-dim"><td>佐藤</td><td>32</td><td>active</td><td class="tc-r">✗（「田」なし）</td><td class="tc-g">✓</td><td class="tc-p">✓</td><td class="tc-r">除外</td></tr>
+<tr class="tr-hi"><td>山田</td><td>36</td><td>pending</td><td class="tc-hi">✓</td><td class="tc-g">✓</td><td class="tc-p">✓</td><td class="tc-g">残る</td></tr>
+<tr class="tr-dim"><td>田村</td><td>22</td><td>active</td><td class="tc-hi">✓</td><td class="tc-r">✗（22歳 &lt; 25）</td><td class="tc-p">✓</td><td class="tc-r">除外</td></tr>
+<tr class="tr-dim"><td>中田</td><td>30</td><td>inactive</td><td class="tc-hi">✓</td><td class="tc-g">✓</td><td class="tc-r">✗（inactive）</td><td class="tc-r">除外</td></tr>
+<tr class="tr-hi"><td>田沢</td><td>29</td><td>pending</td><td class="tc-hi">✓</td><td class="tc-g">✓</td><td class="tc-p">✓</td><td class="tc-g">残る</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">3条件すべて ✓ の行だけが最終結果として返される</span></div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>IN は OR の省略形：</strong><code>status IN ('active', 'pending')</code> は <code>status = 'active' OR status = 'pending'</code> と全く同じ意味です。値が3つ以上の場合、IN の方が格段に読みやすくなります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>LIKE のワイルドカード：</strong><code>%</code> は0文字以上の任意文字列、<code>_</code>（アンダースコア）は任意の1文字です。「田中」にマッチさせたい場合: <code>'田_'</code>（2文字）、「田」で始まる場合: <code>'田%'</code>、「田」を含む場合: <code>'%田%'</code>。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>前方一致でない LIKE でのインデックス無効化：</strong><code>LIKE '%田%'</code> や <code>LIKE '%田'</code>（前方に%）は、インデックスが使えずテーブル全件スキャンになります。大量データでは非常に遅くなります。前方一致 <code>'田%'</code> であればインデックスが有効です。全文検索が必要なら専用の全文検索エンジンを検討しましょう。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">「管理画面の絞り込み検索API（<code>GET /users?name=田&age_min=25&status=active,pending</code>）」の実装で、受け取ったクエリパラメータをそれぞれ LIKE・BETWEEN・IN に変換してSQLに組み込むパターンは非常に頻出です。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════════
+   Q9  DISTINCT + COUNT DISTINCT — 重複を排除して集計する
+══════════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "DISTINCT + COUNT DISTINCT — 重複を排除してユニーク数を集計する",
+  tags: [["r","DISTINCT"],["o","COUNT DISTINCT"],["g","重複除去"],["p","ユニークユーザー集計"]],
+  premise: `<p><strong>DISTINCT</strong> は重複した値を排除して一意な値だけを返します。単独で使う場合と、<code>COUNT(DISTINCT 列名)</code> のように集計関数の中で使う場合があります。</p>
+<pre><span class="kw">SELECT DISTINCT</span> category <span class="kw">FROM</span> <span class="tbl">products</span>
+<span class="cmt">-- カテゴリの重複を排除して一意な値一覧を返す</span>
+
+<span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> user_id)
+<span class="cmt">-- 重複を除いたユニークユーザー数を数える（同じユーザーを1回だけカウント）</span></pre>
+<div class="callout"><strong>COUNT(*) と COUNT(DISTINCT 列名) の違い：</strong><br>
+<code>COUNT(*)</code> = 全行数（重複あり）<br>
+<code>COUNT(DISTINCT col)</code> = 一意な値の種類数（重複なし）</div>`,
+  question: `<p>orders テーブルを使い、<em>月ごとの注文件数・購入した（ユニーク）ユーザー数・総売上</em>を集計してください。</p>
+<p>同じユーザーが1ヶ月に複数注文しても、ユーザー数は1としてカウントします。月の昇順で出力してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>ordered_at</th><th>amount</th></tr>
+        <tr><td>1</td><td>1</td><td>2024-01-05</td><td>12,000</td></tr>
+        <tr><td>2</td><td>1</td><td>2024-01-12</td><td>8,000</td></tr>
+        <tr><td>3</td><td>2</td><td>2024-01-18</td><td>22,000</td></tr>
+        <tr><td>4</td><td>3</td><td>2024-02-03</td><td>15,000</td></tr>
+        <tr><td>5</td><td>1</td><td>2024-02-10</td><td>9,000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month</th><th>order_count</th><th>unique_user_count</th><th>total_sales</th></tr>
+<tr><td>2024-01</td><td>3</td><td>2</td><td>42,000</td></tr>
+<tr><td>2024-02</td><td>2</td><td>2</td><td>24,000</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  <span class="cmt">-- TO_CHAR: 日付型を指定したフォーマットの文字列に変換する</span>
+  <span class="cmt">-- 'YYYY-MM' → 2024-01 のように年-月 形式になる</span>
+  <span class="fn">TO_CHAR</span>(ordered_at, <span class="str">'YYYY-MM'</span>) <span class="kw">AS</span> month,
+
+  <span class="cmt">-- COUNT(*): 全注文件数（重複を含む全行数）</span>
+  <span class="fn">COUNT</span>(*) <span class="kw">AS</span> order_count,
+
+  <span class="cmt">-- COUNT(DISTINCT user_id): 同じ user_id を1回だけカウント = ユニークユーザー数</span>
+  <span class="cmt">-- 例: user_id=1 が2回注文しても、カウントは1</span>
+  <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> user_id) <span class="kw">AS</span> unique_user_count,
+
+  <span class="cmt">-- SUM: 全注文の amount を合計 → 月間総売上</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_sales
+
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="cmt">-- GROUP BY: TO_CHAR で変換した「年月」の値が同じ行をグループ化する</span>
+<span class="kw">GROUP BY</span> <span class="fn">TO_CHAR</span>(ordered_at, <span class="str">'YYYY-MM'</span>)
+<span class="kw">ORDER BY</span> month <span class="kw">ASC</span>;  <span class="cmt">-- 月の昇順（古い月から順）で並べる</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. FROM orders             → 全注文を準備
+  2. GROUP BY TO_CHAR(...)   → ordered_at を年月に変換し、同じ年月の行をまとめる
+  3. COUNT(*)                → グループ内の全件数（= 注文回数）を計算
+  4. COUNT(DISTINCT user_id) → グループ内のユニークユーザー数を計算（重複user_idは1回のみ）
+  5. SUM(amount)             → グループ内の合計売上を計算
+  6. ORDER BY month          → 月の昇順で出力
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>2024-01 グループの中身</strong> — user_id=1 が2回注文している</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th class="tc-hi">user_id</th><th>ordered_at</th><th>amount</th></tr>
+<tr class="tr-hi"><td>1</td><td class="tc-hi">1</td><td>2024-01-05</td><td>12,000</td></tr>
+<tr class="tr-hi"><td>2</td><td class="tc-hi">1（重複）</td><td>2024-01-12</td><td>8,000</td></tr>
+<tr class="tr-hi2"><td>3</td><td class="tc-g">2</td><td>2024-01-18</td><td>22,000</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">COUNT(*) vs COUNT(DISTINCT user_id) の違い</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>カウントの比較</strong> — 重複を含むか含まないか</span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>集計方法</th><th class="tc-hi">2024-01の結果</th><th>説明</th></tr>
+<tr class="tr-hi"><td>COUNT(*)</td><td class="tc-hi">3</td><td>全行数（user_id=1 が2回でも2行）</td></tr>
+<tr class="tr-hi2"><td>COUNT(DISTINCT user_id)</td><td class="tc-g">2</td><td>ユニーク数（user_id=1, 2 の2人）</td></tr>
+<tr class="tr-hi3"><td>SUM(amount)</td><td class="tc-p">42,000</td><td>12,000 + 8,000 + 22,000</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>DISTINCT の使いどころ：</strong>「何種類あるか」「何人が使ったか」のようにユニーク数が知りたいとき、<code>COUNT(DISTINCT 列名)</code> を使います。注文回数ではなく<em>購入者数</em>を知りたい場合が代表例です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>SELECT DISTINCT の用途：</strong><code>SELECT DISTINCT category FROM products</code> のように使うと、テーブルに存在するカテゴリの一覧（重複なし）が得られます。フロントエンドのドロップダウンの選択肢を取得する API でよく使います。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SELECT DISTINCT の乱用：</strong><code>SELECT DISTINCT *</code> はテーブル全体の重複除去に使われますが、大量データでは極めて低速です。また、「重複が発生している根本原因」を解消せず DISTINCT でごまかすのはアンチパターンです。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">GoogleアナリティクスやMixpanelなどの分析ツールが表示する「ユニークユーザー数」「UU（Unique Users）」は、まさに COUNT(DISTINCT user_id) の考え方です。ページビュー（全訪問数）とユニークユーザー数（何人来たか）を区別することはBI分析の基本中の基本です。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════════
+   Q10  CASE WHEN — 条件分岐でラベルや区分を付与する
+══════════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "CASE WHEN — 条件分岐でラベルや区分を動的に付与する",
+  tags: [["r","CASE WHEN"],["o","条件分岐"],["g","ラベル付与"],["p","レスポンス整形API"]],
+  premise: `<p><strong>CASE WHEN</strong> はSQL版のif-else文です。条件に応じて異なる値を返します。APIレスポンスにラベルや区分を付与するために毎日使います。</p>
+<pre><span class="cmt">-- 書き方① 値比較型（シンプルな等値チェック）</span>
+<span class="kw">CASE</span> status
+  <span class="kw">WHEN</span> <span class="str">'completed'</span> <span class="kw">THEN</span> <span class="str">'完了'</span>
+  <span class="kw">WHEN</span> <span class="str">'pending'</span>   <span class="kw">THEN</span> <span class="str">'保留中'</span>
+  <span class="kw">ELSE</span>                   <span class="str">'その他'</span>  <span class="cmt">-- どれにも合わない場合</span>
+<span class="kw">END</span>
+
+<span class="cmt">-- 書き方② 条件式型（範囲・複合条件に使える）</span>
+<span class="kw">CASE</span>
+  <span class="kw">WHEN</span> amount <span class="op">&gt;=</span> <span class="num">50000</span> <span class="kw">THEN</span> <span class="str">'大口'</span>
+  <span class="kw">WHEN</span> amount <span class="op">&gt;=</span> <span class="num">10000</span> <span class="kw">THEN</span> <span class="str">'中口'</span>
+  <span class="kw">ELSE</span>                       <span class="str">'小口'</span>
+<span class="kw">END</span></pre>
+<div class="callout"><strong>ELSE の省略：</strong> ELSE を書かないと、どの条件にも一致しない場合は <code>NULL</code> が返ります。意図しない NULL を防ぐため、常に ELSE を書く習慣をつけましょう。</div>`,
+  question: `<p>orders テーブルから全注文を取得し、<em>金額帯のラベル（<code>amount_label</code>）</em>と<em>ステータスの日本語表示（<code>status_jp</code>）</em>を CASE WHEN で付与してください。</p>
+<p>金額帯：50,000円以上 → <code>'大口'</code>、10,000円以上 → <code>'中口'</code>、それ以外 → <code>'小口'</code></p>
+<p>ステータス：<code>completed</code>→<code>'完了'</code>、<code>pending</code>→<code>'処理中'</code>、<code>cancelled</code>→<code>'キャンセル'</code>、それ以外→<code>'不明'</code></p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>status</th></tr>
+        <tr><td>1</td><td>1</td><td>68,000</td><td>completed</td></tr>
+        <tr><td>2</td><td>2</td><td>12,000</td><td>pending</td></tr>
+        <tr><td>3</td><td>3</td><td>4,500</td><td>cancelled</td></tr>
+        <tr><td>4</td><td>4</td><td>29,000</td><td>completed</td></tr>
+        <tr><td>5</td><td>5</td><td>51,000</td><td>pending</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>amount</th><th>amount_label</th><th>status</th><th>status_jp</th></tr>
+<tr><td>1</td><td>68,000</td><td>大口</td><td>completed</td><td>完了</td></tr>
+<tr><td>2</td><td>12,000</td><td>中口</td><td>pending</td><td>処理中</td></tr>
+<tr><td>3</td><td>4,500</td><td>小口</td><td>cancelled</td><td>キャンセル</td></tr>
+<tr><td>4</td><td>29,000</td><td>中口</td><td>completed</td><td>完了</td></tr>
+<tr><td>5</td><td>51,000</td><td>大口</td><td>pending</td><td>処理中</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  order_id,
+  user_id,
+  amount,
+
+  <span class="cmt">-- CASE 書き方②: 条件式型（>= などの範囲チェックができる）</span>
+  <span class="cmt">-- WHEN は上から順に評価され、最初にマッチした THEN の値が返る</span>
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> amount <span class="op">&gt;=</span> <span class="num">50000</span> <span class="kw">THEN</span> <span class="str">'大口'</span>   <span class="cmt">-- 50,000以上の場合（最初に評価）</span>
+    <span class="kw">WHEN</span> amount <span class="op">&gt;=</span> <span class="num">10000</span> <span class="kw">THEN</span> <span class="str">'中口'</span>   <span class="cmt">-- 10,000以上（かつ50,000未満）の場合</span>
+    <span class="kw">ELSE</span>               <span class="str">'小口'</span>         <span class="cmt">-- どの条件にも合わない場合（10,000未満）</span>
+  <span class="kw">END</span> <span class="kw">AS</span> amount_label,               <span class="cmt">-- END で CASE 終了。AS でこの列に名前をつける</span>
+
+  status,
+
+  <span class="cmt">-- CASE 書き方①: 値比較型（等値チェックのみ）</span>
+  <span class="cmt">-- CASE 直後の列の値を各 WHEN の値と比較する</span>
+  <span class="kw">CASE</span> status
+    <span class="kw">WHEN</span> <span class="str">'completed'</span> <span class="kw">THEN</span> <span class="str">'完了'</span>        <span class="cmt">-- status が 'completed' なら '完了' を返す</span>
+    <span class="kw">WHEN</span> <span class="str">'pending'</span>   <span class="kw">THEN</span> <span class="str">'処理中'</span>      <span class="cmt">-- status が 'pending' なら '処理中' を返す</span>
+    <span class="kw">WHEN</span> <span class="str">'cancelled'</span> <span class="kw">THEN</span> <span class="str">'キャンセル'</span>  <span class="cmt">-- status が 'cancelled' なら 'キャンセル' を返す</span>
+    <span class="kw">ELSE</span>             <span class="str">'不明'</span>             <span class="cmt">-- どれにも一致しない場合（NULL や未知の値）</span>
+  <span class="kw">END</span> <span class="kw">AS</span> status_jp
+
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="kw">ORDER BY</span> order_id;  <span class="cmt">-- order_id 昇順で出力</span>
+
+<span class="cmt">/*
+  実行順序 (超基礎):
+  1. FROM orders             → 全注文（5行）を準備
+  2. SELECT CASE WHEN (条件式型) → 各行の amount を条件に照らしてラベルを決定
+  3. SELECT CASE (値比較型)  → 各行の status を WHEN の値と比較してラベルを決定
+  4. ORDER BY order_id       → order_id の昇順で並べる
+  ※ CASE は行ごとに実行される（GROUP BY なし）のでグループ集計は不要
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CASE WHEN（条件式型）— amount_label の決定</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>amount</th><th>WHEN &gt;=50000</th><th>WHEN &gt;=10000</th><th class="tc-hi">amount_label</th></tr>
+<tr class="tr-hi"><td>1</td><td>68,000</td><td class="tc-g">✓ マッチ！</td><td>（評価不要）</td><td class="tc-hi">大口</td></tr>
+<tr class="tr-hi2"><td>2</td><td>12,000</td><td class="tc-r">✗</td><td class="tc-g">✓ マッチ！</td><td class="tc-g">中口</td></tr>
+<tr class="tr-hi3"><td>3</td><td>4,500</td><td class="tc-r">✗</td><td class="tc-r">✗</td><td class="tc-p">小口（ELSE）</td></tr>
+<tr class="tr-hi2"><td>4</td><td>29,000</td><td class="tc-r">✗</td><td class="tc-g">✓ マッチ！</td><td class="tc-g">中口</td></tr>
+<tr class="tr-hi"><td>5</td><td>51,000</td><td class="tc-g">✓ マッチ！</td><td>（評価不要）</td><td class="tc-hi">大口</td></tr>
+</table></div>
+</div>
+<div class="arrow">↓ <span class="arrow-text">CASE WHEN（値比較型）— status_jp の決定</span></div>
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>CASE status（値比較型）— status → 日本語ラベル</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>status の値</th><th>WHEN 'completed'</th><th>WHEN 'pending'</th><th>WHEN 'cancelled'</th><th class="tc-hi">status_jp</th></tr>
+<tr class="tr-hi2"><td>completed</td><td class="tc-g">✓</td><td></td><td></td><td class="tc-g">完了</td></tr>
+<tr class="tr-hi"><td>pending</td><td class="tc-r">✗</td><td class="tc-g">✓</td><td></td><td class="tc-hi">処理中</td></tr>
+<tr class="tr-hi3"><td>cancelled</td><td class="tc-r">✗</td><td class="tc-r">✗</td><td class="tc-g">✓</td><td class="tc-p">キャンセル</td></tr>
+</table></div>
+</div>
+</div>
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>WHEN は上から順に評価される：</strong>条件式型では最初にマッチした WHEN で処理が止まります。だから金額帯を <code>&gt;= 50000</code> → <code>&gt;= 10000</code> の順に書く必要があります。逆順にすると、68,000円が「中口」にマッチして止まってしまいます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CASE WHEN の応用：</strong>Q2〜Q7で学んだ GROUP BY + 集計関数と組み合わせると「条件別の集計」になります。<code>SUM(CASE WHEN status='completed' THEN amount ELSE 0 END)</code> のように使うと、ステータス別の合計金額を1行で計算できます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE を省略して意図しない NULL が返る：</strong>ELSE を書かないと、どの WHEN にもマッチしない行は <code>NULL</code> が返ります。APIレスポンスで突然 <code>null</code> が返ってフロントエンドがクラッシュする原因になります。<em>必ず ELSE にデフォルト値を設定する</em>習慣をつけましょう。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
+<div class="column-body">DBに英語のステータスコードを保存し、APIレスポンスや画面表示時に CASE WHEN で日本語/多言語ラベルに変換するパターンは非常に一般的です。DBの値を変えずにラベルだけ変更できるため、国際化（i18n）対応でも重宝します。</div>
+</div>`
+}
+
+]; // QS end
+
+/* ─── UI BUILDER ─── */
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = { r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p' };
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識', q.premise)}
+      ${acc('❓','pill-green','問題','問題', q.question)}
+      ${acc('📊','pill-orange','出力','期待出力', q.output)}
+      ${acc('✅','pill-red','回答','模範解答コード', q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）', q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+buildAll();
+</script>
+</body>
+</html>
