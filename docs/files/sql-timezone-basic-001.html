@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQLタイムゾーン基礎10選 — TIMESTAMP・AT TIME ZONE・UTC設計パターン</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── Design tokens ──────────────────────────────── */
+  :root {
+    --bg:     #0a0e13;
+    --bg2:    #131920;
+    --bg3:    #1c2330;
+    --bg4:    #263040;
+    --border: #2a3545;
+    --text:   #cdd9e5;
+    --dim:    #768390;
+    --accent: #4dabf7;   /* blue  — primary highlight   */
+    --green:  #3fb950;
+    --orange: #f0883e;
+    --red:    #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw:     #ff7b72;   /* SQL keyword                 */
+    --fn:     #79c0ff;   /* function / type             */
+    --str:    #a5d6ff;   /* string literal              */
+    --num:    #f0c674;   /* numeric literal             */
+    --cmt:    #6a737d;   /* comment                     */
+    --tbl:    #ffa657;   /* table / column name         */
+    --op:     #f0883e;   /* operator                    */
+  }
+
+  /* ── Reset & base ───────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  /* ── Site header ────────────────────────────────── */
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex  { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags  { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim);
+  }
+
+  /* ── Sticky tabs ────────────────────────────────── */
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none;
+    border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width .2s; }
+
+  /* ── Main layout ────────────────────────────────── */
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Question header ────────────────────────────── */
+  .q-header  { margin-bottom: 18px; }
+  .q-number  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title   { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags    { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag     { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent);  border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green);   border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange);  border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple);  border: 1px solid #3a2060; }
+
+  /* ── Accordion ──────────────────────────────────── */
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon    { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title   { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill    { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body  { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  /* ── Typography helpers ─────────────────────────── */
+  p       { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong  { color: var(--accent); font-weight: 600; }
+  em      { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code    { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  /* ── Code block ─────────────────────────────────── */
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  /* syntax tokens */
+  .kw  { color: var(--kw);    font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--op); }
+  .tz  { color: var(--purple); }  /* timezone string */
+
+  /* ── Callouts ───────────────────────────────────── */
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  /* ── Data section / tables ──────────────────────── */
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables     { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap   { flex: 1; min-width: 220px; }
+  .data-tbl-name   { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  /* ── Visualization tables ───────────────────────── */
+  .viz-flow { margin: 6px 0 14px; }
+  .step-block { margin-bottom: 8px; }
+  .step-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; }
+  .step-num   { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .sn1 { background: #1a2744; color: var(--accent); }
+  .sn2 { background: #1a2e1a; color: var(--green);  }
+  .sn3 { background: #2e1a2e; color: var(--purple); }
+  .sn4 { background: #2e1a0a; color: var(--orange); }
+  .step-desc        { color: var(--dim); }
+  .step-desc strong { color: var(--text); }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border); border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+  /* row highlight variants */
+  .tr-hi  td { background: #0e1e33 !important; }
+  .tr-hi2 td { background: #0e1e0e !important; }
+  .tr-hi3 td { background: #1e1433 !important; }
+  .tr-hi4 td { background: #1e1a0a !important; }
+  .tr-dim td { opacity: .4; }
+  /* cell color helpers */
+  .tc-hi { color: var(--accent) !important; font-weight: 700; }
+  .tc-g  { color: var(--green)  !important; font-weight: 700; }
+  .tc-p  { color: var(--purple) !important; font-weight: 700; }
+  .tc-y  { color: var(--yellow) !important; font-weight: 700; }
+  .tc-o  { color: var(--orange) !important; font-weight: 700; }
+  .tc-r  { color: var(--red)    !important; font-weight: 700; }
+  .null  { color: var(--dim)    !important; font-style: italic; }
+
+  .arrow      { text-align: center; padding: 4px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+  .arrow-text { color: var(--dim); font-size: 11px; }
+
+  /* ── Insight box ────────────────────────────────── */
+  .insight-box { background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px; padding: 14px 16px; margin-top: 14px; }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row   { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon  { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em     { color: var(--yellow); }
+  .insight-body code   { font-size: 11px; }
+
+  /* ── Anti-pattern box ───────────────────────────── */
+  .anti-box { background: #160a0a; border: 1px solid #3a1515; border-radius: 8px; padding: 14px 16px; margin-top: 10px; }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row  { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code   { font-size: 11px; }
+
+  /* ── Column box ─────────────────────────────────── */
+  .column-box {
+    background: #0d1520; border: 1px solid #1c3550; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px; border-left: 3px solid var(--fn);
+  }
+  .column-title { font-size: 11px; font-weight: 700; color: var(--fn); letter-spacing: .5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .column-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--fn); }
+
+  /* ── Nav bar ────────────────────────────────────── */
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: .3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  /* ── Responsive ─────────────────────────────────── */
+  @media (max-width: 520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">TZ<br><span style="font-size:10px;opacity:.6">SQL</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">タイムゾーンで学ぶ SQL 基礎10選（TIMESTAMP / TIMESTAMPTZ / AT TIME ZONE / UTC設計 / DST / DATE_TRUNC / 多地域対応編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★ 基礎〜実務</span>
+      <span class="htag">タイムゾーン</span>
+      <span class="htag">UTC設計</span>
+      <span class="htag">PostgreSQL対応</span>
+      <span class="htag">モダンWeb必須</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  TIMESTAMP vs TIMESTAMPTZ — 型の基本的な違い
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "TIMESTAMP vs TIMESTAMPTZ — タイムゾーン情報を持つかどうかの根本的な違い",
+  tags: [["r","TIMESTAMP"],["r","TIMESTAMPTZ"],["o","型の違い"],["g","基礎"]],
+  premise: `<p>PostgreSQL には日時を扱う型が2種類あります。<strong>TIMESTAMP</strong>（タイムゾーンなし）と <strong>TIMESTAMPTZ</strong>（タイムゾーンあり）です。モダンWebアプリの設計では <em>TIMESTAMPTZ を使うことが強く推奨</em>されます。</p>
+<pre><span class="cmt">-- タイムゾーンなし（壁時計の時刻をそのまま保存）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">events_bad</span> (
+    id          <span class="fn">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    title       <span class="fn">TEXT</span>,
+    happened_at <span class="fn">TIMESTAMP</span>        <span class="cmt">-- どのタイムゾーンの時刻か不明になる</span>
+);
+
+<span class="cmt">-- タイムゾーンあり（UTC基準で内部保存・表示時に変換）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">events_good</span> (
+    id          <span class="fn">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+    title       <span class="fn">TEXT</span>,
+    happened_at <span class="fn">TIMESTAMPTZ</span>     <span class="cmt">-- 内部はUTC。参照時にセッションTZで表示</span>
+);</pre>
+<div class="callout warn"><strong>TIMESTAMPTZの誤解：</strong>「TIMESTAMPTZはタイムゾーン文字列を保存する」は<em>誤り</em>です。内部は常にUTCで保存され、表示時にセッションのタイムゾーン設定に従ってオフセットを付けて表示します。保存サイズはどちらも8バイトで同じです。</div>
+<p>TIMESTAMP は「タイムゾーンのコンテキストなしに時刻の数値だけを保存する」ため、サーバーのタイムゾーン設定が変わると同じ数値が別の瞬間を指すことになります。</p>`,
+  question: `<p>以下のような <code>events</code> テーブルに、<em>東京時刻（JST / UTC+9）で 2024-06-01 10:00:00</em> のイベントを INSERT します。TIMESTAMP と TIMESTAMPTZ の両方のカラムに同じリテラルを INSERT したとき、<em>セッションのタイムゾーンを UTC に切り替えると表示がどう変わるか</em>を示してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ events（比較用）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>id</th><th>title</th><th>ts_no_tz (TIMESTAMP)</th><th>ts_with_tz (TIMESTAMPTZ)</th></tr>
+        <tr><td>1</td><td>リリース</td><td class="null">（INSERT後に確認）</td><td class="null">（INSERT後に確認）</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- セッションをJSTに設定してINSERT</span>
+<span class="kw">SET</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'Asia/Tokyo'</span>;
+<span class="kw">INSERT INTO</span> <span class="tbl">events</span> (title, ts_no_tz, ts_with_tz)
+<span class="kw">VALUES</span> (<span class="str">'リリース'</span>, <span class="str">'2024-06-01 10:00:00'</span>, <span class="str">'2024-06-01 10:00:00'</span>);</pre>`,
+  output: `<p>セッションTZをUTCに切り替えたときの SELECT 結果の違い：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>セッションTZ</th><th>ts_no_tz（TIMESTAMP）</th><th>ts_with_tz（TIMESTAMPTZ）</th></tr>
+<tr class="tr-hi2"><td>Asia/Tokyo (JST)</td><td>2024-06-01 10:00:00</td><td class="tc-g">2024-06-01 10:00:00+09</td></tr>
+<tr class="tr-hi"><td>UTC（切替後）</td><td class="tc-r">2024-06-01 10:00:00（変化しない！）</td><td class="tc-g">2024-06-01 01:00:00+00（正しくUTCに変換）</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① セッションをJSTに設定する</span>
+<span class="kw">SET</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'Asia/Tokyo'</span>;     <span class="cmt">-- 【超基礎】このセッション中の表示・解釈をJST(UTC+9)にする</span>
+
+<span class="cmt">-- ② 両方のカラムに同じリテラルをINSERT</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">events</span> (title, ts_no_tz, ts_with_tz)
+<span class="kw">VALUES</span> (
+    <span class="str">'リリース'</span>,
+    <span class="str">'2024-06-01 10:00:00'</span>,      <span class="cmt">-- TIMESTAMP: TZ情報なし → そのまま10:00:00と保存</span>
+    <span class="str">'2024-06-01 10:00:00'</span>       <span class="cmt">-- TIMESTAMPTZ: セッションTZ(JST)と解釈しUTC変換して保存</span>
+                                  <span class="cmt">--              → 内部では 2024-06-01 01:00:00 UTC で保存</span>
+);
+
+<span class="cmt">-- ③ JSTのままSELECT（この時点では両者同じに見える）</span>
+<span class="kw">SELECT</span> ts_no_tz, ts_with_tz <span class="kw">FROM</span> <span class="tbl">events</span>;
+<span class="cmt">-- ts_no_tz:   2024-06-01 10:00:00
+-- ts_with_tz: 2024-06-01 10:00:00+09   ← +09 オフセットが表示される</span>
+
+<span class="cmt">-- ④ セッションをUTCに切り替えて再SELECT（ここで差が出る）</span>
+<span class="kw">SET</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'UTC'</span>;             <span class="cmt">-- 【超基礎】セッションをUTCに変更</span>
+
+<span class="kw">SELECT</span> ts_no_tz, ts_with_tz <span class="kw">FROM</span> <span class="tbl">events</span>;
+<span class="cmt">-- ts_no_tz:   2024-06-01 10:00:00      ← ❌ TZなし: UTC切替後も同じ数値のまま(10時を指すのはJSTだけのはず)
+-- ts_with_tz: 2024-06-01 01:00:00+00  ← ✅ TZあり: UTC+9→UTC変換で9時間引いた正しい値が表示</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. SET timezone            → セッションのTZ設定を変更
+  2. INSERT                  → TIMESTAMP は文字列をそのまま保存 / TIMESTAMPTZ はUTCに正規化して保存
+  3. SET timezone = 'UTC'    → 表示TZをUTCに切り替え
+  4. SELECT                  → TIMESTAMP はTZ変換なし / TIMESTAMPTZ はUTCで表示
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>TIMESTAMP と TIMESTAMPTZ の内部保存の違い</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>型</th><th>INSERT時（JST）</th><th>DBの内部保存値</th><th>UTC表示時</th></tr>
+<tr class="tr-hi"><td>TIMESTAMP</td><td>2024-06-01 10:00:00</td><td class="tc-r">2024-06-01 10:00:00（数値のまま）</td><td class="tc-r">10:00:00（変換なし）</td></tr>
+<tr class="tr-hi2"><td>TIMESTAMPTZ</td><td>2024-06-01 10:00:00 JST</td><td class="tc-g">2024-06-01 01:00:00 UTC（正規化）</td><td class="tc-g">01:00:00+00（正しい）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">TIMESTAMPTZはUTC基準なので「どの国のサーバーで動いても同じ瞬間を指す」</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>実際の事故シナリオ：サーバーをAWS東京→シドニーへ移行したとき</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>移行前（サーバーTZ = Asia/Tokyo）</th><th>移行後（サーバーTZ = Australia/Sydney）</th></tr>
+<tr class="tr-hi"><td class="tc-r">TIMESTAMP: 10:00:00 → 東京の朝10時と解釈</td><td class="tc-r">TIMESTAMP: 10:00:00 → シドニーの朝10時と解釈（別の瞬間になる！）</td></tr>
+<tr class="tr-hi2"><td class="tc-g">TIMESTAMPTZ: 01:00:00 UTC（正確）</td><td class="tc-g">TIMESTAMPTZ: 01:00:00 UTC（移行後も同じ瞬間を指す）</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>TIMESTAMP は「壁時計の数値だけ保存するメモ帳」です。どのタイムゾーンの時刻なのかという情報を持たないため、文脈によって指す瞬間が変わります。TIMESTAMPTZ は「UTCという世界共通の基準で保存する時計」で、常に一意の瞬間を指します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>原則：新規設計では常にTIMESTAMPTZを使う。</strong>TIMESTAMPは「どのTZか明らかな場合のみ使う」例外的な型です。日本専用アプリであってもサーバー移行・クラウド切替・マルチリージョン展開の可能性を考えてTIMESTAMPTZを選んでおく方が安全です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>保存サイズは同じ：</strong>TIMESTAMPとTIMESTAMPTZはどちらも内部で8バイト整数（マイクロ秒精度）を使います。TIMESTAMPTZが「タイムゾーン文字列も一緒に保存するから大きい」は誤解です。表示時にセッション変数からTZを読んで変換しているだけです。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>「日本専用アプリだからTIMESTAMPで十分」：</strong>サーバーのTZ設定がデフォルトUTCのAWSなどのクラウドに移行すると、全てのTIMESTAMP値がUTCとして解釈され9時間ズレます。移行時に全データの修正が必要になるケースが実際に多発しています。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>オフセット固定文字列（+09:00）だけで代替する：</strong><code>'2024-06-01 10:00:00+09'</code> と書けば一応動作しますが、サマータイム（DST）のある地域では固定オフセットでは正確に表現できません。地域名（<code>America/New_York</code>など）を使うのが正解です。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：既存テーブルのTIMESTAMP→TIMESTAMPTZ移行</div>
+<div class="column-body">
+既存の <code>TIMESTAMP</code> カラムを <code>TIMESTAMPTZ</code> に移行するには、まず「そのカラムに入っている値が実際にはどのTZの時刻か」を確認してから <code>ALTER TABLE t ALTER COLUMN col TYPE TIMESTAMPTZ USING col AT TIME ZONE 'Asia/Tokyo';</code> のように <strong>USING句でTZを明示してキャストする</strong>ことが必要です。TZを指定しないままキャストするとサーバーのTZ設定が使われ、誤った変換が起きることがあります。必ずトランザクション内でテストしてから適用してください。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  AT TIME ZONE — タイムゾーン変換の基本
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "AT TIME ZONE — タイムゾーン間の変換を行う演算子",
+  tags: [["r","AT TIME ZONE"],["r","変換"],["o","UTC↔JST"],["g","基礎"]],
+  premise: `<p><strong>AT TIME ZONE</strong> は、タイムゾーン間の変換を行う演算子です。TIMESTAMPTZ → TIMESTAMP への「ローカル時刻への変換」と、TIMESTAMP → TIMESTAMPTZ への「TZを与える」の2方向があります。</p>
+<pre><span class="cmt">-- TIMESTAMPTZ を特定TZのローカル時刻（TIMESTAMP）に変換</span>
+<span class="kw">SELECT</span> now() <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>;      <span class="cmt">-- UTCの現在時刻をJSTで表示</span>
+<span class="kw">SELECT</span> now() <span class="kw">AT TIME ZONE</span> <span class="tz">'America/New_York'</span>; <span class="cmt">-- UTCの現在時刻をNYT（米東部）で表示</span>
+
+<span class="cmt">-- TIMESTAMP（TZなし）にTZを付与してTIMESTAMPTZにする</span>
+<span class="kw">SELECT</span> <span class="str">'2024-06-01 10:00:00'</span>::<span class="fn">TIMESTAMP</span> <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>;</pre>
+<div class="callout"><strong>AT TIME ZONEの動作の向き：</strong><br>
+・<code>TIMESTAMPTZ AT TIME ZONE 'TZ'</code> → <strong>TIMESTAMP を返す</strong>（UTC→ローカル変換。TZ情報を剥がす）<br>
+・<code>TIMESTAMP AT TIME ZONE 'TZ'</code>   → <strong>TIMESTAMPTZ を返す</strong>（「この時刻はこのTZ」と解釈してUTC変換）</div>`,
+  question: `<p><code>sessions</code> テーブルに UTC で保存されたログイン時刻があります。<em>日本（JST / Asia/Tokyo）と ニューヨーク（EST+DST / America/New_York）のローカル時刻に変換</em>して表示するクエリを書いてください。さらに、<em>日本時間の「2024-11-01 09:00:00」をUTCに変換</em>するクエリも書いてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sessions</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>session_id</th><th>user_id</th><th>logged_in_at (TIMESTAMPTZ / UTC)</th></tr>
+        <tr><td>1</td><td>U001</td><td>2024-11-01 00:00:00+00</td></tr>
+        <tr><td>2</td><td>U002</td><td>2024-11-01 12:30:00+00</td></tr>
+        <tr><td>3</td><td>U003</td><td>2024-11-01 20:00:00+00</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>タイムゾーン変換後の表示：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>session_id</th><th>UTC（元データ）</th><th class="tc-g">JST（+9）</th><th class="tc-p">NY（EDT / -4）</th></tr>
+<tr><td>1</td><td>2024-11-01 00:00:00+00</td><td class="tc-g">2024-11-01 09:00:00</td><td class="tc-p">2024-10-31 20:00:00</td></tr>
+<tr><td>2</td><td>2024-11-01 12:30:00+00</td><td class="tc-g">2024-11-01 21:30:00</td><td class="tc-p">2024-11-01 08:30:00</td></tr>
+<tr><td>3</td><td>2024-11-01 20:00:00+00</td><td class="tc-g">2024-11-02 05:00:00</td><td class="tc-p">2024-11-01 15:00:00</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① UTCで保存された時刻をJSTとNYのローカル時刻に変換して表示</span>
+<span class="kw">SELECT</span>
+    session_id,
+    logged_in_at                                                       <span class="cmt">-- 【超基礎】元のUTC時刻</span>
+  , logged_in_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>      <span class="kw">AS</span> jst_time      <span class="cmt">-- TIMESTAMPTZ → TIMESTAMP(JST)</span>
+  , logged_in_at <span class="kw">AT TIME ZONE</span> <span class="tz">'America/New_York'</span> <span class="kw">AS</span> ny_time       <span class="cmt">-- TIMESTAMPTZ → TIMESTAMP(NY)</span>
+<span class="kw">FROM</span> <span class="tbl">sessions</span>;
+
+<span class="cmt">-- ② 日本時間のリテラル「2024-11-01 09:00:00 JST」をUTCに変換する</span>
+<span class="kw">SELECT</span>
+    <span class="str">'2024-11-01 09:00:00'</span>::<span class="fn">TIMESTAMP</span>         <span class="cmt">-- 【超基礎】まず型をTIMESTAMPに明示キャスト</span>
+        <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>            <span class="cmt">-- 「この時刻はJST」と宣言 → TIMESTAMPTZ を返す</span>
+    <span class="kw">AS</span> utc_time;                              <span class="cmt">-- 結果: 2024-11-01 00:00:00+00 (UTC)</span>
+
+<span class="cmt">-- ③ UTCを別TZに変換してさらに別TZに変換（2段変換）</span>
+<span class="kw">SELECT</span>
+    logged_in_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>    <span class="cmt">-- 1回目: UTCTZからTIMESTAMP(JST)に変換</span>
+                 <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>    <span class="cmt">-- 2回目: TIMESTAMP をJSTとして再解釈 → TIMESTAMPTZ</span>
+    <span class="kw">AS</span> back_to_utctz                          <span class="cmt">-- 元のUTCTZに戻る（2段変換で往復）</span>
+<span class="kw">FROM</span> <span class="tbl">sessions</span>;
+
+<span class="cmt">/*
+  実行順序（クエリ①）:
+  1. FROM sessions                     → テーブルを参照
+  2. SELECT logged_in_at               → UTC時刻を取得
+  3. AT TIME ZONE 'Asia/Tokyo'         → UTC→JST変換（TIMESTAMPTZ → TIMESTAMP）
+  4. AT TIME ZONE 'America/New_York'   → UTC→NY変換（DSTを自動考慮）
+  5. 結果セットを返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>AT TIME ZONE の型変換方向（2方向の動作）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>入力の型</th><th>演算子</th><th>出力の型</th><th>動作</th></tr>
+<tr class="tr-hi2"><td>TIMESTAMPTZ</td><td>AT TIME ZONE 'TZ'</td><td class="tc-g">TIMESTAMP</td><td>UTC→ローカル変換（TZ情報を剥がす）</td></tr>
+<tr class="tr-hi3"><td>TIMESTAMP</td><td>AT TIME ZONE 'TZ'</td><td class="tc-p">TIMESTAMPTZ</td><td>「この時刻はTZ」と解釈→UTC変換</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">地域名（Asia/Tokyo）を使うとDSTも自動で考慮される</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>UTC → JST / NY への変換（2024-11-01時点のオフセット）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>UTC（元データ）</th><th>JST（+9:00）</th><th>NY（EDT -4:00 / 夏時間終了直前）</th></tr>
+<tr class="tr-hi2"><td>00:00:00 UTC</td><td class="tc-g">09:00:00</td><td class="tc-p">20:00:00（前日 10/31）</td></tr>
+<tr class="tr-hi2"><td>12:30:00 UTC</td><td class="tc-g">21:30:00</td><td class="tc-p">08:30:00</td></tr>
+<tr class="tr-hi2"><td>20:00:00 UTC</td><td class="tc-g">翌05:00:00</td><td class="tc-p">15:00:00（EST -5:00 に切替後）</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>AT TIME ZONE は「タイムゾーンを切り替えて時刻を表示する」演算子です。UTCで保存されたデータをユーザーの地域時刻で表示する、最も基本的なタイムゾーン変換方法です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>地域名 vs 固定オフセット：</strong><code>AT TIME ZONE 'Asia/Tokyo'</code>（地域名）と <code>AT TIME ZONE '+09'</code>（固定オフセット）は通常同じ結果ですが、<em>夏時間（DST）がある地域では必ず地域名を使う必要があります。</em> <code>America/New_York</code> は季節によって -5 と -4 を自動で切り替えますが、<code>'-05'</code> の固定オフセットではDSTが反映されません。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>2段変換パターン（TIMESTAMP→TIMESTAMPTZ）：</strong><code>ts::TIMESTAMP AT TIME ZONE 'Asia/Tokyo'</code> のように TIMESTAMP に AT TIME ZONE を使うと「この時刻はJSTです」と解釈されTIMESTAMPTZに昇格します。TZなしデータをTZありデータに修正する際に使います。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>TIMESTAMPTZ に AT TIME ZONE を2回かけて「表示TZを変換」しようとする：</strong><code>ts AT TIME ZONE 'Asia/Tokyo' AT TIME ZONE 'America/New_York'</code> は「JSTとして解釈してNYに変換」という動作になります。意図と異なる場合が多く混乱の元です。表示変換のみが目的なら1回で十分です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>オフセット略語（JST・EST・PDTなど）をそのまま使う：</strong><code>AT TIME ZONE 'JST'</code> は PostgreSQL では動作しますが、略語はDB実装によって解釈が異なります。<code>AT TIME ZONE 'Asia/Tokyo'</code> のような IANA タイムゾーン名（tz database 名）を使うことが移植性と正確さの観点から推奨されます。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：APIレスポンスでのタイムゾーン変換</div>
+<div class="column-body">
+「DBはUTCで保存、APIレスポンスはユーザーのTZでISO 8601形式で返す」設計が実務のベストプラクティスです。PostgreSQLでは <code>logged_in_at AT TIME ZONE 'Asia/Tokyo'</code> の結果をアプリ側（Node.js / Railsなど）で整形する方法と、<code>to_char(logged_in_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD"T"HH24:MI:SS')</code> でSQL側でフォーマットする方法があります。<strong>ユーザーのTZをAPIリクエストヘッダー（X-Timezone）やJWTクレームから受け取り、動的にAT TIME ZONEへ渡すパターン</strong>が多地域対応の定石です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  SET timezone / SHOW timezone / CURRENT_SETTING
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "SET timezone — セッションタイムゾーンの確認と設定方法",
+  tags: [["r","SET timezone"],["r","SHOW timezone"],["o","セッション設定"],["g","接続管理"]],
+  premise: `<p>PostgreSQL のタイムゾーン設定には<strong>3つのレベル</strong>があります。① サーバー設定（<code>postgresql.conf</code>）、② データベース設定（<code>ALTER DATABASE</code>）、③ セッション設定（<code>SET timezone</code>）。セッション設定が最も優先されます。</p>
+<pre><span class="cmt">-- 現在のセッションTZを確認する</span>
+<span class="kw">SHOW</span> <span class="fn">timezone</span>;                              <span class="cmt">-- 例: 'UTC' や 'Asia/Tokyo'</span>
+
+<span class="cmt">-- セッションのタイムゾーンを変更する（このセッションのみ有効）</span>
+<span class="kw">SET</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'Asia/Tokyo'</span>;              <span class="cmt">-- JSTに変更</span>
+<span class="kw">SET</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'UTC'</span>;                     <span class="cmt">-- UTCに戻す</span>
+
+<span class="cmt">-- current_setting関数で設定値を取得（SQL内で使える）</span>
+<span class="kw">SELECT</span> <span class="fn">current_setting</span>(<span class="str">'timezone'</span>);       <span class="cmt">-- 現在のTZを文字列で返す</span>
+
+<span class="cmt">-- データベースのデフォルトTZを変更する（管理者操作）</span>
+<span class="kw">ALTER DATABASE</span> mydb <span class="kw">SET</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'Asia/Tokyo'</span>;</pre>
+<div class="callout warn"><strong>接続プール使用時の注意：</strong>PgBouncer などの接続プールではセッション設定がリセットされないことがあります。アプリ起動時に <code>SET timezone</code> を実行しても、後続のリクエストが別のコネクションを使う場合に設定が引き継がれません。</div>`,
+  question: `<p>以下のシナリオを実現するSQLを書いてください：<em>① 現在のセッションTZを確認する、② JSTに変更してNOW()を確認する、③ UTC に戻してNOW()を確認する、④ トランザクション内でTZを変更してROLLBACKしたらTZはどうなるか確認する</em>。</p>`,
+  output: `<p>各操作の結果と挙動の確認：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>操作</th><th>SHOW timezone</th><th>NOW() の表示例</th></tr>
+<tr><td>①初期状態</td><td>UTC</td><td>2024-06-01 01:00:00+00</td></tr>
+<tr class="tr-hi2"><td>②SET Asia/Tokyo後</td><td class="tc-g">Asia/Tokyo</td><td class="tc-g">2024-06-01 10:00:00+09</td></tr>
+<tr><td>③SET UTC後</td><td>UTC</td><td>2024-06-01 01:00:00+00</td></tr>
+<tr class="tr-hi4"><td>④ROLLBACK後</td><td class="tc-y">UTC（ROLLBACKでも戻る）</td><td>2024-06-01 01:00:00+00</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 現在のセッションTZを確認する（2つの方法）</span>
+<span class="kw">SHOW</span> <span class="fn">timezone</span>;                              <span class="cmt">-- 【超基礎】タイムゾーン設定を表示</span>
+<span class="kw">SELECT</span> <span class="fn">current_setting</span>(<span class="str">'timezone'</span>);       <span class="cmt">-- SQL式として使える（SELECT句内でも呼べる）</span>
+
+<span class="cmt">-- ② セッションTZをJSTに変更してNOW()を確認</span>
+<span class="kw">SET</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'Asia/Tokyo'</span>;              <span class="cmt">-- 【超基礎】このセッション中のTZをJSTに変更</span>
+<span class="kw">SHOW</span> <span class="fn">timezone</span>;                              <span class="cmt">-- → Asia/Tokyo と表示される</span>
+<span class="kw">SELECT</span> <span class="fn">NOW</span>();                               <span class="cmt">-- → 2024-06-01 10:00:00.000000+09（JSTで表示）</span>
+<span class="cmt">-- NOW()が返す値自体は変わらない。表示されるオフセットがセッションTZで変わる</span>
+
+<span class="cmt">-- ③ セッションTZをUTCに戻してNOW()を確認</span>
+<span class="kw">SET</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'UTC'</span>;                     <span class="cmt">-- 【超基礎】UTCに戻す</span>
+<span class="kw">SELECT</span> <span class="fn">NOW</span>();                               <span class="cmt">-- → 2024-06-01 01:00:00.000000+00（UTCで表示）</span>
+<span class="cmt">-- 内部の値は同じ。表示形式だけが変わる</span>
+
+<span class="cmt">-- ④ トランザクション内でSETして、ROLLBACKしたらTZはどうなるか</span>
+<span class="kw">BEGIN</span>;                                      <span class="cmt">-- 【超基礎】トランザクション開始</span>
+<span class="kw">SET</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'America/Los_Angeles'</span>;    <span class="cmt">-- トランザクション内でTZを変更</span>
+<span class="kw">SHOW</span> <span class="fn">timezone</span>;                              <span class="cmt">-- → America/Los_Angeles（変更されている）</span>
+<span class="kw">SELECT</span> <span class="fn">NOW</span>();                               <span class="cmt">-- → PDT/PSTで表示</span>
+<span class="kw">ROLLBACK</span>;                                   <span class="cmt">-- 【超基礎】ロールバック</span>
+<span class="kw">SHOW</span> <span class="fn">timezone</span>;                              <span class="cmt">-- → UTC に戻る（SETもROLLBACK対象）</span>
+
+<span class="cmt">-- ⑤ SET LOCAL: トランザクション内のみ有効（COMMITでも元に戻る）</span>
+<span class="kw">BEGIN</span>;
+<span class="kw">SET LOCAL</span> <span class="fn">timezone</span> <span class="op">=</span> <span class="tz">'Asia/Tokyo'</span>;         <span class="cmt">-- SET LOCAL: このトランザクション内のみ</span>
+<span class="kw">SELECT</span> <span class="fn">NOW</span>();                               <span class="cmt">-- JSTで表示</span>
+<span class="kw">COMMIT</span>;                                     <span class="cmt">-- コミット後はUTCに戻る（SET LOCALはトランザクション限定）</span>
+<span class="kw">SHOW</span> <span class="fn">timezone</span>;                              <span class="cmt">-- → UTC（SET LOCALはCOMMIT後に消える）</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. SHOW timezone                    → 現在のTZ設定を返す
+  2. SET timezone = '...'             → セッション変数を更新
+  3. SELECT NOW()                     → 内部UTC値をセッションTZで変換して表示
+  4. ROLLBACK                         → SETもロールバックされTZが元に戻る
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>タイムゾーン設定の3つのレベル（優先度: 高→低）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>レベル</th><th>設定コマンド</th><th>有効範囲</th><th>優先度</th></tr>
+<tr class="tr-hi"><td>セッション設定</td><td class="tc-g">SET timezone = '...'</td><td>現在の接続のみ</td><td class="tc-g">最高</td></tr>
+<tr class="tr-hi2"><td>DB設定</td><td>ALTER DATABASE db SET timezone</td><td>そのDBへの接続全体</td><td>中</td></tr>
+<tr class="tr-dim"><td>サーバー設定</td><td>postgresql.conf の timezone</td><td>全DB全接続</td><td>最低</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">SET と SET LOCAL の違いも重要</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>SET vs SET LOCAL の有効範囲比較</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>コマンド</th><th>有効期間</th><th>ROLLBACK後</th><th>COMMIT後</th></tr>
+<tr class="tr-hi2"><td>SET timezone</td><td>セッション全体</td><td class="tc-y">TZ前の値に戻る</td><td class="tc-g">維持される</td></tr>
+<tr class="tr-hi3"><td>SET LOCAL timezone</td><td>現在のトランザクションのみ</td><td class="tc-y">元に戻る</td><td class="tc-y">元に戻る</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>SET timezone はそのセッション（データベース接続）でのみ有効です。アプリサーバーが再接続するたびに元のTZに戻るため、「接続時に必ずSET timezoneを実行する」初期化コードが必要です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>NOW()の注意点：</strong>SET timezoneを変えても <em>NOW()が返す瞬間自体は変わりません</em>。変わるのは「どのTZのオフセットで表示するか」だけです。内部のUTC値は常に同一です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>接続プールとSET timezone：</strong>PgBouncerのトランザクションモードでは、トランザクション終了後にコネクションがプールに返却されるためSETの効果が消えます。<code>SET LOCAL</code> をトランザクション内で使うか、アプリ側でORM初期化フックを使ってください。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>全アプリで「サーバーTZをJSTにする」で対処する：</strong>サーバーTZをJSTにしてしまうと、UTC前提のフレームワーク（Rails・DjangoなどのデフォルトはUTC）との間でズレが発生します。<strong>サーバーTZはUTCを基準とし、表示変換はアプリ側またはAT TIME ZONEで行う</strong>のが正しい設計です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SET timezoneを本番のALTER DATABASEで安易に変更する：</strong>既存データがTIMESTAMP型の場合、DB全体のTZを変えると全ての値の解釈が変わります。既存データへの影響を必ずテスト環境で確認してから本番適用してください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：アプリサーバーでの接続初期化</div>
+<div class="column-body">
+Node.js（pg）では <code>pool.on('connect', client => client.query("SET timezone = 'UTC'"))</code>、Rails では <code>config/database.yml</code> の <code>variables: {timezone: utc}</code>、Django では <code>OPTIONS: {'options': '-c timezone=UTC'}</code> でアプリ側から接続TZを統一します。<strong>DBはUTC、アプリ層でユーザーTZに変換、フロントエンドはISO 8601でやり取りする</strong>の三層分担がモダンWebの標準設計です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  NOW() / CURRENT_TIMESTAMP / CLOCK_TIMESTAMP の違い
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "NOW() vs CURRENT_TIMESTAMP vs CLOCK_TIMESTAMP() — 現在時刻関数の使い分け",
+  tags: [["r","NOW()"],["r","CURRENT_TIMESTAMP"],["o","時刻関数"],["g","トランザクション"]],
+  premise: `<p>PostgreSQL で「現在時刻」を取得する関数は複数あり、<strong>トランザクション開始時刻を返すか・実際のウォールクロック時刻を返すか</strong>で大きく異なります。</p>
+<pre><span class="cmt">-- トランザクション開始時刻を返す関数（トランザクション内で何度呼んでも同じ値）</span>
+<span class="kw">SELECT</span> <span class="fn">NOW</span>();                  <span class="cmt">-- 現在のトランザクション開始時刻 (TIMESTAMPTZ)</span>
+<span class="kw">SELECT</span> <span class="fn">CURRENT_TIMESTAMP</span>;      <span class="cmt">-- NOW()と同じ。SQL標準の書き方</span>
+<span class="kw">SELECT</span> <span class="fn">TRANSACTION_TIMESTAMP</span>(); <span class="cmt">-- 明示的にトランザクション開始時刻</span>
+
+<span class="cmt">-- 呼び出し時点の実際の時刻を返す関数（トランザクション内でも毎回異なる）</span>
+<span class="kw">SELECT</span> <span class="fn">CLOCK_TIMESTAMP</span>();       <span class="cmt">-- 呼び出した瞬間のOS時刻 (TIMESTAMPTZ)</span>
+<span class="kw">SELECT</span> <span class="fn">STATEMENT_TIMESTAMP</span>();   <span class="cmt">-- 現在のSQL文が開始された時刻</span>
+<span class="kw">SELECT</span> <span class="fn">TIMEOFDAY</span>();             <span class="cmt">-- TEXT型で返す（非推奨）</span></pre>
+<div class="callout ok"><strong>使い分けの原則：</strong><br>
+・<code>NOW()</code>：通常の <code>created_at</code> / <code>updated_at</code> の記録に使う（トランザクション内で一貫した時刻）<br>
+・<code>CLOCK_TIMESTAMP()</code>：パフォーマンス計測・ログ出力など「実際の経過時間を測りたい」場面に使う</div>`,
+  question: `<p>以下のストアドプロシージャで <code>pg_sleep()</code> を使って1秒待機します。<em>NOW() と CLOCK_TIMESTAMP() の返す値がどう違うか</em>を確認するSQLを書いてください。また、<em>バッチ処理ログに「このステップを処理した実際の時刻」を記録するべき場合はどちらを使うか</em>も答えてください。</p>
+<pre><span class="cmt">-- 動作確認用クエリ</span>
+<span class="kw">BEGIN</span>;
+<span class="kw">SELECT</span> <span class="fn">NOW</span>() <span class="kw">AS</span> start_now;          <span class="cmt">-- トランザクション開始時刻</span>
+<span class="kw">SELECT</span> <span class="fn">pg_sleep</span>(<span class="num">1</span>);                 <span class="cmt">-- 1秒待機</span>
+<span class="kw">SELECT</span> <span class="fn">NOW</span>() <span class="kw">AS</span> after_sleep_now;    <span class="cmt">-- ← 何が返る？</span>
+<span class="kw">SELECT</span> <span class="fn">CLOCK_TIMESTAMP</span>() <span class="kw">AS</span> after_sleep_clock; <span class="cmt">-- ← 何が返る？</span>
+<span class="kw">COMMIT</span>;</pre>`,
+  output: `<p>NOW() と CLOCK_TIMESTAMP() の返す値の違い：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>関数</th><th>start 時点</th><th>pg_sleep(1)後</th><th>変化</th></tr>
+<tr class="tr-hi"><td>NOW()</td><td>2024-06-01 01:00:00.000</td><td class="tc-r">2024-06-01 01:00:00.000（同じ）</td><td class="tc-r">変化しない</td></tr>
+<tr class="tr-hi2"><td>CLOCK_TIMESTAMP()</td><td>2024-06-01 01:00:00.000</td><td class="tc-g">2024-06-01 01:00:01.003（1秒後）</td><td class="tc-g">変化する</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- NOW() vs CLOCK_TIMESTAMP() の動作比較</span>
+<span class="kw">BEGIN</span>;                                      <span class="cmt">-- 【超基礎】トランザクション開始</span>
+
+<span class="kw">SELECT</span>
+    <span class="fn">NOW</span>()              <span class="kw">AS</span> now_at_start,     <span class="cmt">-- トランザクション開始時刻を記録</span>
+    <span class="fn">CLOCK_TIMESTAMP</span>() <span class="kw">AS</span> clock_at_start;   <span class="cmt">-- 呼び出し時点の実際の時刻</span>
+<span class="cmt">-- 2つは同じ値（まだ待機していないので差がない）</span>
+
+<span class="kw">SELECT</span> <span class="fn">pg_sleep</span>(<span class="num">1</span>);                        <span class="cmt">-- 【超基礎】1秒待機（テスト用）</span>
+
+<span class="kw">SELECT</span>
+    <span class="fn">NOW</span>()              <span class="kw">AS</span> now_after_sleep,  <span class="cmt">-- ❌ トランザクション開始時刻のまま（変化なし）</span>
+    <span class="fn">CLOCK_TIMESTAMP</span>() <span class="kw">AS</span> clock_after_sleep, <span class="cmt">-- ✅ 呼び出し時点の時刻（1秒後になっている）</span>
+    <span class="fn">CLOCK_TIMESTAMP</span>() <span class="op">-</span> <span class="fn">NOW</span>() <span class="kw">AS</span> elapsed  <span class="cmt">-- ✅ 経過時間の計算に使える</span>
+;
+
+<span class="kw">COMMIT</span>;                                     <span class="cmt">-- 【超基礎】トランザクション終了</span>
+
+<span class="cmt">-- バッチ処理ログに「各ステップの実際の処理時刻」を記録するなら CLOCK_TIMESTAMP()</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">batch_log</span> (step_name, executed_at, duration_ms)
+<span class="kw">VALUES</span> (
+    <span class="str">'step1_aggregate'</span>,
+    <span class="fn">CLOCK_TIMESTAMP</span>(),               <span class="cmt">-- ✅ 実際の実行時刻（ステップごとに変化する）</span>
+    <span class="fn">EXTRACT</span>(<span class="fn">EPOCH</span> <span class="kw">FROM</span> <span class="fn">CLOCK_TIMESTAMP</span>() <span class="op">-</span> <span class="str">'2024-06-01 01:00:00'</span>::<span class="fn">TIMESTAMPTZ</span>) <span class="op">*</span> <span class="num">1000</span>
+);
+
+<span class="cmt">-- created_at / updated_at には NOW() が適切（トランザクション一貫性）</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">orders</span> (user_id, created_at, updated_at)
+<span class="kw">VALUES</span> (<span class="str">'U001'</span>, <span class="fn">NOW</span>(), <span class="fn">NOW</span>());             <span class="cmt">-- ✅ created_at と updated_at が必ず同じ値になる</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. BEGIN                   → トランザクション開始時刻を記録
+  2. SELECT NOW()            → トランザクション開始時刻を返す（以降も同じ値）
+  3. pg_sleep(1)             → 1秒待機（OSクロックは進む、TXクロックは止まる）
+  4. SELECT CLOCK_TIMESTAMP() → その瞬間のOS時刻（1秒後）を返す
+  5. COMMIT                  → トランザクション終了
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>NOW() と CLOCK_TIMESTAMP() の動作原理</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>関数</th><th>基準時刻</th><th>同一TX内での変化</th><th>主な用途</th></tr>
+<tr class="tr-hi"><td>NOW() / CURRENT_TIMESTAMP</td><td>TX開始時刻</td><td class="tc-r">変化しない（固定）</td><td>created_at / updated_at</td></tr>
+<tr class="tr-hi3"><td>STATEMENT_TIMESTAMP()</td><td>SQL文開始時刻</td><td class="tc-y">SQL文ごとに変化</td><td>SQL実行時刻ログ</td></tr>
+<tr class="tr-hi2"><td>CLOCK_TIMESTAMP()</td><td>OSウォールクロック</td><td class="tc-g">毎回変化</td><td>経過時間測定・詳細ログ</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">NOW()の固定性はcreated_atとupdated_atが必ず同一になる利点がある</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>トランザクション内でNOW()が固定される実用的メリット</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ケース</th><th>NOW()（固定）</th><th>CLOCK_TIMESTAMP()（変化）</th></tr>
+<tr class="tr-hi2"><td>created_at / updated_at 記録</td><td class="tc-g">✅ 常に同じ → 矛盾なし</td><td class="tc-r">❌ 記録ごとにズレる可能性</td></tr>
+<tr class="tr-hi"><td>処理時間の計測</td><td class="tc-r">❌ 常に0秒になる</td><td class="tc-g">✅ 実際の経過時間を測れる</td></tr>
+<tr class="tr-hi4"><td>バッチの各ステップ時刻記録</td><td class="tc-r">❌ 全ステップが同じ時刻</td><td class="tc-g">✅ 各ステップの実時刻が記録できる</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>NOW()は「このトランザクションが始まった瞬間」を覚えていて、何度呼んでも同じ値を返します。これはトランザクション内の全てのINSERTに同じcreated_atを付けたいときに便利な挙動です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>DEFAULT値としてのNOW()：</strong><code>created_at TIMESTAMPTZ DEFAULT NOW()</code> のようにカラムのDEFAULTにNOW()を使うと、そのトランザクションのINSERT時刻が自動で設定されます。アプリ側でcreated_atを設定する必要がなくなります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CURRENT_DATE / CURRENT_TIME も同様：</strong><code>CURRENT_DATE</code> や <code>CURRENT_TIME</code> もトランザクション開始時刻に基づきます。日付をまたぐような長時間トランザクションでは意図しない日付になることがあるため、CLOCK_TIMESTAMP()から日付を取り出す方が正確です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>処理時間の計測にNOW()を使う：</strong><code>SELECT NOW(); … 処理 …; SELECT NOW();</code> の差分を取ると常に0になります。処理時間を測るには <code>CLOCK_TIMESTAMP()</code> を使ってください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ログ記録で全レコードが同じ時刻になる：</strong>バッチで1万件をループINSERTするとき、トランザクション内ならNOW()は全件同じ時刻になります。ステップ別の時刻を記録したい場合はトランザクションを分けるか、CLOCK_TIMESTAMP()を使ってください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：DEFAULT NOW() と application-side timestamp</div>
+<div class="column-body">
+<code>created_at TIMESTAMPTZ DEFAULT NOW()</code> とDBに任せる方式と、アプリ側でタイムスタンプを生成してINSERTする方式のどちらが良いか、という議論があります。<strong>DBに任せる方式</strong>は「レコードが実際にDBに書かれた時刻」という意味で正確ですが、<strong>アプリ側で生成する方式</strong>はバルクインポートなど「DBへの書き込み時刻ではなくイベント発生時刻を記録したい」ユースケースに向いています。両者の使い分けを意識して設計しましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  タイムゾーンを考慮した日付範囲クエリ
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "日付範囲クエリとタイムゾーン — 「日本時間の今日」をUTCで正しく絞り込む",
+  tags: [["r","範囲クエリ"],["r","DATE_TRUNC"],["o","UTC絞り込み"],["g","SARGable"]],
+  premise: `<p>DBがUTCでTIMESTAMPTZを保存している場合、<em>「日本時間(JST)の2024-06-01の注文」</em>を取得するには、JSTの0:00〜23:59をUTCに変換した範囲（前日の15:00〜当日の14:59 UTC）で絞り込む必要があります。</p>
+<pre><span class="cmt">-- JST「2024-06-01」の範囲をUTCで表すと</span>
+<span class="cmt">-- JST 2024-06-01 00:00:00 = UTC 2024-05-31 15:00:00</span>
+<span class="cmt">-- JST 2024-06-01 23:59:59 = UTC 2024-06-01 14:59:59</span>
+
+<span class="cmt">-- DATE_TRUNC を使ったタイムゾーン対応の日付切り捨て</span>
+<span class="kw">SELECT</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'day'</span>, <span class="fn">NOW</span>() <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>)
+       <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span> <span class="kw">AS</span> today_jst_as_utc;
+<span class="cmt">-- 「今日のJST 0:00」をUTCのTIMESTAMPTZとして返す</span></pre>
+<div class="callout warn"><strong>よくある誤り：</strong><code>WHERE created_at::DATE = '2024-06-01'</code> はセッションTZに依存します。セッションがUTCの場合「UTC日付が2024-06-01」の範囲になり、JST基準とは9時間ズレます。さらに <code>::DATE</code> によるキャストはインデックスを無効化（非SARGable）する場合があります。</div>`,
+  question: `<p><code>orders</code> テーブル（<code>created_at TIMESTAMPTZ</code>、内部はUTC）から、<em>日本時間（JST）で 2024-06-01（6月1日）に作成された注文</em>を取得してください。インデックスが有効になるSARGableな範囲指定で書いてください。</p>
+<div class="data-section">
+  <div class="data-label">ordersテーブル（内部UTC保存）</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>order_id</th><th>user_id</th><th>created_at（UTC）</th><th>JST換算</th></tr>
+    <tr><td>1</td><td>U001</td><td>2024-05-31 14:59:59+00</td><td class="tc-y">2024-05-31 23:59:59 JST（前日）</td></tr>
+    <tr class="tr-hi2"><td>2</td><td>U001</td><td>2024-05-31 15:00:00+00</td><td class="tc-g">2024-06-01 00:00:00 JST（対象）</td></tr>
+    <tr class="tr-hi2"><td>3</td><td>U002</td><td>2024-06-01 05:30:00+00</td><td class="tc-g">2024-06-01 14:30:00 JST（対象）</td></tr>
+    <tr class="tr-hi2"><td>4</td><td>U003</td><td>2024-06-01 14:59:59+00</td><td class="tc-g">2024-06-01 23:59:59 JST（対象）</td></tr>
+    <tr><td>5</td><td>U002</td><td>2024-06-01 15:00:00+00</td><td class="tc-r">2024-06-02 00:00:00 JST（翌日）</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>JST 2024-06-01 に該当する注文（order_id: 2, 3, 4）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>created_at（UTC）</th><th>JST表示</th></tr>
+<tr class="tr-hi2"><td>2</td><td>U001</td><td>2024-05-31 15:00:00+00</td><td class="tc-g">2024-06-01 00:00:00+09</td></tr>
+<tr class="tr-hi2"><td>3</td><td>U002</td><td>2024-06-01 05:30:00+00</td><td class="tc-g">2024-06-01 14:30:00+09</td></tr>
+<tr class="tr-hi2"><td>4</td><td>U003</td><td>2024-06-01 14:59:59+00</td><td class="tc-g">2024-06-01 23:59:59+09</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 固定日付でJST範囲をUTCに変換して絞り込む（SARGable・推奨）</span>
+<span class="kw">SELECT</span>
+    order_id,
+    user_id,
+    created_at                                              <span class="cmt">-- UTC保存値をそのまま取得</span>
+  , created_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span> <span class="kw">AS</span> jst_time    <span class="cmt">-- 表示用にJSTに変換</span>
+<span class="kw">FROM</span> <span class="tbl">orders</span>
+<span class="kw">WHERE</span>
+    created_at <span class="op">&gt;=</span> <span class="str">'2024-06-01 00:00:00'</span>::<span class="fn">TIMESTAMP</span> <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>
+                <span class="cmt">-- JST 2024-06-01 00:00:00 → UTC 2024-05-31 15:00:00+00 に変換</span>
+<span class="kw">AND</span> created_at  <span class="op">&lt;</span>  <span class="str">'2024-06-02 00:00:00'</span>::<span class="fn">TIMESTAMP</span> <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>;
+                <span class="cmt">-- JST 2024-06-02 00:00:00 → UTC 2024-06-01 15:00:00+00 に変換</span>
+                <span class="cmt">-- ✅ SARGable: created_at列を加工しないためインデックスが使える</span>
+
+<span class="cmt">-- ② DATE_TRUNC を使って「今日のJST」を動的に計算する方法</span>
+<span class="kw">SELECT</span> order_id, user_id, created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>
+    created_at <span class="op">&gt;=</span>
+        <span class="fn">DATE_TRUNC</span>(<span class="str">'day'</span>,                              <span class="cmt">-- 日単位で切り捨て</span>
+            <span class="fn">NOW</span>() <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>           <span class="cmt">-- UTCのNOW()をJSTのTIMESTAMPに変換</span>
+        ) <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>                    <span class="cmt">-- JSTのTIMESTAMP → TIMESTAMPTZ(UTC)に変換</span>
+<span class="kw">AND</span> created_at <span class="op">&lt;</span>
+        <span class="fn">DATE_TRUNC</span>(<span class="str">'day'</span>,
+            <span class="fn">NOW</span>() <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>
+        ) <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>
+        <span class="op">+</span> <span class="fn">INTERVAL</span> <span class="str">'1 day'</span>;                             <span class="cmt">-- 翌日の0:00まで</span>
+
+<span class="cmt">-- ❌ NG: 非SARGable + セッションTZ依存の書き方</span>
+<span class="cmt">-- WHERE created_at::DATE = '2024-06-01'
+--   → ::DATE でキャストするとインデックスが使えない
+--   → セッションTZがUTCならUTC基準の「6/1」になりJSTとズレる</span>
+
+<span class="cmt">/*
+  実行順序（①）:
+  1. FROM orders                              → テーブル参照
+  2. WHERE created_at >= ... AND created_at < ... → 範囲条件（SARGable）
+     → AT TIME ZONE が定数に適用され計算値でIndex Scanが発動
+  3. SELECT columns + AT TIME ZONE (表示)    → 結果にJST表示を追加
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>JST「6月1日」のUTC換算範囲</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>JST（ユーザー視点）</th><th>UTC（DBの保存値）</th><th>対象？</th></tr>
+<tr class="tr-dim"><td>2024-05-31 23:59:59 JST</td><td class="tc-r">2024-05-31 14:59:59 UTC</td><td class="tc-r">❌ 前日</td></tr>
+<tr class="tr-hi2"><td class="tc-g">2024-06-01 00:00:00 JST</td><td class="tc-g">2024-05-31 15:00:00 UTC</td><td class="tc-g">✅ 範囲開始</td></tr>
+<tr class="tr-hi2"><td class="tc-g">2024-06-01 23:59:59 JST</td><td class="tc-g">2024-06-01 14:59:59 UTC</td><td class="tc-g">✅ 範囲終了</td></tr>
+<tr class="tr-dim"><td>2024-06-02 00:00:00 JST</td><td class="tc-r">2024-06-01 15:00:00 UTC</td><td class="tc-r">❌ 翌日</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">UTCで保存→JSTで絞り込むには「JSTの境界をUTCに変換」してから範囲検索する</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>DATE_TRUNC + AT TIME ZONE の二段変換パターン</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>処理ステップ</th><th>値</th><th>型</th></tr>
+<tr class="tr-hi"><td>NOW()</td><td>2024-06-01 05:30:00+00</td><td>TIMESTAMPTZ（UTC）</td></tr>
+<tr class="tr-hi4"><td>AT TIME ZONE 'Asia/Tokyo'</td><td>2024-06-01 14:30:00</td><td class="tc-o">TIMESTAMP（TZなし・JST）</td></tr>
+<tr class="tr-hi3"><td>DATE_TRUNC('day', ...)</td><td>2024-06-01 00:00:00</td><td class="tc-p">TIMESTAMP（JST 0:00）</td></tr>
+<tr class="tr-hi2"><td>AT TIME ZONE 'Asia/Tokyo'</td><td class="tc-g">2024-05-31 15:00:00+00</td><td class="tc-g">TIMESTAMPTZ（UTC）← 検索に使う値</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>「JSTの今日」を「UTCで保存されたデータ」から取り出すには、JSTの0:00と翌日0:00をUTCに換算してから範囲検索する必要があります。JST+9時間なので「JSTの境界からマイナス9時間のUTC」を計算します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>DATE_TRUNC の二段パターン：</strong><code>DATE_TRUNC('day', NOW() AT TIME ZONE 'Asia/Tokyo') AT TIME ZONE 'Asia/Tokyo'</code> は「今日のJST 0:00をUTCのTIMESTAMPTZとして返す」便利なイディオムです。暗記するより「JSTのTIMESTAMPに変換→切り捨て→UTCのTIMESTAMPTZに戻す」の3ステップを理解することが重要です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>インデックスへの影響：</strong>WHERE句の左辺（<code>created_at</code>）を加工しなければSARGableです。<code>AT TIME ZONE</code> を定数リテラルに適用している（右辺での変換）ため、<code>created_at</code> のインデックスはそのまま使えます。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong><code>WHERE (created_at AT TIME ZONE 'Asia/Tokyo')::DATE = '2024-06-01'</code>：</strong>左辺のcreated_atカラムに変換を適用しているため非SARGableになります。左辺はカラムのみ、右辺で変換・計算を行うのが鉄則です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong><code>WHERE created_at BETWEEN '2024-06-01' AND '2024-06-01 23:59:59'</code>：</strong>UTC時刻でBETWEENを書いてもJSTの「6月1日」とは一致しません。必ずTZ変換してから範囲を計算してください。また BETWEEN は終端を含む（<=）ため、マイクロ秒単位のデータでは <code>&lt;</code> で翌日0:00を使う方が正確です。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：「レポートの日次集計がずれる」問題</div>
+<div class="column-body">
+「DBはUTCで保存しているのに日次レポートの件数が前日・翌日とズレる」というトラブルは、日付範囲をUTC基準で計算していることが原因のほとんどです。レポートSQL作成時は<strong>「ユーザーが見る日付のTZで0:00を計算し、そのUTC換算値で範囲検索する」</strong>ことを徹底してください。BIツール（Metabase・Lookerなど）のタイムゾーン設定も同様の問題を起こすため、BIの表示TZとSQLのTZを一致させる確認作業を日次レポートリリース前に必ず行いましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6  DATE_TRUNC とタイムゾーン — 週次・月次集計の正しい書き方
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "DATE_TRUNC とタイムゾーン — JST基準で週次・月次を集計する",
+  tags: [["r","DATE_TRUNC"],["r","GROUP BY"],["o","週次・月次集計"],["g","集計"]],
+  premise: `<p><strong>DATE_TRUNC</strong> は日時を指定した精度（日・週・月・年など）で切り捨てる関数です。タイムゾーン引数を渡すことで、<em>そのTZ基準での切り捨て</em>が行えます。</p>
+<pre><span class="cmt">-- UTC基準の月切り捨て（日本向けレポートには不適切なことが多い）</span>
+<span class="kw">SELECT</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at) <span class="kw">AS</span> month_utc
+<span class="kw">FROM</span>   <span class="tbl">orders</span>;
+
+<span class="cmt">-- タイムゾーン引数を渡す方法（PostgreSQL 14以降 / 推奨）</span>
+<span class="kw">SELECT</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at, <span class="tz">'Asia/Tokyo'</span>) <span class="kw">AS</span> month_jst_utc
+<span class="kw">FROM</span>   <span class="tbl">orders</span>;
+<span class="cmt">-- TIMESTAMPTZ を返す（JST基準で月初0:00を計算しUTCで返す）
+
+-- 旧来の2段変換（PostgreSQL 13以前でも動く）</span>
+<span class="kw">SELECT</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>,
+           created_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>   <span class="cmt">-- TIMESTAMP(JST)に変換</span>
+       ) <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>               <span class="cmt">-- TIMESTAMPTZ(UTC)に戻す</span>
+<span class="kw">AS</span> month_jst_utc
+<span class="kw">FROM</span>   <span class="tbl">orders</span>;</pre>`,
+  question: `<p><code>orders</code> テーブルの売上を<em>JST基準で月次集計</em>してください。UTC基準とJST基準では月の区切りが9時間ズレるため、どちらで集計するかによって月次売上が変わります。両方を比較して示してください。</p>
+<div class="data-section">
+  <div class="data-label">ordersテーブル（サンプル）</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>order_id</th><th>amount</th><th>created_at（UTC）</th><th>JST換算</th></tr>
+    <tr><td>1</td><td>10000</td><td>2024-06-30 15:30:00+00</td><td class="tc-y">2024-07-01 00:30:00 JST</td></tr>
+    <tr><td>2</td><td>5000</td><td>2024-07-01 00:00:00+00</td><td>2024-07-01 09:00:00 JST</td></tr>
+    <tr><td>3</td><td>8000</td><td>2024-07-31 15:00:00+00</td><td class="tc-y">2024-08-01 00:00:00 JST</td></tr>
+    <tr><td>4</td><td>3000</td><td>2024-08-01 00:00:00+00</td><td>2024-08-01 09:00:00 JST</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>UTC基準 vs JST基準の月次集計の違い（order 1, 3 の所属月が変わる）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>月（UTC基準）</th><th>UTC売上合計</th><th>月（JST基準）</th><th>JST売上合計</th></tr>
+<tr><td>2024-06</td><td class="tc-r">10000（order1含む）</td><td>2024-07</td><td class="tc-g">23000（order1,2含む）</td></tr>
+<tr><td>2024-07</td><td class="tc-r">13000（order2,3含む）</td><td>2024-08</td><td class="tc-g">11000（order3,4含む）</td></tr>
+<tr><td>2024-08</td><td>3000（order4のみ）</td><td class="null">—</td><td class="null">—</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① UTC基準の月次集計（間違いではないが日本向けレポートには不適切）</span>
+<span class="kw">SELECT</span>
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at)  <span class="kw">AS</span> month_utc   <span class="cmt">-- UTC基準で月の先頭に切り捨て</span>
+  , <span class="fn">COUNT</span>(<span class="op">*</span>)                         <span class="kw">AS</span> order_count <span class="cmt">-- 【超基礎】件数集計</span>
+  , <span class="fn">SUM</span>(amount)                      <span class="kw">AS</span> total_amount <span class="cmt">-- 【超基礎】合計金額</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">GROUP BY</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at)   <span class="cmt">-- 【超基礎】月ごとにグループ化</span>
+<span class="kw">ORDER BY</span> <span class="num">1</span>;                                 <span class="cmt">-- 月順に並べる（1は1番目のSELECT列を指す）</span>
+
+<span class="cmt">-- ② JST基準の月次集計（日本ユーザー向けレポートに正しい）</span>
+<span class="kw">SELECT</span>
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>,
+        created_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>    <span class="cmt">-- UTCのTIMESTAMPTZ → JSTのTIMESTAMPに変換</span>
+    ) <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>                <span class="cmt">-- JSTのTIMESTAMP → UTCのTIMESTAMPTZに戻す</span>
+        <span class="kw">AS</span> month_jst                            <span class="cmt">-- JST基準の月初（UTC値として返る）</span>
+  , <span class="fn">COUNT</span>(<span class="op">*</span>)     <span class="kw">AS</span> order_count
+  , <span class="fn">SUM</span>(amount)  <span class="kw">AS</span> total_amount
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">GROUP BY</span>
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>,
+        created_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>
+    ) <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>               <span class="cmt">-- GROUP BY も同じ式を使う</span>
+<span class="kw">ORDER BY</span> <span class="num">1</span>;
+
+<span class="cmt">-- ③ PostgreSQL 14以降: DATE_TRUNC の第3引数にTZを渡すシンプルな書き方</span>
+<span class="kw">SELECT</span>
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at, <span class="tz">'Asia/Tokyo'</span>) <span class="kw">AS</span> month_jst <span class="cmt">-- ✅ 第3引数でTZ指定</span>
+  , <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">GROUP BY</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at, <span class="tz">'Asia/Tokyo'</span>)
+<span class="kw">ORDER BY</span> <span class="num">1</span>;
+
+<span class="cmt">/*
+  実行順序（②）:
+  1. FROM orders                       → テーブル参照
+  2. created_at AT TIME ZONE 'Asia/Tokyo' → UTCをJST(TIMESTAMP)に変換
+  3. DATE_TRUNC('month', ...)          → JST基準で月の先頭に切り捨て
+  4. AT TIME ZONE 'Asia/Tokyo'         → JSTのTIMESTAMPをUTCのTIMESTAMPTZに戻す
+  5. GROUP BY 月                       → 月ごとにグループ化
+  6. COUNT / SUM                       → 集計関数を適用
+  7. ORDER BY 月                       → 昇順に並べる
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>order_id=1（created_at: 2024-06-30 15:30 UTC）のUTC vs JST月所属</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>変換ステップ</th><th>値</th><th>所属月</th></tr>
+<tr class="tr-hi"><td>元のUTC値</td><td>2024-06-30 15:30:00+00</td><td class="tc-r">UTC 6月</td></tr>
+<tr class="tr-hi2"><td>JSTに変換</td><td>2024-07-01 00:30:00 JST</td><td class="tc-g">JST 7月（翌月！）</td></tr>
+<tr class="tr-hi2"><td>DATE_TRUNC('month', JST)</td><td>2024-07-01 00:00:00 JST</td><td class="tc-g">JST 7月の月初</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">集計するTZを間違えると月次売上が9時間分ズレる</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>DATE_TRUNC で使える精度の単位一覧</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>精度文字列</th><th>切り捨て粒度</th><th>例（2024-06-15 14:30:45）</th></tr>
+<tr><td>'year'</td><td>年</td><td>2024-01-01 00:00:00</td></tr>
+<tr><td>'month'</td><td>月</td><td>2024-06-01 00:00:00</td></tr>
+<tr><td>'week'</td><td>週（月曜始まり）</td><td>2024-06-10 00:00:00</td></tr>
+<tr><td>'day'</td><td>日</td><td>2024-06-15 00:00:00</td></tr>
+<tr><td>'hour'</td><td>時</td><td>2024-06-15 14:00:00</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>DATE_TRUNCは「日時を指定した粒度で切り捨てる」関数です。<code>DATE_TRUNC('month', ts)</code> は「ts が属する月の1日0:00を返す」ため、GROUP BYと組み合わせると月次集計ができます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>週次集計の注意：</strong><code>DATE_TRUNC('week', ts)</code> は <em>月曜始まり</em>（ISO 8601）です。日曜始まりの週次集計が必要な場合は <code>DATE_TRUNC('week', ts + INTERVAL '1 day') - INTERVAL '1 day'</code> のような調整が必要です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>PostgreSQL 14のTZ引数：</strong><code>DATE_TRUNC(unit, ts, timezone)</code> の第3引数はPostgreSQL 14から追加されました。それ以前は二段変換パターンを使います。本番DBのバージョンを確認して使い分けてください。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>TO_CHAR で月を取り出してGROUP BYする：</strong><code>GROUP BY TO_CHAR(created_at, 'YYYY-MM')</code> はTEXT型でのグループ化になり、ソートで問題が起きます（2024-09 > 2024-10 がTEXT比較で発生）。DATE_TRUNCを使って TIMESTAMPTZ のままGROUP BYするのが正確で安全です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>集計クエリにTZ変換を入れてインデックスを無効化する：</strong>GROUP BYのためのTZ変換は集計列に対して行うためSELECT列のみの話ですが、WHERE句でも同様の変換を列に直接適用するのはNGです。WHERE句は必ずSARGableに保ちましょう（Q5参照）。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：BIツールのタイムゾーン設定とSQL</div>
+<div class="column-body">
+MetabaseやLookerなどのBIツールは独自のTZ設定を持っており、「BI側でJSTに設定しているのにSQLのDATE_TRUNCがUTC基準だった」というズレが頻繁に発生します。<strong>SQLとBIのTZを一致させるルールをチームで明文化する</strong>か、Lookerの <code>convert_tz</code> 機能やMetabaseのReportのTZ設定を使ってBIツール側で変換する方法を統一してください。データ基盤のdbt（データ変換ツール）を使っている場合は、dbtのモデルでJST変換済みのビューを用意してBIがTZを意識しないで済む設計も有効です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  サマータイム（DST）の落とし穴
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "サマータイム（DST）の落とし穴 — 存在しない時刻と重複する時刻",
+  tags: [["r","DST"],["r","サマータイム"],["o","America/New_York"],["g","エッジケース"]],
+  premise: `<p><strong>サマータイム（DST: Daylight Saving Time / 夏時間）</strong>は、一部の国や地域で1年に2回、時計を1時間進める（春）/戻す（秋）制度です。これにより<em>「存在しない時刻」と「2回繰り返す時刻」</em>が生まれます。</p>
+<div class="callout danger"><strong>米国東部（America/New_York）のDST境界：</strong><br>
+・<strong>春（3月 第2日曜 2:00）：</strong>時計を2:00→3:00に1時間進める → <em>2:00〜2:59:59 が存在しない</em><br>
+・<strong>秋（11月 第1日曜 2:00）：</strong>時計を2:00→1:00に1時間戻す → <em>1:00〜1:59:59 が2回繰り返す</em></div>
+<pre><span class="cmt">-- DST切り替えがある地域のTZを使う際は地域名を必ず使う</span>
+<span class="cmt">-- ❌ 固定オフセット：DSTを反映しない</span>
+<span class="kw">SELECT</span> <span class="str">'2024-03-10 07:00:00'</span>::<span class="fn">TIMESTAMPTZ</span> <span class="kw">AT TIME ZONE</span> <span class="tz">'-05'</span>;
+
+<span class="cmt">-- ✅ 地域名：DSTを自動で反映する</span>
+<span class="kw">SELECT</span> <span class="str">'2024-03-10 07:00:00'</span>::<span class="fn">TIMESTAMPTZ</span> <span class="kw">AT TIME ZONE</span> <span class="tz">'America/New_York'</span>;</pre>`,
+  question: `<p>米国東部でDSTが始まる瞬間（2024年3月10日 2:00→3:00）と終わる瞬間（2024年11月3日 2:00→1:00）について、以下の問いに答えるSQLを書いてください。①<em>「存在しない時刻」をINSERTしたらどうなるか、</em>②<em>「重複する時刻」をINSERTしたらどうなるか、</em>③<em>DSTを考慮した1日後を計算する方法</em>を示してください。</p>`,
+  output: `<p>DST境界での挙動まとめ：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>シナリオ</th><th>入力（ローカル時刻）</th><th>UTCでの保存値</th><th>挙動</th></tr>
+<tr class="tr-hi"><td>春: 存在しない時刻</td><td class="tc-r">2024-03-10 02:30:00 NY</td><td>2024-03-10 07:30:00 UTC</td><td class="tc-y">EST(-5)として解釈</td></tr>
+<tr class="tr-hi3"><td>秋: 重複する時刻（1回目）</td><td class="tc-p">2024-11-03 01:30:00 NY(EDT)</td><td>2024-11-03 05:30:00 UTC</td><td>EDT(-4)として解釈</td></tr>
+<tr class="tr-hi3"><td>秋: 重複する時刻（2回目）</td><td class="tc-p">2024-11-03 01:30:00 NY(EST)</td><td>2024-11-03 06:30:00 UTC</td><td>EST(-5)として解釈</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 存在しない時刻を試みる（2024-03-10: DSTで2:00→3:00にスキップ）</span>
+<span class="kw">SELECT</span>
+    <span class="str">'2024-03-10 02:30:00 America/New_York'</span>::<span class="fn">TIMESTAMPTZ</span>  <span class="kw">AS</span> ambiguous_spring
+    <span class="cmt">-- 存在しない2:30はEST(-5)として解釈: UTC 07:30</span>
+  , <span class="str">'2024-03-10 02:30:00 America/New_York'</span>::<span class="fn">TIMESTAMPTZ</span>
+        <span class="kw">AT TIME ZONE</span> <span class="tz">'America/New_York'</span>           <span class="kw">AS</span> local_display;
+    <span class="cmt">-- → 03:30 と表示される（スキップされた時刻はEDT開始後として表示）</span>
+
+<span class="cmt">-- ② 重複する時刻（2024-11-03: DSTで2:00→1:00に巻き戻る）</span>
+<span class="kw">SELECT</span>
+    <span class="cmt">-- EDT(-4)のうちの1:30（DSTが終わる前）</span>
+    <span class="str">'2024-11-03 01:30:00-04'</span>::<span class="fn">TIMESTAMPTZ</span> <span class="kw">AS</span> edt_1_30    <span class="cmt">-- UTC 05:30</span>
+  , <span class="str">'2024-11-03 01:30:00-05'</span>::<span class="fn">TIMESTAMPTZ</span> <span class="kw">AS</span> est_1_30;   <span class="cmt">-- UTC 06:30（1時間後）</span>
+    <span class="cmt">-- 同じローカル時刻でも異なるUTC値になることを確認</span>
+
+<span class="cmt">-- ③ DSTを考慮した「24時間後」ではなく「翌日の同じ時刻」を計算する</span>
+<span class="kw">SELECT</span>
+    <span class="cmt">-- ❌ 単純な24時間加算: DST越えで時刻がズレる</span>
+    <span class="str">'2024-03-09 12:00:00 America/New_York'</span>::<span class="fn">TIMESTAMPTZ</span>
+        <span class="op">+</span> <span class="fn">INTERVAL</span> <span class="str">'24 hours'</span>
+        <span class="kw">AT TIME ZONE</span> <span class="tz">'America/New_York'</span>  <span class="kw">AS</span> plus_24h_local <span class="cmt">-- → 13:00（1時間ズレ）</span>
+
+  , <span class="cmt">-- ✅ ローカル時刻で「1日」を加算してUTCに戻す: 正しく翌日の同じ時刻</span>
+    (
+        (
+            <span class="str">'2024-03-09 12:00:00'</span>::<span class="fn">TIMESTAMP</span>    <span class="cmt">-- NYのローカル時刻として扱う</span>
+            <span class="op">+</span> <span class="fn">INTERVAL</span> <span class="str">'1 day'</span>                <span class="cmt">-- ローカル時刻で1日後</span>
+        ) <span class="kw">AT TIME ZONE</span> <span class="tz">'America/New_York'</span>   <span class="cmt">-- NYのTIMESTAMP → TIMESTAMPTZ(UTC)</span>
+    ) <span class="kw">AT TIME ZONE</span> <span class="tz">'America/New_York'</span>      <span class="cmt">-- 表示をローカルに変換</span>
+        <span class="kw">AS</span> plus_1day_local;               <span class="cmt">-- → 12:00（正しく翌日の正午）</span>
+
+<span class="cmt">/*
+  実行順序（③の正しい方法）:
+  1. '2024-03-09 12:00:00'::TIMESTAMP  → TZなし時刻として解釈
+  2. + INTERVAL '1 day'               → ローカル時刻で1日後（2024-03-10 12:00:00）
+  3. AT TIME ZONE 'America/New_York'  → NYのTIMESTAMPTZとして解釈（DSTを自動適用）
+  4. AT TIME ZONE 'America/New_York'  → 表示のためローカルに変換
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>米国東部のDSTカレンダー（2024年）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>日時（NY時刻）</th><th>変化</th><th>UTC オフセット</th><th>影響</th></tr>
+<tr class="tr-hi4"><td>2024-03-10 02:00（EST）</td><td class="tc-y">→ 03:00 に飛ぶ（DST開始）</td><td class="tc-y">-5 → -4</td><td class="tc-r">02:00〜02:59 が存在しない</td></tr>
+<tr class="tr-hi3"><td>2024-11-03 02:00（EDT）</td><td class="tc-p">→ 01:00 に戻る（DST終了）</td><td class="tc-p">-4 → -5</td><td class="tc-p">01:00〜01:59 が2回現れる</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">UTCで保存すれば全ての瞬間が一意に特定できる</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>「24時間後」vs「翌日の同じ時刻」の差（DST越え）</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>計算方法</th><th>開始（NY）</th><th>結果（NY）</th><th>経過時間</th></tr>
+<tr class="tr-hi"><td>+ INTERVAL '24 hours'（UTCで加算）</td><td>2024-03-09 12:00</td><td class="tc-r">2024-03-10 13:00（1時間ズレ）</td><td>24時間</td></tr>
+<tr class="tr-hi2"><td>+ INTERVAL '1 day'（ローカルで加算）</td><td>2024-03-09 12:00</td><td class="tc-g">2024-03-10 12:00（正しい）</td><td>23時間（DST分だけ短い）</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>UTCにはDSTがありません。「全てのデータをUTCで保存する」ことで、DSTによる「存在しない時刻」「重複する時刻」の問題はDBレベルでは発生しません。問題が起きるのは「ローカル時刻のリテラルを直接解釈するとき」だけです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>INTERVALの'1 day' vs '24 hours'：</strong>PostgreSQLでは <code>INTERVAL '1 day'</code> と <code>INTERVAL '24 hours'</code> はTIMESTAMPに加算するときは同じですが、TIMESTAMPTZ に加算するとDST越えで差が生じます。「カレンダー上の翌日」を意図するなら、ローカルTIMESTAMPに加算してからTIMESTAMPTZに変換する方法が正確です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>日本はDSTなし（現在）：</strong>日本には現在DSTがないため、JSTは常に+09:00で固定です。ただし「日本向けにしか使わないからDSTを気にしなくていい」は危険な前提です。グローバル展開の予定やユーザーが海外からアクセスする可能性がある場合は、最初からDSTを考慮した設計にしておきましょう。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>スケジューラで「毎日 XX:00 UTC」を設定してローカル時刻がズレる：</strong>「毎朝9:00 NYT」の処理を「毎日14:00 UTC（冬時間）」でスケジュールすると、夏時間中は13:00 UTCになり1時間ズレます。クロン設定はローカル時刻（タイムゾーン対応のスケジューラ）か、UTC+DSTオフセット計算をサポートしたツールを使ってください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>固定オフセット（-05:00）でAmerica/New_Yorkを代替する：</strong>NYは夏 -4:00 / 冬 -5:00 です。固定 -05:00 では夏時間中の時刻が1時間ずれます。必ず <code>America/New_York</code> などの地域名を使ってください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：グローバルサービスのスケジュール設計</div>
+<div class="column-body">
+定期バッチや通知スケジュールを設計するとき、DSTがある地域ユーザー向けには<strong>「ローカル時刻でのスケジュール + TZを指定」</strong>方式が最も安全です。AWS EventBridgeはcron式にTZを指定できます。Node.jsの <code>node-cron</code> はTZ環境変数で制御できます。<strong>「UTC基準の固定時刻でスケジュール」するとDST切り替えのたびにユーザーへの通知時刻が1時間ズレる</strong>問題が発生します。過去に「サマータイムが始まった日の翌朝、全員に1時間遅れでプッシュ通知が届いた」というインシデントが実際に複数報告されています。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  EXTRACT / EPOCH とタイムゾーン
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "EXTRACT と EPOCH — 経過秒数・時間差の正確な計算",
+  tags: [["r","EXTRACT"],["r","EPOCH"],["o","時間差計算"],["g","経過時間"]],
+  premise: `<p><strong>EXTRACT</strong> は日時から特定の要素（年・月・日・時・分・秒など）を取り出す関数です。<strong>EPOCH</strong> を使うと「UNIX エポック（1970-01-01 00:00:00 UTC）からの経過秒数」を取得でき、2つの時刻の差を秒数で計算するのに使います。</p>
+<pre><span class="cmt">-- EPOCHで経過秒数を取得する</span>
+<span class="kw">SELECT</span> <span class="fn">EXTRACT</span>(<span class="fn">EPOCH</span> <span class="kw">FROM</span> <span class="fn">NOW</span>());              <span class="cmt">-- 現在時刻のUnixタイムスタンプ</span>
+<span class="kw">SELECT</span> <span class="fn">EXTRACT</span>(<span class="fn">EPOCH</span> <span class="kw">FROM</span> end_at <span class="op">-</span> start_at);  <span class="cmt">-- 2時刻の差を秒数で返す</span>
+
+<span class="cmt">-- 年月日時分秒を個別に取り出す</span>
+<span class="kw">SELECT</span>
+    <span class="fn">EXTRACT</span>(<span class="fn">YEAR</span>   <span class="kw">FROM</span> <span class="fn">NOW</span>()),   <span class="cmt">-- 年</span>
+    <span class="fn">EXTRACT</span>(<span class="fn">MONTH</span>  <span class="kw">FROM</span> <span class="fn">NOW</span>()),   <span class="cmt">-- 月 (1-12)</span>
+    <span class="fn">EXTRACT</span>(<span class="fn">DOW</span>    <span class="kw">FROM</span> <span class="fn">NOW</span>()),   <span class="cmt">-- 曜日 (0=日曜〜6=土曜)</span>
+    <span class="fn">EXTRACT</span>(<span class="fn">HOUR</span>   <span class="kw">FROM</span> <span class="fn">NOW</span>());</span>  <span class="cmt">-- 時 (0-23)</span></pre>
+<div class="callout warn"><strong>タイムゾーンとEXTRACTの関係：</strong>TIMESTAMPTZ に EXTRACT(HOUR FROM ...) を使うと、<em>セッションのタイムゾーン</em>に基づいて時を取り出します。「JST 9:00」のレコードに UTC セッションで EXTRACT(HOUR) を使うと「0」が返ります。</div>`,
+  question: `<p>ユーザーのセッション時間を管理する <code>user_sessions</code> テーブルがあります。<em>①セッション継続時間を秒・分・時間で計算し、②JSTのどの時間帯にログインが多いか集計し、③有効期限（24時間）を過ぎたセッションを検出</em>するクエリを書いてください。</p>
+<div class="data-section">
+  <div class="data-label">user_sessionsテーブル</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>session_id</th><th>user_id</th><th>login_at（UTC）</th><th>logout_at（UTC）</th></tr>
+    <tr><td>1</td><td>U001</td><td>2024-06-01 00:30:00+00</td><td>2024-06-01 02:15:00+00</td></tr>
+    <tr><td>2</td><td>U002</td><td>2024-06-01 03:00:00+00</td><td>2024-06-01 03:45:30+00</td></tr>
+    <tr><td>3</td><td>U003</td><td>2024-06-01 12:00:00+00</td><td class="null">NULL（まだログイン中）</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>セッション継続時間と時間帯分析：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>session_id</th><th>duration_sec</th><th>duration_min</th><th>login_hour_jst</th><th>expired?</th></tr>
+<tr class="tr-hi2"><td>1</td><td class="tc-g">6300</td><td class="tc-g">105.0分</td><td class="tc-g">9時（JST）</td><td class="tc-g">NO</td></tr>
+<tr class="tr-hi2"><td>2</td><td class="tc-g">2730</td><td class="tc-g">45.5分</td><td class="tc-g">12時（JST）</td><td class="tc-g">NO</td></tr>
+<tr class="tr-hi"><td>3</td><td class="null">NULL（継続中）</td><td class="null">—</td><td class="tc-g">21時（JST）</td><td class="tc-r">YES（24h超）</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① セッション継続時間を秒・分・時間で計算する</span>
+<span class="kw">SELECT</span>
+    session_id,
+    user_id,
+    login_at,
+    logout_at,
+    <span class="cmt">-- 継続時間（秒）: EPOCHで差分を秒数として取得</span>
+    <span class="fn">EXTRACT</span>(<span class="fn">EPOCH</span> <span class="kw">FROM</span>
+        <span class="fn">COALESCE</span>(logout_at, <span class="fn">NOW</span>()) <span class="op">-</span> login_at     <span class="cmt">-- logout_atがNULLなら現在時刻を使う</span>
+    )::INTEGER                                     <span class="cmt">-- 秒数を整数に変換</span>
+        <span class="kw">AS</span> duration_sec
+
+  , <span class="fn">ROUND</span>(                                        <span class="cmt">-- 【超基礎】四捨五入</span>
+        <span class="fn">EXTRACT</span>(<span class="fn">EPOCH</span> <span class="kw">FROM</span>
+            <span class="fn">COALESCE</span>(logout_at, <span class="fn">NOW</span>()) <span class="op">-</span> login_at
+        ) / <span class="num">60.0</span>, <span class="num">1</span>                             <span class="cmt">-- 秒÷60で分に変換（小数点1桁）</span>
+    )   <span class="kw">AS</span> duration_min
+
+  , <span class="cmt">-- ログイン時刻をJSTの「時」で取り出す</span>
+    <span class="fn">EXTRACT</span>(<span class="fn">HOUR</span> <span class="kw">FROM</span>
+        login_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>       <span class="cmt">-- UTCをJSTに変換してから時を抽出</span>
+    )::INTEGER   <span class="kw">AS</span> login_hour_jst               <span class="cmt">-- セッションTZに依存しない正確な時</span>
+
+<span class="kw">FROM</span> <span class="tbl">user_sessions</span>;
+
+<span class="cmt">-- ② JSTのどの時間帯にログインが多いか集計</span>
+<span class="kw">SELECT</span>
+    <span class="fn">EXTRACT</span>(<span class="fn">HOUR</span> <span class="kw">FROM</span>
+        login_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>       <span class="cmt">-- JSTで時を取得</span>
+    )::INTEGER      <span class="kw">AS</span> hour_jst
+  , <span class="fn">COUNT</span>(<span class="op">*</span>)      <span class="kw">AS</span> login_count                <span class="cmt">-- 【超基礎】件数集計</span>
+<span class="kw">FROM</span>   <span class="tbl">user_sessions</span>
+<span class="kw">GROUP BY</span> <span class="fn">EXTRACT</span>(<span class="fn">HOUR</span> <span class="kw">FROM</span> login_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>)
+<span class="kw">ORDER BY</span> login_count <span class="kw">DESC</span>;                       <span class="cmt">-- 多い時間帯から順に表示</span>
+
+<span class="cmt">-- ③ 有効期限（24時間）を過ぎたセッションを検出する</span>
+<span class="kw">SELECT</span>
+    session_id
+  , login_at
+  , logout_at
+  , <span class="fn">NOW</span>() <span class="op">-</span> login_at <span class="kw">AS</span> elapsed                 <span class="cmt">-- 経過時間（INTERVAL型）</span>
+  , <span class="fn">CASE</span>
+        <span class="kw">WHEN</span> logout_at <span class="kw">IS NULL</span>
+         <span class="kw">AND</span> login_at <span class="op">&lt;</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="fn">INTERVAL</span> <span class="str">'24 hours'</span> <span class="cmt">-- 24時間以上前にログインし未ログアウト</span>
+        <span class="kw">THEN</span> <span class="str">'EXPIRED'</span>
+        <span class="kw">ELSE</span> <span class="str">'OK'</span>
+    <span class="kw">END</span>              <span class="kw">AS</span> status                    <span class="cmt">-- 【超基礎】条件分岐（CASEで文字列ラベル）</span>
+<span class="kw">FROM</span> <span class="tbl">user_sessions</span>
+<span class="kw">WHERE</span> logout_at <span class="kw">IS NULL</span>;                         <span class="cmt">-- ログイン中のセッションのみ</span>
+
+<span class="cmt">/*
+  実行順序（①）:
+  1. FROM user_sessions                → テーブル参照
+  2. COALESCE(logout_at, NOW())       → NULL(ログイン中)の場合NOW()で代替
+  3. EXTRACT(EPOCH FROM 差分)         → 経過秒数を計算
+  4. AT TIME ZONE → EXTRACT(HOUR)    → JSTで時を抽出（セッションTZ非依存）
+  5. SELECT 結果列                    → 計算結果を返す
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>EXTRACT(HOUR FROM ts) のセッションTZ依存性</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>login_at（UTC）</th><th>EXTRACT(HOUR FROM login_at)（セッション = UTC）</th><th>EXTRACT(HOUR FROM login_at AT TIME ZONE 'Asia/Tokyo')</th></tr>
+<tr class="tr-hi"><td>2024-06-01 00:30:00 UTC</td><td class="tc-r">0（UTC時）</td><td class="tc-g">9（JST時）</td></tr>
+<tr class="tr-hi"><td>2024-06-01 03:00:00 UTC</td><td class="tc-r">3（UTC時）</td><td class="tc-g">12（JST時）</td></tr>
+<tr class="tr-hi"><td>2024-06-01 12:00:00 UTC</td><td class="tc-r">12（UTC時）</td><td class="tc-g">21（JST時）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">EXTRACTする前にAT TIME ZONEでローカル化するのが安全</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>EPOCHで取得できる主な値</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>計算式</th><th>返す値</th><th>用途</th></tr>
+<tr class="tr-hi2"><td>EXTRACT(EPOCH FROM ts)</td><td class="tc-g">Unixタイムスタンプ（秒）</td><td>APIでのエポック秒返却</td></tr>
+<tr class="tr-hi2"><td>EXTRACT(EPOCH FROM ts2 - ts1)</td><td class="tc-g">2時刻の差（秒数）</td><td>経過時間の計算</td></tr>
+<tr class="tr-hi4"><td>EXTRACT(EPOCH FROM ts) / 86400</td><td class="tc-y">エポックからの日数</td><td>日数計算</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>EXTRACT はSQLで「日時から特定の部分を取り出す」関数です。<code>EXTRACT(EPOCH FROM ts)</code> は特殊で「UNIX エポック（1970年1月1日UTC）からの経過秒数」を返します。2時刻の差（INTERVAL型）にもEPOCHが使え、「何秒かかったか」を計算できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>AT TIME ZONEと組み合わせてから抽出：</strong>TIMESTAMPTZの時・分・曜日などを「特定のTZ基準」で取り出したい場合は、先に AT TIME ZONE でローカル化してから EXTRACT します。セッションTZに依存した抽出は再現性が低くバグの原因になります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>INTERVAL演算との使い分け：</strong>経過時間を表す場合、<code>ts2 - ts1</code> は INTERVAL 型を返します（例: <code>01:45:30</code>）。一方 <code>EXTRACT(EPOCH FROM ts2 - ts1)</code> は整数（秒数）を返します。アプリAPIに「何秒」で返すならEPOCH、人間が読む「何時間何分」ならINTERVALをTO_CHARでフォーマットするのが一般的です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>AGEで経過時間を計算してEPOCHに使う：</strong><code>EXTRACT(EPOCH FROM AGE(ts2, ts1))</code> は月・年を含むINTERVALでは月の日数が定まらないため正確な秒数を返しません。正確な秒数差は <code>EXTRACT(EPOCH FROM ts2 - ts1)</code> を使いましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>EXTRACT(DOW ...) で月曜始まりを期待する：</strong>EXTRACTの <code>DOW</code> は日曜=0、土曜=6です。ISO 8601準拠の月曜=1なら <code>EXTRACT(ISODOW FROM ts)</code> を使ってください。週次集計で曜日を間違えると集計単位がズレます。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：UnixエポックとフロントエンドのDate変換</div>
+<div class="column-body">
+APIレスポンスでタイムスタンプをどの形式で返すかは設計の重要な選択です。<strong>ISO 8601形式（<code>"2024-06-01T09:30:00+09:00"</code>）</strong>はTZ情報を含み可読性が高い。<strong>Unixエポック秒（<code>1717191000</code>）</strong>はTZ情報を持たず（常にUTC基準）軽量です。JavaScriptの <code>new Date(epochMs)</code> はエポックミリ秒を受け付けます（秒×1000に変換）。SQLでエポックを返す場合は <code>EXTRACT(EPOCH FROM ts)::BIGINT * 1000</code> でミリ秒に変換するのが慣例です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  タイムゾーン別の売上集計（多地域対応）
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "多地域対応集計 — ユーザーのタイムゾーンを列で保持して集計する",
+  tags: [["r","多地域対応"],["r","動的TZ変換"],["o","ユーザーTZ"],["g","集計設計"]],
+  premise: `<p>グローバルサービスでは、ユーザーごとに異なるタイムゾーンを持ちます。<strong>ユーザーのTZをユーザーテーブルの列として保持</strong>し、クエリでそのTZを動的に参照して「ユーザーローカル時刻」で集計する設計が実務の標準です。</p>
+<pre><span class="cmt">-- usersテーブルにTZ列を持つ設計</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">users</span> (
+    user_id   <span class="fn">TEXT</span> <span class="kw">PRIMARY KEY</span>,
+    name      <span class="fn">TEXT</span>,
+    timezone  <span class="fn">TEXT</span>  <span class="kw">DEFAULT</span> <span class="str">'UTC'</span>  <span class="cmt">-- 例: 'Asia/Tokyo', 'America/New_York'</span>
+);
+
+<span class="cmt">-- 動的TZ変換の例（usersのTZ列を使う）</span>
+<span class="kw">SELECT</span>
+    u.user_id,
+    o.created_at <span class="kw">AT TIME ZONE</span> u.timezone  <span class="cmt">-- ユーザーのTZにAT TIME ZONEで変換</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>  o
+<span class="kw">JOIN</span>   <span class="tbl">users</span>   u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id;</pre>
+<div class="callout ok"><strong>この設計のメリット：</strong>ユーザーがTZを変更しても <code>UPDATE users SET timezone = '...'</code> するだけで、以降の全クエリに反映されます。アプリコードの変更が不要です。</div>`,
+  question: `<p>グローバルサービスの <code>orders</code> テーブルと <code>users</code> テーブルがあります。<em>各ユーザーのローカル時間（ユーザーのTZ列を参照）で「今日の売上」を集計</em>してください。また、<em>TZごとの売上合計も集計</em>してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th><th>timezone</th></tr>
+        <tr><td>U001</td><td>山田（東京）</td><td class="tc-g">Asia/Tokyo</td></tr>
+        <tr><td>U002</td><td>Smith（NY）</td><td class="tc-p">America/New_York</td></tr>
+        <tr><td>U003</td><td>Chen（上海）</td><td class="tc-y">Asia/Shanghai</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（UTC保存）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at（UTC）</th></tr>
+        <tr><td>1</td><td>U001</td><td>5000</td><td>2024-06-01 00:30:00+00</td></tr>
+        <tr><td>2</td><td>U002</td><td>3000</td><td>2024-06-01 10:00:00+00</td></tr>
+        <tr><td>3</td><td>U003</td><td>8000</td><td>2024-06-01 16:30:00+00</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>ユーザーローカル時刻での「今日の売上」集計（2024-06-01 UTC実行として）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>timezone</th><th>local_datetime</th><th class="tc-g">today?</th></tr>
+<tr class="tr-hi2"><td>U001</td><td>山田</td><td>Asia/Tokyo</td><td class="tc-g">2024-06-01 09:30 JST</td><td class="tc-g">✅ 今日</td></tr>
+<tr class="tr-hi"><td>U002</td><td>Smith</td><td>America/New_York</td><td class="tc-r">2024-06-01 06:00 EDT</td><td class="tc-g">✅ 今日</td></tr>
+<tr class="tr-hi"><td>U003</td><td>Chen</td><td>Asia/Shanghai</td><td class="tc-y">2024-06-02 00:30 CST</td><td class="tc-r">❌ 翌日（UTC+8なので日付をまたいだ）</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 各注文のユーザーローカル時刻を表示する</span>
+<span class="kw">SELECT</span>
+    o.order_id,
+    o.user_id,
+    u.name,
+    u.timezone,
+    o.created_at                                              <span class="cmt">-- UTC保存値</span>
+  , o.created_at <span class="kw">AT TIME ZONE</span> u.timezone  <span class="kw">AS</span> local_time   <span class="cmt">-- ユーザーのTZでローカル変換</span>
+  , (<span class="fn">o.created_at <span class="kw">AT TIME ZONE</span> u.timezone</span>)::DATE <span class="kw">AS</span> local_date <span class="cmt">-- ローカルの日付のみ</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>  o
+<span class="kw">JOIN</span>   <span class="tbl">users</span>   u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id; <span class="cmt">-- 【超基礎】JOINでユーザーのTZ情報を取得</span>
+
+<span class="cmt">-- ② 「ユーザーローカルで今日」の注文だけ集計する</span>
+<span class="kw">SELECT</span>
+    o.user_id,
+    u.timezone,
+    <span class="fn">SUM</span>(o.amount) <span class="kw">AS</span> today_total                          <span class="cmt">-- 【超基礎】合計金額</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>  o
+<span class="kw">JOIN</span>   <span class="tbl">users</span>   u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id
+<span class="kw">WHERE</span>
+    <span class="cmt">-- ユーザーのローカル日付が「今日のローカル日付」と一致する行のみ</span>
+    (o.created_at <span class="kw">AT TIME ZONE</span> u.timezone)::DATE          <span class="cmt">-- ローカル時刻の日付部分</span>
+    <span class="op">=</span> (<span class="fn">NOW</span>() <span class="kw">AT TIME ZONE</span> u.timezone)::DATE              <span class="cmt">-- 現在のローカル日付と比較</span>
+<span class="kw">GROUP BY</span> o.user_id, u.timezone;
+
+<span class="cmt">-- ③ タイムゾーン別の売上合計を集計する</span>
+<span class="kw">SELECT</span>
+    u.timezone                                             <span class="cmt">-- TZでグループ化</span>
+  , <span class="fn">COUNT</span>(<span class="op">*</span>)     <span class="kw">AS</span> order_count                         <span class="cmt">-- 注文件数</span>
+  , <span class="fn">SUM</span>(o.amount) <span class="kw">AS</span> total_amount                       <span class="cmt">-- 合計金額</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>  o
+<span class="kw">JOIN</span>   <span class="tbl">users</span>   u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id
+<span class="kw">GROUP BY</span> u.timezone                                       <span class="cmt">-- 【超基礎】TZ別に集計</span>
+<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;
+
+<span class="cmt">/*
+  実行順序（②）:
+  1. FROM orders o                          → 注文テーブル参照
+  2. JOIN users u ON u.user_id = o.user_id → ユーザーのTZ情報を取得
+  3. WHERE (created_at AT TIME ZONE u.tz)::DATE = (NOW() AT TIME ZONE u.tz)::DATE
+                                           → ユーザーのローカル日付が今日かどうか判定
+  4. GROUP BY user_id, timezone             → ユーザー別にグループ化
+  5. SUM(amount)                           → 今日の合計金額を集計
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>同じUTC時刻がユーザーのTZによって異なるローカル日付になる</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>UTC</th><th>Asia/Tokyo（+9）</th><th>America/New_York（-4）</th><th>Asia/Shanghai（+8）</th></tr>
+<tr class="tr-hi"><td>3（U003）</td><td>2024-06-01 16:30 UTC</td><td class="tc-g">2024-06-02 01:30（翌日）</td><td class="tc-g">2024-06-01 12:30（今日）</td><td class="tc-r">2024-06-02 00:30（翌日）</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">u.timezone列を動的にAT TIME ZONEに渡すことでユーザーごとに正確な日付判定ができる</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>TZ列を使った動的変換の仕組み</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>処理</th><th>U001（Asia/Tokyo）</th><th>U002（America/New_York）</th></tr>
+<tr class="tr-hi2"><td>created_at AT TIME ZONE u.timezone</td><td class="tc-g">+9時間オフセット適用</td><td class="tc-p">-4時間オフセット適用（EDT）</td></tr>
+<tr class="tr-hi2"><td>NOW() AT TIME ZONE u.timezone</td><td class="tc-g">JSTの「今」</td><td class="tc-p">NYTの「今」</td></tr>
+<tr class="tr-hi2"><td>::DATE で比較</td><td class="tc-g">JST日付で「今日」判定</td><td class="tc-p">NY日付で「今日」判定</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>AT TIME ZONE には列の値（文字列）を渡せます。<code>ts AT TIME ZONE u.timezone</code> のように書くと、各行のユーザーのTZ設定に従って変換されます。これによりユーザーごとに異なるTZで「今日」を定義できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>TZ列のバリデーション：</strong>usersテーブルのtimezone列には <code>Asia/Tokyo</code> のような有効なIANAタイムゾーン名のみを保存すべきです。無効な値（<code>JST</code>の略語など）を渡すとAT TIME ZONEでエラーになります。INSERTトリガーやアプリバリデーションで <code>pg_timezone_names</code> ビューと照合することも有効です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>パフォーマンスの考慮：</strong><code>WHERE (created_at AT TIME ZONE u.timezone)::DATE = ...</code> は列を加工しているため非SARGableです。大規模テーブルでは「UTCの範囲に変換してからINDEX RANGEスキャン」するアプローチを組み合わせる必要があります（全ユーザーの共通UTCレンジ + ローカル日付の精密フィルタ）。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>「UTC基準の今日」で全ユーザーを統一して集計する：</strong>UTCの「今日」はユーザーによってローカルの「昨日」や「明日」になる可能性があります。グローバルサービスでのレポートは必ずユーザーのローカル時刻基準で設計してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>TZ変換をアプリ側のforループで行う：</strong>「全注文を取得してJavaScriptでTZ変換」はN+1の変形です。TZ変換はSQL側でAT TIME ZONEを使って行い、変換後のデータをアプリが受け取る方式の方がネットワーク転送量も処理時間も少なくなります。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：pg_timezone_names でTZ一覧を確認する</div>
+<div class="column-body">
+PostgreSQLには有効なIANAタイムゾーン名の一覧が内蔵されています。<code>SELECT name, abbrev, utc_offset FROM pg_timezone_names ORDER BY name;</code> で確認できます。ユーザーのTZ設定UIを実装するときはこのビューをベースにドロップダウンを生成するか、<strong>IANA tz databaseのライブラリ（JavaScriptなら <code>Intl.supportedValuesOf('timeZone')</code>）を使ってフロント側でも同じリストを参照する</strong>ことで、DBとフロントのTZ名が一致することが保証できます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10 アプリ設計パターン — UTCで保存・多地域対応の総まとめ
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "UTC保存・ローカル表示の設計パターン総まとめ — 実務レベルの統合設計",
+  tags: [["r","設計パターン"],["r","UTC正規化"],["o","多地域対応"],["g","実務"]],
+  premise: `<p>これまで学んだタイムゾーン処理を統合した<strong>実務レベルの設計パターン</strong>です。「UTCで保存、ローカル時刻で表示・検索、DSTを自動考慮、ユーザーTZを動的に適用」の4原則を1つのスキーマとクエリセットで実現します。</p>
+<div class="callout ok"><strong>タイムゾーン設計の4原則：</strong><br>
+① <strong>常にTIMESTAMPTZを使い内部はUTCで保存</strong>（TIMESTAMP禁止）<br>
+② <strong>表示・集計時にAT TIME ZONEでローカル変換</strong>（DBに保存時は変換しない）<br>
+③ <strong>地域名（IANA TZ名）を使う</strong>（固定オフセットやTZ略語は使わない）<br>
+④ <strong>日付範囲はローカルTZの境界をUTCに変換してSARGableに絞り込む</strong></div>
+<p>これらを守ることで、サーバーのTZ設定・クラウド移行・DSTの切り替え・ユーザーのTZ変更のいずれが起きても<em>データの意味が変わらない</em>堅牢なシステムが実現できます。</p>`,
+  question: `<p>EC サイトの注文管理システムを設計します。以下の要件を全て満たすスキーマとクエリを実装してください：<em>① スキーマ設計（TIMESTAMPTZ使用）、② ユーザーのローカル時刻での注文表示、③ 指定TZでの日次売上レポート、④ タイムゾーン横断での注文検索（JST基準で指定日の注文）、⑤ 24時間以内の注文サマリ</em>。</p>
+<div class="data-section">
+  <div class="data-label">要件</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>#</th><th>要件</th><th>関連技術</th></tr>
+    <tr><td>①</td><td>DBスキーマ</td><td class="tc-g">TIMESTAMPTZ, DEFAULT NOW()</td></tr>
+    <tr><td>②</td><td>ユーザーローカル表示</td><td class="tc-g">AT TIME ZONE + users.timezone</td></tr>
+    <tr><td>③</td><td>日次レポート（JST）</td><td class="tc-g">DATE_TRUNC + GROUP BY</td></tr>
+    <tr><td>④</td><td>日付範囲検索（JST基準）</td><td class="tc-g">SARGable 範囲クエリ</td></tr>
+    <tr><td>⑤</td><td>直近24時間サマリ</td><td class="tc-g">NOW() - INTERVAL</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>総まとめ：5つのパターンを統合した実装例</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>パターン</th><th>キー構文</th><th>ポイント</th></tr>
+<tr class="tr-hi2"><td>スキーマ</td><td class="tc-g">TIMESTAMPTZ DEFAULT NOW()</td><td>UTC保存・自動タイムスタンプ</td></tr>
+<tr class="tr-hi2"><td>ローカル表示</td><td class="tc-g">AT TIME ZONE u.timezone</td><td>動的TZ変換</td></tr>
+<tr class="tr-hi2"><td>月次集計</td><td class="tc-g">DATE_TRUNC('month', ts, 'Asia/Tokyo')</td><td>JST基準の切り捨て</td></tr>
+<tr class="tr-hi2"><td>日付範囲検索</td><td class="tc-g">ts >= JSTの0:00をUTCに変換</td><td>SARGable・インデックス有効</td></tr>
+<tr class="tr-hi2"><td>直近24時間</td><td class="tc-g">NOW() - INTERVAL '24 hours'</td><td>TZ非依存の相対時刻</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ══════════════════════════════════════════
+-- ① スキーマ設計（タイムゾーン対応の正しい設計）
+-- ══════════════════════════════════════════</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">users</span> (
+    user_id   <span class="fn">TEXT</span>         <span class="kw">PRIMARY KEY</span>,
+    name      <span class="fn">TEXT</span>         <span class="kw">NOT NULL</span>,
+    timezone  <span class="fn">TEXT</span>         <span class="kw">NOT NULL DEFAULT</span> <span class="str">'UTC'</span>,    <span class="cmt">-- IANAタイムゾーン名を格納</span>
+    created_at <span class="fn">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> <span class="fn">NOW</span>()       <span class="cmt">-- ✅ TIMESTAMPTZ + DEFAULT NOW()</span>
+);
+
+<span class="kw">CREATE TABLE</span> <span class="tbl">orders</span> (
+    order_id   <span class="fn">BIGSERIAL</span>   <span class="kw">PRIMARY KEY</span>,
+    user_id    <span class="fn">TEXT</span>         <span class="kw">NOT NULL REFERENCES</span> <span class="tbl">users</span>(user_id),
+    amount     <span class="fn">NUMERIC</span>(<span class="num">12</span>,<span class="num">2</span>) <span class="kw">NOT NULL</span>,
+    status     <span class="fn">TEXT</span>         <span class="kw">NOT NULL DEFAULT</span> <span class="str">'pending'</span>,
+    created_at <span class="fn">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> <span class="fn">NOW</span>(),       <span class="cmt">-- ✅ TIMESTAMPTZ（絶対にTIMESTAMPを使わない）</span>
+    updated_at <span class="fn">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> <span class="fn">NOW</span>()
+);
+<span class="kw">CREATE INDEX</span> idx_orders_created_at <span class="kw">ON</span> <span class="tbl">orders</span> (created_at); <span class="cmt">-- 日付検索用インデックス</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_id    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id);    <span class="cmt">-- ユーザー別検索用インデックス</span>
+
+<span class="cmt">-- ══════════════════════════════════════════
+-- ② ユーザーのローカル時刻での注文表示
+-- ══════════════════════════════════════════</span>
+<span class="kw">SELECT</span>
+    o.order_id,
+    o.amount,
+    o.status,
+    o.created_at                                                <span class="cmt">-- UTC保存値（内部確認用）</span>
+  , o.created_at <span class="kw">AT TIME ZONE</span> u.timezone <span class="kw">AS</span> local_created_at <span class="cmt">-- ユーザーのTZでローカル表示</span>
+  , u.timezone                                                  <span class="cmt">-- 適用したTZを表示</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>  o
+<span class="kw">JOIN</span>   <span class="tbl">users</span>   u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id   <span class="cmt">-- 【超基礎】JOINでユーザーのTZ情報を取得</span>
+<span class="kw">WHERE</span>  o.user_id <span class="op">=</span> <span class="str">'U001'</span>                      <span class="cmt">-- 特定ユーザーの注文</span>
+<span class="kw">ORDER BY</span> o.created_at <span class="kw">DESC</span>;                   <span class="cmt">-- 新しい順に表示</span>
+
+<span class="cmt">-- ══════════════════════════════════════════
+-- ③ JST基準の日次売上レポート（月別集計）
+-- ══════════════════════════════════════════</span>
+<span class="kw">SELECT</span>
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>,
+        created_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>  <span class="cmt">-- UTCをJSTのTIMESTAMPに変換</span>
+    ) <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>               <span class="cmt">-- JSTのTIMESTAMP → UTCのTIMESTAMPTZに戻す</span>
+        <span class="kw">AS</span> month_jst                           <span class="cmt">-- JST基準の月初（UTCで返る）</span>
+  , <span class="fn">COUNT</span>(<span class="op">*</span>)     <span class="kw">AS</span> order_count
+  , <span class="fn">SUM</span>(amount)  <span class="kw">AS</span> total_amount
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'completed'</span>                   <span class="cmt">-- 完了済みのみ集計</span>
+<span class="kw">GROUP BY</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>,
+    created_at <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>
+) <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>
+<span class="kw">ORDER BY</span> <span class="num">1</span>;
+
+<span class="cmt">-- ══════════════════════════════════════════
+-- ④ JST基準の日付範囲検索（SARGable）
+-- ══════════════════════════════════════════</span>
+<span class="kw">SELECT</span> order_id, amount, created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>
+    created_at <span class="op">&gt;=</span>                                              <span class="cmt">-- ✅ 列を加工せずSARGable</span>
+        <span class="str">'2024-06-01 00:00:00'</span>::<span class="fn">TIMESTAMP</span> <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>
+        <span class="cmt">-- JST 2024-06-01 00:00 → UTC 2024-05-31 15:00:00+00 に変換</span>
+<span class="kw">AND</span> created_at  <span class="op">&lt;</span>
+        <span class="str">'2024-06-02 00:00:00'</span>::<span class="fn">TIMESTAMP</span> <span class="kw">AT TIME ZONE</span> <span class="tz">'Asia/Tokyo'</span>;
+        <span class="cmt">-- JST 2024-06-02 00:00 → UTC 2024-06-01 15:00:00+00 に変換</span>
+
+<span class="cmt">-- ══════════════════════════════════════════
+-- ⑤ 直近24時間の注文サマリ（TZ非依存）
+-- ══════════════════════════════════════════</span>
+<span class="kw">SELECT</span>
+    <span class="fn">COUNT</span>(<span class="op">*</span>)                          <span class="kw">AS</span> order_count_24h
+  , <span class="fn">SUM</span>(amount)                       <span class="kw">AS</span> total_amount_24h
+  , <span class="fn">AVG</span>(amount)                       <span class="kw">AS</span> avg_amount_24h       <span class="cmt">-- 【超基礎】平均金額</span>
+  , <span class="fn">MIN</span>(created_at)                   <span class="kw">AS</span> oldest_in_24h        <span class="cmt">-- 最も古い注文</span>
+  , <span class="fn">MAX</span>(created_at)                   <span class="kw">AS</span> newest_in_24h        <span class="cmt">-- 最も新しい注文</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  created_at <span class="op">&gt;=</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="fn">INTERVAL</span> <span class="str">'24 hours'</span>;    <span class="cmt">-- ✅ UTCの相対時刻なのでTZ非依存</span>
+
+<span class="cmt">/*
+  総まとめの実行順序ルール:
+  1. スキーマ → TIMESTAMPTZ + DEFAULT NOW() で全自動UTC保存
+  2. 表示変換 → SELECT/WHERE でAT TIME ZONEを適用（INSERT時は変換しない）
+  3. 日次集計 → DATE_TRUNC + 二段AT TIME ZONEでJST月初を計算
+  4. 日付検索 → WHEREの左辺をカラムのみにしてSARGableを維持
+  5. 相対期間 → NOW() - INTERVAL でTZを気にしない絶対時刻差を使う
+*/</span></pre>`,
+  explain: `
+<div class="viz-flow">
+<div class="step-block">
+<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>タイムゾーン設計のデータフロー全体像</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>レイヤー</th><th>役割</th><th>TZ処理</th></tr>
+<tr class="tr-hi2"><td>フロントエンド</td><td>ユーザーのローカル時刻で表示</td><td class="tc-g">ISO 8601で受け取り・ブラウザTZで表示</td></tr>
+<tr class="tr-hi"><td>APIサーバー</td><td>入力をUTCに変換してDBへ</td><td class="tc-y">全ての時刻をUTCに正規化してINSERT</td></tr>
+<tr class="tr-hi2"><td>PostgreSQL</td><td>UTCで保存・変換して返す</td><td class="tc-g">TIMESTAMPTZ保存 / AT TIME ZONEで変換</td></tr>
+</table></div>
+</div>
+
+<div class="arrow">↓ <span class="arrow-text">各レイヤーの責務を分離することで全体の整合性が保たれる</span></div>
+
+<div class="step-block">
+<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>全10問で学んだタイムゾーン技術のまとめ</strong></span></div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>Q#</th><th>技術</th><th>ポイント</th></tr>
+<tr class="tr-hi2"><td>Q1</td><td>TIMESTAMP vs TIMESTAMPTZ</td><td class="tc-g">TZあり型を使う。内部はUTC保存</td></tr>
+<tr class="tr-hi2"><td>Q2</td><td>AT TIME ZONE</td><td class="tc-g">2方向の型変換。地域名を使う</td></tr>
+<tr class="tr-hi2"><td>Q3</td><td>SET/SHOW timezone</td><td class="tc-g">セッション設定。接続プール注意</td></tr>
+<tr class="tr-hi2"><td>Q4</td><td>NOW() vs CLOCK_TIMESTAMP()</td><td class="tc-g">TX固定 vs ウォールクロック</td></tr>
+<tr class="tr-hi2"><td>Q5</td><td>日付範囲クエリ</td><td class="tc-g">JSTの0:00をUTCに変換してSARGable</td></tr>
+<tr class="tr-hi2"><td>Q6</td><td>DATE_TRUNC + TZ</td><td class="tc-g">JST月次集計の二段変換パターン</td></tr>
+<tr class="tr-hi2"><td>Q7</td><td>DST（夏時間）</td><td class="tc-g">存在しない時刻・重複時刻の挙動</td></tr>
+<tr class="tr-hi2"><td>Q8</td><td>EXTRACT / EPOCH</td><td class="tc-g">時間差計算。TZと組み合わせて正確に</td></tr>
+<tr class="tr-hi2"><td>Q9</td><td>多地域対応集計</td><td class="tc-g">users.timezoneを動的にAT TIME ZONEへ</td></tr>
+<tr class="tr-hi2"><td>Q10</td><td>統合設計パターン</td><td class="tc-g">4原則を実装で体現</td></tr>
+</table></div>
+</div>
+</div>
+
+<div class="insight-box">
+<div class="insight-title">💡 FINAL LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎まとめ：</strong>タイムゾーン設計の最重要ルールは「<em>保存はUTC（TIMESTAMPTZ）、表示はAT TIME ZONE、検索はSARGableな範囲変換</em>」の3点です。この3点を守れば、サーバー移行・DST・多地域展開のいずれの状況でも「同じ瞬間を正しく扱える」システムになります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>設計チェックリスト：</strong>① カラム定義に TIMESTAMP（TZなし）がないか確認、② SET timezone の初期化コードが接続時に実行されているか確認、③ BIツールのTZ設定がアプリのTZと一致しているか確認、④ DST切り替え日時のエッジケーステストが書かれているか確認。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>アンチパターン3選（絶対に避けること）：</strong>① TIMESTAMP（TZなし）の使用、② 固定オフセット（<code>+09</code>）でDSTある地域を扱う、③ <code>WHERE DATE(created_at) = '2024-06-01'</code> のような非SARGableなTZ考慮なし日付フィルタ。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ 最終アンチパターン総まとめ</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>「サーバーをJSTにすれば解決」思想：</strong>サーバーTZをJSTにするとUTC前提のフレームワーク・ライブラリとの競合、クラウド移行時の問題が発生します。常にUTC基準でシステムを構築してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>TZのオフセットをハードコードする：</strong><code>created_at + INTERVAL '9 hours'</code> のようにJSTを「+9時間」と決め打ちすると、DSTの自動適用・TZ名によるIANA定義の恩恵が失われます。必ず AT TIME ZONE '地域名' を使用してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>フロントエンドに「UTC→JST変換」を完全に任せる：</strong>フロントでの変換は表示のみ担当すべきで、検索・集計・ログの記録はDB・APIレイヤーで正確なTZ変換が行われている必要があります。レイヤー責務を正しく分担してください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：タイムゾーン設計のレビューポイント</div>
+<div class="column-body">
+コードレビューでタイムゾーン設計を確認するときの観点：<br>
+① スキーマのCREATE TABLE に TIMESTAMP型（TZなし）がないか。<br>
+② 日付比較のWHERE句でAT TIME ZONEなしのキャスト（<code>::DATE</code>など）が使われていないか。<br>
+③ APIの入力（フォームの日付選択など）をUTCに変換してからDBに渡しているか。<br>
+④ 定期バッチのスケジュール時刻がDSTを考慮した地域名ベースになっているか。<br>
+<strong>これらをチームのコーディング規約に明文化し、Linterやレビューチェックリストに組み込む</strong>ことで、タイムゾーン起因のバグをシステム的に排除できます。
+</div>
+</div>
+`
+}
+
+];
+
+/* ══════════════════════════════════════════════════
+   UI BUILDER
+══════════════════════════════════════════════════ */
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = { r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p' };
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c] || 'tag-r'}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})">` +
+    `<span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力','期待出力',q.output)}
+      ${acc('✅','pill-red','解答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i===0?'disabled':''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i===QS.length-1?'disabled':''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p,j)=> p.classList.toggle('active', j===i));
+  document.querySelectorAll('.tab-btn').forEach((b,j)=> b.classList.toggle('active', j===i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+  document.getElementById('progFill').style.width = ((i+1)/QS.length*100)+'%';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+buildAll();
+</script>
+</body>
+</html>
