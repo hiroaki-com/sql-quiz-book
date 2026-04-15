@@ -30,9 +30,9 @@
       --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
       --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
 
-      --sql-grp1-bg: var(--sql-blue-bg);
-      --sql-grp2-bg: var(--sql-green-bg);
-      --sql-grp3-bg: var(--sql-orange-bg);
+      --sql-grp1-bg: rgba(88, 166, 255, 0.03);
+      --sql-grp2-bg: rgba(88, 166, 255, 0.08);
+      --sql-grp3-bg: rgba(88, 166, 255, 0.14);
 
       --border-radius: 6px;
 
@@ -60,9 +60,10 @@
     .sv-table th { padding: 6px 12px; font-size: 11px; font-weight: 600; border: 1px solid var(--color-border-sub); color: var(--color-txt-sub); text-align: left; background: var(--color-bg-panel); transition: all 0.3s ease; white-space: nowrap; }
     .sv-table td { padding: 6px 12px; border: 1px solid var(--color-border-sub); white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main); transition: background 0.3s ease, opacity 0.3s ease; }
 
-    .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
-    .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
-    .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+    .sv-table th.col-base, .sv-table th.col-eval, .sv-table th.col-select { color: var(--sql-orange-txt); }
+    .sv-table th.col-base   { background: var(--sql-blue-bg); }
+    .sv-table th.col-eval   { background: var(--sql-orange-bg); }
+    .sv-table th.col-select { background: var(--sql-green-bg); }
 
     .sv-table tr.row-active td { background: var(--color-bg-base); }
     .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
@@ -75,9 +76,12 @@
     .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
 
     .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
-    .sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); border-radius: 3px; padding: 2px 4px; color: var(--sql-blue-txt); }
-    .sql-hl-where, .sql-hl-and, .sql-hl-group, .sql-hl-having, .sql-hl-agg { background: var(--sql-orange-bg); border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt); }
-    .sql-hl-select, .sql-hl-order { background: var(--sql-green-bg); border-radius: 3px; padding: 2px 4px; color: var(--sql-green-txt); }
+    .sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-and, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-select, .sql-hl-order {
+      border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
+    }
+    .sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); }
+    .sql-hl-where, .sql-hl-and, .sql-hl-group, .sql-hl-having, .sql-hl-agg { background: var(--sql-orange-bg); }
+    .sql-hl-select, .sql-hl-order { background: var(--sql-green-bg); }
 
     .sv-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
     .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
@@ -117,10 +121,10 @@
 
     <div style="flex:1;min-width:300px;">
       <div id="sv-stepinfo" style="margin-bottom:16px;"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;" id="sv-ctrls"></div>
+      <div style="font-size:11px;color:var(--color-txt-muted);margin-bottom:16px;">💡 キーボードの ← → 矢印キーでも移動できます</div>
       <div id="sv-tarea" class="sv-animate"></div>
       <div class="row-count" id="sv-rowcount"></div>
-      <div style="display:flex;align-items:center;gap:12px;margin-top:20px;flex-wrap:wrap;" id="sv-ctrls"></div>
-      <div style="font-size:11px;color:var(--color-txt-muted);margin-top:12px;text-align:center;">💡 キーボードの ← → 矢印キーでも移動できます</div>
     </div>
 
   </div>
@@ -278,7 +282,7 @@
       case "base":   return mkLegend("blue", "データ取得・結合対象") + dimLegend;
       case "eval":   return mkLegend("orange", "評価対象の列・キー") + dimLegend + passFail;
       case "group":  return mkLegend("orange", "グループ化キー・集計対象") +
-               `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:2px;"><div style="width:8px;height:10px;background:var(--sql-grp1-bg);border-radius:1px;"></div><div style="width:8px;height:10px;background:var(--sql-grp2-bg);border-radius:1px;"></div><div style="width:8px;height:10px;background:var(--sql-grp3-bg);border-radius:1px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+               `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
       case "select": return mkLegend("green", "出力対象の列") + dimLegend;
       default: return "";
     }
@@ -288,7 +292,6 @@
     const ex = EXERCISES[currentExerciseIndex];
     const stepId = ex.steps[currentStepIndex].id;
     return ex.sql.map(t => {
-      // 複数の stepId に対応できるようスペース区切りで判定
       const isMatch = t.h && t.h.split(" ").includes(stepId);
       const cls = `${t.k} ${isMatch ? `sql-hl-${stepId}` : ""}`.trim();
       return `<span class="${cls}">${t.t}</span>`;
