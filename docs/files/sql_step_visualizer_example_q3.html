@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQL処理ステップ可視化</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #0d1117; min-height: 100vh; }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+    }
+
+    .sql-viz-wrapper {
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+      --font-sans: system-ui, -apple-system, sans-serif;
+
+      --color-bg-base:    #0d1117;
+      --color-bg-panel:   #161b22;
+      --color-border-main:#30363d;
+      --color-border-sub: #21262d;
+      --color-txt-main:   #e6edf3;
+      --color-txt-sub:    #8b949e;
+      --color-txt-muted:  #6e7681;
+
+      --sql-blue-bg:    rgba(88, 166, 255, 0.15);  --sql-blue-txt:   #58a6ff;  --sql-blue-bd:    #1f6feb;
+      --sql-orange-bg:  rgba(227, 137, 59, 0.15);  --sql-orange-txt: #e3893b;  --sql-orange-bd:  #7d4e00;
+      --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
+      --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
+
+      --sql-grp1-bg: rgba(88, 166, 255, 0.03);
+      --sql-grp2-bg: rgba(88, 166, 255, 0.08);
+      --sql-grp3-bg: rgba(88, 166, 255, 0.14);
+
+      --border-radius: 6px;
+
+      background: var(--color-bg-base);
+      color: var(--color-txt-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .sv-tab { padding: 6px 14px; border: 1px solid var(--color-border-sub); border-radius: var(--border-radius); font-size: 13px; font-weight: 500; background: transparent; color: var(--color-txt-sub); cursor: pointer; transition: all 0.2s ease; }
+    .sv-tab:hover { background: var(--color-bg-panel); }
+    .sv-tab.active { background: var(--sql-blue-bg); color: var(--sql-blue-txt); border-color: var(--sql-blue-bd); }
+    .sv-tab:focus-visible, .sv-nav-btn:focus-visible, .sv-dot:focus-visible { outline: 2px solid var(--sql-blue-txt); outline-offset: 2px; }
+
+    .sv-nav-btn { padding: 6px 16px; border: 1px solid var(--color-border-sub); border-radius: var(--border-radius); font-size: 12px; background: var(--color-bg-panel); color: var(--color-txt-main); cursor: pointer; transition: all 0.2s; }
+    .sv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .sv-nav-btn:not(:disabled):hover { border-color: var(--color-border-main); background: #1f2a38; }
+
+    .sv-dot { height: 6px; border: none; background: var(--color-border-sub); border-radius: 3px; cursor: pointer; padding: 0; transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s; flex-shrink: 0; width: 8px; }
+    .sv-dot.done { background: var(--color-border-main); }
+    .sv-dot.active { background: var(--sql-blue-txt); width: 24px; }
+
+    .sv-table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 12px; }
+    .sv-table th { padding: 6px 12px; font-size: 11px; font-weight: 600; border: 1px solid var(--color-border-sub); text-align: left; transition: all 0.3s ease; white-space: nowrap; }
+    .sv-table td { padding: 6px 12px; border: 1px solid var(--color-border-sub); white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main); transition: background 0.3s ease, opacity 0.3s ease; }
+
+    .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
+    .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
+    .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+
+    .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
+    .sv-table tr.row-grp-1 td { background: var(--sql-grp1-bg); }
+    .sv-table tr.row-grp-2 td { background: var(--sql-grp2-bg); }
+    .sv-table tr.row-grp-3 td { background: var(--sql-grp3-bg); }
+
+    .sv-table td.val-pass   { background: var(--sql-green-bg) !important; border-left: 2px solid var(--sql-green-txt); color: var(--sql-green-txt); font-weight: 600; }
+    .sv-table td.val-fail   { background: var(--sql-red-bg) !important; border-left: 2px solid var(--sql-red-txt); color: var(--sql-red-txt); text-decoration: line-through; opacity: 0.7; }
+    .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
+
+    .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
+    .sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-select, .sql-hl-sub {
+      border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
+    }
+    .sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); }
+    .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-sub { background: var(--sql-orange-bg); }
+    .sql-hl-select { background: var(--sql-green-bg); }
+
+    .sv-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+    .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
+    .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
+    .badge-green  { background: var(--sql-green-bg);  color: var(--sql-green-txt);  border: 1px solid var(--sql-green-bd); }
+
+    @keyframes sv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .sv-animate { animation: sv-fade-in 0.3s ease forwards; }
+
+    .tbl-label { font-size: 12px; font-weight: 500; color: var(--color-txt-sub); margin-bottom: 6px; }
+    .row-count { font-size: 12px; font-family: var(--font-mono); color: var(--color-txt-sub); margin-top: 8px; text-align: right; }
+
+    .sv-mobile-collapse summary::-webkit-details-marker { display: none; }
+    .sv-mobile-collapse summary { list-style: none; }
+    .sv-collapse-icon { transition: transform 0.2s ease; display: inline-block; }
+    .sv-mobile-collapse[open] .sv-collapse-icon { transform: rotate(180deg); }
+
+    @media (min-width: 641px) {
+      .sv-mobile-collapse > summary { pointer-events: none; }
+      .sv-collapse-icon { display: none !important; }
+    }
+    @media (max-width: 640px) {
+      .sv-sidebar { flex: 1 1 100% !important; min-width: 100% !important; }
+    }
+  </style>
+</head>
+<body>
+
+<h2 class="sr-only">SQL処理ステップ可視化 — クエリの各句がテーブルの行・列に与える影響をステップ形式で確認できます。</h2>
+
+<div class="sql-viz-wrapper">
+
+  <div id="sv-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;"></div>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+
+    <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+      <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+      <div id="sv-sqlbox" style="font-family:var(--font-mono);font-size:13px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+
+      <details id="sv-legend-container" class="sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+        <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+          <span>LEGEND (現在のステップ)</span>
+          <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+        </summary>
+        <div id="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+      </details>
+    </div>
+
+    <div style="flex:1;min-width:300px;">
+      <div id="sv-stepinfo" style="margin-bottom:16px;"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;" id="sv-ctrls"></div>
+      <div style="font-size:11px;color:var(--color-txt-muted);margin-bottom:16px;">💡 キーボードの ← → 矢印キーでも移動できます</div>
+      <div id="sv-tarea" class="sv-animate"></div>
+      <div class="row-count" id="sv-rowcount"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(() => {
+  const EXERCISES = [
+    {
+      id: "q1", label: "Q1. LEFT JOIN",
+      steps: [
+        { id: "from", badge: "① FROM / LEFT JOIN", bc: "badge-blue",
+          label: "左: orders, 右: products",
+          desc: "結合対象の2つのテーブルを準備します。orders の product_id=104 は products に存在しません。LEFT JOIN では左テーブルの行が必ず保持されます。",
+          type: "base", join: true,
+          left: {
+            label: "orders (o) 左テーブル", cols: ["order_id", "customer", "product_id", "amount"],
+            rows: [
+              { v: [1, "田中", 101, "3,000"] },
+              { v: [2, "佐藤", 102, "5,000"] },
+              { v: [3, "山田", 103, "2,500"] },
+              { v: [4, "鈴木", 104, "4,000"] },
+              { v: [5, "高橋", 101, "1,500"] }
+            ]
+          },
+          right: {
+            label: "products (p) 右テーブル", cols: ["product_id", "product_name"],
+            rows: [
+              { v: [101, "ノートPC"] },
+              { v: [102, "マウス"] },
+              { v: [103, "書籍"] },
+              { v: [105, "USB Hub"] }
+            ]
+          },
+          cnt: "左: 5行 / 右: 4行" },
+
+        { id: "join", badge: "② ON (結合条件)", bc: "badge-orange",
+          label: "ON o.product_id = p.product_id",
+          desc: "product_id をキーに突き合わせます。左の product_id=104 は右に存在しないため NULL になります。右の product_id=105 は左に存在しないため除外されます（LEFT JOIN のルール）。",
+          type: "eval", join: true,
+          left: {
+            label: "orders (o)", cols: ["order_id", "customer", "product_id", "amount"], ch: ["", "", "col-eval"],
+            rows: [
+              { v: [1, "田中", 101, "3,000"],     cc: ["", "", "val-pass"] },
+              { v: [2, "佐藤", 102, "5,000"],     cc: ["", "", "val-pass"] },
+              { v: [3, "山田", 103, "2,500"],     cc: ["", "", "val-pass"] },
+              { v: [4, "鈴木", "104 ✗", "4,000"], cc: ["", "", "val-fail"] },
+              { v: [5, "高橋", 101, "1,500"],     cc: ["", "", "val-pass"] }
+            ]
+          },
+          right: {
+            label: "products (p)", cols: ["product_id", "product_name"], ch: ["col-eval"],
+            rows: [
+              { v: [101, "ノートPC"],    cc: ["val-pass"] },
+              { v: [102, "マウス"],      cc: ["val-pass"] },
+              { v: [103, "書籍"],        cc: ["val-pass"] },
+              { c: "row-dimmed", v: ["105 ✗", "USB Hub"], cc: ["val-fail"] }
+            ]
+          },
+          cnt: "結合成功: 4行 / NULL補完: 1行" },
+
+        { id: "select", badge: "③ SELECT", bc: "badge-green",
+          label: "SELECT order_id, customer, product_name",
+          desc: "LEFT JOIN 後の仮想テーブルから列を抽出します。product_id=104 の行は product_name が NULL のまま結果に残ります。",
+          type: "select",
+          cols: ["order_id", "customer", "product_name", "product_id (結合キー)"],
+          ch:   ["col-select", "col-select", "col-select"],
+          rows: [
+            { v: [1, "田中", "ノートPC", 101], cc: ["", "", "", "val-dimmed"] },
+            { v: [2, "佐藤", "マウス",   102], cc: ["", "", "", "val-dimmed"] },
+            { v: [3, "山田", "書籍",     103], cc: ["", "", "", "val-dimmed"] },
+            { v: [4, "鈴木", "NULL",     104], cc: ["", "", "", "val-dimmed"] },
+            { v: [5, "高橋", "ノートPC", 101], cc: ["", "", "", "val-dimmed"] }
+          ],
+          cnt: "結果: 5行 × 3列" }
+      ],
+      sql: [
+        { t: "SELECT",     k: "sql-kw", h: "select" }, { t: "  o.order_id, o.customer, p.product_name\n", k: "", h: "select" },
+        { t: "FROM      ", k: "sql-kw", h: "from"   }, { t: "orders",   k: "", h: "from" }, { t: " o\n",  k: "", h: "from" },
+        { t: "LEFT JOIN ", k: "sql-kw", h: "from"   }, { t: "products", k: "", h: "from" }, { t: " p\n",  k: "", h: "from" },
+        { t: "  ON ",      k: "sql-kw", h: "join"   }, { t: "o.product_id = p.product_id\n", k: "", h: "join" },
+        { t: "ORDER BY ",  k: "sql-kw", h: "select" }, { t: "o.order_id;", k: "", h: "select" }
+      ]
+    },
+    {
+      id: "q2", label: "Q2. GROUP BY + HAVING",
+      steps: [
+        { id: "from", badge: "① FROM", bc: "badge-blue",
+          label: "FROM sales",
+          desc: "sales テーブル全体（6行 × 3列）をメモリに読み込みます。",
+          type: "base",
+          cols: ["sale_id", "region", "amount"],
+          ch:   ["col-base", "col-base", "col-base"],
+          rows: [
+            { v: [1, "東日本", "50,000"] },
+            { v: [2, "西日本", "80,000"] },
+            { v: [3, "東日本", "30,000"] },
+            { v: [4, "中部",   "60,000"] },
+            { v: [5, "東日本", "90,000"] },
+            { v: [6, "西日本", "70,000"] }
+          ], cnt: "全 6行 読込" },
+
+        { id: "group", badge: "② GROUP BY", bc: "badge-orange",
+          label: "GROUP BY region",
+          desc: "region の値に基づいてデータを3グループに分類します。同じ色の行が同じグループです。",
+          type: "group",
+          cols: ["sale_id", "region", "amount"],
+          ch:   ["", "col-eval"],
+          rows: [
+            { c: "row-grp-1", v: [1, "東日本", "50,000"] },
+            { c: "row-grp-2", v: [2, "西日本", "80,000"] },
+            { c: "row-grp-1", v: [3, "東日本", "30,000"] },
+            { c: "row-grp-3", v: [4, "中部",   "60,000"] },
+            { c: "row-grp-1", v: [5, "東日本", "90,000"] },
+            { c: "row-grp-2", v: [6, "西日本", "70,000"] }
+          ], cnt: "3グループに分類" },
+
+        { id: "agg", badge: "③ 集計(Agg)", bc: "badge-orange",
+          label: "COUNT(*) & SUM(amount)",
+          desc: "各グループを1行に集約し、件数と合計金額を計算します。",
+          type: "group",
+          cols: ["region", "COUNT(*)", "SUM(amount)", "— 元の行数 —"],
+          ch:   ["col-eval", "col-eval", "col-eval"],
+          rows: [
+            { c: "row-grp-1", v: ["東日本", 3, "170,000", "(3行集約)"] },
+            { c: "row-grp-2", v: ["西日本", 2, "150,000", "(2行集約)"] },
+            { c: "row-grp-3", v: ["中部",   1,  "60,000", "(1行集約)"] }
+          ], cnt: "6行 → 3行" },
+
+        { id: "having", badge: "④ HAVING", bc: "badge-orange",
+          label: "HAVING SUM(amount) >= 100,000",
+          desc: "集計後のグループに条件を適用します。SUM が 100,000 未満の「中部」グループを除外します。WHERE との違い：HAVING は集計後のフィルタです。",
+          type: "eval",
+          cols: ["region", "COUNT(*)", "SUM(amount)"],
+          ch:   ["", "", "col-eval"],
+          rows: [
+            { v: ["東日本", 3, "170,000"], cc: ["", "", "val-pass"] },
+            { v: ["西日本", 2, "150,000"], cc: ["", "", "val-pass"] },
+            { c: "row-dimmed", v: ["中部",   1,  "60,000"], cc: ["", "", "val-fail"] }
+          ], cnt: "3行 → 2行" },
+
+        { id: "select", badge: "⑤ SELECT", bc: "badge-green",
+          label: "SELECT region, sale_count, total",
+          desc: "HAVING フィルタを通過した2グループを最終結果として出力します。",
+          type: "select",
+          cols: ["region", "sale_count", "total"],
+          ch:   ["col-select", "col-select", "col-select"],
+          rows: [
+            { v: ["東日本", 3, "170,000"] },
+            { v: ["西日本", 2, "150,000"] }
+          ], cnt: "結果: 2行 × 3列" }
+      ],
+      sql: [
+        { t: "SELECT\n",               k: "sql-kw", h: "select" },
+        { t: "  region,\n",            k: "",       h: "select" },
+        { t: "  COUNT(*) AS sale_count,\n", k: "",  h: "agg select" },
+        { t: "  SUM(amount) AS total\n",    k: "",  h: "agg select" },
+        { t: "FROM     ", k: "sql-kw", h: "from"   }, { t: "sales\n", k: "", h: "from" },
+        { t: "GROUP BY ", k: "sql-kw", h: "group"  }, { t: "region\n", k: "", h: "group" },
+        { t: "HAVING   ", k: "sql-kw", h: "having" }, { t: "SUM(amount) >= 100000\n", k: "", h: "having" },
+        { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "total DESC;", k: "", h: "select" }
+      ]
+    },
+    {
+      id: "q3", label: "Q3. サブクエリ (WHERE IN)",
+      steps: [
+        { id: "from", badge: "① FROM", bc: "badge-blue",
+          label: "FROM employees",
+          desc: "外側クエリの対象テーブル employees 全体（6行 × 3列）を読み込みます。次のステップでサブクエリが実行され、絞り込みに使う dept_id のリストが決まります。",
+          type: "base",
+          cols: ["emp_id", "emp_name", "dept_id"],
+          ch:   ["col-base", "col-base", "col-base"],
+          rows: [
+            { v: [1, "田中 一郎", 10] },
+            { v: [2, "佐藤 花子", 20] },
+            { v: [3, "山田 太郎", 10] },
+            { v: [4, "鈴木 次郎", 30] },
+            { v: [5, "高橋 三郎", 20] },
+            { v: [6, "木村 四郎", 40] }
+          ], cnt: "全 6行 読込" },
+
+        { id: "sub", badge: "② サブクエリ実行", bc: "badge-orange",
+          label: "サブクエリ: WHERE city = '東京'",
+          desc: "括弧内のサブクエリが先に実行されます。departments から city = '東京' に一致する dept_id を取り出します。結果は (10, 20) のリストになります。",
+          type: "eval",
+          cols: ["dept_id", "dept_name", "city"],
+          ch:   ["col-eval", "", "col-eval"],
+          rows: [
+            { v: [10, "営業部", "東京"],   cc: ["val-pass", "", "val-pass"] },
+            { v: [20, "開発部", "東京"],   cc: ["val-pass", "", "val-pass"] },
+            { c: "row-dimmed", v: [30, "マーケ部", "大阪"], cc: ["", "", "val-fail"] },
+            { c: "row-dimmed", v: [40, "総務部", "名古屋"], cc: ["", "", "val-fail"] }
+          ], cnt: "サブクエリ結果: dept_id IN (10, 20)" },
+
+        { id: "where", badge: "③ WHERE IN", bc: "badge-orange",
+          label: "WHERE dept_id IN (10, 20)",
+          desc: "サブクエリの結果リスト (10, 20) を使って employees を絞り込みます。dept_id が 30・40 の行は除外されます。",
+          type: "eval",
+          cols: ["emp_id", "emp_name", "dept_id"],
+          ch:   ["", "", "col-eval"],
+          rows: [
+            { v: [1, "田中 一郎", 10], cc: ["", "", "val-pass"] },
+            { v: [2, "佐藤 花子", 20], cc: ["", "", "val-pass"] },
+            { v: [3, "山田 太郎", 10], cc: ["", "", "val-pass"] },
+            { c: "row-dimmed", v: [4, "鈴木 次郎", 30], cc: ["", "", "val-fail"] },
+            { v: [5, "高橋 三郎", 20], cc: ["", "", "val-pass"] },
+            { c: "row-dimmed", v: [6, "木村 四郎", 40], cc: ["", "", "val-fail"] }
+          ], cnt: "6行 → 4行" },
+
+        { id: "select", badge: "④ SELECT", bc: "badge-green",
+          label: "SELECT emp_id, emp_name, dept_id",
+          desc: "絞り込まれた4行から指定の列を最終出力します。",
+          type: "select",
+          cols: ["emp_id", "emp_name", "dept_id"],
+          ch:   ["col-select", "col-select", "col-select"],
+          rows: [
+            { v: [1, "田中 一郎", 10] },
+            { v: [2, "佐藤 花子", 20] },
+            { v: [3, "山田 太郎", 10] },
+            { v: [5, "高橋 三郎", 20] }
+          ], cnt: "結果: 4行 × 3列" }
+      ],
+      sql: [
+        { t: "SELECT",    k: "sql-kw", h: "select" }, { t: "  emp_id, emp_name, dept_id\n", k: "", h: "select" },
+        { t: "FROM     ", k: "sql-kw", h: "from"   }, { t: "employees\n", k: "", h: "from" },
+        { t: "WHERE    ", k: "sql-kw", h: "where"  }, { t: "dept_id IN (\n", k: "", h: "where" },
+        { t: "  SELECT  ", k: "sql-kw", h: "sub"   }, { t: "dept_id\n",        k: "", h: "sub" },
+        { t: "  FROM    ", k: "sql-kw", h: "sub"   }, { t: "departments\n",    k: "", h: "sub" },
+        { t: "  WHERE   ", k: "sql-kw", h: "sub"   }, { t: "city = '東京'\n",  k: "", h: "sub" },
+        { t: ")\n",        k: "",       h: "where" },
+        { t: "ORDER BY ",  k: "sql-kw", h: "select"}, { t: "emp_id;", k: "", h: "select" }
+      ]
+    }
+  ];
+
+  let currentExerciseIndex = 0;
+  let currentStepIndex = 0;
+  let wasMobile = window.innerWidth <= 640;
+
+  window.addEventListener("resize", () => {
+    const isMobile = window.innerWidth <= 640;
+    if (wasMobile !== isMobile) {
+      wasMobile = isMobile;
+      document.querySelectorAll(".sv-mobile-collapse").forEach(el => el.open = !isMobile);
+    }
+  });
+
+  function getLegendHTML(type) {
+    const mkLegend = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dimLegend =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const passFail =
+      `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:11px;">✓ 通過</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:11px;">✗ 除外</span></div>
+      </div>`;
+
+    if (type === "base") return mkLegend("blue", "データ取得・結合対象") + dimLegend;
+    if (type === "eval") return mkLegend("orange", "評価対象の列・キー") + dimLegend + passFail;
+    if (type === "group") return mkLegend("orange", "グループ化キー・集計対象") + `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === "select") return mkLegend("green", "出力対象の列") + dimLegend;
+    return "";
+  }
+
+  function renderSQL(ex, stepId) {
+    return ex.sql.map(t => {
+      const isMatch = t.h && t.h.split(" ").includes(stepId);
+      const cls = `${t.k || ""} ${isMatch ? `sql-hl-${stepId}` : ""}`.trim();
+      return `<span class="${cls}">${t.t}</span>`;
+    }).join("");
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" id="sv-stepinfo-details" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:10px 14px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:14px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:10px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:13px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>
+    `;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ""}">${col}</th>`).join("");
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ""}">${val}</td>`).join("");
+      return `<tr class="${r.c || ""}">${tds}</tr>`;
+    }).join("");
+    const labelHtml = label ? `<div class="tbl-label">▸ ${label}</div>` : "";
+    return `<div style="flex:1;min-width:260px;">${labelHtml}<div style="overflow-x:auto;"><table class="sv-table">${thead ? `<thead><tr>${thead}</tr></thead>` : ""}<tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+          ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
+          <div style="display:flex;align-items:center;font-size:24px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+          ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+        </div>
+      `;
+    }
+    return buildTable("", step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? "active" : (i < currentStepIndex ? "done" : "");
+      return `<button class="sv-dot ${cls}" onclick="svGoToStep(${i})" aria-label="ステップ${i+1}"></button>`;
+    }).join("");
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:12px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" onclick="svGoToStep(${currentStepIndex - 1})" ${currentStepIndex === 0 ? "disabled" : ""}>← Prev</button>
+        <button class="sv-nav-btn" onclick="svGoToStep(${currentStepIndex + 1})" ${currentStepIndex === total - 1 ? "disabled" : ""}>Next →</button>
+      </div>
+    `;
+  }
+
+  function renderAll() {
+    const ex = EXERCISES[currentExerciseIndex];
+    const step = ex.steps[currentStepIndex];
+
+    document.getElementById("sv-tabs").innerHTML = EXERCISES.map((e, i) =>
+      `<button class="sv-tab ${i === currentExerciseIndex ? "active" : ""}" onclick="svGoToExercise(${i})">${e.label}</button>`
+    ).join("");
+
+    document.getElementById("sv-sqlbox").innerHTML = renderSQL(ex, step.id);
+    document.getElementById("sv-legend").innerHTML = getLegendHTML(step.type);
+    document.getElementById("sv-stepinfo").innerHTML = renderStepInfo(step);
+
+    const tarea = document.getElementById("sv-tarea");
+    tarea.classList.remove("sv-animate");
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add("sv-animate");
+
+    document.getElementById("sv-rowcount").innerText = step.cnt || "";
+    document.getElementById("sv-ctrls").innerHTML = renderControls(ex.steps.length);
+
+    document.querySelectorAll(".sv-mobile-collapse").forEach(el => el.open = !wasMobile);
+  }
+
+  window.svGoToExercise = (i) => { currentExerciseIndex = i; currentStepIndex = 0; renderAll(); };
+  window.svGoToStep = (i) => {
+    const total = EXERCISES[currentExerciseIndex].steps.length;
+    if (i >= 0 && i < total) { currentStepIndex = i; renderAll(); }
+  };
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight") svGoToStep(currentStepIndex + 1);
+    else if (e.key === "ArrowLeft") svGoToStep(currentStepIndex - 1);
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
