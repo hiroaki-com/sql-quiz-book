@@ -1,0 +1,2187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL 基礎問題10選 — SELECT・JOIN・集計・条件分岐で実務SQLの土台を固める</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw); font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em { color: var(--yellow); }
+  .insight-body code { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code { font-size: 11px; }
+
+  .biz-box {
+    background: #0f1912; border: 1px solid #1c3d25; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .biz-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--green); letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .biz-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .biz-body strong { color: var(--green); }
+  .biz-body em { color: var(--yellow); }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+
+  .sql-viz-wrapper {
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    --font-sans: system-ui, -apple-system, sans-serif;
+
+    --color-bg-base:    #0d1117;
+    --color-bg-panel:   #161b22;
+    --color-border-main:#30363d;
+    --color-border-sub: #21262d;
+    --color-txt-main:   #e6edf3;
+    --color-txt-sub:    #8b949e;
+    --color-txt-muted:  #6e7681;
+
+    --sql-blue-bg:    rgba(88, 166, 255, 0.15);  --sql-blue-txt:   #58a6ff;  --sql-blue-bd:    #1f6feb;
+    --sql-orange-bg:  rgba(227, 137, 59, 0.15);  --sql-orange-txt: #e3893b;  --sql-orange-bd:  #7d4e00;
+    --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
+    --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
+
+    --sql-grp1-bg: rgba(88, 166, 255, 0.03);
+    --sql-grp2-bg: rgba(88, 166, 255, 0.08);
+    --sql-grp3-bg: rgba(88, 166, 255, 0.14);
+
+    --border-radius: 6px;
+
+    background: var(--color-bg-base);
+    color: var(--color-txt-main);
+    font-family: var(--font-sans);
+    min-height: auto;
+    padding: 1.5rem;
+  }
+
+  .sv-nav-btn { padding: 6px 16px; border: 1px solid var(--color-border-sub); border-radius: var(--border-radius); font-size: 12px; background: var(--color-bg-panel); color: var(--color-txt-main); cursor: pointer; transition: all 0.2s; }
+  .sv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sv-nav-btn:not(:disabled):hover { border-color: var(--color-border-main); background: #1f2a38; }
+
+  .sv-dot { height: 6px; border: none; background: var(--color-border-sub); border-radius: 3px; cursor: pointer; padding: 0; transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s; flex-shrink: 0; width: 8px; }
+  .sv-dot.done { background: var(--color-border-main); }
+  .sv-dot.active { background: var(--sql-blue-txt); width: 24px; }
+  .sv-dot:focus-visible, .sv-nav-btn:focus-visible { outline: 2px solid var(--sql-blue-txt); outline-offset: 2px; }
+
+  .sv-table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 12px; }
+  .sv-table th { padding: 6px 12px; font-size: 11px; font-weight: 600; border: 1px solid var(--color-border-sub); text-align: left; transition: all 0.3s ease; white-space: nowrap; }
+  .sv-table td { padding: 6px 12px; border: 1px solid var(--color-border-sub); white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main); transition: background 0.3s ease, opacity 0.3s ease; }
+
+  .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
+  .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
+  .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+
+  .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
+  .sv-table tr.row-grp-1 td { background: var(--sql-grp1-bg); }
+  .sv-table tr.row-grp-2 td { background: var(--sql-grp2-bg); }
+  .sv-table tr.row-grp-3 td { background: var(--sql-grp3-bg); }
+
+  .sv-table td.val-pass   { background: var(--sql-green-bg) !important; border-left: 2px solid var(--sql-green-txt); color: var(--sql-green-txt); font-weight: 600; }
+  .sv-table td.val-fail   { background: var(--sql-red-bg) !important; border-left: 2px solid var(--sql-red-txt); color: var(--sql-red-txt); text-decoration: line-through; opacity: 0.7; }
+  .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
+
+  .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
+  .sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-select, .sql-hl-case, .sql-hl-sub {
+    border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
+  }
+  .sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); }
+  .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-sub, .sql-hl-case { background: var(--sql-orange-bg); }
+  .sql-hl-select { background: var(--sql-green-bg); }
+
+  .sv-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; letter-spacing: 0.02em; }
+  .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
+  .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
+  .badge-green  { background: var(--sql-green-bg);  color: var(--sql-green-txt);  border: 1px solid var(--sql-green-bd); }
+  .badge-red    { background: var(--sql-red-bg);    color: var(--sql-red-txt);    border: 1px solid var(--sql-red-txt); }
+
+  @keyframes sv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sv-animate { animation: sv-fade-in 0.3s ease forwards; }
+
+  .tbl-label { font-size: 11px; font-weight: 500; color: var(--color-txt-sub); margin-bottom: 6px; }
+
+  .sv-mobile-collapse summary::-webkit-details-marker { display: none; }
+  .sv-mobile-collapse summary { list-style: none; }
+  .sv-collapse-icon { transition: transform 0.2s ease; display: inline-block; }
+  .sv-mobile-collapse[open] .sv-collapse-icon { transform: rotate(180deg); }
+
+  @media (min-width: 641px) {
+    .sv-mobile-collapse > summary { pointer-events: none; }
+    .sv-collapse-icon { display: none !important; }
+  }
+  @media (max-width: 640px) {
+    .sv-sidebar { flex: 1 1 100% !important; min-width: 100% !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">基礎 10</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">実務で使うSQL 基礎10選（SELECT・WHERE・JOIN・GROUP BY・CASE WHEN・NULL処理・サブクエリ編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★☆☆ 基礎</span>
+      <span class="htag">王道パターン</span>
+      <span class="htag">実務直結</span>
+      <span class="htag">PostgreSQL/MySQL/BigQuery対応</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const initVisualizer = function(root, data) {
+  let currentStepIndex = 0;
+
+  function getLegendHTML(type) {
+    const mkLegend = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dimLegend =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const passFail =
+      `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:10px;">✓ 通過</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:10px;">✗ 除外</span></div>
+      </div>`;
+
+    if (type === "base") return mkLegend("blue", "データ取得・結合対象") + dimLegend;
+    if (type === "eval") return mkLegend("orange", "評価対象の列・キー") + dimLegend + passFail;
+    if (type === "group") return mkLegend("orange", "グループ化キー・集計対象") + `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === "select") return mkLegend("green", "出力対象の列") + dimLegend;
+    return "";
+  }
+
+  function renderSQL(data, stepId) {
+    return data.sql.map(t => {
+      const isMatch = t.h && t.h.split(" ").includes(stepId);
+      const cls = `${t.k || ""} ${isMatch ? `sql-hl-${stepId.split(' ')[0]}` : ""}`.trim();
+      return `<span class="${cls}">${t.t}</span>`;
+    }).join("");
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:10px 14px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:11px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:10px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:12px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>
+    `;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ""}">${col}</th>`).join("");
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ""}">${val}</td>`).join("");
+      return `<tr class="${r.c || ""}">${tds}</tr>`;
+    }).join("");
+    const labelHtml = label ? `<div class="tbl-label">▸ ${label}</div>` : "";
+    return `<div style="flex:1;min-width:260px;">${labelHtml}<div style="overflow-x:auto;"><table class="sv-table">${thead ? `<thead><tr>${thead}</tr></thead>` : ""}<tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+          ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
+          <div style="display:flex;align-items:center;font-size:24px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+          ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+        </div>
+      `;
+    }
+    return buildTable("", step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? "active" : (i < currentStepIndex ? "done" : "");
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}"></button>`;
+    }).join("");
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:11px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? "disabled" : ""}>← Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? "disabled" : ""}>Next →</button>
+      </div>
+    `;
+  }
+
+  root.innerHTML = `
+<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+  <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+    <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+    <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:13px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+    <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+      <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+        <span>LEGEND (現在のステップ)</span>
+        <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+      </summary>
+      <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+    </details>
+  </div>
+  <div style="flex:1;min-width:300px;">
+    <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+    <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+    <div class="sv-tarea sv-animate"></div>
+    <div class="sv-rowcount" style="font-size:12px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+  </div>
+</div>`;
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML = renderSQL(data, step.id);
+    root.querySelector('.sv-legend').innerHTML = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = window.innerWidth > 640);
+  }
+
+  root.__viz = {
+    next: () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev: () => { if (currentStepIndex > 0) { currentStepIndex--; renderAll(); } },
+    goTo: i => { if (i >= 0 && i < data.steps.length) { currentStepIndex = i; renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'prev') root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+};
+
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  SELECT / WHERE / ORDER BY — 基本データ取得
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "SELECT / WHERE / ORDER BY — 条件を指定して必要な行だけ取り出す",
+  tags: [["r","SELECT"],["r","WHERE"],["g","ORDER BY"],["o","基本取得"]],
+  premise: `<p>SQLの最もの基本形は <strong>SELECT → FROM → WHERE → ORDER BY</strong> の4句です。実行順序は書いた順ではなく、<em>FROM → WHERE → SELECT → ORDER BY</em> の順で処理されます。</p>
+<pre><span class="kw">SELECT</span>  列名1, 列名2          <span class="cmt">-- どの列を取得するか</span>
+<span class="kw">FROM</span>    テーブル名             <span class="cmt">-- どのテーブルから取るか</span>
+<span class="kw">WHERE</span>   条件式                <span class="cmt">-- どの行を残すか（フィルタ）</span>
+<span class="kw">ORDER BY</span> 列名 <span class="kw">ASC</span><span class="op">|</span><span class="kw">DESC</span>;      <span class="cmt">-- 昇順(ASC)または降順(DESC)で並べる</span></pre>
+<div class="callout"><strong>書く順序 vs 実行順序：</strong>SQLは「書く順序」と「DBが実行する順序」が異なります。特にWHEREはSELECTより先に評価されるため、<em>SELECTで付けた別名（AS）はWHEREの中では使えません</em>。これはSQLの最重要ルールの一つです。</div>
+<p>比較演算子: <code>=</code>（等しい）<code>&lt;&gt;</code>/<code>!=</code>（等しくない）<code>&lt;</code><code>&lt;=</code><code>&gt;</code><code>&gt;=</code> / 論理演算子: <code>AND</code>（かつ）<code>OR</code>（または）<code>NOT</code>（否定）</p>`,
+  question: `<p>以下の <code>products</code> テーブルから、<em>カテゴリが '電子機器' かつ 在庫数が 10 以上</em> の商品を取得してください。</p>
+<p>価格の<em>高い順</em>に並べること。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ products</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>product_name</th><th>category</th><th>price</th><th>stock</th></tr>
+        <tr><td>P01</td><td>スマートフォンA</td><td>電子機器</td><td>89000</td><td>25</td></tr>
+        <tr><td>P02</td><td>ノートPC</td><td>電子機器</td><td>150000</td><td>8</td></tr>
+        <tr><td>P03</td><td>ワイヤレスイヤホン</td><td>電子機器</td><td>32000</td><td>50</td></tr>
+        <tr><td>P04</td><td>デスク</td><td>家具</td><td>45000</td><td>15</td></tr>
+        <tr><td>P05</td><td>タブレット</td><td>電子機器</td><td>72000</td><td>12</td></tr>
+        <tr><td>P06</td><td>椅子</td><td>家具</td><td>30000</td><td>20</td></tr>
+        <tr><td>P07</td><td>スマートウォッチ</td><td>電子機器</td><td>48000</td><td>3</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>product_id</th><th>product_name</th><th>price</th><th>stock</th></tr>
+<tr><td>P01</td><td>スマートフォンA</td><td>89000</td><td>25</td></tr>
+<tr><td>P05</td><td>タブレット</td><td>72000</td><td>12</td></tr>
+<tr><td>P03</td><td>ワイヤレスイヤホン</td><td>32000</td><td>50</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>                         <span class="cmt">-- SELECT: 取得する列を列挙する（*は全列、列名指定が推奨）</span>
+  product_id,
+  product_name,
+  price,
+  stock
+<span class="kw">FROM</span>    <span class="tbl">products</span>               <span class="cmt">-- FROM: データを取得するテーブル名を指定</span>
+<span class="kw">WHERE</span>   category <span class="op">=</span> <span class="str">'電子機器'</span>  <span class="cmt">-- WHERE: 条件に合う行のみを残すフィルタ。= は等値比較</span>
+  <span class="kw">AND</span>   stock    <span class="op">>=</span> <span class="num">10</span>         <span class="cmt">-- AND: 前の条件と「かつ」で繋げる。両方trueの行のみ残る</span>
+<span class="kw">ORDER BY</span> price <span class="kw">DESC</span>;           <span class="cmt">-- ORDER BY: 並び順を指定。DESC=降順(大→小)、ASC=昇順(小→大、省略可)</span>
+
+<span class="cmt">/*
+  実行順序（書く順序とは異なる）:
+  1. FROM products      → テーブル全体（7行）を対象とする
+  2. WHERE category='電子機器' AND stock>=10
+                        → 条件に合う行だけに絞る（3行: P01,P03,P05）
+                          ※ P02は stock=8 で除外、P07は stock=3 で除外
+  3. SELECT product_id, product_name, price, stock
+                        → 必要な列だけを選ぶ
+  4. ORDER BY price DESC → 価格の高い順に並べ替える
+  ★ WHEREはSELECTより前に実行されるため、
+    SELECT で付けた AS 別名を WHERE 内で使うとエラーになる
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  product_id, product_name, price, stock\n", k: "", h: "select" },
+      { t: "FROM     ", k: "sql-kw", h: "from" }, { t: "products\n", k: "", h: "from" },
+      { t: "WHERE    ", k: "sql-kw", h: "where" }, { t: "category = '電子機器'\n", k: "", h: "where" },
+      { t: "  AND    ", k: "sql-kw", h: "where" }, { t: "stock >= 10\n", k: "", h: "where" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "price DESC;", k: "", h: "select" }
+    ],
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM products", desc: "テーブル全体（7行）を処理対象として取得します。", type: "base", cnt: "全7行",
+        cols: ["product_id", "product_name", "category", "price", "stock"],
+        ch: ["col-base", "col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: ["P01", "スマートフォンA", "電子機器", 89000, 25] },
+          { v: ["P02", "ノートPC", "電子機器", 150000, 8] },
+          { v: ["P03", "ワイヤレスイヤホン", "電子機器", 32000, 50] },
+          { v: ["P04", "デスク", "家具", 45000, 15] },
+          { v: ["P05", "タブレット", "電子機器", 72000, 12] },
+          { v: ["P06", "椅子", "家具", 30000, 20] },
+          { v: ["P07", "スマートウォッチ", "電子機器", 48000, 3] }
+        ]
+      },
+      {
+        id: "where", badge: "② WHERE", bc: "badge-orange",
+        label: "category = '電子機器' AND stock >= 10", desc: "条件に合致する行のみを残し、それ以外は除外します。ANDは両方の条件を満たす必要があります。", type: "eval", cnt: "7行 → 3行",
+        cols: ["product_id", "product_name", "category", "price", "stock"],
+        ch: ["", "", "col-eval", "", "col-eval"],
+        rows: [
+          { v: ["P01", "スマートフォンA", "電子機器", 89000, 25], cc: ["", "", "val-pass", "", "val-pass"] },
+          { c: "row-dimmed", v: ["P02", "ノートPC", "電子機器", 150000, "8 ✗"], cc: ["", "", "val-pass", "", "val-fail"] },
+          { v: ["P03", "ワイヤレスイヤホン", "電子機器", 32000, 50], cc: ["", "", "val-pass", "", "val-pass"] },
+          { c: "row-dimmed", v: ["P04", "デスク", "家具 ✗", 45000, 15], cc: ["", "", "val-fail", "", "val-pass"] },
+          { v: ["P05", "タブレット", "電子機器", 72000, 12], cc: ["", "", "val-pass", "", "val-pass"] },
+          { c: "row-dimmed", v: ["P06", "椅子", "家具 ✗", 30000, 20], cc: ["", "", "val-fail", "", "val-pass"] },
+          { c: "row-dimmed", v: ["P07", "スマートウォッチ", "電子機器", 48000, "3 ✗"], cc: ["", "", "val-pass", "", "val-fail"] }
+        ]
+      },
+      {
+        id: "select", badge: "③ SELECT & ORDER BY", bc: "badge-green",
+        label: "ORDER BY price DESC", desc: "残った3行から必要な列を選択し、価格の高い順（降順）に並び替えて出力します。", type: "select", cnt: "結果: 3行",
+        cols: ["product_id", "product_name", "price", "stock"],
+        ch: ["col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["P01", "スマートフォンA", 89000, 25] },
+          { v: ["P05", "タブレット", 72000, 12] },
+          { v: ["P03", "ワイヤレスイヤホン", 32000, 50] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>書く順序 ≠ 実行順序：</strong>SQLの実行順序は <em>FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY</em> です。SELECT で定義した別名（AS）は WHERE では使えません。HAVING や ORDER BY では使える実装が多いです（DBMSによる）。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>AND / OR の優先順位：</strong>ANDはORより優先されます。<code>A OR B AND C</code> は <code>A OR (B AND C)</code> と解釈されます。複数条件を組み合わせるときは <em>括弧 () で意図を明示</em> することが重要です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>SELECT * は避ける：</strong>開発中は便利ですが、本番コードでは列を明示的に指定してください。テーブル変更時の影響を局所化でき、転送データ量の削減にもつながります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE内でSELECTの別名を使う：</strong><code>SELECT price * 0.9 AS sale_price FROM products WHERE sale_price &lt; 50000</code> はエラーです。WHEREはSELECTより先に評価されるため <code>sale_price</code> はまだ存在しません。<code>WHERE price * 0.9 &lt; 50000</code> と書き直すか、サブクエリ/CTEを使います。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>文字列比較に = を使うとき大文字小文字に注意：</strong>MySQLはデフォルトで大文字小文字を区別しませんが、PostgreSQLは区別します。大文字小文字を無視したい場合は <code>LOWER(category) = 'electronics'</code> や <code>ILIKE</code>（PostgreSQL）を使います。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：削除フラグ（論理削除）の罠</div>
+<div class="biz-body">
+実務のデータベースでは、データを物理的に削除せず <code>is_deleted = 1</code> のようなフラグを立てる「論理削除」がよく使われます。そのため、SELECTを書く際は <strong>常に WHERE is_deleted = 0 を含める</strong> 癖をつけることが重要です。これを忘れると、退会済みユーザーやキャンセルされた注文まで集計してしまい、深刻な数値のズレを引き起こします。
+</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  集計関数 + GROUP BY / HAVING — 部門別売上集計
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "集計関数 + GROUP BY / HAVING — グループごとに集計して条件で絞る",
+  tags: [["r","GROUP BY"],["r","HAVING"],["g","SUM/COUNT/AVG"],["o","集計API"]],
+  premise: `<p><strong>GROUP BY</strong> は指定した列の値が同じ行をまとめて（グループ化）、<strong>集計関数</strong>で各グループの統計値を計算します。集計結果に条件を付けるには <em>HAVING</em> を使います（WHEREは集計前のフィルタ、HAVINGは集計後のフィルタ）。</p>
+<pre><span class="kw">SELECT</span>   department, <span class="fn">SUM</span>(sales) <span class="kw">AS</span> total
+<span class="kw">FROM</span>     <span class="tbl">sales_table</span>
+<span class="kw">WHERE</span>    year <span class="op">=</span> <span class="num">2024</span>          <span class="cmt">-- ① 集計「前」に行を絞る（WHEREは集計前）</span>
+<span class="kw">GROUP BY</span> department           <span class="cmt">-- ② 部門ごとにグループ化して集計</span>
+<span class="kw">HAVING</span>   <span class="fn">SUM</span>(sales) <span class="op">></span> <span class="num">100000</span> <span class="cmt">-- ③ 集計「後」に条件で絞る（HAVINGは集計後）</span>
+<span class="kw">ORDER BY</span> total <span class="kw">DESC</span>;</pre>
+<div class="callout"><strong>主要集計関数：</strong><code>COUNT(*)</code>=行数、<code>COUNT(列)</code>=NULL以外の行数、<code>SUM(列)</code>=合計、<code>AVG(列)</code>=平均、<code>MAX(列)</code>=最大、<code>MIN(列)</code>=最小</div>`,
+  question: `<p>以下の <code>sales</code> テーブルから、<em>担当者（sales_rep）ごとに売上合計・件数・平均売上</em>を集計してください。</p>
+<p>さらに、<em>合計売上が 200,000円 以上の担当者のみ</em>を合計売上の高い順で出力してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sales</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>sale_id</th><th>sales_rep</th><th>amount</th></tr>
+        <tr><td>1</td><td>田中</td><td>80000</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>150000</td></tr>
+        <tr><td>3</td><td>田中</td><td>60000</td></tr>
+        <tr><td>4</td><td>鈴木</td><td>40000</td></tr>
+        <tr><td>5</td><td>佐藤</td><td>90000</td></tr>
+        <tr><td>6</td><td>田中</td><td>120000</td></tr>
+        <tr><td>7</td><td>鈴木</td><td>55000</td></tr>
+        <tr><td>8</td><td>佐藤</td><td>70000</td></tr>
+        <tr><td>9</td><td>田中</td><td>45000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>sales_rep</th><th>total_sales</th><th>deal_count</th><th>avg_sales</th></tr>
+<tr><td>佐藤</td><td>310000</td><td>3</td><td>103333</td></tr>
+<tr><td>田中</td><td>305000</td><td>4</td><td>76250</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  sales_rep,                            <span class="cmt">-- GROUP BY に指定した列はSELECTに書ける</span>
+  <span class="fn">SUM</span>(amount)   <span class="kw">AS</span> total_sales,         <span class="cmt">-- SUM: グループ内の合計を計算</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>)     <span class="kw">AS</span> deal_count,           <span class="cmt">-- COUNT(*): NULLを含む全行数をカウント</span>
+  <span class="fn">AVG</span>(amount)   <span class="kw">AS</span> avg_sales            <span class="cmt">-- AVG: グループ内の平均値を計算（小数になる場合あり）</span>
+<span class="kw">FROM</span>     <span class="tbl">sales</span>                          <span class="cmt">-- FROM: 取得元テーブル</span>
+<span class="kw">GROUP BY</span> sales_rep                      <span class="cmt">-- GROUP BY: sales_repが同じ行をまとめてグループ化</span>
+<span class="kw">HAVING</span>   <span class="fn">SUM</span>(amount) <span class="op">>=</span> <span class="num">200000</span>         <span class="cmt">-- HAVING: 集計「後」に条件を絞る（WHEREとの違いに注意）</span>
+<span class="kw">ORDER BY</span> total_sales <span class="kw">DESC</span>;             <span class="cmt">-- ORDER BY: SELECT で付けた別名はORDER BYで使える</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM sales           → 9行全てを対象
+  2. GROUP BY sales_rep   → 3グループに分類（田中4行, 佐藤3行, 鈴木2行）
+  3. SUM/COUNT/AVG        → 各グループの集計値を計算
+     田中: SUM=305000, COUNT=4, AVG=76250
+     佐藤: SUM=310000, COUNT=3, AVG=103333
+     鈴木: SUM=95000,  COUNT=2, AVG=47500
+  4. HAVING SUM>=200000   → 鈴木(95000)を除外、2グループが残る
+  5. SELECT               → 必要な列(別名)に整形
+  6. ORDER BY total_sales DESC → 佐藤→田中の順で並べる
+  ★ WHERE は集計前のフィルタ（個別の行を絞る）
+  ★ HAVING は集計後のフィルタ（グループを絞る）
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  sales_rep,\n", k: "", h: "select" },
+      { t: "  SUM(amount) AS total_sales,\n", k: "", h: "agg select" },
+      { t: "  COUNT(*) AS deal_count,\n", k: "", h: "agg select" },
+      { t: "  AVG(amount) AS avg_sales\n", k: "", h: "agg select" },
+      { t: "FROM     ", k: "sql-kw", h: "from" }, { t: "sales\n", k: "", h: "from" },
+      { t: "GROUP BY ", k: "sql-kw", h: "group" }, { t: "sales_rep\n", k: "", h: "group" },
+      { t: "HAVING   ", k: "sql-kw", h: "having" }, { t: "SUM(amount) >= 200000\n", k: "", h: "having" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "total_sales DESC;\n", k: "", h: "select" }
+    ],
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM sales", desc: "salesテーブルの全9行を対象とします。", type: "base", cnt: "全9行",
+        cols: ["sale_id", "sales_rep", "amount"],
+        ch: ["col-base", "col-base", "col-base"],
+        rows: [
+          { v: [1, "田中", 80000] }, { v: [2, "佐藤", 150000] }, { v: [3, "田中", 60000] },
+          { v: [4, "鈴木", 40000] }, { v: [5, "佐藤", 90000] }, { v: [6, "田中", 120000] },
+          { v: [7, "鈴木", 55000] }, { v: [8, "佐藤", 70000] }, { v: [9, "田中", 45000] }
+        ]
+      },
+      {
+        id: "group", badge: "② GROUP BY", bc: "badge-orange",
+        label: "GROUP BY sales_rep", desc: "担当者（sales_rep）ごとに3つのグループに分類します。", type: "group", cnt: "3グループ",
+        cols: ["sale_id", "sales_rep", "amount"],
+        ch: ["", "col-eval", ""],
+        rows: [
+          { c: "row-grp-1", v: [1, "田中", 80000] }, { c: "row-grp-1", v: [3, "田中", 60000] },
+          { c: "row-grp-1", v: [6, "田中", 120000] }, { c: "row-grp-1", v: [9, "田中", 45000] },
+          { c: "row-grp-2", v: [2, "佐藤", 150000] }, { c: "row-grp-2", v: [5, "佐藤", 90000] },
+          { c: "row-grp-2", v: [8, "佐藤", 70000] },
+          { c: "row-grp-3", v: [4, "鈴木", 40000] }, { c: "row-grp-3", v: [7, "鈴木", 55000] }
+        ]
+      },
+      {
+        id: "agg", badge: "③ 集計関数", bc: "badge-orange",
+        label: "SUM, COUNT, AVG", desc: "グループごとに集計値を計算し、各グループを1行にまとめます。", type: "group", cnt: "9行 → 3行",
+        cols: ["sales_rep", "SUM(amount)", "COUNT(*)", "AVG(amount)"],
+        ch: ["col-eval", "col-eval", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["田中", 305000, 4, 76250] },
+          { c: "row-grp-2", v: ["佐藤", 310000, 3, 103333] },
+          { c: "row-grp-3", v: ["鈴木", 95000, 2, 47500] }
+        ]
+      },
+      {
+        id: "having", badge: "④ HAVING", bc: "badge-orange",
+        label: "HAVING SUM(amount) >= 200000", desc: "集計後の値を使ってグループをフィルタします。鈴木は条件を満たさないため除外されます。", type: "eval", cnt: "3行 → 2行",
+        cols: ["sales_rep", "SUM(amount)", "COUNT(*)", "AVG(amount)"],
+        ch: ["", "col-eval", "", ""],
+        rows: [
+          { v: ["田中", 305000, 4, 76250], cc: ["", "val-pass", "", ""] },
+          { v: ["佐藤", 310000, 3, 103333], cc: ["", "val-pass", "", ""] },
+          { c: "row-dimmed", v: ["鈴木", 95000, 2, 47500], cc: ["", "val-fail", "", ""] }
+        ]
+      },
+      {
+        id: "select", badge: "⑤ SELECT & ORDER BY", bc: "badge-green",
+        label: "ORDER BY total_sales DESC", desc: "条件を通過した2グループを売上の高い順にソートして出力します。", type: "select", cnt: "結果: 2行",
+        cols: ["sales_rep", "total_sales", "deal_count", "avg_sales"],
+        ch: ["col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["佐藤", 310000, 3, 103333] },
+          { v: ["田中", 305000, 4, 76250] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>GROUP BY の鉄則：</strong>SELECTに書ける列は「GROUP BYに書いた列」か「集計関数で包んだ列」だけです。例えば <code>GROUP BY sales_rep</code> のとき <code>SELECT sale_id</code> はエラーになります（sale_idはグループに複数存在するため、どれを返すか決まらない）。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>COUNT(*) vs COUNT(列名)：</strong><code>COUNT(*)</code>は NULL を含む全行数、<code>COUNT(列名)</code>はその列がNULLでない行数を返します。NULLが混入しているカラムで件数を数えるときは注意が必要です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>AVGの整数切り捨て：</strong>一部のDBMS（整数型カラムに対する整数演算）ではAVGが小数を切り捨てることがあります。精度を保証したい場合は <em><code>AVG(amount::NUMERIC)</code></em>（PostgreSQL）や <em><code>AVG(CAST(amount AS DECIMAL))</code></em>（MySQL）と明示的にキャストします。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHEREで集計関数を使う：</strong><code>WHERE SUM(amount) >= 200000</code> はエラーです。集計後の結果に条件を付けるには必ず <code>HAVING</code> を使います。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BYに指定していない列をSELECTに書く：</strong><code>GROUP BY sales_rep</code> のとき <code>SELECT sale_id, sales_rep, SUM(amount)</code> はエラーまたは不定動作です（MySQLのONLY_FULL_GROUP_BY無効時は動いてしまうが危険）。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：日付関数の組み合わせによる時系列集計</div>
+<div class="biz-body">
+実務では <code>GROUP BY sales_rep</code> のような属性だけでなく、「日次・月次・年次」での売上推移を出すことが頻繁に求められます。その際、<code>GROUP BY DATE_TRUNC('month', order_date)</code>（PostgreSQL等）や <code>DATE_FORMAT(order_date, '%Y-%m')</code>（MySQL）などの関数を使って、<strong>日付を特定の粒度に丸めてからグループ化する</strong> テクニックが必須となります。
+</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  INNER JOIN — 2テーブルを結合して情報を揃える
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "INNER JOIN — 2つのテーブルを紐付けて必要な情報を1つにまとめる",
+  tags: [["r","INNER JOIN"],["g","ON句"],["o","マスタ結合"],["p","エイリアス"]],
+  premise: `<p><strong>JOIN</strong> は複数のテーブルを「共通のキー」で結合して1つの結果セットにする操作です。<em>INNER JOIN</em>（または単に <code>JOIN</code>）は両テーブルに共通して存在するキーの行のみを返します。</p>
+<pre><span class="kw">SELECT</span>  a.col1, b.col2
+<span class="kw">FROM</span>    <span class="tbl">table_a</span> a              <span class="cmt">-- a はテーブルの「エイリアス（別名）」</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">table_b</span> b          <span class="cmt">-- INNER JOIN: 両テーブルに存在する行のみ結合</span>
+        <span class="kw">ON</span> a.id <span class="op">=</span> b.id;        <span class="cmt">-- ON: 結合条件。どの列で紐付けるかを指定</span></pre>
+<div class="callout"><strong>エイリアスとは：</strong>テーブル名の後ろに半角スペース + 短い名前（a, b, u, o など）をつけるとその名前でテーブルを参照できます。複数テーブルを扱う時は <em>どちらのテーブルの列かを <code>テーブル名.列名</code> または <code>エイリアス.列名</code> で明示</em>するのが必須です。</div>`,
+  question: `<p>以下の <code>orders</code> テーブルと <code>customers</code> テーブルを結合して、<em>注文ID・顧客名・商品名・注文金額</em> の一覧を取得してください。</p>
+<p>注文日の新しい順（降順）で並べること。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>customer_id</th><th>product_name</th><th>amount</th><th>order_date</th></tr>
+        <tr><td>101</td><td>C01</td><td>ノートPC</td><td>150000</td><td>2024-03-15</td></tr>
+        <tr><td>102</td><td>C02</td><td>マウス</td><td>3500</td><td>2024-03-18</td></tr>
+        <tr><td>103</td><td>C01</td><td>キーボード</td><td>8000</td><td>2024-03-20</td></tr>
+        <tr><td>104</td><td>C03</td><td>モニター</td><td>45000</td><td>2024-03-22</td></tr>
+        <tr><td>105</td><td>C99</td><td>ウェブカメラ</td><td>12000</td><td>2024-03-25</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ customers</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>customer_id</th><th>customer_name</th></tr>
+        <tr><td>C01</td><td>山田 太郎</td></tr>
+        <tr><td>C02</td><td>鈴木 花子</td></tr>
+        <tr><td>C03</td><td>佐藤 次郎</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>customer_name</th><th>product_name</th><th>amount</th><th>order_date</th></tr>
+<tr><td>104</td><td>佐藤 次郎</td><td>モニター</td><td>45000</td><td>2024-03-22</td></tr>
+<tr><td>103</td><td>山田 太郎</td><td>キーボード</td><td>8000</td><td>2024-03-20</td></tr>
+<tr><td>102</td><td>鈴木 花子</td><td>マウス</td><td>3500</td><td>2024-03-18</td></tr>
+<tr><td>101</td><td>山田 太郎</td><td>ノートPC</td><td>150000</td><td>2024-03-15</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ order_id=105（C99）は customers に存在しないため INNER JOIN で除外される</p>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  o.order_id,                   <span class="cmt">-- o.列名: orders テーブル（エイリアス o）の列を明示</span>
+  c.customer_name,              <span class="cmt">-- c.列名: customers テーブル（エイリアス c）の列を明示</span>
+  o.product_name,
+  o.amount,
+  o.order_date
+<span class="kw">FROM</span>       <span class="tbl">orders</span>    o           <span class="cmt">-- FROM: 主テーブル。o というエイリアスを付ける</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">customers</span> c           <span class="cmt">-- INNER JOIN: 結合するテーブルを指定。cというエイリアス</span>
+        <span class="kw">ON</span> o.customer_id <span class="op">=</span> c.customer_id  <span class="cmt">-- ON: 結合キー。両テーブルのcustomer_idが一致する行のみ</span>
+<span class="kw">ORDER BY</span>   o.order_date <span class="kw">DESC</span>;    <span class="cmt">-- ORDER BY: 注文日の降順（新しい順）</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders o              → orders テーブルを o として参照（5行）
+  2. INNER JOIN customers c     → customers テーブルを c として参照（3行）
+     ON o.customer_id = c.customer_id
+     → 両テーブルに共通する customer_id の行だけを結合
+       C01: 一致（山田 太郎） ✓
+       C02: 一致（鈴木 花子） ✓
+       C03: 一致（佐藤 次郎） ✓
+       C99: customers に存在しない → 除外 ✗（INNER JOINの挙動）
+     → 4行が残る
+  3. SELECT                     → 必要な5列を選択
+  4. ORDER BY order_date DESC   → 日付の新しい順に並べる
+  ★ INNER JOINは「両テーブルにキーが存在する行のみ」返す
+  ★ 片方にしか存在しない行も返したい場合は LEFT JOIN を使う（Q4参照）
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  o.order_id, c.customer_name, o.product_name, o.amount, o.order_date\n", k: "", h: "select" },
+      { t: "FROM       ", k: "sql-kw", h: "from" }, { t: "orders o\n", k: "", h: "from" },
+      { t: "INNER JOIN ", k: "sql-kw", h: "join" }, { t: "customers c\n", k: "", h: "join" },
+      { t: "        ON ", k: "sql-kw", h: "join" }, { t: "o.customer_id = c.customer_id\n", k: "", h: "join" },
+      { t: "ORDER BY   ", k: "sql-kw", h: "select" }, { t: "o.order_date DESC;\n", k: "", h: "select" }
+    ],
+    steps: [
+      {
+        id: "from", badge: "① FROM / JOIN", bc: "badge-blue",
+        label: "orders (o) / customers (c)", desc: "結合対象の2つのテーブルを準備します。ordersの C99 はcustomersに存在しません。", type: "base", join: true, cnt: "左: 5行 / 右: 3行",
+        left: {
+          label: "orders (o) 左テーブル", cols: ["order_id", "customer_id", "product_name", "amount", "order_date"],
+          rows: [
+            { v: [101, "C01", "ノートPC", 150000, "2024-03-15"] },
+            { v: [102, "C02", "マウス", 3500, "2024-03-18"] },
+            { v: [103, "C01", "キーボード", 8000, "2024-03-20"] },
+            { v: [104, "C03", "モニター", 45000, "2024-03-22"] },
+            { v: [105, "C99", "ウェブカメラ", 12000, "2024-03-25"] }
+          ]
+        },
+        right: {
+          label: "customers (c) 右テーブル", cols: ["customer_id", "customer_name"],
+          rows: [
+            { v: ["C01", "山田 太郎"] },
+            { v: ["C02", "鈴木 花子"] },
+            { v: ["C03", "佐藤 次郎"] }
+          ]
+        }
+      },
+      {
+        id: "join", badge: "② ON (結合条件)", bc: "badge-orange",
+        label: "ON o.customer_id = c.customer_id", desc: "両テーブルに共通して存在するキーのみを残し、一致しない行（105のC99）は除外されます。", type: "eval", join: true, cnt: "結合成功: 4行",
+        left: {
+          label: "orders (o)", cols: ["order_id", "customer_id", "product_name"], ch: ["", "col-eval", ""],
+          rows: [
+            { v: [101, "C01", "ノートPC"], cc: ["", "val-pass", ""] },
+            { v: [102, "C02", "マウス"], cc: ["", "val-pass", ""] },
+            { v: [103, "C01", "キーボード"], cc: ["", "val-pass", ""] },
+            { v: [104, "C03", "モニター"], cc: ["", "val-pass", ""] },
+            { c: "row-dimmed", v: [105, "C99 ✗", "ウェブカメラ"], cc: ["", "val-fail", ""] }
+          ]
+        },
+        right: {
+          label: "customers (c)", cols: ["customer_id", "customer_name"], ch: ["col-eval", ""],
+          rows: [
+            { v: ["C01", "山田 太郎"], cc: ["val-pass", ""] },
+            { v: ["C02", "鈴木 花子"], cc: ["val-pass", ""] },
+            { v: ["C03", "佐藤 次郎"], cc: ["val-pass", ""] }
+          ]
+        }
+      },
+      {
+        id: "select", badge: "③ SELECT & ORDER BY", bc: "badge-green",
+        label: "ORDER BY o.order_date DESC", desc: "必要な列を選択し、新しい順に並び替えます。", type: "select", cnt: "結果: 4行",
+        cols: ["order_id", "customer_name", "product_name", "amount", "order_date"],
+        ch: ["col-select", "col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: [104, "佐藤 次郎", "モニター", 45000, "2024-03-22"] },
+          { v: [103, "山田 太郎", "キーボード", 8000, "2024-03-20"] },
+          { v: [102, "鈴木 花子", "マウス", 3500, "2024-03-18"] },
+          { v: [101, "山田 太郎", "ノートPC", 150000, "2024-03-15"] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>テーブルエイリアスは必須習慣：</strong>複数テーブルを扱うとき、<code>o.customer_id</code> のようにエイリアスで列の所属テーブルを明示すると、同名列でのあいまいさエラーを防げます。JOINするときは常にエイリアスを付ける習慣をつけましょう。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>JOINキーにはインデックスを張る：</strong>実務では結合キー（customer_id など）にインデックスを設定することでクエリ速度が大幅に向上します。主キー（PRIMARY KEY）には自動でインデックスが付きますが、外部キー側（orders.customer_id）には別途設定が必要なケースがあります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ON条件を忘れてクロス結合を起こす：</strong><code>FROM orders, customers</code> や <code>FROM orders CROSS JOIN customers</code> はすべての行の組み合わせ（直積）を返します。5行×3行=15行になります。大きなテーブルでは数億行になることもあり、必ずON条件を指定してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同名列の参照があいまいになる：</strong>両テーブルに <code>customer_id</code> が存在するとき、エイリアスなしで <code>SELECT customer_id</code> と書くとエラーになります。<code>o.customer_id</code> または <code>c.customer_id</code> と明示してください。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：過去の履歴と結合する「スナップショット」の重要性</div>
+<div class="biz-body">
+実務で商品マスタや顧客マスタを結合する際、現在のマスタデータと結合すると「過去の売上が現在の価格で計算されてしまう」という問題が起きます。そのため、注文テーブル側に <strong>当時の単価を記録（スナップショット）しておく</strong> か、マスタ側に <code>valid_from</code> と <code>valid_to</code>（有効期間）を持たせて、注文日が含まれる期間のレコードと結合する設計が求められます。
+</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  LEFT JOIN — 片方にしか存在しない行も保持する
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "LEFT JOIN — 一致しない行もNULLで保持する外部結合",
+  tags: [["r","LEFT JOIN"],["g","NULL検出"],["o","欠損チェック"],["p","IS NULL"]],
+  premise: `<p><strong>LEFT JOIN（左外部結合）</strong>は、左テーブル（FROM句のテーブル）の行を<em>全て残し</em>、右テーブルに一致するデータがなければ <code>NULL</code> を補填します。「未購入ユーザーを含む全ユーザーを取得したい」「未設定のレコードを検出したい」場面で必須です。</p>
+<pre><span class="kw">SELECT</span>  a.id, b.value
+<span class="kw">FROM</span>    <span class="tbl">table_a</span> a
+<span class="kw">LEFT JOIN</span> <span class="tbl">table_b</span> b            <span class="cmt">-- LEFT JOIN: aの全行を残し、bに一致しなければNULL</span>
+       <span class="kw">ON</span> a.id <span class="op">=</span> b.a_id;
+<span class="cmt">-- bに一致しない行は b.value が NULL になる</span></pre>
+<div class="callout warn"><strong>「b側にNULLの行だけ」= 一致しない行のみを抽出するテクニック：</strong>LEFT JOIN 後に <code>WHERE b.id IS NULL</code> を追加すると、「右テーブルに存在しないキーを持つ左テーブルの行」だけを取り出せます。EXCEPT/NOT IN/NOT EXISTSと同じ結果を返しますが、<em>パフォーマンスは実装によって異なります</em>。</div>`,
+  question: `<p>全ての <code>users</code>（会員）について、<em>直近の注文情報があれば表示し、注文がなければ NULL として</em>一覧を取得してください。</p>
+<p>さらに、<em>一度も注文していないユーザーのみ</em>を別途抽出するクエリも作成してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>user_name</th></tr>
+        <tr><td>U01</td><td>Alice</td></tr>
+        <tr><td>U02</td><td>Bob</td></tr>
+        <tr><td>U03</td><td>Carol</td></tr>
+        <tr><td>U04</td><td>Dave</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th></tr>
+        <tr><td>1</td><td>U01</td><td>50000</td></tr>
+        <tr><td>2</td><td>U01</td><td>30000</td></tr>
+        <tr><td>3</td><td>U03</td><td>80000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p style="font-size:12px;color:var(--accent);margin-bottom:4px;">① 全ユーザー（LEFT JOIN）</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>user_name</th><th>order_id</th><th>amount</th></tr>
+<tr><td>U01</td><td>Alice</td><td>1</td><td>50000</td></tr>
+<tr><td>U01</td><td>Alice</td><td>2</td><td>30000</td></tr>
+<tr><td>U03</td><td>Carol</td><td>3</td><td>80000</td></tr>
+<tr><td>U02</td><td>Bob</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+<tr><td>U04</td><td>Dave</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--accent);margin-top:10px;margin-bottom:4px;">② 未注文ユーザーのみ</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>user_name</th></tr>
+<tr><td>U02</td><td>Bob</td></tr>
+<tr><td>U04</td><td>Dave</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 全ユーザー + 注文情報（なければNULL）</span>
+<span class="kw">SELECT</span>
+  u.user_id,
+  u.user_name,
+  o.order_id,                  <span class="cmt">-- 注文がないユーザーはここが NULL になる</span>
+  o.amount                     <span class="cmt">-- 注文がないユーザーはここも NULL になる</span>
+<span class="kw">FROM</span>      <span class="tbl">users</span>  u             <span class="cmt">-- FROM: 左テーブル（全行を保持する基準）</span>
+<span class="kw">LEFT JOIN</span> <span class="tbl">orders</span> o             <span class="cmt">-- LEFT JOIN: 左テーブルの全行を残す。右側に一致なければNULL</span>
+       <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id  <span class="cmt">-- ON: 結合キー</span>
+<span class="kw">ORDER BY</span>  u.user_id;            <span class="cmt">-- ORDER BY: user_id の昇順（デフォルトASC）</span>
+
+<span class="cmt">-- ② 一度も注文していないユーザーのみを抽出</span>
+<span class="kw">SELECT</span>
+  u.user_id,
+  u.user_name
+<span class="kw">FROM</span>      <span class="tbl">users</span>  u
+<span class="kw">LEFT JOIN</span> <span class="tbl">orders</span> o
+       <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id
+<span class="kw">WHERE</span>     o.order_id <span class="kw">IS NULL</span>;  <span class="cmt">-- IS NULL: 右テーブルに一致しなかった行（未注文ユーザー）だけ残す</span>
+
+<span class="cmt">/*
+  実行順序（①）:
+  1. FROM users u               → 4行（全ユーザー）
+  2. LEFT JOIN orders o         → usersの全行を保持しつつ orders を結合
+       U01: order_id=1,2 → 2行に展開（多側に複数レコードあり）
+       U02: ordersに存在しない → order_id=NULL, amount=NULL
+       U03: order_id=3   → 1行
+       U04: ordersに存在しない → NULL補填
+     → 合計5行
+  3. ORDER BY u.user_id         → user_id昇順
+
+  実行順序（②）:
+  1-2. ①と同じ（LEFT JOIN まで）→ 5行（NULLを含む）
+  3. WHERE o.order_id IS NULL   → NULLの行（U02, U04）だけ残す → 2行
+  ★ LEFT JOINで右側がNULLになる行 = 左テーブルにしか存在しない行
+  ★ IS NULL と = NULL は別物（NULLとの比較は IS NULL / IS NOT NULL を使う）
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  u.user_id, u.user_name\n", k: "", h: "select" },
+      { t: "FROM      ", k: "sql-kw", h: "from" }, { t: "users u\n", k: "", h: "from" },
+      { t: "LEFT JOIN ", k: "sql-kw", h: "join" }, { t: "orders o\n", k: "", h: "join" },
+      { t: "       ON ", k: "sql-kw", h: "join" }, { t: "u.user_id = o.user_id\n", k: "", h: "join" },
+      { t: "WHERE     ", k: "sql-kw", h: "where" }, { t: "o.order_id IS NULL;\n", k: "", h: "where" }
+    ],
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "users (u) 左テーブル", desc: "LEFT JOINでは左テーブル（users）の行が全て保持されます。", type: "base", cnt: "全4行",
+        cols: ["user_id", "user_name"], ch: ["col-base", "col-base"],
+        rows: [
+          { v: ["U01", "Alice"] }, { v: ["U02", "Bob"] }, { v: ["U03", "Carol"] }, { v: ["U04", "Dave"] }
+        ]
+      },
+      {
+        id: "join", badge: "② LEFT JOIN", bc: "badge-orange",
+        label: "ON u.user_id = o.user_id", desc: "ordersと結合します。U01は2回注文しているため2行に展開され、U02・U04は注文がないためNULLが補填されます。", type: "eval", cnt: "5行に展開（NULL補填2行）",
+        cols: ["u.user_id", "u.user_name", "o.order_id", "o.amount"],
+        ch: ["col-eval", "", "col-eval", ""],
+        rows: [
+          { v: ["U01", "Alice", 1, 50000], cc: ["val-pass", "", "val-pass", ""] },
+          { v: ["U01", "Alice", 2, 30000], cc: ["val-pass", "", "val-pass", ""] },
+          { v: ["U02", "Bob", "NULL", "NULL"], cc: ["val-pass", "", "val-fail", "val-dimmed"] },
+          { v: ["U03", "Carol", 3, 80000], cc: ["val-pass", "", "val-pass", ""] },
+          { v: ["U04", "Dave", "NULL", "NULL"], cc: ["val-pass", "", "val-fail", "val-dimmed"] }
+        ]
+      },
+      {
+        id: "where", badge: "③ WHERE", bc: "badge-orange",
+        label: "o.order_id IS NULL", desc: "結合後に右テーブル（orders）がNULLの行、つまり「一度も注文していないユーザー」だけを残します。", type: "eval", cnt: "5行 → 2行",
+        cols: ["u.user_id", "u.user_name", "o.order_id"],
+        ch: ["", "", "col-eval"],
+        rows: [
+          { c: "row-dimmed", v: ["U01", "Alice", 1], cc: ["", "", "val-fail"] },
+          { c: "row-dimmed", v: ["U01", "Alice", 2], cc: ["", "", "val-fail"] },
+          { v: ["U02", "Bob", "NULL"], cc: ["", "", "val-pass"] },
+          { c: "row-dimmed", v: ["U03", "Carol", 3], cc: ["", "", "val-fail"] },
+          { v: ["U04", "Dave", "NULL"], cc: ["", "", "val-pass"] }
+        ]
+      },
+      {
+        id: "select", badge: "④ SELECT", bc: "badge-green",
+        label: "SELECT u.user_id, u.user_name", desc: "未注文ユーザーのIDと名前を出力します。", type: "select", cnt: "結果: 2行",
+        cols: ["user_id", "user_name"], ch: ["col-select", "col-select"],
+        rows: [
+          { v: ["U02", "Bob"] },
+          { v: ["U04", "Dave"] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>1対多の結合では行数が増える：</strong>U01はordersに2件あるためJOIN後に2行に展開されます。「ユーザー1人につき1行だけ欲しい」場合は GROUP BY + 集計関数か、集計済みサブクエリ/CTEと結合する設計が必要です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULL比較は IS NULL / IS NOT NULL：</strong><code>WHERE o.order_id = NULL</code> は常にfalseを返します。NULLは「値が不明」であり、<em>NULL = NULL すら false</em> です。必ず <code>IS NULL</code> または <code>IS NOT NULL</code> を使いましょう。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LEFT JOIN + WHERE 右テーブル.列 = 値 でINNER JOIN化：</strong><code>LEFT JOIN orders o ON ... WHERE o.amount > 0</code> とすると、NULLの行はWHEREでfalseになり除外されてINNER JOINと同じ結果になります。意図的でなければ <code>WHERE (o.amount > 0 OR o.amount IS NULL)</code> と書くか、LEFT JOINの目的を再考しましょう。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：欠損データ調査とファネル分析</div>
+<div class="biz-body">
+LEFT JOIN は単なる一覧取得だけでなく、「あるべきデータが存在しない」異常検知によく使われます。「ログには記録されているがマスタに存在しない幽霊データ」を <code>WHERE master.id IS NULL</code> で炙り出したり、WEB分析において「ページAを見たがページBは見なかったユーザー」を特定する <strong>ファネル（離脱）分析</strong> など、実務の至る所で活躍する強力な武器です。
+</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  CASE WHEN — 条件分岐で新しい列を作る
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "CASE WHEN — 条件によって値を振り分けて新しい列を作る",
+  tags: [["r","CASE WHEN"],["g","ELSE"],["o","ラベル付け"],["p","THEN"]],
+  premise: `<p><strong>CASE WHEN</strong> はSQLの条件分岐式です。プログラミングの <code>if-else if-else</code> に相当し、行ごとに異なる値を返せます。集計関数の中でも使えます。</p>
+<pre><span class="cmt">-- 基本構文（検索CASE）</span>
+<span class="kw">CASE</span>
+  <span class="kw">WHEN</span> 条件1 <span class="kw">THEN</span> 値1    <span class="cmt">-- 条件1が true なら 値1 を返す（上から順に評価）</span>
+  <span class="kw">WHEN</span> 条件2 <span class="kw">THEN</span> 値2    <span class="cmt">-- 条件1がfalseで条件2がtrueなら 値2 を返す</span>
+  <span class="kw">ELSE</span>        デフォルト値 <span class="cmt">-- どの条件にも合わなければこの値（省略するとNULL）</span>
+<span class="kw">END</span> <span class="kw">AS</span> 列名</pre>
+<div class="callout"><strong>評価は上から順番：</strong>最初に一致したWHENで確定し、以降のWHENは評価されません。ELSE を省略すると、どれにも合わない行は NULL になります。必ずELSEを書く習慣をつけましょう。</div>`,
+  question: `<p>以下の <code>orders</code> テーブルを使い、注文金額 <code>amount</code> に応じて以下のラベルを付けた列 <code>amount_label</code> を作成してください。</p>
+<ul style="font-size:13px;margin:8px 0 8px 18px;color:var(--text);">
+  <li>100,000円以上 → '大口'</li>
+  <li>50,000円以上100,000円未満 → '中口'</li>
+  <li>50,000円未満 → '小口'</li>
+</ul>
+<p>さらに、<em>ラベル別の件数と合計金額</em>も集計して出力してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>customer_id</th><th>amount</th></tr>
+        <tr><td>1</td><td>C01</td><td>120000</td></tr>
+        <tr><td>2</td><td>C02</td><td>48000</td></tr>
+        <tr><td>3</td><td>C03</td><td>75000</td></tr>
+        <tr><td>4</td><td>C01</td><td>200000</td></tr>
+        <tr><td>5</td><td>C04</td><td>32000</td></tr>
+        <tr><td>6</td><td>C05</td><td>95000</td></tr>
+        <tr><td>7</td><td>C02</td><td>15000</td></tr>
+        <tr><td>8</td><td>C06</td><td>60000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>amount_label</th><th>order_count</th><th>total_amount</th></tr>
+<tr><td>大口</td><td>2</td><td>320000</td></tr>
+<tr><td>中口</td><td>3</td><td>230000</td></tr>
+<tr><td>小口</td><td>3</td><td>95000</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  <span class="kw">CASE</span>                                  <span class="cmt">-- CASE: 条件分岐の開始</span>
+    <span class="kw">WHEN</span> amount <span class="op">>=</span> <span class="num">100000</span> <span class="kw">THEN</span> <span class="str">'大口'</span>  <span class="cmt">-- WHEN...THEN: 条件が true なら この値を返す</span>
+    <span class="kw">WHEN</span> amount <span class="op">>=</span>  <span class="num">50000</span> <span class="kw">THEN</span> <span class="str">'中口'</span>  <span class="cmt">-- 上のWHENがfalseの時のみ評価（≥50000かつ<100000）</span>
+    <span class="kw">ELSE</span>                       <span class="str">'小口'</span>  <span class="cmt">-- ELSE: どの WHEN にも合わない行のデフォルト値</span>
+  <span class="kw">END</span> <span class="kw">AS</span> amount_label,                  <span class="cmt">-- END: CASE式の終了。AS で別名を付ける</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count,           <span class="cmt">-- COUNT(*): ラベルごとの件数</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount           <span class="cmt">-- SUM: ラベルごとの合計金額</span>
+<span class="kw">FROM</span>     <span class="tbl">orders</span>                         <span class="cmt">-- FROM: 取得元テーブル</span>
+<span class="kw">GROUP BY</span> amount_label                   <span class="cmt">-- GROUP BY: CASEで作ったラベル列でグループ化</span>
+<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;            <span class="cmt">-- ORDER BY: 合計金額の高い順</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders         → 8行全てを対象
+  2. CASE WHEN           → 各行に amount_label を計算
+       amount=120000 → >=100000 → '大口'
+       amount=48000  → <50000   → '小口'（WHENを上から評価し全て不一致 → ELSE）
+       amount=75000  → >=50000かつ<100000 → '中口'
+       ...
+  3. GROUP BY amount_label → 3グループ（大口2件, 中口3件, 小口3件）
+  4. COUNT(*) / SUM(amount) → 各グループを集計
+  5. ORDER BY total_amount DESC → 合計金額の高い順に並べる
+  ★ CASE WHEN は上から順に評価。>=100000の次に>=50000を書くと
+    「100000以上かつ50000以上」ではなく
+    「100000未満かつ50000以上」として機能する（上で除外されるため）
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  CASE\n", k: "sql-kw", h: "case" },
+      { t: "    WHEN amount >= 100000 THEN '大口'\n", k: "", h: "case" },
+      { t: "    WHEN amount >=  50000 THEN '中口'\n", k: "", h: "case" },
+      { t: "    ELSE                       '小口'\n", k: "", h: "case" },
+      { t: "  END AS amount_label,\n", k: "sql-kw", h: "case select" },
+      { t: "  COUNT(*) AS order_count,\n", k: "", h: "agg select" },
+      { t: "  SUM(amount) AS total_amount\n", k: "", h: "agg select" },
+      { t: "FROM     ", k: "sql-kw", h: "from" }, { t: "orders\n", k: "", h: "from" },
+      { t: "GROUP BY ", k: "sql-kw", h: "group" }, { t: "amount_label\n", k: "", h: "group" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "total_amount DESC;\n", k: "", h: "select" }
+    ],
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM orders", desc: "ordersテーブル（全8行）を読み込みます。", type: "base", cnt: "全8行",
+        cols: ["order_id", "customer_id", "amount"], ch: ["col-base", "col-base", "col-base"],
+        rows: [
+          { v: [1, "C01", 120000] }, { v: [2, "C02", 48000] }, { v: [3, "C03", 75000] },
+          { v: [4, "C01", 200000] }, { v: [5, "C04", 32000] }, { v: [6, "C05", 95000] },
+          { v: [7, "C02", 15000] }, { v: [8, "C06", 60000] }
+        ]
+      },
+      {
+        id: "case", badge: "② CASE WHEN", bc: "badge-orange",
+        label: "CASE WHEN ... END AS amount_label", desc: "amountの値に応じて行ごとに上から順に条件を評価し、ラベルを付けます。", type: "eval", cnt: "8行（新しい列を追加）",
+        cols: ["order_id", "amount", "amount_label"], ch: ["", "col-eval", "col-select"],
+        rows: [
+          { c: "row-grp-1", v: [1, 120000, "大口"], cc: ["", "val-pass", ""] },
+          { c: "row-grp-3", v: [2, 48000, "小口"], cc: ["", "val-fail", ""] },
+          { c: "row-grp-2", v: [3, 75000, "中口"], cc: ["", "val-pass", ""] },
+          { c: "row-grp-1", v: [4, 200000, "大口"], cc: ["", "val-pass", ""] },
+          { c: "row-grp-3", v: [5, 32000, "小口"], cc: ["", "val-fail", ""] },
+          { c: "row-grp-2", v: [6, 95000, "中口"], cc: ["", "val-pass", ""] },
+          { c: "row-grp-3", v: [7, 15000, "小口"], cc: ["", "val-fail", ""] },
+          { c: "row-grp-2", v: [8, 60000, "中口"], cc: ["", "val-pass", ""] }
+        ]
+      },
+      {
+        id: "group", badge: "③ GROUP BY", bc: "badge-orange",
+        label: "GROUP BY amount_label", desc: "付与されたラベル（amount_label）を元にグループ化し、件数と合計金額を集計します。", type: "group", cnt: "3グループ",
+        cols: ["amount_label", "COUNT(*)", "SUM(amount)"], ch: ["col-eval", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["大口", 2, 320000] },
+          { c: "row-grp-2", v: ["中口", 3, 230000] },
+          { c: "row-grp-3", v: ["小口", 3, 95000] }
+        ]
+      },
+      {
+        id: "select", badge: "④ SELECT & ORDER BY", bc: "badge-green",
+        label: "ORDER BY total_amount DESC", desc: "集計されたグループを合計金額の高い順に並び替えます。", type: "select", cnt: "結果: 3行",
+        cols: ["amount_label", "order_count", "total_amount"], ch: ["col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["大口", 2, 320000] },
+          { v: ["中口", 3, 230000] },
+          { v: ["小口", 3, 95000] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CASE WHENは集計関数の中でも使える：</strong><code>SUM(CASE WHEN status='完了' THEN amount ELSE 0 END)</code> のように、集計関数の引数にCASEを入れると「条件付き集計」が実現できます。ピボット表（横持ち変換）でも活躍します。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>順番が重要：</strong>CASE WHENは上から評価され、最初に真になったTHENで確定します。閾値条件を書くときは<em>大きい値から先に書く</em>（降順方向）か、条件を排他的に書く（<code>BETWEEN</code>使用）のが安全です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE を省略する：</strong>ELSE を書かないと、どの WHEN にも合致しない行は NULL になります。NULLは集計関数に影響し（COUNT(列)でカウントされない）、予期せぬバグの原因になります。常に ELSE でデフォルト値を明示してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>条件の順序を逆にする：</strong>もし <code>WHEN amount >= 50000 THEN '中口'</code> を先に書くと、120000円も「中口」になってしまいます（50000以上は先にTRUEになるため）。閾値が重なる条件は<em>より厳しい（絞り込みの強い）条件を先に</em>書きます。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：BIツール向けのフラグ生成と「横持ち」変換</div>
+<div class="biz-body">
+実務では、抽出したデータをTableauなどのBIツールに渡すことが多くあります。その際、<code>CASE WHEN status = 'cancel' THEN 1 ELSE 0 END AS is_canceled</code> のように <strong>0/1のフラグ列を作っておく</strong> と、BI側での集計（SUMを取るだけで件数になる）が圧倒的に楽になります。また、月ごとの売上を列に並べる「縦持ち→横持ち変換（ピボット）」も CASE WHEN の重要な用途です。
+</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6  NULL処理（IS NULL / COALESCE / NULLIF）
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "NULL処理 — IS NULL / COALESCE / NULLIF でNULLを安全に扱う",
+  tags: [["r","IS NULL"],["r","COALESCE"],["g","NULLIF"],["o","NULL安全"]],
+  premise: `<p>SQLにおける <strong>NULL</strong> は「値が存在しない・不明」を表す特殊な状態です。通常の比較演算子では検出できず、NULL との演算結果は常に NULL になります。NULL を安全に扱う3つの関数を覚えましょう。</p>
+<pre><span class="cmt">-- NULL判定</span>
+<span class="kw">WHERE</span> col <span class="kw">IS NULL</span>              <span class="cmt">-- colがNULLの行を検出（= NULLは使えない！）</span>
+<span class="kw">WHERE</span> col <span class="kw">IS NOT NULL</span>          <span class="cmt">-- colがNULLでない行を検出</span>
+
+<span class="cmt">-- NULLをデフォルト値に置換</span>
+<span class="fn">COALESCE</span>(col, <span class="str">'デフォルト'</span>)     <span class="cmt">-- colがNULLなら'デフォルト'を返す（最初のNULLでない値）</span>
+
+<span class="cmt">-- 特定値をNULLに変換</span>
+<span class="fn">NULLIF</span>(col, <span class="num">0</span>)                 <span class="cmt">-- colが0と等しければNULLを返す（0除算防止などに使う）</span></pre>
+<div class="callout warn"><strong>NULLの伝播：</strong><code>NULL + 100</code> は NULL、<code>NULL = NULL</code> は NULL（falseではない）です。NULL を含む演算は必ずNULLに伝播します。集計でも <code>AVG</code> や <code>SUM</code> は NULL を無視しますが、<code>COUNT(列)</code> は NULL をカウントしません。</div>`,
+  question: `<p>以下の <code>employees</code> テーブルを使い、以下を実現してください。</p>
+<p>①: <code>bonus</code> が NULL の場合は <em>0</em> として、全員の「基本給 + ボーナス」の <code>total_pay</code> を計算。</p>
+<p>②: <code>department</code> が NULL の場合は <em>'未配属'</em> として表示。</p>
+<p>③: <code>bonus</code> が 0 の場合は NULL として扱い、NULL かどうかで「支給あり / 支給なし」を表示。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employees</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>salary</th><th>bonus</th><th>department</th></tr>
+        <tr><td>E01</td><td>山田</td><td>300000</td><td>50000</td><td>営業</td></tr>
+        <tr><td>E02</td><td>鈴木</td><td>280000</td><td class="null">NULL</td><td>開発</td></tr>
+        <tr><td>E03</td><td>佐藤</td><td>320000</td><td>0</td><td class="null">NULL</td></tr>
+        <tr><td>E04</td><td>田中</td><td>350000</td><td>80000</td><td>営業</td></tr>
+        <tr><td>E05</td><td>伊藤</td><td>290000</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>emp_name</th><th>total_pay</th><th>department</th><th>bonus_status</th></tr>
+<tr><td>E01</td><td>山田</td><td>350000</td><td>営業</td><td>支給あり</td></tr>
+<tr><td>E02</td><td>鈴木</td><td>280000</td><td>開発</td><td>支給なし</td></tr>
+<tr><td>E03</td><td>佐藤</td><td>320000</td><td>未配属</td><td>支給なし</td></tr>
+<tr><td>E04</td><td>田中</td><td>430000</td><td>営業</td><td>支給あり</td></tr>
+<tr><td>E05</td><td>伊藤</td><td>290000</td><td>未配属</td><td>支給なし</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  emp_id,
+  emp_name,
+  <span class="cmt">-- ① COALESCEでNULLを0に置換してから加算する</span>
+  salary <span class="op">+</span> <span class="fn">COALESCE</span>(bonus, <span class="num">0</span>) <span class="kw">AS</span> total_pay,
+  <span class="cmt">-- COALESCE(bonus, 0): bonusがNULLなら0を返す。NULLでなければbonus自身を返す</span>
+  <span class="cmt">-- ※ salary + NULL = NULL となるため、COALESCE で先にNULLを排除する必要がある</span>
+
+  <span class="cmt">-- ② departmentがNULLなら'未配属'を表示</span>
+  <span class="fn">COALESCE</span>(department, <span class="str">'未配属'</span>) <span class="kw">AS</span> department,
+  <span class="cmt">-- COALESCE(a, b, c, ...): 左から評価して最初のNULLでない値を返す</span>
+
+  <span class="cmt">-- ③ NULLIF でbonus=0をNULLに変換してからIS NULLで判定</span>
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> <span class="fn">NULLIF</span>(bonus, <span class="num">0</span>) <span class="kw">IS NOT NULL</span> <span class="kw">THEN</span> <span class="str">'支給あり'</span>
+    <span class="cmt">-- NULLIF(bonus, 0): bonusが0ならNULLを返す。それ以外はbonusの値を返す</span>
+    <span class="cmt">-- IS NOT NULL: NULLでない（= 0でも元々NULLでもない）なら支給あり</span>
+    <span class="kw">ELSE</span> <span class="str">'支給なし'</span>               <span class="cmt">-- bonus=0 または bonus=NULL → 支給なし</span>
+  <span class="kw">END</span> <span class="kw">AS</span> bonus_status
+<span class="kw">FROM</span>     <span class="tbl">employees</span>               <span class="cmt">-- FROM: 取得元テーブル</span>
+<span class="kw">ORDER BY</span> emp_id;                  <span class="cmt">-- ORDER BY: emp_idの昇順</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM employees → 5行
+  2. SELECT で各列を計算:
+     E01: salary+COALESCE(50000,0)=350000, COALESCE('営業','未配属')='営業',
+          NULLIF(50000,0)=50000 IS NOT NULL → '支給あり'
+     E02: salary+COALESCE(NULL,0)=280000+0=280000, '開発',
+          NULLIF(NULL,0)=NULL IS NOT NULL → ELSE → '支給なし'
+     E03: 320000+COALESCE(0,0)=320000+0=320000, COALESCE(NULL,'未配属')='未配属',
+          NULLIF(0,0)=NULL IS NOT NULL → ELSE → '支給なし'
+  3. ORDER BY emp_id ASC → E01〜E05 順
+  ★ NULL との加算は NULL に伝播（salary + NULL = NULL）
+  ★ NULLIF(x, y): x=y なら NULL を返す（0除算防止にも使える: val/NULLIF(denom,0)）
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  emp_id, emp_name,\n", k: "", h: "select" },
+      { t: "  salary + ", k: "", h: "select" }, { t: "COALESCE(bonus, 0)", k: "sql-kw", h: "eval1" }, { t: " AS total_pay,\n", k: "", h: "select" },
+      { t: "  ", k: "", h: "select" }, { t: "COALESCE(department, '未配属')", k: "sql-kw", h: "eval2" }, { t: " AS department,\n", k: "", h: "select" },
+      { t: "  CASE\n", k: "sql-kw", h: "eval3" },
+      { t: "    WHEN ", k: "", h: "eval3" }, { t: "NULLIF(bonus, 0)", k: "sql-kw", h: "eval3" }, { t: " IS NOT NULL THEN '支給あり'\n", k: "", h: "eval3" },
+      { t: "    ELSE '支給なし'\n", k: "", h: "eval3" },
+      { t: "  END AS bonus_status\n", k: "sql-kw", h: "eval3" },
+      { t: "FROM     ", k: "sql-kw", h: "from" }, { t: "employees\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "emp_id;\n", k: "", h: "select" }
+    ],
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM employees", desc: "employeesテーブル（全5行）を読み込みます。bonusやdepartmentにNULLが含まれています。", type: "base", cnt: "全5行",
+        cols: ["emp_id", "emp_name", "salary", "bonus", "department"],
+        ch: ["col-base", "col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: ["E01", "山田", 300000, 50000, "営業"] },
+          { v: ["E02", "鈴木", 280000, "NULL", "開発"], cc: ["", "", "", "val-dimmed", ""] },
+          { v: ["E03", "佐藤", 320000, 0, "NULL"], cc: ["", "", "", "", "val-dimmed"] },
+          { v: ["E04", "田中", 350000, 80000, "営業"] },
+          { v: ["E05", "伊藤", 290000, "NULL", "NULL"], cc: ["", "", "", "val-dimmed", "val-dimmed"] }
+        ]
+      },
+      {
+        id: "eval1 eval2 eval3", badge: "② NULL処理関数の動作比較", bc: "badge-orange",
+        label: "COALESCE / NULLIF", desc: "各関数がNULLや0をどう処理するか比較します。salary+bonusはNULLとの加算でNULLになってしまいます。", type: "eval", cnt: "3パターンの比較",
+        cols: ["関数", "E01（bonus=50000）", "E02（bonus=NULL）", "E03（bonus=0）"],
+        ch: ["", "", "", ""],
+        rows: [
+          { v: ["salary+bonus（そのまま）", 350000, "NULL ✗", 320000], cc: ["", "", "val-fail", ""] },
+          { v: ["COALESCE(bonus,0)", 50000, "0（NULLを0に変換）", 0], cc: ["", "", "val-pass", ""] },
+          { v: ["NULLIF(bonus,0)", 50000, "NULL（そのまま）", "NULL（0をNULLに変換）"], cc: ["", "", "val-dimmed", "val-dimmed"] }
+        ]
+      },
+      {
+        id: "select", badge: "③ SELECT & ORDER BY", bc: "badge-green",
+        label: "全員の計算結果", desc: "各関数を適用した最終計算結果を出力します。", type: "select", cnt: "結果: 5行",
+        cols: ["emp_id", "salary", "bonus（生値）", "total_pay", "department", "bonus_status"],
+        ch: ["col-select", "col-select", "col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["E01", 300000, 50000, 350000, "営業", "支給あり"] },
+          { v: ["E02", 280000, "NULL", 280000, "開発", "支給なし"], cc: ["", "", "val-dimmed", "", "", ""] },
+          { v: ["E03", 320000, 0, 320000, "未配属", "支給なし"] },
+          { v: ["E04", 350000, 80000, 430000, "営業", "支給あり"] },
+          { v: ["E05", 290000, "NULL", 290000, "未配属", "支給なし"], cc: ["", "", "val-dimmed", "", "", ""] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCEは複数の引数を取れる：</strong><code>COALESCE(col1, col2, col3, 'default')</code> のように書くと、左から順にNULLでない最初の値を返します。「優先度の高い列から順に参照したい」場面で便利です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULLIFの0除算防止：</strong><code>100 / NULLIF(denominator, 0)</code> と書くと、分母が0のときNULLを返し（NULLでの除算はNULL）、ゼロ除算エラーを防げます。割合計算で頻出のテクニックです。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE col = NULL と書く：</strong>NULLは値ではなく「不明な状態」なので <code>= NULL</code> は常に false です。<code>WHERE col IS NULL</code> と書いてください。同様に <code>WHERE col != NULL</code> も常にfalseになります。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NULLを含む演算を COALESCE せずに使う：</strong>例えば割引計算で <code>price - discount</code> と書くと discount が NULL の行は結果も NULL になります。意図しないNULL伝播は集計ミスの原因になります。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：NULLが引き起こす「サイレント障害」</div>
+<div class="biz-body">
+NULLが混入した計算式はエラーを出さずに「NULL」という結果を返すため、障害に気づきにくい（サイレント障害）という怖さがあります。たとえば請求金額の計算で <code>base_price + option_price - discount</code> としたとき、discountがNULL（割引なし）だと請求金額全体がNULLになり、<strong>顧客への請求が漏れる</strong> などの実害に繋がります。計算に使う列は必ず <code>COALESCE</code> で安全に保護する習慣が身を助けます。
+</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  DISTINCT / COUNT — 重複排除と件数の正確な集計
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "DISTINCT / COUNT — 重複を排除して正確な件数・ユニーク数を得る",
+  tags: [["r","DISTINCT"],["r","COUNT"],["g","重複排除"],["o","ユニーク集計"]],
+  premise: `<p><strong>DISTINCT</strong>はSELECT結果の重複行を取り除く修飾子です。<em>COUNT(DISTINCT 列名)</em> を使うと「ユニークな値が何種類あるか」を集計できます。</p>
+<pre><span class="kw">SELECT</span> <span class="kw">DISTINCT</span> col1, col2      <span class="cmt">-- (col1, col2) の組み合わせで重複を除外</span>
+<span class="kw">FROM</span>   <span class="tbl">table_name</span>;
+
+<span class="cmt">-- COUNT の3パターン</span>
+<span class="fn">COUNT</span>(<span class="op">*</span>)              <span class="cmt">-- NULL を含む全行数</span>
+<span class="fn">COUNT</span>(col)            <span class="cmt">-- colがNULLでない行数（NULLを除外）</span>
+<span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> col)   <span class="cmt">-- colのユニークな値の種類数（NULLは無視）</span></pre>
+<div class="callout"><strong>DISTINCT は列の組み合わせで判定：</strong><code>SELECT DISTINCT col1, col2</code> は <em>(col1, col2) のペアが重複する場合</em>に除外します。col1だけが重複しても、col2が異なれば残ります。</div>`,
+  question: `<p>以下の <code>page_views</code> テーブル（ページ閲覧ログ）から次の3つを1つのクエリで取得してください。</p>
+<ul style="font-size:13px;margin:8px 0 8px 18px;color:var(--text);">
+  <li>総閲覧数（全行数）</li>
+  <li>ユニークユーザー数（同じuser_idを重複カウントしない）</li>
+  <li>閲覧されたユニークページ数</li>
+</ul>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ page_views</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>view_id</th><th>user_id</th><th>page_url</th><th>viewed_at</th></tr>
+        <tr><td>1</td><td>U01</td><td>/home</td><td>2024-04-01 10:00</td></tr>
+        <tr><td>2</td><td>U01</td><td>/products</td><td>2024-04-01 10:05</td></tr>
+        <tr><td>3</td><td>U02</td><td>/home</td><td>2024-04-01 11:00</td></tr>
+        <tr><td>4</td><td>U01</td><td>/home</td><td>2024-04-01 12:00</td></tr>
+        <tr><td>5</td><td>U03</td><td>/about</td><td>2024-04-01 13:00</td></tr>
+        <tr><td>6</td><td>U02</td><td>/products</td><td>2024-04-01 14:00</td></tr>
+        <tr><td>7</td><td>U01</td><td>/contact</td><td>2024-04-01 15:00</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>total_views</th><th>unique_users</th><th>unique_pages</th></tr>
+<tr><td>7</td><td>3</td><td>4</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>)                   <span class="kw">AS</span> total_views,
+  <span class="cmt">-- COUNT(*): NULLを含む全行数をカウント（= 総閲覧数）</span>
+
+  <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> user_id)   <span class="kw">AS</span> unique_users,
+  <span class="cmt">-- COUNT(DISTINCT col): colのユニークな値の数をカウント</span>
+  <span class="cmt">--  U01,U01,U02,U01,U03,U02,U01 → {U01,U02,U03} → 3</span>
+
+  <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> page_url)  <span class="kw">AS</span> unique_pages
+  <span class="cmt">-- /home,/products,/home,/home,/about,/products,/contact</span>
+  <span class="cmt">-- → {/home,/products,/about,/contact} → 4</span>
+<span class="kw">FROM</span> <span class="tbl">page_views</span>;             <span class="cmt">-- FROM: 取得元テーブル（WHERE/GROUP BYなし = 全行対象）</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM page_views      → 7行全てを対象
+  2. SELECT で3つの集計関数を同時に評価:
+     COUNT(*)                   → 7（全7行）
+     COUNT(DISTINCT user_id)    → 3（U01,U02,U03）
+     COUNT(DISTINCT page_url)   → 4（/home,/products,/about,/contact）
+  → 1行の集計結果が返る
+  ★ GROUP BYがない場合、全行が1つのグループとして集計される
+  ★ COUNT(DISTINCT col) は NULLを無視する
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  COUNT(*) AS total_views,\n", k: "", h: "agg select" },
+      { t: "  COUNT(DISTINCT user_id) AS unique_users,\n", k: "", h: "agg select" },
+      { t: "  COUNT(DISTINCT page_url) AS unique_pages\n", k: "", h: "agg select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "page_views;\n", k: "", h: "from" }
+    ],
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM page_views", desc: "page_viewsテーブルの全7行を対象とします。", type: "base", cnt: "全7行",
+        cols: ["view_id", "user_id", "page_url", "viewed_at"],
+        ch: ["col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: [1, "U01", "/home", "2024-04-01 10:00"] },
+          { v: [2, "U01", "/products", "2024-04-01 10:05"] },
+          { v: [3, "U02", "/home", "2024-04-01 11:00"] },
+          { v: [4, "U01", "/home", "2024-04-01 12:00"] },
+          { v: [5, "U03", "/about", "2024-04-01 13:00"] },
+          { v: [6, "U02", "/products", "2024-04-01 14:00"] },
+          { v: [7, "U01", "/contact", "2024-04-01 15:00"] }
+        ]
+      },
+      {
+        id: "agg", badge: "② 3種類のCOUNT", bc: "badge-orange",
+        label: "何を数えるかの違い", desc: "COUNTの種類によって対象データと結果が変わります。", type: "eval", cnt: "比較",
+        cols: ["カウント方法", "対象データ", "結果", "用途"],
+        ch: ["", "", "col-eval", ""],
+        rows: [
+          { v: ["COUNT(*)", "全7行（NULLも含む）", "7", "総件数・レコード数"], cc: ["", "", "val-pass", ""] },
+          { v: ["COUNT(user_id)", "user_idがNULLでない行", "7（今回NULLなし）", "特定列の非NULL件数"], cc: ["", "", "val-pass", ""] },
+          { v: ["COUNT(DISTINCT user_id)", "{U01, U02, U03}（重複除去）", "3", "ユニーク種類数（UU数）"], cc: ["", "", "val-pass", ""] }
+        ]
+      },
+      {
+        id: "agg", badge: "③ DISTINCT の内部処理", bc: "badge-orange",
+        label: "COUNT(DISTINCT page_url)", desc: "page_urlの重複を除去してから件数をカウントします。", type: "eval", cnt: "7件 → 4件",
+        cols: ["元の page_url（7件）", "DISTINCT 後（重複除去）"],
+        ch: ["", "col-eval"],
+        rows: [
+          { v: ["/home, /products, /home, /home, /about, /products, /contact", "/home, /products, /about, /contact → COUNT=4"], cc: ["", "val-pass"] }
+        ]
+      },
+      {
+        id: "select", badge: "④ SELECT", bc: "badge-green",
+        label: "集計結果の出力", desc: "全行を1つのグループとして集計した結果を出力します。", type: "select", cnt: "結果: 1行",
+        cols: ["total_views", "unique_users", "unique_pages"],
+        ch: ["col-select", "col-select", "col-select"],
+        rows: [
+          { v: [7, 3, 4] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>UU（ユニークユーザー）数はWEB分析の基本指標：</strong>PV（ページビュー）数 = COUNT(*) は延べ閲覧数、UV（ユニークビジター）数 = COUNT(DISTINCT user_id) は実人数です。マーケティング分析では両者を常にセットで把握します。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>DISTINCTはパフォーマンスコストが高い：</strong>大量データでの COUNT(DISTINCT) はソートや一時テーブルが発生し遅くなることがあります。本番環境では <em>近似アルゴリズム</em>（BigQueryの APPROX_COUNT_DISTINCT、PostgreSQLのHyperLogLog拡張）も選択肢に入ります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COUNT(*) と COUNT(col) の混同：</strong><code>COUNT(*)</code>はNULLを含む全行数、<code>COUNT(col)</code>はNULLを除いた件数です。NULLが混入しているカラムで件数を数えるときに違いが出ます。「何を数えたいか」を意識して使い分けてください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SELECT DISTINCT * の乱用：</strong>JOINや集計の重複を DISTINCT で無理やり解消しようとするのはアンチパターンです。重複の原因（1対多のJOINなど）を特定して根本的に解決しましょう。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：カーディナリティの把握とクエリ最適化</div>
+<div class="biz-body">
+<code>COUNT(DISTINCT 列名)</code> は単にUU数（ユニークユーザー）を出すだけでなく、データ分析の初期段階で「その列に何種類の値が入っているか（カーディナリティ）」を把握するのに必須です。カーディナリティが高い（IDなど種類が多い）列はインデックスが効きやすく、低い（男女やON/OFFなど種類が少ない）列は効きにくいといった、<strong>パフォーマンスチューニングの重要な判断材料</strong> になります。
+</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  サブクエリ（WHERE IN） — 条件の動的絞り込み
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "サブクエリ（WHERE IN / NOT IN） — 別クエリの結果を条件として使う",
+  tags: [["r","サブクエリ"],["r","WHERE IN"],["g","NOT IN"],["o","動的フィルタ"]],
+  premise: `<p><strong>サブクエリ</strong>はSQL文の中に入れ子にした別のSELECT文です。<em>WHERE IN (サブクエリ)</em> を使うと「別の集計結果を条件として使う」動的なフィルタが実現できます。</p>
+<pre><span class="cmt">-- WHERE IN: サブクエリの結果リストに一致する行を取得</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span>
+<span class="kw">WHERE</span> user_id <span class="kw">IN</span> (
+  <span class="kw">SELECT</span> user_id            <span class="cmt">-- サブクエリ：1列だけ返す必要がある</span>
+  <span class="kw">FROM</span>   <span class="tbl">users</span>
+  <span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'premium'</span>
+);
+
+<span class="cmt">-- WHERE NOT IN: サブクエリの結果リストに一致しない行を取得</span>
+<span class="kw">WHERE</span> user_id <span class="kw">NOT IN</span> (サブクエリ)</pre>
+<div class="callout warn"><strong>NOT IN と NULLの罠：</strong>サブクエリの結果に NULL が1つでも含まれると <code>NOT IN</code> の結果は全て NULL になり、行が1件も返らなくなります。<code>NOT IN</code> を使う際はサブクエリに <code>WHERE col IS NOT NULL</code> を追加するか、<code>NOT EXISTS</code> を使うのが安全です。</div>`,
+  question: `<p>以下の <code>orders</code> と <code>products</code> テーブルを使い、<em>過去に1回でも注文された商品の詳細情報</em>を商品マスタから取得してください。</p>
+<p>さらに、<em>一度も注文されていない商品</em>の一覧も取得してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>product_id</th><th>quantity</th></tr>
+        <tr><td>1</td><td>P01</td><td>2</td></tr>
+        <tr><td>2</td><td>P03</td><td>1</td></tr>
+        <tr><td>3</td><td>P01</td><td>3</td></tr>
+        <tr><td>4</td><td>P05</td><td>1</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ products</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>product_name</th><th>price</th><th>category</th></tr>
+        <tr><td>P01</td><td>ノートPC</td><td>150000</td><td>電子機器</td></tr>
+        <tr><td>P02</td><td>マウス</td><td>3500</td><td>電子機器</td></tr>
+        <tr><td>P03</td><td>デスク</td><td>45000</td><td>家具</td></tr>
+        <tr><td>P04</td><td>椅子</td><td>30000</td><td>家具</td></tr>
+        <tr><td>P05</td><td>モニター</td><td>55000</td><td>電子機器</td></tr>
+        <tr><td>P06</td><td>キーボード</td><td>8000</td><td>電子機器</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p style="font-size:12px;color:var(--accent);margin-bottom:4px;">① 注文された商品（WHERE IN）</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>product_id</th><th>product_name</th><th>price</th><th>category</th></tr>
+<tr><td>P01</td><td>ノートPC</td><td>150000</td><td>電子機器</td></tr>
+<tr><td>P03</td><td>デスク</td><td>45000</td><td>家具</td></tr>
+<tr><td>P05</td><td>モニター</td><td>55000</td><td>電子機器</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--accent);margin-top:10px;margin-bottom:4px;">② 注文されていない商品（WHERE NOT IN）</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>product_id</th><th>product_name</th><th>price</th><th>category</th></tr>
+<tr><td>P02</td><td>マウス</td><td>3500</td><td>電子機器</td></tr>
+<tr><td>P04</td><td>椅子</td><td>30000</td><td>家具</td></tr>
+<tr><td>P06</td><td>キーボード</td><td>8000</td><td>電子機器</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 注文されたことがある商品を取得（WHERE IN）</span>
+<span class="kw">SELECT</span>
+  product_id,
+  product_name,
+  price,
+  category
+<span class="kw">FROM</span>   <span class="tbl">products</span>
+<span class="kw">WHERE</span>  product_id <span class="kw">IN</span> (             <span class="cmt">-- IN: サブクエリの返す値リストに含まれる行を取得</span>
+  <span class="kw">SELECT</span> <span class="kw">DISTINCT</span> product_id      <span class="cmt">-- サブクエリ: 注文テーブルから注文済み商品IDを取得</span>
+  <span class="kw">FROM</span>   <span class="tbl">orders</span>                  <span class="cmt">-- DISTINCT: 同じ商品IDの重複を除去（P01が2回→1回）</span>
+)
+<span class="kw">ORDER BY</span> product_id;              <span class="cmt">-- ORDER BY: 商品IDの昇順</span>
+
+<span class="cmt">-- ② 一度も注文されていない商品を取得（WHERE NOT IN）</span>
+<span class="kw">SELECT</span>
+  product_id,
+  product_name,
+  price,
+  category
+<span class="kw">FROM</span>   <span class="tbl">products</span>
+<span class="kw">WHERE</span>  product_id <span class="kw">NOT IN</span> (        <span class="cmt">-- NOT IN: サブクエリの返す値リストに含まれない行を取得</span>
+  <span class="kw">SELECT</span> product_id               <span class="cmt">-- サブクエリ: 注文済み商品IDのリスト（P01,P03,P05）</span>
+  <span class="kw">FROM</span>   <span class="tbl">orders</span>
+  <span class="kw">WHERE</span>  product_id <span class="kw">IS NOT NULL</span>   <span class="cmt">-- IS NOT NULL: NOT INでNULLが混入するとバグになるため必須</span>
+)
+<span class="kw">ORDER BY</span> product_id;
+
+<span class="cmt">/*
+  実行順序（①）:
+  1. サブクエリが先に実行: SELECT DISTINCT product_id FROM orders
+     → {P01, P03, P05} のリストを生成
+  2. 外側: FROM products WHERE product_id IN ('P01','P03','P05')
+     → P01,P03,P05 の3行を取得
+  3. ORDER BY product_id ASC
+
+  実行順序（②）:
+  1. サブクエリ: SELECT product_id FROM orders WHERE product_id IS NOT NULL
+     → (P01, P03, P01, P05) → NOT INの比較リスト
+  2. 外側: FROM products WHERE product_id NOT IN ('P01','P01','P03','P05')
+     → P01,P03,P05 以外の行 → P02,P04,P06 の3行を取得
+  ★ NOT IN はサブクエリにNULLが含まれると全件0行になる！
+    → IS NOT NULL を付けるか NOT EXISTS を代替として使う
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  product_id, product_name, price, category\n", k: "", h: "select" },
+      { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "products\n", k: "", h: "from" },
+      { t: "WHERE  ", k: "sql-kw", h: "where" }, { t: "product_id IN (\n", k: "", h: "where" },
+      { t: "  SELECT DISTINCT ", k: "sql-kw", h: "sub" }, { t: "product_id\n", k: "", h: "sub" },
+      { t: "  FROM   ", k: "sql-kw", h: "sub" }, { t: "orders\n", k: "", h: "sub" },
+      { t: ")\n", k: "", h: "where" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "product_id;\n", k: "", h: "select" }
+    ],
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM products", desc: "外側クエリの対象テーブル products 全体（6行）を読み込みます。", type: "base", cnt: "全6行",
+        cols: ["product_id", "product_name", "price", "category"],
+        ch: ["col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: ["P01", "ノートPC", 150000, "電子機器"] },
+          { v: ["P02", "マウス", 3500, "電子機器"] },
+          { v: ["P03", "デスク", 45000, "家具"] },
+          { v: ["P04", "椅子", 30000, "家具"] },
+          { v: ["P05", "モニター", 55000, "電子機器"] },
+          { v: ["P06", "キーボード", 8000, "電子機器"] }
+        ]
+      },
+      {
+        id: "sub", badge: "② サブクエリ実行", bc: "badge-orange",
+        label: "SELECT DISTINCT product_id FROM orders", desc: "括弧内のサブクエリが先に実行され、ordersテーブルから注文済み商品IDのリストを取得します。", type: "eval", cnt: "サブクエリ結果: (P01, P03, P05)",
+        cols: ["order_id", "product_id", "quantity"],
+        ch: ["", "col-eval", ""],
+        rows: [
+          { v: [1, "P01", 2], cc: ["", "val-pass", ""] },
+          { v: [2, "P03", 1], cc: ["", "val-pass", ""] },
+          { c: "row-dimmed", v: [3, "P01 (重複)", 3], cc: ["", "val-fail", ""] },
+          { v: [4, "P05", 1], cc: ["", "val-pass", ""] }
+        ]
+      },
+      {
+        id: "where", badge: "③ WHERE IN", bc: "badge-orange",
+        label: "WHERE product_id IN ('P01','P03','P05')", desc: "サブクエリの結果リストを使って products を絞り込みます。", type: "eval", cnt: "6行 → 3行",
+        cols: ["product_id", "product_name", "price", "category"],
+        ch: ["col-eval", "", "", ""],
+        rows: [
+          { v: ["P01", "ノートPC", 150000, "電子機器"], cc: ["val-pass", "", "", ""] },
+          { c: "row-dimmed", v: ["P02", "マウス", 3500, "電子機器"], cc: ["val-fail", "", "", ""] },
+          { v: ["P03", "デスク", 45000, "家具"], cc: ["val-pass", "", "", ""] },
+          { c: "row-dimmed", v: ["P04", "椅子", 30000, "家具"], cc: ["val-fail", "", "", ""] },
+          { v: ["P05", "モニター", 55000, "電子機器"], cc: ["val-pass", "", "", ""] },
+          { c: "row-dimmed", v: ["P06", "キーボード", 8000, "電子機器"], cc: ["val-fail", "", "", ""] }
+        ]
+      },
+      {
+        id: "select", badge: "④ SELECT & ORDER BY", bc: "badge-green",
+        label: "SELECT ... ORDER BY product_id", desc: "絞り込まれた3行から指定の列を最終出力します。", type: "select", cnt: "結果: 3行",
+        cols: ["product_id", "product_name", "price", "category"],
+        ch: ["col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["P01", "ノートPC", 150000, "電子機器"] },
+          { v: ["P03", "デスク", 45000, "家具"] },
+          { v: ["P05", "モニター", 55000, "電子機器"] }
+        ]
+      },
+      {
+        id: "where", badge: "⑤ 補足: NOT IN と NULL の罠", bc: "badge-red",
+        label: "NOT IN の危険な挙動", desc: "NOT IN を使う場合、サブクエリ結果にNULLが1つでも含まれると全件マッチ失敗（0件）になります。", type: "eval", cnt: "注意点",
+        cols: ["サブクエリの結果", "NOT IN の挙動", "影響"],
+        ch: ["", "", "col-eval"],
+        rows: [
+          { v: ["('P01','P03','P05')", "通常通り動作", "期待通り"], cc: ["", "", "val-pass"] },
+          { v: ["('P01', NULL, 'P05')", "全行がNULL（false）扱い", "0件返る ✗"], cc: ["", "", "val-fail"] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>サブクエリは「結果を値として使う」発想：</strong>IN句のサブクエリは「この時点でリストを確定させてから外側のWHEREで使う」イメージです。CTEを使うとさらに読みやすくなります（<code>WITH ordered_products AS (...) SELECT ... WHERE product_id IN (SELECT ... FROM ordered_products)</code>）。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>INのリストが大きい場合はJOINが高速：</strong>サブクエリが数千件以上のリストを返す場合、<code>WHERE id IN (...)</code>よりも <code>INNER JOIN</code> や <code>EXISTS</code> の方が実行計画上有利なことが多いです。EXPLAINで実行計画を確認する習慣をつけましょう。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NOT IN でサブクエリにNULLが含まれる可能性を無視する：</strong>テーブルに NULL が入り得るカラムを使った NOT IN は、将来のデータによって突然0件になる地雷になります。必ず <code>WHERE col IS NOT NULL</code> をサブクエリに追加するか、<code>NOT EXISTS</code> で書き直してください。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：IN句の限界とWITH句（CTE）への移行</div>
+<div class="biz-body">
+サブクエリが返すリストが数万〜数十万件になる場合、<code>WHERE IN</code> を使うとDBのメモリを圧迫しクエリが著しく遅くなることがあります。実務ではこのような重い条件を扱う際、<strong>WITH句（CTE）や一時テーブル（Temp Table）</strong> にサブクエリの結果を一度書き出し、それに対して <code>INNER JOIN</code> を行うことで、実行計画を安定させパフォーマンスを担保するテクニックがよく使われます。
+</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  LIKE / BETWEEN / IN — 範囲・パターン検索
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "LIKE / BETWEEN / IN — 範囲・パターン・リスト検索を使いこなす",
+  tags: [["r","LIKE"],["r","BETWEEN"],["g","IN"],["o","条件検索"]],
+  premise: `<p>WHERE句でよく使う3つの検索演算子を整理しましょう。</p>
+<pre><span class="cmt">-- LIKE: パターン一致（文字列検索）</span>
+<span class="kw">WHERE</span> name <span class="kw">LIKE</span> <span class="str">'田%'</span>       <span class="cmt">-- '田'で始まる（%は0文字以上の任意の文字列）</span>
+<span class="kw">WHERE</span> name <span class="kw">LIKE</span> <span class="str">'%山%'</span>      <span class="cmt">-- '山'を含む</span>
+<span class="kw">WHERE</span> name <span class="kw">LIKE</span> <span class="str">'_田'</span>       <span class="cmt">-- _は任意の1文字（例：「田」を含む2文字の名前）</span>
+
+<span class="cmt">-- BETWEEN: 範囲一致（両端を含む）</span>
+<span class="kw">WHERE</span> price <span class="kw">BETWEEN</span> <span class="num">1000</span> <span class="kw">AND</span> <span class="num">5000</span>   <span class="cmt">-- price >= 1000 AND price <= 5000 と同等</span>
+<span class="kw">WHERE</span> date  <span class="kw">BETWEEN</span> <span class="str">'2024-01-01'</span> <span class="kw">AND</span> <span class="str">'2024-03-31'</span>
+
+<span class="cmt">-- IN: リスト一致</span>
+<span class="kw">WHERE</span> status <span class="kw">IN</span> (<span class="str">'処理中'</span>, <span class="str">'完了'</span>, <span class="str">'保留'</span>)  <span class="cmt">-- OR を複数並べるより簡潔</span></pre>
+<div class="callout"><strong>BETWEEN は両端を含む（inclusive）：</strong><code>BETWEEN 1000 AND 5000</code> は 1000 と 5000 も含みます。日付の場合、<code>BETWEEN '2024-01-01' AND '2024-03-31'</code> は 2024-03-31 00:00:00 を含みますが、DATETIME型では 2024-03-31 23:59:59 を含まない場合があります（<code>&lt; '2024-04-01'</code> で書く方が安全）。</div>`,
+  question: `<p>以下の <code>employees</code> テーブルから、以下の条件で従業員を絞り込んでください。</p>
+<ul style="font-size:13px;margin:8px 0 8px 18px;color:var(--text);">
+  <li>① 名前が「田」で始まる従業員（LIKE使用）</li>
+  <li>② 給与が30万円以上40万円以下の従業員（BETWEEN使用）</li>
+  <li>③ 部署が '営業' または '開発' または 'マーケ' の従業員（IN使用）</li>
+</ul>
+<p>各条件のクエリをそれぞれ作成してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employees</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>salary</th><th>department</th></tr>
+        <tr><td>E01</td><td>田中 一郎</td><td>320000</td><td>営業</td></tr>
+        <tr><td>E02</td><td>佐藤 花子</td><td>280000</td><td>開発</td></tr>
+        <tr><td>E03</td><td>田村 次郎</td><td>350000</td><td>人事</td></tr>
+        <tr><td>E04</td><td>鈴木 三郎</td><td>400000</td><td>マーケ</td></tr>
+        <tr><td>E05</td><td>田辺 美咲</td><td>310000</td><td>開発</td></tr>
+        <tr><td>E06</td><td>山田 健</td><td>380000</td><td>営業</td></tr>
+        <tr><td>E07</td><td>高橋 誠</td><td>290000</td><td>マーケ</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p style="font-size:12px;color:var(--accent);margin-bottom:4px;">① LIKE '田%'</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>emp_name</th><th>salary</th><th>department</th></tr>
+<tr><td>E01</td><td>田中 一郎</td><td>320000</td><td>営業</td></tr>
+<tr><td>E03</td><td>田村 次郎</td><td>350000</td><td>人事</td></tr>
+<tr><td>E05</td><td>田辺 美咲</td><td>310000</td><td>開発</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--accent);margin-top:10px;margin-bottom:4px;">② BETWEEN 300000 AND 400000</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>emp_name</th><th>salary</th><th>department</th></tr>
+<tr><td>E01</td><td>田中 一郎</td><td>320000</td><td>営業</td></tr>
+<tr><td>E03</td><td>田村 次郎</td><td>350000</td><td>人事</td></tr>
+<tr><td>E04</td><td>鈴木 三郎</td><td>400000</td><td>マーケ</td></tr>
+<tr><td>E05</td><td>田辺 美咲</td><td>310000</td><td>開発</td></tr>
+<tr><td>E06</td><td>山田 健</td><td>380000</td><td>営業</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--accent);margin-top:10px;margin-bottom:4px;">③ IN ('営業','開発','マーケ')</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>emp_name</th><th>salary</th><th>department</th></tr>
+<tr><td>E01</td><td>田中 一郎</td><td>320000</td><td>営業</td></tr>
+<tr><td>E02</td><td>佐藤 花子</td><td>280000</td><td>開発</td></tr>
+<tr><td>E04</td><td>鈴木 三郎</td><td>400000</td><td>マーケ</td></tr>
+<tr><td>E05</td><td>田辺 美咲</td><td>310000</td><td>開発</td></tr>
+<tr><td>E06</td><td>山田 健</td><td>380000</td><td>営業</td></tr>
+<tr><td>E07</td><td>高橋 誠</td><td>290000</td><td>マーケ</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① LIKE: 名前が「田」で始まる従業員</span>
+<span class="kw">SELECT</span> emp_id, emp_name, salary, department
+<span class="kw">FROM</span>   <span class="tbl">employees</span>
+<span class="kw">WHERE</span>  emp_name <span class="kw">LIKE</span> <span class="str">'田%'</span>      <span class="cmt">-- LIKE '田%': '田'で始まる文字列にマッチ</span>
+                                  <span class="cmt">--  %: 0文字以上の任意の文字列（ワイルドカード）</span>
+                                  <span class="cmt">-- '田中 一郎','田村 次郎','田辺 美咲' がヒット</span>
+<span class="kw">ORDER BY</span> emp_id;
+
+<span class="cmt">-- ② BETWEEN: 給与が30万〜40万円の従業員</span>
+<span class="kw">SELECT</span> emp_id, emp_name, salary, department
+<span class="kw">FROM</span>   <span class="tbl">employees</span>
+<span class="kw">WHERE</span>  salary <span class="kw">BETWEEN</span> <span class="num">300000</span> <span class="kw">AND</span> <span class="num">400000</span>
+<span class="cmt">-- BETWEEN a AND b: a以上b以下（両端を含む）</span>
+<span class="cmt">-- salary >= 300000 AND salary <= 400000 と同じ意味</span>
+<span class="kw">ORDER BY</span> salary;
+
+<span class="cmt">-- ③ IN: 特定の部署に所属する従業員</span>
+<span class="kw">SELECT</span> emp_id, emp_name, salary, department
+<span class="kw">FROM</span>   <span class="tbl">employees</span>
+<span class="kw">WHERE</span>  department <span class="kw">IN</span> (<span class="str">'営業'</span>, <span class="str">'開発'</span>, <span class="str">'マーケ'</span>)
+<span class="cmt">-- IN (値1, 値2, 値3): リストのいずれかに一致する行を取得</span>
+<span class="cmt">-- department='営業' OR department='開発' OR department='マーケ' と同じ意味</span>
+<span class="kw">ORDER BY</span> emp_id;
+
+<span class="cmt">/*
+  実行順序（各クエリ共通）:
+  1. FROM employees  → 7行全てを対象
+  2. WHERE ...       → 各条件でフィルタ
+     ① LIKE '田%'       → 田中,田村,田辺 → 3行
+     ② BETWEEN 30〜40万 → E01,E03,E04,E05,E06 → 5行
+        ※ E02(280000) と E07(290000) は範囲外で除外
+     ③ IN (営業,開発,マーケ) → 人事(E03)のみ除外 → 6行
+  3. ORDER BY        → 指定列で並び替え
+  ★ IN は OR の簡潔な表現。要素数が多いほど IN の読みやすさが光る
+  ★ BETWEEN は「以上以下（両端含む）」。NOT BETWEEN も使える
+  ★ LIKE の % はゼロ文字以上、_ は必ず1文字
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  emp_id, emp_name, salary, department\n", k: "", h: "select" },
+      { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "employees\n", k: "", h: "from" },
+      { t: "WHERE  ", k: "sql-kw", h: "where" }, { t: "salary BETWEEN 300000 AND 400000\n", k: "", h: "where" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "salary;\n", k: "", h: "select" }
+    ],
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM employees", desc: "全7行を対象とします。", type: "base", cnt: "全7行",
+        cols: ["emp_id", "emp_name", "salary", "department"],
+        ch: ["col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: ["E01", "田中 一郎", 320000, "営業"] },
+          { v: ["E02", "佐藤 花子", 280000, "開発"] },
+          { v: ["E03", "田村 次郎", 350000, "人事"] },
+          { v: ["E04", "鈴木 三郎", 400000, "マーケ"] },
+          { v: ["E05", "田辺 美咲", 310000, "開発"] },
+          { v: ["E06", "山田 健", 380000, "営業"] },
+          { v: ["E07", "高橋 誠", 290000, "マーケ"] }
+        ]
+      },
+      {
+        id: "where", badge: "② BETWEEN 検索", bc: "badge-orange",
+        label: "WHERE salary BETWEEN 300000 AND 400000", desc: "指定した範囲（両端を含む）に合致する行を残します。", type: "eval", cnt: "7行 → 5行",
+        cols: ["emp_id", "emp_name", "salary", "判定"],
+        ch: ["", "", "col-eval", "col-eval"],
+        rows: [
+          { v: ["E01", "田中 一郎", 320000, "✓ 範囲内"], cc: ["", "", "val-pass", "val-pass"] },
+          { c: "row-dimmed", v: ["E02", "佐藤 花子", 280000, "✗ 30万未満"], cc: ["", "", "val-fail", "val-fail"] },
+          { v: ["E03", "田村 次郎", 350000, "✓ 範囲内"], cc: ["", "", "val-pass", "val-pass"] },
+          { v: ["E04", "鈴木 三郎", 400000, "✓ 40万（両端含む）"], cc: ["", "", "val-pass", "val-pass"] },
+          { v: ["E05", "田辺 美咲", 310000, "✓ 範囲内"], cc: ["", "", "val-pass", "val-pass"] },
+          { v: ["E06", "山田 健", 380000, "✓ 範囲内"], cc: ["", "", "val-pass", "val-pass"] },
+          { c: "row-dimmed", v: ["E07", "高橋 誠", 290000, "✗ 30万未満"], cc: ["", "", "val-fail", "val-fail"] }
+        ]
+      },
+      {
+        id: "where", badge: "③ 補足: LIKE のワイルドカード", bc: "badge-orange",
+        label: "LIKE パターンの動作", desc: "LIKE検索で使うワイルドカード（% と _）の挙動です。", type: "eval", cnt: "参考",
+        cols: ["LIKE パターン", "意味", "マッチ例", "非マッチ例"],
+        ch: ["col-eval", "", "", ""],
+        rows: [
+          { v: ["'田%'", "田で始まる", "田中, 田村 美咲", "山田"] },
+          { v: ["'%田%'", "田を含む", "田中, 山田, 佐田", "山本"] },
+          { v: ["'%田'", "田で終わる", "山田, 佐田", "田中"] },
+          { v: ["'_田'", "任意1文字+田（2文字）", "山田, 佐田", "田中, 山田 太郎"] }
+        ]
+      },
+      {
+        id: "select", badge: "④ SELECT & ORDER BY", bc: "badge-green",
+        label: "ORDER BY salary", desc: "BETWEENで絞り込んだ結果を給与順に出力します。", type: "select", cnt: "結果: 5行",
+        cols: ["emp_id", "emp_name", "salary", "department"],
+        ch: ["col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["E05", "田辺 美咲", 310000, "開発"] },
+          { v: ["E01", "田中 一郎", 320000, "営業"] },
+          { v: ["E03", "田村 次郎", 350000, "人事"] },
+          { v: ["E06", "山田 健", 380000, "営業"] },
+          { v: ["E04", "鈴木 三郎", 400000, "マーケ"] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>IN vs OR：</strong><code>WHERE dept IN ('営業','開発','マーケ')</code> は <code>WHERE dept='営業' OR dept='開発' OR dept='マーケ'</code> と同等です。条件が3つ以上なら IN の方が可読性が高く、後からの追加・削除も容易です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>LIKE の前方一致はインデックスが効く：</strong><code>LIKE '田%'</code>（前方一致）はインデックスを使えますが、<code>LIKE '%田%'</code>（部分一致）や<code>LIKE '%田'</code>（後方一致）はフルスキャンになります。検索パフォーマンスを意識するなら<em>前方一致を優先</em>し、全文検索が必要なら専用のFTS（Full-Text Search）機能を使います。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>日付範囲に BETWEEN を使うときの時刻の扱い：</strong>DATETIME型の場合、<code>BETWEEN '2024-03-31' AND '2024-03-31'</code> は '2024-03-31 00:00:00' のみにマッチします。1日全体を含めるには <code>BETWEEN '2024-03-31 00:00:00' AND '2024-03-31 23:59:59'</code> か、より安全な <code>&gt;= '2024-03-31' AND &lt; '2024-04-01'</code> を使います。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LIKE '%keyword%' の乱用：</strong>部分一致（前後に%）はインデックスが使われずテーブルフルスキャンになります。数百万行以上のテーブルでは深刻なパフォーマンス問題になります。頻繁な全文検索には全文インデックス（MySQL: FULLTEXT、PostgreSQL: tsvector）を検討してください。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：LIKE検索の負荷問題とElasticsearch</div>
+<div class="biz-body">
+<code>LIKE '%キーワード%'</code> による中間一致・後方一致検索はインデックスを使えないため、数百万件のテーブルで実行するとシステム全体が停止するレベルの負荷（スロークエリ）を引き起こす危険があります。実務のWebアプリケーションでフリーワード検索を実装する場合は、RDBのLIKE検索に頼らず、<strong>Elasticsearch や Algolia などの専用の検索エンジン</strong> にデータを同期して検索させるアーキテクチャが一般的です。
+</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10 複合クエリ — GROUP BY + JOIN + CASE の組み合わせ
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "複合クエリ — JOIN・GROUP BY・CASE WHENを組み合わせて実務レポートを作る",
+  tags: [["r","JOIN"],["r","GROUP BY"],["g","CASE WHEN"],["o","実務レポート"],["p","複合"]],
+  premise: `<p>実務のSQLは単一の機能を単独で使うことは少なく、<em>JOIN → 集計（GROUP BY）→ ラベル付け（CASE WHEN）</em> を組み合わせてレポートを作ります。今まで学んだ要素を統合する総まとめ問題です。</p>
+<pre><span class="kw">SELECT</span>
+  a.category,
+  <span class="fn">SUM</span>(b.amount)                 <span class="kw">AS</span> total,
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> <span class="fn">SUM</span>(b.amount) <span class="op">>=</span> <span class="num">100000</span> <span class="kw">THEN</span> <span class="str">'優良'</span>
+    <span class="kw">ELSE</span>                               <span class="str">'要改善'</span>
+  <span class="kw">END</span>                           <span class="kw">AS</span> rank
+<span class="kw">FROM</span>       <span class="tbl">master</span> a
+<span class="kw">INNER JOIN</span> <span class="tbl">transactions</span> b <span class="kw">ON</span> a.id <span class="op">=</span> b.a_id
+<span class="kw">GROUP BY</span>   a.category
+<span class="kw">ORDER BY</span>   total <span class="kw">DESC</span>;</pre>
+<div class="callout"><strong>HAVINGでCASE WHENの結果を絞ることも可能：</strong>集計後の判定列はHAVINGでフィルタできます。ただし <code>HAVING CASE WHEN ... END = '優良'</code> より <code>HAVING SUM(amount) >= 100000</code> と直接条件を書く方が可読性・パフォーマンス共に優れています。</div>`,
+  question: `<p>以下の <code>categories</code>・<code>products</code>・<code>order_items</code> テーブルを使って、<em>カテゴリ別の売上合計・販売数・平均単価</em>を集計してください。</p>
+<p>さらに合計売上に応じて <code>'S（50万以上）'</code> / <code>'A（20万以上）'</code> / <code>'B（20万未満）'</code> のランクを付け、ランクの高い順（S→A→B）、同ランク内は売上の高い順で出力してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ categories</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>cat_id</th><th>cat_name</th></tr>
+        <tr><td>C1</td><td>電子機器</td></tr>
+        <tr><td>C2</td><td>家具</td></tr>
+        <tr><td>C3</td><td>文具</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ products</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>product_name</th><th>price</th><th>cat_id</th></tr>
+        <tr><td>P01</td><td>ノートPC</td><td>150000</td><td>C1</td></tr>
+        <tr><td>P02</td><td>マウス</td><td>3000</td><td>C1</td></tr>
+        <tr><td>P03</td><td>デスク</td><td>50000</td><td>C2</td></tr>
+        <tr><td>P04</td><td>椅子</td><td>30000</td><td>C2</td></tr>
+        <tr><td>P05</td><td>ノート</td><td>500</td><td>C3</td></tr>
+        <tr><td>P06</td><td>ペン</td><td>200</td><td>C3</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ order_items</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>item_id</th><th>product_id</th><th>quantity</th></tr>
+        <tr><td>1</td><td>P01</td><td>3</td></tr>
+        <tr><td>2</td><td>P02</td><td>10</td></tr>
+        <tr><td>3</td><td>P03</td><td>4</td></tr>
+        <tr><td>4</td><td>P04</td><td>2</td></tr>
+        <tr><td>5</td><td>P05</td><td>20</td></tr>
+        <tr><td>6</td><td>P06</td><td>30</td></tr>
+        <tr><td>7</td><td>P01</td><td>2</td></tr>
+        <tr><td>8</td><td>P03</td><td>1</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>cat_name</th><th>total_sales</th><th>total_qty</th><th>avg_price</th><th>rank</th></tr>
+<tr><td>電子機器</td><td>780000</td><td>15</td><td>52000</td><td>S</td></tr>
+<tr><td>家具</td><td>310000</td><td>7</td><td>44285</td><td>A</td></tr>
+<tr><td>文具</td><td>16000</td><td>50</td><td>320</td><td>B</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  cat.cat_name,                          <span class="cmt">-- カテゴリ名（categories テーブルから）</span>
+
+  <span class="cmt">-- 売上合計: 単価 × 数量 の合計</span>
+  <span class="fn">SUM</span>(p.price <span class="op">*</span> oi.quantity)  <span class="kw">AS</span> total_sales,
+  <span class="cmt">-- SUM(price * quantity): 各行で先に乗算してからグループ内で合計</span>
+
+  <span class="fn">SUM</span>(oi.quantity)             <span class="kw">AS</span> total_qty,
+  <span class="cmt">-- SUM(quantity): 販売数の合計</span>
+
+  <span class="fn">SUM</span>(p.price <span class="op">*</span> oi.quantity) <span class="op">/</span> <span class="fn">SUM</span>(oi.quantity) <span class="kw">AS</span> avg_price,
+  <span class="cmt">-- 売上合計 / 数量合計 = 実質的な平均販売単価</span>
+
+  <span class="cmt">-- 合計売上でランク付け（CASE WHEN は集計後の値に適用される）</span>
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> <span class="fn">SUM</span>(p.price <span class="op">*</span> oi.quantity) <span class="op">>=</span> <span class="num">500000</span> <span class="kw">THEN</span> <span class="str">'S'</span>  <span class="cmt">-- 50万以上はS</span>
+    <span class="kw">WHEN</span> <span class="fn">SUM</span>(p.price <span class="op">*</span> oi.quantity) <span class="op">>=</span> <span class="num">200000</span> <span class="kw">THEN</span> <span class="str">'A'</span>  <span class="cmt">-- 20万以上はA</span>
+    <span class="kw">ELSE</span>                                          <span class="str">'B'</span>  <span class="cmt">-- それ未満はB</span>
+  <span class="kw">END</span> <span class="kw">AS</span> rank
+<span class="kw">FROM</span>       <span class="tbl">order_items</span> oi            <span class="cmt">-- FROM: 注文明細を基点（oi はエイリアス）</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">products</span>   p              <span class="cmt">-- INNER JOIN: 商品マスタを結合（価格・カテゴリ取得）</span>
+        <span class="kw">ON</span> oi.product_id <span class="op">=</span> p.product_id  <span class="cmt">-- ON: 商品IDで結合</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">categories</span> cat            <span class="cmt">-- 2つ目のINNER JOIN: カテゴリマスタを結合（カテゴリ名取得）</span>
+        <span class="kw">ON</span> p.cat_id <span class="op">=</span> cat.cat_id       <span class="cmt">-- ON: categories と products を cat_id で結合</span>
+<span class="kw">GROUP BY</span>   cat.cat_id, cat.cat_name   <span class="cmt">-- GROUP BY: カテゴリ単位でグループ化（IDも明示して曖昧さ回避）</span>
+<span class="kw">ORDER BY</span>                              <span class="cmt">-- ORDER BY: 複数列での並び替え</span>
+  rank <span class="kw">ASC</span>,                           <span class="cmt">-- ランクの昇順（S→A→B の文字コード順でOK）</span>
+  total_sales <span class="kw">DESC</span>;                  <span class="cmt">-- 同ランク内は売上の高い順</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM order_items oi         → 8行
+  2. INNER JOIN products p       → product_id で結合（price, cat_id が付加）
+  3. INNER JOIN categories cat   → cat_id で結合（cat_name が付加）
+     → 8行（全明細に必要なマスタ情報が結合された状態）
+  4. GROUP BY cat.cat_id, cat.cat_name → 3グループ（電子機器, 家具, 文具）
+  5. SUM等の集計関数             → 各グループの合計を計算
+     電子機器: 150000*(3+2) + 3000*10 = 780000
+     家具: 50000*(4+1) + 30000*2 = 310000
+     文具: 500*20 + 200*30 = 16000
+  6. CASE WHEN SUM>=...          → rank を決定
+  7. ORDER BY rank ASC, total_sales DESC → S, A, B 順
+  ★ 3テーブル以上のJOINは「起点テーブル → 直接関係するテーブルへ順次JOIN」
+  ★ GROUP BYにIDと名称を両方書くことで「IDが同じ=名称も同じ」を明示できる
+*/</span></pre>`,
+  viz: {
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  cat.cat_name,\n", k: "", h: "select" },
+      { t: "  SUM(p.price * oi.quantity) AS total_sales,\n", k: "", h: "agg select" },
+      { t: "  SUM(oi.quantity) AS total_qty,\n", k: "", h: "agg select" },
+      { t: "  SUM(p.price * oi.quantity) / SUM(oi.quantity) AS avg_price,\n", k: "", h: "agg select" },
+      { t: "  CASE\n", k: "sql-kw", h: "case select" },
+      { t: "    WHEN SUM(p.price * oi.quantity) >= 500000 THEN 'S'\n", k: "", h: "case select" },
+      { t: "    WHEN SUM(p.price * oi.quantity) >= 200000 THEN 'A'\n", k: "", h: "case select" },
+      { t: "    ELSE 'B'\n", k: "", h: "case select" },
+      { t: "  END AS rank\n", k: "sql-kw", h: "case select" },
+      { t: "FROM       ", k: "sql-kw", h: "from" }, { t: "order_items oi\n", k: "", h: "from" },
+      { t: "INNER JOIN ", k: "sql-kw", h: "join" }, { t: "products p ON oi.product_id = p.product_id\n", k: "", h: "join" },
+      { t: "INNER JOIN ", k: "sql-kw", h: "join" }, { t: "categories cat ON p.cat_id = cat.cat_id\n", k: "", h: "join" },
+      { t: "GROUP BY   ", k: "sql-kw", h: "group" }, { t: "cat.cat_id, cat.cat_name\n", k: "", h: "group" },
+      { t: "ORDER BY   ", k: "sql-kw", h: "select" }, { t: "rank ASC, total_sales DESC;\n", k: "", h: "select" }
+    ],
+    steps: [
+      {
+        id: "join", badge: "① FROM & JOIN", bc: "badge-blue",
+        label: "3テーブルの結合", desc: "order_itemsを起点に、products（価格）とcategories（カテゴリ名）を結合し、必要な情報を1行に揃えます。", type: "base", cnt: "全8行の中間状態",
+        cols: ["item_id", "cat_name", "product_name", "price", "qty", "売上(price×qty)"],
+        ch: ["col-base", "col-base", "col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: [1, "電子機器", "ノートPC(P01)", 150000, 3, 450000] },
+          { v: [2, "電子機器", "マウス(P02)", 3000, 10, 30000] },
+          { v: [3, "家具", "デスク(P03)", 50000, 4, 200000] },
+          { v: [4, "家具", "椅子(P04)", 30000, 2, 60000] },
+          { v: [7, "電子機器", "ノートPC(P01)", 150000, 2, 300000] },
+          { v: [8, "家具", "デスク(P03)", 50000, 1, 50000] },
+          { c: "row-dimmed", v: ["...", "文具など", "...", "...", "...", "..."] }
+        ]
+      },
+      {
+        id: "group agg case", badge: "② GROUP BY & 集計 & CASE", bc: "badge-orange",
+        label: "カテゴリ別集計とランク判定", desc: "カテゴリ単位で売上を合計し、その集計値を使ってCASE WHENでランクを判定します。", type: "group", cnt: "3グループ",
+        cols: ["cat_name", "売上内訳（明細行の合算）", "total_sales", "rank判定"],
+        ch: ["col-eval", "", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["電子機器", "450000 + 30000 + 300000", 780000, "≥500000 → S"] },
+          { c: "row-grp-2", v: ["家具", "200000 + 60000 + 50000", 310000, "≥200000 → A"] },
+          { c: "row-grp-3", v: ["文具", "10000 + 6000", 16000, "<200000 → B"] }
+        ]
+      },
+      {
+        id: "select", badge: "③ SELECT & ORDER BY", bc: "badge-green",
+        label: "最終出力とソート", desc: "ランクの昇順（S→A→B）、同ランク内は売上の降順で出力します。", type: "select", cnt: "結果: 3行",
+        cols: ["cat_name", "total_sales", "total_qty", "avg_price", "rank"],
+        ch: ["col-select", "col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["電子機器", 780000, 15, 52000, "S"] },
+          { v: ["家具", 310000, 7, 44285, "A"] },
+          { v: ["文具", 16000, 50, 320, "B"] }
+        ]
+      },
+      {
+        id: "from", badge: "④ 補足: 設計思考", bc: "badge-blue",
+        label: "複合クエリの組み立て方", desc: "実務では処理をステップに分けて考えます。", type: "base", cnt: "設計手順",
+        cols: ["ステップ", "SQLの句", "考えること"],
+        ch: ["", "", ""],
+        rows: [
+          { v: ["①どのデータが必要か", "FROM + JOIN", "3テーブルを price, cat_name のために結合"] },
+          { v: ["②どう集計するか", "GROUP BY + SUM", "カテゴリ単位、売上=price×qty"] },
+          { v: ["③どうラベルを付けるか", "CASE WHEN", "集計後の値でランク分け"] },
+          { v: ["④どう並べるか", "ORDER BY", "ランク→売上の2段階ソート"] }
+        ]
+      }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>複数JOINは「起点を決めて順番に繋げる」：</strong>order_items（明細）→ products（商品情報）→ categories（カテゴリ名）のように、「この結合で何の情報を追加するか」を明確にしながら順次JOINします。ERダイアグラムを頭に描きながら書くのが上達のコツです。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CASE WHENで集計値を使う場合はSUM()を繰り返す：</strong>GROUP BY後のCASE WHENでは <code>CASE WHEN SUM(price*qty) >= 500000</code> のように集計関数をそのまま書きます。SELECTで付けた別名（total_sales）はHAVINGでは使えないDBMSがあるため、集計関数を直接書く方が安全です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>SQLを書く順序とおすすめの考え方：</strong>実務では「①どのテーブルが必要か（FROM/JOIN）→ ②どう絞るか（WHERE）→ ③どう集計するか（GROUP BY/集計関数）→ ④集計後フィルタ（HAVING）→ ⑤何を表示するか（SELECT）→ ⑥どう並べるか（ORDER BY）」の順に考えると整理しやすいです。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>JOINの順序を間違えて意図せずINNER JOINになる：</strong>3テーブルJOINでLEFT JOINとINNER JOINを混在させると、LEFT JOINでNULL補填した行がその後のINNER JOINで除外される場合があります。複数JOIN時は「どのテーブルを必ず残したいか」を意識してJOINの種類と順序を決めましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY に数字（列番号）を使う：</strong><code>ORDER BY 1, 2</code> のように列番号で並び替えることができますが、SELECT の列順を変えると意図しない並び替えになります。列名を明示して書くことで可読性とメンテナンス性を保ちましょう。</div></div>
+</div>
+<div class="biz-box">
+<div class="biz-title"><span class="insight-icon">🏢</span>実務のリアル：複雑な集計の「データマート化」</div>
+<div class="biz-body">
+このような複数JOINと集計を伴う複雑なクエリを、ダッシュボードを開くたびに実行するとDBがパンクしてしまいます。実務のデータ基盤では、日次のバッチ処理（dbtやAirflowなどを利用）でこのクエリを夜間に実行し、結果を <strong>「データマート」と呼ばれる集計済みの中間テーブル</strong> に保存しておきます。ユーザーやBIツールは、そのマートを <code>SELECT *</code> で読み込むだけにするのが鉄則です。
+</div>
+</div>`
+}
+
+];
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力例','期待出力',q.output)}
+      ${acc('✅','pill-red','模範回答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント・実務コラム）',
+        `<div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1"></div>${q.explain}`)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  QS.forEach((q, i) => { if (q.viz) initVisualizer(document.getElementById('viz-' + i), q.viz); });
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !wasMobile);
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !isMobile);
+  }
+});
+</script>
+</body>
+</html>
