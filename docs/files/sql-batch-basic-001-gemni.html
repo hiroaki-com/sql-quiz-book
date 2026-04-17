@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL基礎文法10選 — API・バッチ処理で理解する王道パターン（基礎編）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw); font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em { color: var(--yellow); }
+  .insight-body code { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code { font-size: 11px; }
+
+  .column-box {
+    background: #0d1520; border: 1px solid #1c3550; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+    border-left: 3px solid var(--fn);
+  }
+  .column-title { 
+    font-size: 11px; font-weight: 700; color: var(--fn); letter-spacing: 0.5px; 
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px; 
+  }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--fn); }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+
+  .sql-viz-wrapper {
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Noto Sans JP', sans-serif;
+
+    --color-bg-base:    #0a0e13;
+    --color-bg-panel:   #131920;
+    --color-border-main:#30363d;
+    --color-border-sub: #21262d;
+    --color-txt-main:   #cdd9e5;
+    --color-txt-sub:    #768390;
+    --color-txt-muted:  #6e7681;
+
+    --sql-blue-bg:    rgba(88, 166, 255, 0.15);  --sql-blue-txt:   #58a6ff;  --sql-blue-bd:    #1f6feb;
+    --sql-orange-bg:  rgba(227, 137, 59, 0.15);  --sql-orange-txt: #e3893b;  --sql-orange-bd:  #7d4e00;
+    --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
+    --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
+
+    --sql-grp1-bg: rgba(88, 166, 255, 0.03);
+    --sql-grp2-bg: rgba(88, 166, 255, 0.08);
+    --sql-grp3-bg: rgba(88, 166, 255, 0.14);
+
+    --border-radius: 6px;
+
+    background: var(--color-bg-base);
+    color: var(--color-txt-main);
+    font-family: var(--font-sans);
+    min-height: auto;
+    padding: 14px 0;
+  }
+
+  .sv-nav-btn { padding: 6px 16px; border: 1px solid var(--color-border-sub); border-radius: var(--border-radius); font-size: 11px; background: var(--color-bg-panel); color: var(--color-txt-main); cursor: pointer; transition: all 0.2s; }
+  .sv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sv-nav-btn:not(:disabled):hover { border-color: var(--color-border-main); background: #1f2a38; }
+
+  .sv-dot { height: 6px; border: none; background: var(--color-border-sub); border-radius: 3px; cursor: pointer; padding: 0; transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s; flex-shrink: 0; width: 8px; }
+  .sv-dot.done { background: var(--color-border-main); }
+  .sv-dot.active { background: var(--sql-blue-txt); width: 24px; }
+  .sv-dot:focus-visible, .sv-nav-btn:focus-visible { outline: 2px solid var(--sql-blue-txt); outline-offset: 2px; }
+
+  .sv-table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 10px; }
+  .sv-table th { padding: 6px 12px; font-size: 9px; font-weight: 600; border: 1px solid var(--color-border-sub); text-align: left; transition: all 0.3s ease; white-space: nowrap; }
+  .sv-table td { padding: 6px 12px; border: 1px solid var(--color-border-sub); white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main); transition: background 0.3s ease, opacity 0.3s ease; }
+
+  .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
+  .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
+  .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+
+  .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
+  .sv-table tr.row-grp-1 td { background: var(--sql-grp1-bg); }
+  .sv-table tr.row-grp-2 td { background: var(--sql-grp2-bg); }
+  .sv-table tr.row-grp-3 td { background: var(--sql-grp3-bg); }
+
+  .sv-table td.val-pass   { background: var(--sql-green-bg) !important; border-left: 2px solid var(--sql-green-txt); color: var(--sql-green-txt); font-weight: 600; }
+  .sv-table td.val-fail   { background: var(--sql-red-bg) !important; border-left: 2px solid var(--sql-red-txt); color: var(--sql-red-txt); text-decoration: line-through; opacity: 0.7; }
+  .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
+
+  .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
+  .sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-select, .sql-hl-sub, .sql-hl-order, .sql-hl-limit, .sql-hl-insert, .sql-hl-returning {
+    border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
+  }
+  .sql-hl-from, .sql-hl-join, .sql-hl-insert { background: var(--sql-blue-bg); }
+  .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-sub, .sql-hl-order, .sql-hl-limit { background: var(--sql-orange-bg); }
+  .sql-hl-select, .sql-hl-returning { background: var(--sql-green-bg); }
+
+  .sv-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: 600; letter-spacing: 0.02em; }
+  .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
+  .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
+  .badge-green  { background: var(--sql-green-bg);  color: var(--sql-green-txt);  border: 1px solid var(--sql-green-bd); }
+
+  @keyframes sv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sv-animate { animation: sv-fade-in 0.3s ease forwards; }
+
+  .tbl-label { font-size: 9px; font-weight: 500; color: var(--color-txt-sub); margin-bottom: 6px; }
+
+  .sv-mobile-collapse summary::-webkit-details-marker { display: none; }
+  .sv-mobile-collapse summary { list-style: none; }
+  .sv-collapse-icon { transition: transform 0.2s ease; display: inline-block; }
+  .sv-mobile-collapse[open] .sv-collapse-icon { transform: rotate(180deg); }
+
+  @media (min-width: 641px) {
+    .sv-mobile-collapse > summary { pointer-events: none; }
+    .sv-collapse-icon { display: none !important; }
+  }
+  @media (max-width: 640px) {
+    .sv-sidebar { flex: 1 1 100% !important; min-width: 100% !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">BASIC</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">WebApp API・バッチ処理で学ぶ SQL 基礎文法10選（SELECT/WHERE/JOIN/GROUP BY/INSERT/UPDATE/DELETE/CTE/サブクエリ/CASE WHEN編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★ 基礎</span>
+      <span class="htag">API前提</span>
+      <span class="htag">バッチ処理</span>
+      <span class="htag">PostgreSQL対応</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+function initVisualizer(root, data) {
+  let currentStepIndex = 0;
+
+  function getLegendHTML(type) {
+    const mkLegend = (color, text) => `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dimLegend = `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const passFail = `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:9px;">✓ 通過</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:9px;">✗ 除外</span></div>
+      </div>`;
+
+    if (type === "base") return mkLegend("blue", "データ取得・結合対象") + dimLegend;
+    if (type === "eval") return mkLegend("orange", "評価対象の列・キー") + dimLegend + passFail;
+    if (type === "group") return mkLegend("orange", "グループ化キー・集計対象") + `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === "select") return mkLegend("green", "出力対象の列") + dimLegend;
+    return "";
+  }
+
+  function renderSQL(d, stepId) {
+    return d.sql.map(t => {
+      const isMatch = t.h && t.h.split(" ").includes(stepId);
+      const cls = `${t.k || ""} ${isMatch ? `sql-hl-${stepId}` : ""}`.trim();
+      return `<span class="${cls}">${t.t}</span>`;
+    }).join("");
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:10px 14px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:11px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:9px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:12px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>
+    `;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ""}">${col}</th>`).join("");
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ""}">${val}</td>`).join("");
+      return `<tr class="${r.c || ""}">${tds}</tr>`;
+    }).join("");
+    const labelHtml = label ? `<div class="tbl-label">▸ ${label}</div>` : "";
+    return `<div style="flex:1;min-width:260px;">${labelHtml}<div style="overflow-x:auto;"><table class="sv-table">${thead ? `<thead><tr>${thead}</tr></thead>` : ""}<tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+          ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
+          <div style="display:flex;align-items:center;font-size:20px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+          ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+        </div>
+      `;
+    }
+    return buildTable("", step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? "active" : (i < currentStepIndex ? "done" : "");
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}"></button>`;
+    }).join("");
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:11px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? "disabled" : ""}>← Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? "disabled" : ""}>Next →</button>
+      </div>
+    `;
+  }
+
+  root.innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+        <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:13px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+        <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+          <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+            <span>LEGEND (現在のステップ)</span>
+            <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+          </summary>
+          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+        </details>
+      </div>
+      <div style="flex:1;min-width:300px;">
+        <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+        <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+        <div class="sv-tarea sv-animate"></div>
+        <div class="sv-rowcount" style="font-size:12px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+      </div>
+    </div>
+  `;
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML = renderSQL(data, step.id);
+    root.querySelector('.sv-legend').innerHTML = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = window.innerWidth > 640);
+  }
+
+  root.__viz = {
+    next: () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev: () => { if (currentStepIndex > 0) { currentStepIndex--; renderAll(); } },
+    goTo: i => { if (i >= 0 && i < data.steps.length) { currentStepIndex = i; renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'prev') root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+}
+
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  SELECT + WHERE + ORDER BY
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "SELECT + WHERE + ORDER BY — APIレスポンスの基本データ取得パターン",
+  tags: [["r","SELECT"],["r","WHERE"],["r","ORDER BY"],["g","API取得"]],
+  premise: `<p><strong>SELECT</strong> はテーブルから行・列を取り出す最基本の命令です。<strong>WHERE</strong> で条件絞り込み、<strong>ORDER BY</strong> で並び順を制御します。</p>
+<pre><span class="kw">SELECT</span>   col1, col2                 <span class="cmt">-- 取得したい列を列挙（* で全列）</span>
+<span class="kw">FROM</span>     <span class="tbl">table_name</span>               <span class="cmt">-- 対象テーブル</span>
+<span class="kw">WHERE</span>    col1 <span class="op">=</span> <span class="str">'value'</span>           <span class="cmt">-- 絞り込み条件（省略可）</span>
+<span class="kw">ORDER BY</span> col2 <span class="kw">DESC</span>;               <span class="cmt">-- 並び順（ASC=昇順/DESC=降順、省略時はASC）</span></pre>
+<div class="callout"><strong>WHERE の比較演算子：</strong><code>=</code>（等しい）、<code>!=</code> または <code>&lt;&gt;</code>（等しくない）、<code>&gt;</code> <code>&lt;</code> <code>&gt;=</code> <code>&lt;=</code>（大小比較）、<code>LIKE '%word%'</code>（部分一致）、<code>IN (a, b, c)</code>（複数値いずれか）、<code>IS NULL</code>（NULL判定） — <code>= NULL</code> は <strong>NG</strong></div>
+<p>APIでユーザー一覧を返すエンドポイントでは、<em>WHERE で active なユーザーだけ絞り、ORDER BY で最新順にする</em>のが定石です。</p>`,
+  question: `<p><code>users</code> テーブルから、<em>status が 'active' かつ plan が 'premium' のユーザー</em>を、<em>created_at の新しい順</em>で取得してください。取得する列は <code>user_id, name, email, created_at</code> のみとします。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th><th>email</th><th>status</th><th>plan</th><th>created_at</th></tr>
+        <tr><td>1</td><td>田中 太郎</td><td>tanaka@ex.com</td><td>active</td><td>premium</td><td>2024-03-10</td></tr>
+        <tr><td>2</td><td>佐藤 花子</td><td>sato@ex.com</td><td>inactive</td><td>premium</td><td>2024-02-01</td></tr>
+        <tr><td>3</td><td>鈴木 一郎</td><td>suzuki@ex.com</td><td>active</td><td>free</td><td>2024-04-05</td></tr>
+        <tr><td>4</td><td>山田 次郎</td><td>yamada@ex.com</td><td>active</td><td>premium</td><td>2024-01-20</td></tr>
+        <tr><td>5</td><td>伊藤 三郎</td><td>ito@ex.com</td><td>active</td><td>premium</td><td>2024-05-15</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>期待する出力（active + premium のみ、created_at 降順）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>email</th><th>created_at</th></tr>
+<tr><td>5</td><td>伊藤 三郎</td><td>ito@ex.com</td><td>2024-05-15</td></tr>
+<tr><td>1</td><td>田中 太郎</td><td>tanaka@ex.com</td><td>2024-03-10</td></tr>
+<tr><td>4</td><td>山田 次郎</td><td>yamada@ex.com</td><td>2024-01-20</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px">※ user_id:2(inactive)・3(free) は除外</p>`,
+  answer: `<pre><span class="kw">SELECT</span>                            <span class="cmt">-- 【超基礎】データを取得する列を選択（射影）</span>
+  user_id,                          <span class="cmt">-- 取得する列: ユーザーID</span>
+  name,                             <span class="cmt">-- 取得する列: 氏名</span>
+  email,                            <span class="cmt">-- 取得する列: メールアドレス</span>
+  created_at                        <span class="cmt">-- 取得する列: 登録日時</span>
+<span class="kw">FROM</span>   <span class="tbl">users</span>                         <span class="cmt">-- 【超基礎】データを取得する対象のテーブルを指定</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'active'</span>           <span class="cmt">-- 【超基礎】行を絞り込む条件を指定（一致するか判定）</span>
+  <span class="kw">AND</span>  plan   <span class="op">=</span> <span class="str">'premium'</span>          <span class="cmt">-- 【超基礎】複数条件を「かつ(AND)」で結ぶ</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>;          <span class="cmt">-- 【超基礎】並び替え順序を指定（DESC=降順、ASC=昇順）</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. FROM users          → 【超基礎】まず対象テーブルの全行を読み込む
+  2. WHERE status='active' AND plan='premium'
+                         → 【超基礎】指定された条件で行を絞り込む（3行残る）
+  3. SELECT user_id, name, email, created_at
+                         → 【超基礎】必要な列だけを選び取る
+  4. ORDER BY created_at DESC
+                         → 【超基礎】最後に指定の順序に並び替える
+  ★ 実行順序は「FROM → WHERE → SELECT → ORDER BY」となります
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue", label: "FROM users", desc: "users テーブルから全行（5行）を読み込みます。", type: "base",
+        cols: ["user_id", "name", "email", "status", "plan", "created_at"], ch: ["col-base","col-base","col-base","col-base","col-base","col-base"],
+        rows: [
+          { v: [1, "田中 太郎", "tanaka@ex.com", "active", "premium", "2024-03-10"] },
+          { v: [2, "佐藤 花子", "sato@ex.com", "inactive", "premium", "2024-02-01"] },
+          { v: [3, "鈴木 一郎", "suzuki@ex.com", "active", "free", "2024-04-05"] },
+          { v: [4, "山田 次郎", "yamada@ex.com", "active", "premium", "2024-01-20"] },
+          { v: [5, "伊藤 三郎", "ito@ex.com", "active", "premium", "2024-05-15"] }
+        ], cnt: "全 5行 読込"
+      },
+      { id: "where", badge: "② WHERE", bc: "badge-orange", label: "WHERE status = 'active' AND plan = 'premium'", desc: "指定された2つの条件で行を絞り込みます。", type: "eval",
+        cols: ["user_id", "name", "email", "status", "plan", "created_at"], ch: ["","","","col-eval","col-eval",""],
+        rows: [
+          { v: [1, "田中 太郎", "tanaka@ex.com", "active", "premium", "2024-03-10"], cc: ["","","","val-pass","val-pass",""] },
+          { v: [2, "佐藤 花子", "sato@ex.com", "inactive", "premium", "2024-02-01"], c: "row-dimmed", cc: ["","","","val-fail","val-pass",""] },
+          { v: [3, "鈴木 一郎", "suzuki@ex.com", "active", "free", "2024-04-05"], c: "row-dimmed", cc: ["","","","val-pass","val-fail",""] },
+          { v: [4, "山田 次郎", "yamada@ex.com", "active", "premium", "2024-01-20"], cc: ["","","","val-pass","val-pass",""] },
+          { v: [5, "伊藤 三郎", "ito@ex.com", "active", "premium", "2024-05-15"], cc: ["","","","val-pass","val-pass",""] }
+        ], cnt: "5行 → 3行"
+      },
+      { id: "select", badge: "③ SELECT", bc: "badge-green", label: "SELECT user_id, name, email, created_at", desc: "必要な列だけを選び取ります。", type: "select",
+        cols: ["user_id", "name", "email", "created_at"], ch: ["col-select","col-select","col-select","col-select"],
+        rows: [
+          { v: [1, "田中 太郎", "tanaka@ex.com", "2024-03-10"] },
+          { v: [4, "山田 次郎", "yamada@ex.com", "2024-01-20"] },
+          { v: [5, "伊藤 三郎", "ito@ex.com", "2024-05-15"] }
+        ], cnt: "結果: 3行 × 4列"
+      },
+      { id: "order", badge: "④ ORDER BY", bc: "badge-orange", label: "ORDER BY created_at DESC", desc: "指定した列（created_at）で降順に並び替えます。", type: "eval",
+        cols: ["user_id", "name", "email", "created_at"], ch: ["","","","col-eval"],
+        rows: [
+          { v: [5, "伊藤 三郎", "ito@ex.com", "2024-05-15"] },
+          { v: [1, "田中 太郎", "tanaka@ex.com", "2024-03-10"] },
+          { v: [4, "山田 次郎", "yamada@ex.com", "2024-01-20"] }
+        ], cnt: "並び替え完了"
+      }
+    ],
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  user_id, name, email, created_at\n", k: "", h: "select" },
+      { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "users\n", k: "", h: "from" },
+      { t: "WHERE  ", k: "sql-kw", h: "where" }, { t: "status = 'active' AND plan = 'premium'\n", k: "", h: "where" },
+      { t: "ORDER BY ", k: "sql-kw", h: "order" }, { t: "created_at DESC;", k: "", h: "order" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：SELECT句はデータの出力列を決め、FROM句は対象のテーブルを指定し、WHERE句で行の絞り込みを行います。書く順番と異なり、実行順序は必ず FROM → WHERE → SELECT になることを意識しましょう。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">APIエンドポイントの定番パターン：<code>GET /users?status=active&plan=premium</code> のようなクエリパラメータを WHERE 条件に変換するのが最頻出パターン。アプリ層でパラメータを受け取りバインド変数（プリペアドステートメント）で安全にSQL化する。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">AND / OR の優先順位：AND は OR より優先度が高い。<code>WHERE a=1 OR b=2 AND c=3</code> は <code>WHERE a=1 OR (b=2 AND c=3)</code> と解釈される。意図を明確にするため括弧を必ず書く習慣が重要。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">SELECT * は本番NGの理由：列追加・削除でAPIレスポンス構造が変わりクライアントが壊れる可能性がある。必要な列を明示的に列挙すること。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">NULL の比較に = を使う：<code>WHERE deleted_at = NULL</code> は常にFALSEになり1行も取れない。NULL との比較は必ず <code>IS NULL</code> / <code>IS NOT NULL</code> を使うこと。NULLは「値が不明」なため = では判定できない。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">ORDER BY なしで「順序保証」を期待する：ORDER BY を省略するとRDBMSは任意の順序で返す。APIが常に同じ順序を返すことを保証するには必ず ORDER BY を明示すること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：論理削除とWHERE条件の抜け漏れ</div>
+<div class="column-body">
+実際のWebサービスでは、データが物理的に削除されることは少なく、<code>deleted_at</code> などの論理削除フラグが利用されます。そのため、<code>WHERE status = 'active'</code> だけでなく <code>AND deleted_at IS NULL</code> を付け忘れると、退会済みユーザーをAPIで誤って返してしまう事故に直結します。ORMのデフォルトスコープに頼らず生SQLを書く場合は、常に「論理削除の除外」を意識する癖をつけましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  INNER JOIN — 複数テーブルの結合
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "INNER JOIN — 関連テーブルを結合してAPIレスポンスを1クエリで組み立てる",
+  tags: [["r","INNER JOIN"],["r","ON"],["o","テーブル結合"],["g","API組み立て"]],
+  premise: `<p><strong>JOIN</strong> は複数テーブルを共通の列（外部キー）でつなぎ合わせる操作です。<strong>INNER JOIN</strong>は両方のテーブルに一致するデータが存在する行だけを返します（一致しない行は除外）。</p>
+<pre><span class="kw">SELECT</span>   a.col1, b.col2
+<span class="kw">FROM</span>     <span class="tbl">table_a</span> a                  <span class="cmt">-- a はテーブルの別名（エイリアス）</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">table_b</span> b               <span class="cmt">-- b も別名。INNER は省略可（JOIN のみでもINNER JOIN）</span>
+  <span class="kw">ON</span>   a.id <span class="op">=</span> b.a_id;             <span class="cmt">-- 結合条件（外部キー = 主キー）</span></pre>
+<div class="callout"><strong>LEFT JOIN との違い：</strong>INNER JOIN は両テーブルに存在する行だけ。LEFT JOIN は左テーブルの全行を残し、右テーブルに対応行がなければ NULL を入れる。「注文がないユーザーも含めたい」→ LEFT JOIN、「注文のあるユーザーだけ」→ INNER JOIN。</div>
+<p>APIで「注文一覧をユーザー名付きで返す」ような処理は JOIN が必須です。アプリ側でN+1クエリを避けるために1クエリで結合するのが基本です。</p>`,
+  question: `<p><code>orders</code> テーブルと <code>users</code> テーブルを結合し、<em>status が 'completed' の注文</em>について <code>order_id, user_name, amount, ordered_at</code> を取得してください。ordered_at の新しい順に並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>status</th><th>ordered_at</th></tr>
+        <tr><td>101</td><td>1</td><td>5000</td><td>completed</td><td>2024-05-10</td></tr>
+        <tr><td>102</td><td>2</td><td>3200</td><td>pending</td><td>2024-05-12</td></tr>
+        <tr><td>103</td><td>1</td><td>8800</td><td>completed</td><td>2024-05-15</td></tr>
+        <tr><td>104</td><td>3</td><td>1500</td><td>completed</td><td>2024-05-08</td></tr>
+        <tr><td>105</td><td>4</td><td>6200</td><td>cancelled</td><td>2024-05-11</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th></tr>
+        <tr><td>1</td><td>田中 太郎</td></tr>
+        <tr><td>2</td><td>佐藤 花子</td></tr>
+        <tr><td>3</td><td>鈴木 一郎</td></tr>
+        <tr><td>4</td><td>山田 次郎</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>期待する出力（completed のみ、ordered_at 降順）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_name</th><th>amount</th><th>ordered_at</th></tr>
+<tr><td>103</td><td>田中 太郎</td><td>8800</td><td>2024-05-15</td></tr>
+<tr><td>101</td><td>田中 太郎</td><td>5000</td><td>2024-05-10</td></tr>
+<tr><td>104</td><td>鈴木 一郎</td><td>1500</td><td>2024-05-08</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px">※ order_id:102(pending)・105(cancelled) は除外</p>`,
+  answer: `<pre><span class="kw">SELECT</span>                            <span class="cmt">-- 【超基礎】取得する列を選択</span>
+  o.order_id,                       <span class="cmt">-- orders テーブルの order_id</span>
+  u.name   <span class="kw">AS</span> user_name,           <span class="cmt">-- 【超基礎】AS で出力時の列名（別名）を変更</span>
+  o.amount,                         <span class="cmt">-- 注文金額</span>
+  o.ordered_at                      <span class="cmt">-- 注文日時</span>
+<span class="kw">FROM</span>       <span class="tbl">orders</span> o                 <span class="cmt">-- 【超基礎】主テーブル（o はエイリアス/別名）</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">users</span>  u                 <span class="cmt">-- 【超基礎】内部結合（両方に存在するデータのみ結合）</span>
+  <span class="kw">ON</span>  o.user_id <span class="op">=</span> u.user_id         <span class="cmt">-- 【超基礎】結合する際のキーとなる一致条件</span>
+<span class="kw">WHERE</span>  o.status <span class="op">=</span> <span class="str">'completed'</span>      <span class="cmt">-- 【超基礎】結合後のデータから条件に合う行を絞り込む</span>
+<span class="kw">ORDER BY</span> o.ordered_at <span class="kw">DESC</span>;        <span class="cmt">-- 【超基礎】指定した列で降順に並び替え</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. FROM orders o                  → 【超基礎】orders テーブルを読み込む
+  2. INNER JOIN users u ON ...      → 【超基礎】user_id が一致する users 行と結合する
+  3. WHERE o.status = 'completed'   → 【超基礎】completed の行のみに絞り込む
+  4. SELECT o.order_id, u.name ...  → 【超基礎】必要な列を選択し、列名を変更する
+  5. ORDER BY o.ordered_at DESC     → 【超基礎】降順に並び替えを行う
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM / INNER JOIN", bc: "badge-blue", label: "左: orders (o), 右: users (u)", desc: "結合対象の2つのテーブルを準備します。", type: "base", join: true,
+        left: {
+          label: "orders (o)", cols: ["order_id", "user_id", "amount", "status", "ordered_at"],
+          rows: [
+            { v: [101, 1, 5000, "completed", "2024-05-10"] },
+            { v: [102, 2, 3200, "pending", "2024-05-12"] },
+            { v: [103, 1, 8800, "completed", "2024-05-15"] },
+            { v: [104, 3, 1500, "completed", "2024-05-08"] },
+            { v: [105, 4, 6200, "cancelled", "2024-05-11"] }
+          ]
+        },
+        right: {
+          label: "users (u)", cols: ["user_id", "name"],
+          rows: [
+            { v: [1, "田中 太郎"] },
+            { v: [2, "佐藤 花子"] },
+            { v: [3, "鈴木 一郎"] },
+            { v: [4, "山田 次郎"] }
+          ]
+        },
+        cnt: "左: 5行 / 右: 4行"
+      },
+      { id: "join", badge: "② ON", bc: "badge-orange", label: "ON o.user_id = u.user_id", desc: "user_id が一致する行を結合します。今回はすべて一致します。", type: "eval", join: true,
+        left: {
+          label: "orders (o)", cols: ["order_id", "user_id", "amount", "status", "ordered_at"], ch: ["", "col-eval", "", "", ""],
+          rows: [
+            { v: [101, 1, 5000, "completed", "2024-05-10"], cc: ["", "val-pass", "", "", ""] },
+            { v: [102, 2, 3200, "pending", "2024-05-12"], cc: ["", "val-pass", "", "", ""] },
+            { v: [103, 1, 8800, "completed", "2024-05-15"], cc: ["", "val-pass", "", "", ""] },
+            { v: [104, 3, 1500, "completed", "2024-05-08"], cc: ["", "val-pass", "", "", ""] },
+            { v: [105, 4, 6200, "cancelled", "2024-05-11"], cc: ["", "val-pass", "", "", ""] }
+          ]
+        },
+        right: {
+          label: "users (u)", cols: ["user_id", "name"], ch: ["col-eval", ""],
+          rows: [
+            { v: [1, "田中 太郎"], cc: ["val-pass", ""] },
+            { v: [2, "佐藤 花子"], cc: ["val-pass", ""] },
+            { v: [3, "鈴木 一郎"], cc: ["val-pass", ""] },
+            { v: [4, "山田 次郎"], cc: ["val-pass", ""] }
+          ]
+        },
+        cnt: "結合成功: 5行"
+      },
+      { id: "where", badge: "③ WHERE", bc: "badge-orange", label: "WHERE o.status = 'completed'", desc: "結合後のデータから completed のみ絞り込みます。", type: "eval",
+        cols: ["order_id", "u.user_id", "name", "amount", "status", "ordered_at"], ch: ["", "", "", "", "col-eval", ""],
+        rows: [
+          { v: [101, 1, "田中 太郎", 5000, "completed", "2024-05-10"], cc: ["", "", "", "", "val-pass", ""] },
+          { v: [102, 2, "佐藤 花子", 3200, "pending", "2024-05-12"], c: "row-dimmed", cc: ["", "", "", "", "val-fail", ""] },
+          { v: [103, 1, "田中 太郎", 8800, "completed", "2024-05-15"], cc: ["", "", "", "", "val-pass", ""] },
+          { v: [104, 3, "鈴木 一郎", 1500, "completed", "2024-05-08"], cc: ["", "", "", "", "val-pass", ""] },
+          { v: [105, 4, "山田 次郎", 6200, "cancelled", "2024-05-11"], c: "row-dimmed", cc: ["", "", "", "", "val-fail", ""] }
+        ], cnt: "5行 → 3行"
+      },
+      { id: "select", badge: "④ SELECT & ORDER", bc: "badge-green", label: "SELECT & ORDER BY ordered_at DESC", desc: "必要な列を選択し、ordered_at の降順で並び替えます。", type: "select",
+        cols: ["order_id", "user_name", "amount", "ordered_at"], ch: ["col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: [103, "田中 太郎", 8800, "2024-05-15"] },
+          { v: [101, "田中 太郎", 5000, "2024-05-10"] },
+          { v: [104, "鈴木 一郎", 1500, "2024-05-08"] }
+        ], cnt: "結果: 3行"
+      }
+    ],
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  o.order_id, u.name AS user_name, o.amount, o.ordered_at\n", k: "", h: "select" },
+      { t: "FROM       ", k: "sql-kw", h: "from" }, { t: "orders o\n", k: "", h: "from" },
+      { t: "INNER JOIN ", k: "sql-kw", h: "join" }, { t: "users u\n", k: "", h: "join" },
+      { t: "  ON ", k: "sql-kw", h: "join" }, { t: "o.user_id = u.user_id\n", k: "", h: "join" },
+      { t: "WHERE  ", k: "sql-kw", h: "where" }, { t: "o.status = 'completed'\n", k: "", h: "where" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "o.ordered_at DESC;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：JOIN（結合）は、別々のテーブルを特定の共通キー（例: user_id）を使って横に繋ぎ合わせる操作です。テーブル同士の関連性を結びつける、リレーショナルデータベース(RDB)の根幹となる機能です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">N+1クエリ問題の回避：アプリ側で「注文ループの中でユーザー名を1件ずつ取得」するN+1はJOINで解決できる。1クエリで全データを取得することでDBへのラウンドトリップを最小化する。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">エイリアスの必要性：複数テーブルを結合すると同名列（例: user_id）が衝突する。<code>テーブル名.列名</code> または <code>エイリアス.列名</code> で必ず明示すること。エイリアスはクエリを短く読みやすくする。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">INNER / LEFT の選択基準：「全ユーザーとその注文数」→ LEFT JOIN（注文0件のユーザーも含める）。「注文があるユーザーだけ」→ INNER JOIN。データ要件から適切に選ぶことがAPIレスポンス設計の基本。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">ON 条件の書き忘れ（クロス結合）：<code>FROM orders, users</code> や <code>JOIN users</code>（ON なし）は全行×全行のデカルト積（クロス結合）になる。ordersが100行・usersが1000行なら100,000行が生成されDBが応答不能になりうる。ON は必ず書くこと。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">WHERE で結合条件を書く古い記法：<code>FROM orders o, users u WHERE o.user_id = u.user_id</code> という旧式の結合記法は、JOIN条件と絞り込み条件が混在して読みにくい。明示的な <code>INNER JOIN ... ON</code> を使うこと。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：N+1クエリ問題とAPIのレスポンスタイム</div>
+<div class="column-body">
+「注文一覧を取ってから、ループの中で1件ずつユーザー名を取得する」処理を書いてしまうと、注文が100件ある場合にDBへ101回のクエリ（N+1クエリ）が飛び、APIのレスポンスが極端に遅延します。実務ではJOINを使って1回のクエリで必要な関連データを全て引き上げるのが絶対の基本です。ただし、結合するテーブルが多すぎると今度はメモリを圧迫するため、必要最小限の結合にとどめる設計バランスが求められます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  GROUP BY + HAVING — 集計でKPI集計API
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "GROUP BY + HAVING — 集計関数でKPIサマリAPIを1クエリで作る",
+  tags: [["r","GROUP BY"],["r","HAVING"],["fn","COUNT/SUM"],["o","KPI集計"]],
+  premise: `<p><strong>GROUP BY</strong> は指定した列の値ごとに行をグループ化し、<strong>集計関数</strong>（COUNT/SUM/AVG/MAX/MIN）でグループ内を1行に集約します。<strong>HAVING</strong> は集計後の結果をさらに絞り込みます（WHERE の集計後バージョン）。</p>
+<pre><span class="kw">SELECT</span>   col1,
+         <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> cnt,    <span class="cmt">-- COUNT(*): グループ内の全行数</span>
+         <span class="fn">SUM</span>(col2)   <span class="kw">AS</span> total,  <span class="cmt">-- SUM: 合計</span>
+         <span class="fn">AVG</span>(col2)   <span class="kw">AS</span> avg     <span class="cmt">-- AVG: 平均</span>
+<span class="kw">FROM</span>     <span class="tbl">table_name</span>
+<span class="kw">GROUP BY</span> col1                    <span class="cmt">-- col1 の値ごとにグループ化</span>
+<span class="kw">HAVING</span>   <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="op">&gt;</span> <span class="num">1</span>;          <span class="cmt">-- HAVING: 集計後の絞り込み（WHERE は集計前）</span></pre>
+<div class="callout warn"><strong>WHERE と HAVING の違い：</strong>WHERE は GROUP BY の前（個々の行を絞り込む）、HAVING は GROUP BY の後（集計結果を絞り込む）。<code>HAVING COUNT(*) > 5</code> のように集計関数を条件にする場合は必ず HAVING を使う。</div>`,
+  question: `<p><code>orders</code> テーブルから、<em>status が 'completed' の注文</em>について、<em>ユーザーIDごと</em>に <code>注文件数(order_count)</code> と <code>合計金額(total_amount)</code> を集計してください。ただし <em>注文件数が2件以上</em> のユーザーだけを、合計金額の大きい順で返してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>status</th></tr>
+        <tr><td>1</td><td>U01</td><td>3000</td><td>completed</td></tr>
+        <tr><td>2</td><td>U01</td><td>5000</td><td>completed</td></tr>
+        <tr><td>3</td><td>U02</td><td>8000</td><td>completed</td></tr>
+        <tr><td>4</td><td>U03</td><td>2000</td><td>cancelled</td></tr>
+        <tr><td>5</td><td>U01</td><td>1500</td><td>completed</td></tr>
+        <tr><td>6</td><td>U02</td><td>4500</td><td>pending</td></tr>
+        <tr><td>7</td><td>U03</td><td>6000</td><td>completed</td></tr>
+        <tr><td>8</td><td>U03</td><td>2500</td><td>completed</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>期待する出力（completed かつ注文件数 ≥ 2、total_amount 降順）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>order_count</th><th>total_amount</th></tr>
+<tr><td>U01</td><td>3</td><td>9500</td></tr>
+<tr><td>U03</td><td>2</td><td>8500</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px">※ U02は completed が1件のみ（order_id:3）なのでHAVINGで除外</p>`,
+  answer: `<pre><span class="kw">SELECT</span>                            <span class="cmt">-- 【超基礎】取得する列を選択</span>
+  user_id,                          <span class="cmt">-- グループ化の基準となる列</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count,     <span class="cmt">-- 【超基礎】集計関数: グループ内の行数をカウント</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount      <span class="cmt">-- 【超基礎】集計関数: グループ内の特定の列の値を合計</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>                        <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'completed'</span>         <span class="cmt">-- 【超基礎】集計「前」に対象行を絞り込む</span>
+<span class="kw">GROUP BY</span> user_id                      <span class="cmt">-- 【超基礎】指定した列の値が同じ行をグループにまとめる</span>
+<span class="kw">HAVING</span>   <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="op">&gt;=</span> <span class="num">2</span>              <span class="cmt">-- 【超基礎】集計「後」の結果に対して絞り込みを行う</span>
+<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;         <span class="cmt">-- 【超基礎】集計結果の合計金額で降順に並び替え</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. FROM orders               → 【超基礎】全行読み込み
+  2. WHERE status='completed'  → 【超基礎】集計前に completed のみ残す
+  3. GROUP BY user_id          → 【超基礎】user_id ごとにグループ化
+  4. COUNT(*) / SUM(amount)    → 【超基礎】各グループごとに集計を行う
+  5. HAVING COUNT(*) >= 2      → 【超基礎】集計後の結果から、件数が2以上のグループのみ残す
+  6. SELECT user_id, ...       → 【超基礎】列を選択
+  7. ORDER BY total_amount DESC→ 【超基礎】降順に並び替え
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM & WHERE", bc: "badge-blue", label: "WHERE status = 'completed'", desc: "全8行から completed の行だけを絞り込みます。", type: "eval",
+        cols: ["order_id", "user_id", "amount", "status"], ch: ["", "", "", "col-eval"],
+        rows: [
+          { v: [1, "U01", 3000, "completed"], cc: ["", "", "", "val-pass"] },
+          { v: [2, "U01", 5000, "completed"], cc: ["", "", "", "val-pass"] },
+          { v: [3, "U02", 8000, "completed"], cc: ["", "", "", "val-pass"] },
+          { v: [4, "U03", 2000, "cancelled"], c: "row-dimmed", cc: ["", "", "", "val-fail"] },
+          { v: [5, "U01", 1500, "completed"], cc: ["", "", "", "val-pass"] },
+          { v: [6, "U02", 4500, "pending"], c: "row-dimmed", cc: ["", "", "", "val-fail"] },
+          { v: [7, "U03", 6000, "completed"], cc: ["", "", "", "val-pass"] },
+          { v: [8, "U03", 2500, "completed"], cc: ["", "", "", "val-pass"] }
+        ], cnt: "8行 → 6行"
+      },
+      { id: "group", badge: "② GROUP BY", bc: "badge-orange", label: "GROUP BY user_id", desc: "user_id が同じ行をグループ化します。同じ色が同じグループです。", type: "group",
+        cols: ["user_id", "order_id", "amount"], ch: ["col-eval", "", ""],
+        rows: [
+          { c: "row-grp-1", v: ["U01", 1, 3000] },
+          { c: "row-grp-1", v: ["U01", 2, 5000] },
+          { c: "row-grp-1", v: ["U01", 5, 1500] },
+          { c: "row-grp-2", v: ["U02", 3, 8000] },
+          { c: "row-grp-3", v: ["U03", 7, 6000] },
+          { c: "row-grp-3", v: ["U03", 8, 2500] }
+        ], cnt: "3グループに分類"
+      },
+      { id: "agg", badge: "③ 集計(Agg)", bc: "badge-orange", label: "COUNT(*) & SUM(amount)", desc: "各グループの件数と合計金額を計算します。", type: "group",
+        cols: ["user_id", "COUNT(*)", "SUM(amount)"], ch: ["col-eval", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U01", 3, 9500] },
+          { c: "row-grp-2", v: ["U02", 1, 8000] },
+          { c: "row-grp-3", v: ["U03", 2, 8500] }
+        ], cnt: "6行 → 3行"
+      },
+      { id: "having", badge: "④ HAVING", bc: "badge-orange", label: "HAVING COUNT(*) >= 2", desc: "集計後の件数が2件未満の U02 を除外します。", type: "eval",
+        cols: ["user_id", "COUNT(*)", "SUM(amount)"], ch: ["", "col-eval", ""],
+        rows: [
+          { v: ["U01", 3, 9500], cc: ["", "val-pass", ""] },
+          { c: "row-dimmed", v: ["U02", 1, 8000], cc: ["", "val-fail", ""] },
+          { v: ["U03", 2, 8500], cc: ["", "val-pass", ""] }
+        ], cnt: "3行 → 2行"
+      },
+      { id: "select", badge: "⑤ SELECT & ORDER", bc: "badge-green", label: "ORDER BY total_amount DESC", desc: "必要な列を選択し、合計金額で降順に並べます。", type: "select",
+        cols: ["user_id", "order_count", "total_amount"], ch: ["col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["U01", 3, 9500] },
+          { v: ["U03", 2, 8500] }
+        ], cnt: "結果: 2行"
+      }
+    ],
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  user_id,\n", k: "", h: "select" },
+      { t: "  COUNT(*) AS order_count,\n", k: "", h: "agg select" },
+      { t: "  SUM(amount) AS total_amount\n", k: "", h: "agg select" },
+      { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "orders\n", k: "", h: "from" },
+      { t: "WHERE  ", k: "sql-kw", h: "from" }, { t: "status = 'completed'\n", k: "", h: "from" },
+      { t: "GROUP BY ", k: "sql-kw", h: "group" }, { t: "user_id\n", k: "", h: "group" },
+      { t: "HAVING   ", k: "sql-kw", h: "having" }, { t: "COUNT(*) >= 2\n", k: "", h: "having" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "total_amount DESC;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：GROUP BY は特定の列の値が同じ行を「1つのグループ」にまとめます。まとめた後は、COUNT（件数）やSUM（合計）などの集計関数を使って、グループ全体の情報を1行で表現します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">KPI集計APIの基本形：<code>GET /reports/users/summary</code> のような集計系エンドポイントはこのパターンが土台。WHERE で期間・ステータスを絞り、GROUP BY で集計軸を決め、HAVING で足切り条件を付ける。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">SELECT できる列の制約：GROUP BY を使うと SELECT に書ける列は「GROUP BY に含まれる列」か「集計関数の結果」だけ。<code>SELECT order_id, user_id, COUNT(*)</code> と書いてもorder_idはグループ内で複数値があるためエラーになる。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">HAVING vs WHERE の使い分けまとめ：「active なユーザーだけ集計したい」→ <code>WHERE status='active'</code> で事前に絞る（パフォーマンスが良い）。「集計後に件数が5以上だけ欲しい」→ <code>HAVING COUNT(*) >= 5</code>。集計関数を条件にするなら HAVING 一択。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">HAVING に集計関数なし条件を書く：<code>HAVING status = 'completed'</code> と書くのは動くが非推奨。集計前の行レベル条件は必ず WHERE に書く。WHERE に書くと集計対象行が減りパフォーマンスが向上する。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">GROUP BY なしで集計関数と非集計列を混在：<code>SELECT user_id, COUNT(*) FROM orders</code> のようにGROUP BY なしで集計関数と普通の列を混在させるとエラー。PostgreSQLは 「user_idをどう集約すればいいか不明」 と判断するため必ずGROUP BYに含めること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：巨大テーブルの集計とパフォーマンス</div>
+<div class="column-body">
+数千万行規模のアクセスログなどを集計する際、いきなり <code>GROUP BY</code> をかけるとDBのメモリを食いつぶし、スロークエリやタイムアウトを引き起こします。実務では「まずは WHERE 句で対象期間（直近1週間など）を絞り込んでから GROUP BY する」のが鉄則です。絞り込みにより集約対象のデータ量が激減するため、安全かつ高速にKPIサマリAPIを返すことができます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  LIMIT + OFFSET — ページネーションAPI
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "LIMIT + OFFSET — ページネーションAPIの基本と番号ベース実装",
+  tags: [["r","LIMIT"],["r","OFFSET"],["o","ページネーション"],["g","API設計"]],
+  premise: `<p><strong>LIMIT</strong> は返す行数の上限を指定し、<strong>OFFSET</strong> は先頭から何行スキップするかを指定します。APIのページネーション（/items?page=2&per_page=10）の基本実装です。</p>
+<pre><span class="kw">SELECT</span>   col1, col2
+<span class="kw">FROM</span>     <span class="tbl">table_name</span>
+<span class="kw">ORDER BY</span> id                         <span class="cmt">-- ORDER BY は必須（順序がないとページの中身が不定）</span>
+<span class="kw">LIMIT</span>  <span class="num">10</span>                            <span class="cmt">-- 最大10行返す（1ページあたりの件数）</span>
+<span class="kw">OFFSET</span> <span class="num">20</span>;                           <span class="cmt">-- 先頭20行をスキップ（3ページ目 = (page-1)*per_page）</span></pre>
+<div class="callout warn"><strong>OFFSET の計算式：</strong><code>OFFSET = (page - 1) * per_page</code>。1ページ目はOFFSET 0（スキップなし）、2ページ目はOFFSET 10、3ページ目はOFFSET 20（per_page=10の場合）。</div>
+<p>OFFSET が大きくなるとDBは先頭からOFFSET行分スキャンするため<em>大量データでは低速化</em>します。本番の大規模APIでは「最後に取得したIDより大きいIDを取る」カーソルベースが推奨されます。</p>`,
+  question: `<p><code>products</code> テーブルから、<em>1ページあたり3件、2ページ目</em>のデータを取得してください。<code>product_id, name, price</code> を price の安い順で返してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ products（全7件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>name</th><th>price</th></tr>
+        <tr><td>1</td><td>ペン</td><td>100</td></tr>
+        <tr><td>2</td><td>ノート</td><td>200</td></tr>
+        <tr><td>3</td><td>消しゴム</td><td>80</td></tr>
+        <tr><td>4</td><td>定規</td><td>150</td></tr>
+        <tr><td>5</td><td>ハサミ</td><td>300</td></tr>
+        <tr><td>6</td><td>のり</td><td>120</td></tr>
+        <tr><td>7</td><td>クリップ</td><td>50</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>price 昇順でソートし、2ページ目（4〜6件目）を返す：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ページ</th><th>product_id</th><th>name</th><th>price</th></tr>
+<tr class="tr-dim"><td>1ページ目</td><td>7,3,1</td><td>クリップ,消しゴム,ペン</td><td>50,80,100</td></tr>
+<tr><td>2ページ目★</td><td>6</td><td>のり</td><td>120</td></tr>
+<tr><td></td><td>4</td><td>定規</td><td>150</td></tr>
+<tr><td></td><td>2</td><td>ノート</td><td>200</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>                            <span class="cmt">-- 【超基礎】列の選択</span>
+  product_id,                       <span class="cmt">-- 商品ID</span>
+  name,                             <span class="cmt">-- 商品名</span>
+  price                             <span class="cmt">-- 価格</span>
+<span class="kw">FROM</span>   <span class="tbl">products</span>                      <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">ORDER BY</span> price <span class="kw">ASC</span>                  <span class="cmt">-- 【超基礎】昇順（安い順）で並び替え（ASCは省略可能）</span>
+<span class="kw">LIMIT</span>  <span class="num">3</span>                             <span class="cmt">-- 【超基礎】取得する最大行数を指定（ここでは3件）</span>
+<span class="kw">OFFSET</span> <span class="num">3</span>;                            <span class="cmt">-- 【超基礎】取得を開始する位置（先頭から何行スキップするか）</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. FROM products             → 【超基礎】全7行読み込み
+  2. ORDER BY price ASC        → 【超基礎】価格の昇順に並び替える
+  3. OFFSET 3                  → 【超基礎】並び替えた結果の先頭3行をスキップする
+  4. LIMIT 3                   → 【超基礎】スキップした位置から3行を返す
+  ★ ORDER BY は必ず LIMIT/OFFSET の前に評価されます
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue", label: "FROM products", desc: "products テーブル全体（7行）を読み込みます。", type: "base",
+        cols: ["product_id", "name", "price"], ch: ["col-base", "col-base", "col-base"],
+        rows: [
+          { v: [1, "ペン", 100] },
+          { v: [2, "ノート", 200] },
+          { v: [3, "消しゴム", 80] },
+          { v: [4, "定規", 150] },
+          { v: [5, "ハサミ", 300] },
+          { v: [6, "のり", 120] },
+          { v: [7, "クリップ", 50] }
+        ], cnt: "全 7行 読込"
+      },
+      { id: "order", badge: "② ORDER BY", bc: "badge-orange", label: "ORDER BY price ASC", desc: "価格の安い順に全件を並び替えます。", type: "eval",
+        cols: ["product_id", "name", "price"], ch: ["", "", "col-eval"],
+        rows: [
+          { v: [7, "クリップ", 50] },
+          { v: [3, "消しゴム", 80] },
+          { v: [1, "ペン", 100] },
+          { v: [6, "のり", 120] },
+          { v: [4, "定規", 150] },
+          { v: [2, "ノート", 200] },
+          { v: [5, "ハサミ", 300] }
+        ], cnt: "並び替え完了"
+      },
+      { id: "limit", badge: "③ OFFSET & LIMIT", bc: "badge-green", label: "OFFSET 3 LIMIT 3", desc: "先頭の3行（1ページ目）をスキップし、続く3行（2ページ目）を取得します。", type: "select",
+        cols: ["ページ", "product_id", "name", "price"], ch: ["", "col-select", "col-select", "col-select"],
+        rows: [
+          { c: "row-dimmed", v: ["1ページ目 (スキップ)", 7, "クリップ", 50] },
+          { c: "row-dimmed", v: ["1ページ目 (スキップ)", 3, "消しゴム", 80] },
+          { c: "row-dimmed", v: ["1ページ目 (スキップ)", 1, "ペン", 100] },
+          { c: "row-grp-2", v: ["★ 2ページ目", 6, "のり", 120] },
+          { c: "row-grp-2", v: ["★ 2ページ目", 4, "定規", 150] },
+          { c: "row-grp-2", v: ["★ 2ページ目", 2, "ノート", 200] },
+          { c: "row-dimmed", v: ["3ページ目", 5, "ハサミ", 300] }
+        ], cnt: "結果: 3行"
+      }
+    ],
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  product_id, name, price\n", k: "", h: "select" },
+      { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "products\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "order" }, { t: "price ASC\n", k: "", h: "order" },
+      { t: "LIMIT  ", k: "sql-kw", h: "limit" }, { t: "3\n", k: "", h: "limit" },
+      { t: "OFFSET ", k: "sql-kw", h: "limit" }, { t: "3;", k: "", h: "limit" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：LIMITは「最大何件取得するか」を指定し、OFFSETは「取得を始める前に先頭から何件読み飛ばすか」を指定します。この2つを組み合わせることで、大量のデータを少しずつ切り出すことができます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">APIでの実装パターン：<code>GET /products?page=2&per_page=3</code> を受け取ったら、サーバー側で <code>OFFSET = (page-1) * per_page = 3</code> を計算してSQLに渡す。総件数も <code>SELECT COUNT(*) FROM products</code> で別取得しレスポンスに含めるのが一般的。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">LIMIT のみでの先頭N件取得：<code>LIMIT 1</code> で最新1件、<code>LIMIT 5</code> で上位5件を取得できる。ランキングAPIや「最新投稿を3件表示」といった用途に頻出。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">カーソルベースページネーション（大規模向け）：OFFSET が大きいと全件スキャンが発生して低速になる。代替として <code>WHERE id &gt; :last_id ORDER BY id LIMIT 10</code> のように最後のIDを条件にすることで、常に高速なインデックスアクセスが可能になる。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">ORDER BY なしの LIMIT：<code>LIMIT 10</code> だけでは毎回異なる行が返る可能性がある。RDBMSは内部的に任意の順序で行を管理するため、ORDER BY なしの順序は保証されない。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">データ挿入中のOFFSET競合：ページ1を取得後に新規データがINSERTされると、ページ2でOFFSETがズレて同じ行が重複したり、スキップされる「ページスキップ問題」が発生する。リアルタイムデータにはカーソルベースが安全。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：OFFSETの罠とカーソルベースの台頭</div>
+<div class="column-body">
+<code>OFFSET 100000</code> のようにスキップ数が増えると、DBは先頭から10万行を読み込んで捨てるという無駄な処理を行うため、ページが深くなるほどAPIが遅くなります。これを防ぐため、モダンなAPI設計（TwitterやSlackなど）では、最後のIDを基準にするカーソルベースのページネーション（<code>WHERE id > :last_id LIMIT 10</code>）が主流になっています。データ量が増える見込みのあるシステムでは初期段階からカーソルベースを検討しましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  INSERT + RETURNING — 新規作成APIでIDを返す
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "INSERT + RETURNING — 新規作成APIでDB採番IDをそのまま返す",
+  tags: [["r","INSERT"],["r","RETURNING"],["g","POST API"],["o","ID採番"]],
+  premise: `<p><strong>INSERT</strong> はテーブルに新しい行を追加します。<strong>RETURNING</strong>（PostgreSQL拡張）を付けると INSERT した行の列値を SELECT のように返せます。新規作成API（POST /items）でDBが自動採番したIDをアプリに返す際の必須パターンです。</p>
+<pre><span class="kw">INSERT INTO</span> <span class="tbl">table_name</span> (col1, col2)  <span class="cmt">-- 挿入先テーブルと列名</span>
+<span class="kw">VALUES</span> (<span class="str">'val1'</span>, <span class="str">'val2'</span>)             <span class="cmt">-- 挿入する値（列名と同じ順番・同じ数）</span>
+<span class="kw">RETURNING</span> id, col1;                 <span class="cmt">-- 挿入した行の列値を返す（省略するとINSERTのみ）</span></pre>
+<div class="callout ok"><strong>RETURNING の利点：</strong>RETURNING なしでは「INSERT後にSELECTで採番IDを取得」という2クエリが必要。RETURNING を使えば1クエリで完結し、競合状態（別のINSERTとIDが混線する）も防げる。</div>
+<p>シリアル列（SERIAL / BIGSERIAL）や <code>GENERATED ALWAYS AS IDENTITY</code> はINSERT時に自動で採番されます。アプリ側でIDを事前に決める必要はありません。</p>`,
+  question: `<p><code>tasks</code> テーブルに新しいタスクを作成してください。title='バッチ処理の実装'、status='pending'、created_at=現在時刻 を挿入し、<em>DBが自動採番した id と created_at を返して</em>ください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ tasks（テーブル定義）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>列名</th><th>型</th><th>備考</th></tr>
+        <tr><td>id</td><td>BIGSERIAL</td><td>自動採番・主キー（指定不要）</td></tr>
+        <tr><td>title</td><td>TEXT</td><td>タスク名</td></tr>
+        <tr><td>status</td><td>TEXT</td><td>'pending'/'running'/'done'</td></tr>
+        <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>作成日時</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ tasks（挿入前のデータ）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>id</th><th>title</th><th>status</th><th>created_at</th></tr>
+        <tr><td>1</td><td>ユーザー同期</td><td>done</td><td>2024-05-01 09:00</td></tr>
+        <tr><td>2</td><td>メール送信</td><td>running</td><td>2024-05-10 11:00</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>RETURNING で返ってくる値（自動採番された id と現在時刻）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>id</th><th>created_at</th></tr>
+<tr><td>3</td><td>2024-06-01 14:30:00+09</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px">※ id=3 は DBが自動採番（アプリ側で指定不要）</p>`,
+  answer: `<pre><span class="kw">INSERT INTO</span> <span class="tbl">tasks</span> (                  <span class="cmt">-- 【超基礎】テーブルに新しい行を追加する命令</span>
+  title,                            <span class="cmt">-- 値を入れる列名</span>
+  status,                           <span class="cmt">-- 値を入れる列名</span>
+  created_at                        <span class="cmt">-- 値を入れる列名</span>
+)
+<span class="kw">VALUES</span> (                             <span class="cmt">-- 【超基礎】挿入する値を列の順番に合わせて指定する</span>
+  <span class="str">'バッチ処理の実装'</span>,               <span class="cmt">-- title 列に入る文字列</span>
+  <span class="str">'pending'</span>,                       <span class="cmt">-- status 列に入る文字列</span>
+  <span class="fn">NOW</span>()                            <span class="cmt">-- 【超基礎】現在のシステム日時を取得する関数</span>
+)
+<span class="kw">RETURNING</span> id, created_at;          <span class="cmt">-- 【応用】挿入された行の特定の列の値をそのまま返す（PostgreSQL等）</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. INSERT INTO tasks (...)   → 【超基礎】テーブルに新しい行の領域を準備する
+  2. VALUES (...)              → 【超基礎】指定された値を列に埋め込む
+  3. DBが BIGSERIAL列 に対してシーケンスをインクリメントし、id=3 を自動採番する
+  4. RETURNING id, created_at → 【超基礎】挿入が完了した行のデータを取得してアプリに返す
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "base", badge: "① 挿入前", bc: "badge-blue", label: "tasks テーブル", desc: "現在のテーブルには2件のデータが存在します。", type: "base",
+        cols: ["id", "title", "status", "created_at"], ch: ["col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: [1, "ユーザー同期", "done", "2024-05-01 09:00"] },
+          { v: [2, "メール送信", "running", "2024-05-10 11:00"] }
+        ], cnt: "既存: 2行"
+      },
+      { id: "insert", badge: "② INSERT", bc: "badge-orange", label: "INSERT INTO tasks", desc: "新しい行を追加します。id列はBIGSERIALにより自動で「3」が採番されます。", type: "eval",
+        cols: ["id", "title", "status", "created_at"], ch: ["col-eval", "", "", "col-eval"],
+        rows: [
+          { v: [1, "ユーザー同期", "done", "2024-05-01 09:00"] },
+          { v: [2, "メール送信", "running", "2024-05-10 11:00"] },
+          { c: "row-grp-1", v: ["3 (自動採番)", "バッチ処理の実装", "pending", "2024-06-01 14:30:00 (NOW)"], cc: ["val-pass", "", "", "val-pass"] }
+        ], cnt: "1行 追加"
+      },
+      { id: "returning", badge: "③ RETURNING", bc: "badge-green", label: "RETURNING id, created_at", desc: "挿入した行の id と created_at を結果として返します。", type: "select",
+        cols: ["id", "created_at"], ch: ["col-select", "col-select"],
+        rows: [
+          { v: [3, "2024-06-01 14:30:00+09"] }
+        ], cnt: "結果: 1行 × 2列"
+      }
+    ],
+    sql: [
+      { t: "INSERT INTO ", k: "sql-kw", h: "insert" }, { t: "tasks (\n", k: "", h: "insert" },
+      { t: "  title, status, created_at\n", k: "", h: "insert" },
+      { t: ")\n", k: "", h: "insert" },
+      { t: "VALUES ", k: "sql-kw", h: "insert" }, { t: "(\n", k: "", h: "insert" },
+      { t: "  'バッチ処理の実装', 'pending', NOW()\n", k: "", h: "insert" },
+      { t: ")\n", k: "", h: "insert" },
+      { t: "RETURNING ", k: "sql-kw", h: "returning" }, { t: "id, created_at;", k: "", h: "returning" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：INSERT INTO はテーブルに新しいデータを「行単位」で追加します。列の順番とVALUESの中のデータの順番は必ず一致させる必要があります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">POST APIの典型フロー：クライアントがPOSTリクエスト → サーバーがINSERT + RETURNING → 採番されたIDをレスポンスに含める → クライアントはそのIDでGETして詳細を取得。RETURNING がなければINSERT後に別のSELECTが必要になる。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">BIGSERIAL とは：内部的には <code>BIGINT + シーケンス(SEQUENCE)</code> の糖衣構文。INSERTのたびにシーケンスが自動インクリメントされる。SERIAL は INT（約21億上限）、BIGSERIALはBIGINT（約922京上限）なので大規模サービスではBIGSERIALを推奨。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">RETURNING * で全列取得：<code>RETURNING *</code> で挿入行の全列を返せる。DBのデフォルト値（<code>DEFAULT</code>）が入った列も返ってくるため、INSERT後のレスポンスとして使いやすい。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">INSERT後にSELECTで採番IDを取得する2クエリパターン：マルチスレッド環境では「INSERTしてからSELECT MAX(id)」で別スレッドのIDを取得してしまう競合が起きる。RETURNING を使えば1クエリで安全・確実にIDを取得できる。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">VALUES の列数と値の数を間違える：<code>INSERT INTO tasks (title, status) VALUES ('test')</code> は列2つに対して値1つなのでエラー。列名リストと VALUES の要素数は必ず一致させること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：バルクインサートとRETURNINGの組み合わせ</div>
+<div class="column-body">
+バッチ処理で数千件のデータを登録する際、1件ずつINSERTすると通信オーバーヘッドで数分かかってしまいます。実務では <code>INSERT INTO tasks (...) VALUES (...), (...), (...)</code> のように複数行を1クエリで挿入するバルクインサート（一括挿入）を多用します。この際 <code>RETURNING id</code> を付ければ、挿入された数千件分のIDを一瞬でリストとして取得でき、後続の処理（別テーブルへの紐付けなど）が非常にスムーズになります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6  UPDATE + WHERE — 条件付き更新
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "UPDATE + WHERE — バッチでステータスを一括更新する安全パターン",
+  tags: [["r","UPDATE"],["r","WHERE"],["r","SET"],["o","ステータス更新"]],
+  premise: `<p><strong>UPDATE</strong> は既存の行の列値を書き換えます。<strong>WHERE で必ず更新対象を絞り込む</strong>ことが最重要です。WHERE を省略すると全行が書き換わります。</p>
+<pre><span class="kw">UPDATE</span> <span class="tbl">table_name</span>                   <span class="cmt">-- 更新対象テーブル</span>
+<span class="kw">SET</span>
+  col1 <span class="op">=</span> <span class="str">'new_value'</span>,               <span class="cmt">-- 更新する列と値（複数列はカンマ区切り）</span>
+  col2 <span class="op">=</span> <span class="fn">NOW</span>()                       <span class="cmt">-- 複数列を同時に更新できる</span>
+<span class="kw">WHERE</span>  id <span class="op">=</span> <span class="num">1</span>;                       <span class="cmt">-- 必須！省略すると全行更新（壊滅的バグ）</span></pre>
+<div class="callout danger"><strong>WHERE なし UPDATE は最大の地雷：</strong><code>UPDATE users SET status = 'inactive'</code> は全ユーザーが inactive になる。本番環境では取り返しがつかない。UPDATE の前に必ず WHERE の条件を確認すること。</div>
+<p>バッチ処理でよくあるパターンは「一定期間アクセスのないユーザーを inactive に一括変更」「期限切れトークンを無効化」などです。</p>`,
+  question: `<p><code>subscriptions</code> テーブルで、<em>end_date が今日以前（期限切れ）かつ status が 'active' の契約</em>を、<em>status='expired' に一括更新</em>してください。更新と同時に <code>updated_at</code> を現在時刻に更新し、<em>更新した行の subscription_id と status を RETURNING で返して</em>ください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ subscriptions（現在日: 2024-06-01）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>subscription_id</th><th>user_id</th><th>status</th><th>end_date</th><th>updated_at</th></tr>
+        <tr><td>1</td><td>U01</td><td>active</td><td>2024-05-20</td><td>2024-04-01</td></tr>
+        <tr><td>2</td><td>U02</td><td>active</td><td>2024-06-30</td><td>2024-05-01</td></tr>
+        <tr><td>3</td><td>U03</td><td>active</td><td>2024-05-31</td><td>2024-04-15</td></tr>
+        <tr><td>4</td><td>U04</td><td>expired</td><td>2024-04-01</td><td>2024-04-02</td></tr>
+        <tr><td>5</td><td>U05</td><td>active</td><td>2024-07-15</td><td>2024-05-10</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>RETURNING で返ってくる更新行（end_date ≤ 2024-06-01 かつ active の2件）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>subscription_id</th><th>status（更新後）</th></tr>
+<tr><td>1</td><td>expired</td></tr>
+<tr><td>3</td><td>expired</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px">※ id:2・5は end_date が未来 / id:4はすでに expired のため除外</p>`,
+  answer: `<pre><span class="kw">UPDATE</span> <span class="tbl">subscriptions</span>               <span class="cmt">-- 【超基礎】既存の行のデータを更新する命令</span>
+<span class="kw">SET</span>                                  <span class="cmt">-- 【超基礎】変更したい列と新しい値を指定する</span>
+  status     <span class="op">=</span> <span class="str">'expired'</span>,           <span class="cmt">-- ステータスを文字列で上書き</span>
+  updated_at <span class="op">=</span> <span class="fn">NOW</span>()                <span class="cmt">-- 更新日時を現在日時に上書き</span>
+<span class="kw">WHERE</span>                                <span class="cmt">-- 【超基礎】更新対象の行を絞り込む（絶対に忘れないこと！）</span>
+  end_date <span class="op">&lt;=</span> <span class="fn">CURRENT_DATE</span>          <span class="cmt">-- 条件: 期限が今日以前</span>
+  <span class="kw">AND</span> status <span class="op">=</span> <span class="str">'active'</span>            <span class="cmt">-- 条件: 現在有効なものだけ（無駄な更新を防ぐ）</span>
+<span class="kw">RETURNING</span> subscription_id, status;  <span class="cmt">-- 【応用】更新された行のIDと新しいステータスを返す</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. FROM subscriptions        → 【超基礎】対象テーブルを読み込む
+  2. WHERE end_date <= ...     → 【超基礎】条件に合致する行のみを特定する
+  3. SET status='expired'...   → 【超基礎】特定した行の列の値を書き換える
+  4. RETURNING ...             → 【超基礎】書き換え後の値を返す
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "where", badge: "① WHERE", bc: "badge-orange", label: "WHERE end_date <= CURRENT_DATE AND status = 'active'", desc: "更新対象を絞り込みます。今日以前かつactiveな行だけが対象になります。", type: "eval",
+        cols: ["subscription_id", "status", "end_date", "updated_at"], ch: ["", "col-eval", "col-eval", ""],
+        rows: [
+          { v: [1, "active", "2024-05-20", "2024-04-01"], cc: ["", "val-pass", "val-pass", ""] },
+          { v: [2, "active", "2024-06-30", "2024-05-01"], c: "row-dimmed", cc: ["", "val-pass", "val-fail", ""] },
+          { v: [3, "active", "2024-05-31", "2024-04-15"], cc: ["", "val-pass", "val-pass", ""] },
+          { v: [4, "expired", "2024-04-01", "2024-04-02"], c: "row-dimmed", cc: ["", "val-fail", "val-pass", ""] },
+          { v: [5, "active", "2024-07-15", "2024-05-10"], c: "row-dimmed", cc: ["", "val-pass", "val-fail", ""] }
+        ], cnt: "対象: 2行 / スキップ: 3行"
+      },
+      { id: "set", badge: "② SET", bc: "badge-blue", label: "SET status = 'expired', updated_at = NOW()", desc: "絞り込まれた行のステータスと更新日時を上書きします。", type: "base",
+        cols: ["subscription_id", "status", "end_date", "updated_at"], ch: ["", "col-eval", "", "col-eval"],
+        rows: [
+          { v: [1, "expired", "2024-05-20", "2024-06-01 (NOW)"], c: "row-grp-1", cc: ["", "val-pass", "", "val-pass"] },
+          { v: [2, "active", "2024-06-30", "2024-05-01"] },
+          { v: [3, "expired", "2024-05-31", "2024-06-01 (NOW)"], c: "row-grp-1", cc: ["", "val-pass", "", "val-pass"] },
+          { v: [4, "expired", "2024-04-01", "2024-04-02"] },
+          { v: [5, "active", "2024-07-15", "2024-05-10"] }
+        ], cnt: "更新完了: 2行"
+      },
+      { id: "returning", badge: "③ RETURNING", bc: "badge-green", label: "RETURNING subscription_id, status", desc: "更新された行の subscription_id と status を結果として返します。", type: "select",
+        cols: ["subscription_id", "status"], ch: ["col-select", "col-select"],
+        rows: [
+          { v: [1, "expired"] },
+          { v: [3, "expired"] }
+        ], cnt: "結果: 2行 × 2列"
+      }
+    ],
+    sql: [
+      { t: "UPDATE ", k: "sql-kw", h: "set" }, { t: "subscriptions\n", k: "", h: "set" },
+      { t: "SET\n", k: "sql-kw", h: "set" },
+      { t: "  status     = 'expired',\n", k: "", h: "set" },
+      { t: "  updated_at = NOW()\n", k: "", h: "set" },
+      { t: "WHERE\n", k: "sql-kw", h: "where" },
+      { t: "  end_date <= CURRENT_DATE\n", k: "", h: "where" },
+      { t: "  AND status = 'active'\n", k: "", h: "where" },
+      { t: "RETURNING ", k: "sql-kw", h: "returning" }, { t: "subscription_id, status;", k: "", h: "returning" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：UPDATE はすでにテーブルに存在する行のデータを書き換えます。WHEREを指定しないと「テーブルの全行」が書き換わってしまうため、UPDATEとWHEREは必ずセットで考える癖をつけましょう。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">バッチ期限切れ処理の定番パターン：深夜バッチで <code>WHERE end_date &lt;= CURRENT_DATE AND status='active'</code> を毎晩実行する設計が最頻出。CRON + このUPDATE + RETURNINGで更新件数をログに記録するのが実務標準。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">べき等性（Idempotency）の確保：<code>AND status='active'</code> の条件を付けることで「何度実行しても結果が変わらない」べき等なバッチになる。バッチが2重実行されても問題が起きない設計が重要。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">CURRENT_DATE と NOW() の違い：<code>CURRENT_DATE</code> は日付のみ（時刻なし）、<code>NOW()</code> はタイムスタンプ（日付+時刻）。日付比較には <code>CURRENT_DATE</code>、更新日時の記録には <code>NOW()</code> を使い分ける。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">WHERE なし UPDATE：<code>UPDATE subscriptions SET status='expired'</code> は全5件が expired になる。本番では絶対に起こしてはならないミス。UPDATE前には必ず <code>SELECT COUNT(*) FROM subscriptions WHERE ...</code> で対象件数を確認する習慣をつける。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">SET の列名を間違える：<code>SET stats = 'expired'</code>（status のタイポ）は列が存在しないためエラーになるが、テーブルに同名の別列があった場合は意図しない列を書き換えてしまう。SQL実行前にレビューを必ずすること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：バッチ処理の「冪等性（べきとうせい）」</div>
+<div class="column-body">
+夜間バッチはネットワークエラーなどで途中で落ち、再実行されることが日常茶飯事です。そのため、「何度実行しても結果が同じになる（＝冪等性がある）」設計が不可欠です。本問の <code>AND status = 'active'</code> のように、すでに処理済みのデータは対象外とする絞り込みを入れることで、2重実行されても安全なSQLになります。UPDATEバッチを書く時は「途中で止まって再実行されたらどうなるか？」を常に想像しましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  DELETE + 論理削除パターン
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "DELETE vs 論理削除 — APIで安全にデータを「消す」設計パターン",
+  tags: [["r","DELETE"],["r","UPDATE"],["o","論理削除"],["g","データ保全"]],
+  premise: `<p><strong>DELETE</strong> はテーブルから行を物理的に削除します。一方、<strong>論理削除</strong>は行を消さず <code>deleted_at</code> 列に削除日時を記録するパターンで、API開発では論理削除が主流です。</p>
+<pre><span class="cmt">-- 物理削除（完全に消える・元に戻せない）</span>
+<span class="kw">DELETE FROM</span> <span class="tbl">table_name</span>             <span class="cmt">-- 対象テーブル</span>
+<span class="kw">WHERE</span> id <span class="op">=</span> <span class="num">1</span>;                       <span class="cmt">-- 必須！省略すると全行削除</span>
+
+<span class="cmt">-- 論理削除（deleted_at に日時を入れるだけ、行は残る）</span>
+<span class="kw">UPDATE</span> <span class="tbl">table_name</span>
+<span class="kw">SET</span>    deleted_at <span class="op">=</span> <span class="fn">NOW</span>()           <span class="cmt">-- NULL → 現在日時 に変更することで「削除済み」を表現</span>
+<span class="kw">WHERE</span>  id <span class="op">=</span> <span class="num">1</span>
+  <span class="kw">AND</span>  deleted_at <span class="kw">IS NULL</span>;          <span class="cmt">-- まだ削除されていない行のみ（べき等性の確保）</span></pre>
+<div class="callout"><strong>論理削除の利点：</strong>①データ復元が可能 ②監査ログとして削除履歴が残る ③外部キー参照が壊れない。取得クエリには <code>WHERE deleted_at IS NULL</code> を常に付ける必要がある。</div>`,
+  question: `<p><code>comments</code> テーブルで、<em>comment_id=3 のコメントを論理削除</em>してください（deleted_at に現在時刻を記録）。また、<em>論理削除済みを除いた有効なコメント一覧</em>を取得するSQLも書いてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ comments</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>comment_id</th><th>post_id</th><th>body</th><th>deleted_at</th></tr>
+        <tr><td>1</td><td>10</td><td>素晴らしい記事です</td><td>NULL</td></tr>
+        <tr><td>2</td><td>10</td><td>参考になりました</td><td>NULL</td></tr>
+        <tr><td>3</td><td>11</td><td>不適切なコメント</td><td>NULL</td></tr>
+        <tr><td>4</td><td>11</td><td>ありがとうございます</td><td>2024-05-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>論理削除後の有効コメント一覧（deleted_at IS NULL のみ）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>comment_id</th><th>post_id</th><th>body</th><th>deleted_at</th></tr>
+<tr><td>1</td><td>10</td><td>素晴らしい記事です</td><td>NULL</td></tr>
+<tr><td>2</td><td>10</td><td>参考になりました</td><td>NULL</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px">※ id:3(今回削除) / id:4(既に削除済み) は除外</p>`,
+  answer: `<pre><span class="cmt">-- ① 論理削除: comment_id=3 の deleted_at に現在時刻を記録</span>
+<span class="kw">UPDATE</span> <span class="tbl">comments</span>                    <span class="cmt">-- 【超基礎】データを更新する命令（DELETE文は使わない）</span>
+<span class="kw">SET</span>    deleted_at <span class="op">=</span> <span class="fn">NOW</span>()           <span class="cmt">-- 【超基礎】削除日時列に現在時刻をセットすることで「削除」とみなす</span>
+<span class="kw">WHERE</span>  comment_id <span class="op">=</span> <span class="num">3</span>              <span class="cmt">-- 【超基礎】更新対象を主キーで一意に特定</span>
+  <span class="kw">AND</span>  deleted_at <span class="kw">IS NULL</span>;         <span class="cmt">-- 【超基礎】NULL判定（未削除の行のみ更新する）</span>
+
+<span class="cmt">-- ② 有効コメント一覧取得: deleted_at が NULL の行のみ返す</span>
+<span class="kw">SELECT</span>                             <span class="cmt">-- 【超基礎】列の選択</span>
+  comment_id,                       <span class="cmt">-- コメントID</span>
+  post_id,                          <span class="cmt">-- 投稿ID</span>
+  body                              <span class="cmt">-- コメント本文</span>
+<span class="kw">FROM</span>   <span class="tbl">comments</span>                      <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">WHERE</span>  deleted_at <span class="kw">IS NULL</span>          <span class="cmt">-- 【超基礎】NULL(空)であるかどうかを判定（= NULL はエラーになる）</span>
+<span class="kw">ORDER BY</span> comment_id <span class="kw">ASC</span>;          <span class="cmt">-- 【超基礎】IDの昇順（小さい順）に並び替え</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順 / ②の一覧取得）:
+  1. FROM comments             → 【超基礎】全行読み込み
+  2. WHERE deleted_at IS NULL  → 【超基礎】NULL(未削除) の行のみ残す
+  3. SELECT comment_id, ...    → 【超基礎】列を選択
+  4. ORDER BY comment_id ASC   → 【超基礎】昇順に並び替え
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "update", badge: "① 論理削除 (UPDATE)", bc: "badge-orange", label: "UPDATE comments SET deleted_at = NOW() WHERE comment_id = 3", desc: "comment_id=3の行のdeleted_atに現在時刻を記録します。データは消去されません。", type: "eval",
+        cols: ["comment_id", "post_id", "body", "deleted_at (変更後)"], ch: ["col-eval", "", "", "col-eval"],
+        rows: [
+          { v: [1, 10, "素晴らしい記事です", "NULL"] },
+          { v: [2, 10, "参考になりました", "NULL"] },
+          { v: [3, 11, "不適切なコメント", "2024-06-01 (論理削除)"], c: "row-grp-1", cc: ["val-pass", "", "", "val-pass"] },
+          { v: [4, 11, "ありがとうございます", "2024-05-01"] }
+        ], cnt: "1行 更新"
+      },
+      { id: "select", badge: "② 一覧取得 (SELECT)", bc: "badge-blue", label: "WHERE deleted_at IS NULL", desc: "有効なコメントを取得する際は、必ず deleted_at IS NULL で絞り込みます。", type: "eval",
+        cols: ["comment_id", "post_id", "body", "deleted_at"], ch: ["", "", "", "col-eval"],
+        rows: [
+          { v: [1, 10, "素晴らしい記事です", "NULL"], cc: ["", "", "", "val-pass"] },
+          { v: [2, 10, "参考になりました", "NULL"], cc: ["", "", "", "val-pass"] },
+          { v: [3, 11, "不適切なコメント", "2024-06-01"], c: "row-dimmed", cc: ["", "", "", "val-fail"] },
+          { v: [4, 11, "ありがとうございます", "2024-05-01"], c: "row-dimmed", cc: ["", "", "", "val-fail"] }
+        ], cnt: "結果: 2行"
+      }
+    ],
+    sql: [
+      { t: "-- ① 論理削除: comment_id=3 の deleted_at に現在時刻を記録\n", k: "cmt", h: "update" },
+      { t: "UPDATE ", k: "sql-kw", h: "update" }, { t: "comments\n", k: "", h: "update" },
+      { t: "SET    ", k: "sql-kw", h: "update" }, { t: "deleted_at = NOW()\n", k: "", h: "update" },
+      { t: "WHERE  ", k: "sql-kw", h: "update" }, { t: "comment_id = 3 AND deleted_at IS NULL;\n\n", k: "", h: "update" },
+      { t: "-- ② 有効コメント一覧取得: deleted_at が NULL の行のみ返す\n", k: "cmt", h: "select" },
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  comment_id, post_id, body\n", k: "", h: "select" },
+      { t: "FROM   ", k: "sql-kw", h: "select" }, { t: "comments\n", k: "", h: "select" },
+      { t: "WHERE  ", k: "sql-kw", h: "select" }, { t: "deleted_at IS NULL\n", k: "", h: "select" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "comment_id ASC;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：DELETE文はデータをディスクから完全に消し去ります。一方、論理削除はUPDATE文で「削除フラグ（削除日時）」を更新するだけで、データ自体は残すという「システム上の運用の工夫」です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">論理削除が実務標準の理由：①削除取り消し（undo）が可能 ②「いつ誰が削除したか」の監査証跡になる ③外部テーブルから参照している場合に参照整合性エラーが発生しない。特にユーザーや注文データは論理削除が原則。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">全クエリに deleted_at IS NULL を付ける：論理削除を採用すると全てのSELECT/UPDATE/DELETEに <code>WHERE deleted_at IS NULL</code> が必要になる。ORMのデフォルトスコープやビュー（VIEW）で自動適用するのが実務上のベストプラクティス。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">物理削除が適切なケース：GDPRなどの法的な「忘れられる権利」対応、PII（個人情報）の完全消去が必要な場合は物理削除が必須。論理削除ではデータが残り続けるため法的要件を満たせない場合がある。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">WHERE なし DELETE：<code>DELETE FROM comments</code> は全行削除。誤ってWHEREを省略したときの被害を最小限にするため、本番環境ではDELETEを実行する前に必ず <code>SELECT COUNT(*) WHERE ...</code> で件数確認をする。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">deleted_at に boolean（is_deleted）を使う：<code>is_deleted = true/false</code> では「いつ削除されたか」の情報が失われる。TIMESTAMPTZ型のdeleted_atにすれば「NULL=有効、日時=削除済み」の両方の情報が1列に収まり、削除日時による絞り込みも可能になる。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：論理削除とユニーク制約の衝突</div>
+<div class="column-body">
+論理削除を採用すると、「同じメールアドレスで再登録したい」というユーザーが現れた際、<code>email</code> 列のユニーク制約（重複禁止）に引っかかるという有名な問題が発生します。実務ではこれを回避するため、「email と deleted_at の複合ユニーク制約」にするか、削除時に email の末尾に <code>_deleted_タイムスタンプ</code> を付与して退避させるなど、スキーマレベルでの運用工夫がセットで必要になります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  WITH（CTE） — 複雑なバッチクエリを分解して読みやすくする
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "WITH（CTE） — 複雑なバッチクエリを分解して読みやすく・再利用しやすくする",
+  tags: [["r","WITH"],["r","CTE"],["o","クエリ分解"],["g","バッチ処理"]],
+  premise: `<p><strong>CTE（Common Table Expression）</strong>は <code>WITH</code> 句で一時的な名前付き結果セットを定義し、後続のクエリで何度でも参照できる機能です。複雑なバッチクエリをステップごとに分解して読みやすくします。</p>
+<pre><span class="kw">WITH</span>
+  cte1 <span class="kw">AS</span> (                        <span class="cmt">-- CTE名を定義（テーブルのように後で使える）</span>
+    <span class="kw">SELECT</span> col1, col2
+    <span class="kw">FROM</span>   <span class="tbl">table_a</span>
+    <span class="kw">WHERE</span>  ...
+  ),
+  cte2 <span class="kw">AS</span> (                        <span class="cmt">-- 複数のCTEはカンマで繋ぐ（cte1を参照することも可）</span>
+    <span class="kw">SELECT</span> col1
+    <span class="kw">FROM</span>   cte1                    <span class="cmt">-- 前のCTEを参照できる</span>
+    <span class="kw">WHERE</span>  ...
+  )
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> cte2;               <span class="cmt">-- 最後に本体クエリ（CTEを参照する）</span></pre>
+<div class="callout ok"><strong>CTEとサブクエリの違い：</strong>サブクエリはネストして読みにくくなる。CTEは名前をつけて上から下へ読める。「何をしているか」がステップで明確になり、バッチ処理のSQL設計で多用される。</div>`,
+  question: `<p>「過去30日以内に2件以上注文したユーザー」をVIP顧客として取得したいです。<code>orders</code>（注文）と <code>users</code>（ユーザー）テーブルを使い、CTEを2段階に分けて、<em>VIPユーザーの user_id, name, order_count を order_count 降順</em>で返してください。現在日は 2024-06-01 とします。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>ordered_at</th></tr>
+        <tr><td>1</td><td>U01</td><td>2024-05-10</td></tr>
+        <tr><td>2</td><td>U01</td><td>2024-05-20</td></tr>
+        <tr><td>3</td><td>U02</td><td>2024-05-25</td></tr>
+        <tr><td>4</td><td>U03</td><td>2024-04-01</td></tr>
+        <tr><td>5</td><td>U01</td><td>2024-05-28</td></tr>
+        <tr><td>6</td><td>U02</td><td>2024-05-29</td></tr>
+        <tr><td>7</td><td>U03</td><td>2024-03-15</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th></tr>
+        <tr><td>U01</td><td>田中 太郎</td></tr>
+        <tr><td>U02</td><td>佐藤 花子</td></tr>
+        <tr><td>U03</td><td>鈴木 一郎</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>VIPユーザー（過去30日に2件以上）を order_count 降順で返す：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th><th>order_count</th></tr>
+<tr><td>U01</td><td>田中 太郎</td><td>3</td></tr>
+<tr><td>U02</td><td>佐藤 花子</td><td>2</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px">※ U03は過去30日の注文が0件のため除外</p>`,
+  answer: `<pre><span class="kw">WITH</span>                               <span class="cmt">-- 【超基礎】共通テーブル式(CTE)の開始宣言</span>
+  <span class="cmt">-- CTE①: 過去30日以内の注文をユーザーごとに集計</span>
+  recent_orders <span class="kw">AS</span> (               <span class="cmt">-- 【超基礎】一時的なテーブル(recent_orders)を定義</span>
+    <span class="kw">SELECT</span>
+      user_id,                      <span class="cmt">-- グループ化キー</span>
+      <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> order_count        <span class="cmt">-- 件数を集計</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span>                    <span class="cmt">-- 【超基礎】対象テーブル</span>
+    <span class="kw">WHERE</span>  ordered_at <span class="op">&gt;=</span> <span class="fn">CURRENT_DATE</span> <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'30 days'</span>  <span class="cmt">-- 日付計算</span>
+    <span class="kw">GROUP BY</span> user_id                <span class="cmt">-- 【超基礎】ユーザーごとにグループ化</span>
+  ),
+  <span class="cmt">-- CTE②: 2件以上のユーザーだけに絞り込む</span>
+  vip_users <span class="kw">AS</span> (                   <span class="cmt">-- 【超基礎】さらに別の一時テーブルを定義（カンマで繋ぐ）</span>
+    <span class="kw">SELECT</span> user_id, order_count     <span class="cmt">-- CTE①の結果を参照</span>
+    <span class="kw">FROM</span>   recent_orders            <span class="cmt">-- 【超基礎】上で定義したCTEをテーブルとして参照</span>
+    <span class="kw">WHERE</span>  order_count <span class="op">&gt;=</span> <span class="num">2</span>        <span class="cmt">-- 【超基礎】VIP条件で絞り込み</span>
+  )
+<span class="cmt">-- 本体クエリ: 最終的な取得処理</span>
+<span class="kw">SELECT</span>                             <span class="cmt">-- 【超基礎】最終的に出力する列</span>
+  v.user_id,                        <span class="cmt">-- VIPユーザーID</span>
+  u.name,                           <span class="cmt">-- ユーザー名</span>
+  v.order_count                     <span class="cmt">-- 注文件数</span>
+<span class="kw">FROM</span>       vip_users v              <span class="cmt">-- 【超基礎】CTE②をメインテーブルとして利用</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">users</span>    u              <span class="cmt">-- 【超基礎】実テーブル(users)と内部結合</span>
+  <span class="kw">ON</span>  v.user_id <span class="op">=</span> u.user_id         <span class="cmt">-- 【超基礎】結合条件</span>
+<span class="kw">ORDER BY</span> v.order_count <span class="kw">DESC</span>;       <span class="cmt">-- 【超基礎】注文件数で降順に並び替え</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. CTE① recent_orders       → 【超基礎】orders から一時テーブルを作成
+  2. CTE② vip_users           → 【超基礎】recent_orders を元にさらに絞り込んだ一時テーブルを作成
+  3. FROM vip_users v          → 【超基礎】CTE②を起点にして読み込む
+  4. INNER JOIN users u        → 【超基礎】users テーブルと結合する
+  5. SELECT v.user_id, ...     → 【超基礎】必要な列を選択
+  6. ORDER BY order_count DESC → 【超基礎】降順に並び替え
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "cte1", badge: "① CTE: recent_orders", bc: "badge-blue", label: "過去30日の注文をユーザーごとに集計", desc: "orders テーブルから過去30日以内の注文を絞り込み、user_id ごとに注文件数を集計します。", type: "group",
+        cols: ["user_id", "ordered_at", "集計後 order_count"], ch: ["col-eval", "", "col-eval"],
+        rows: [
+          { v: ["U01", "05-10, 05-20, 05-28", 3], c: "row-grp-1", cc: ["", "", "val-pass"] },
+          { v: ["U02", "05-25, 05-29", 2], c: "row-grp-2", cc: ["", "", "val-pass"] },
+          { v: ["U03", "04-01, 03-15", 0], c: "row-dimmed", cc: ["", "", "val-fail"] }
+        ], cnt: "CTE①: 2行生成 (U03は対象外)"
+      },
+      { id: "cte2", badge: "② CTE: vip_users", bc: "badge-orange", label: "WHERE order_count >= 2", desc: "CTE①の結果（recent_orders）を参照し、件数が2件以上のユーザーだけに絞り込みます。", type: "eval",
+        cols: ["user_id", "order_count"], ch: ["", "col-eval"],
+        rows: [
+          { v: ["U01", 3], cc: ["", "val-pass"] },
+          { v: ["U02", 2], cc: ["", "val-pass"] }
+        ], cnt: "CTE②: 2行生成"
+      },
+      { id: "join", badge: "③ INNER JOIN & SELECT", bc: "badge-green", label: "JOIN users ON v.user_id = u.user_id", desc: "CTE②（vip_users）を users テーブルと結合し、名前を付加して最終結果を出力します。", type: "select", join: true,
+        left: {
+          label: "vip_users (v)", cols: ["user_id", "order_count"], ch: ["col-select", "col-select"],
+          rows: [
+            { v: ["U01", 3] },
+            { v: ["U02", 2] }
+          ]
+        },
+        right: {
+          label: "users (u)", cols: ["user_id", "name"], ch: ["", "col-select"],
+          rows: [
+            { v: ["U01", "田中 太郎"] },
+            { v: ["U02", "佐藤 花子"] },
+            { v: ["U03", "鈴木 一郎"], c: "row-dimmed" }
+          ]
+        },
+        cnt: "結果: 2行 × 3列"
+      }
+    ],
+    sql: [
+      { t: "WITH\n", k: "sql-kw", h: "cte1" },
+      { t: "  recent_orders AS (\n", k: "", h: "cte1" },
+      { t: "    SELECT user_id, COUNT(*) AS order_count\n", k: "", h: "cte1" },
+      { t: "    FROM   orders\n", k: "", h: "cte1" },
+      { t: "    WHERE  ordered_at >= CURRENT_DATE - INTERVAL '30 days'\n", k: "", h: "cte1" },
+      { t: "    GROUP BY user_id\n", k: "", h: "cte1" },
+      { t: "  ),\n", k: "", h: "cte1" },
+      { t: "  vip_users AS (\n", k: "", h: "cte2" },
+      { t: "    SELECT user_id, order_count\n", k: "", h: "cte2" },
+      { t: "    FROM   recent_orders\n", k: "", h: "cte2" },
+      { t: "    WHERE  order_count >= 2\n", k: "", h: "cte2" },
+      { t: "  )\n", k: "", h: "cte2" },
+      { t: "SELECT\n", k: "sql-kw", h: "join" },
+      { t: "  v.user_id, u.name, v.order_count\n", k: "", h: "join" },
+      { t: "FROM       ", k: "sql-kw", h: "join" }, { t: "vip_users v\n", k: "", h: "join" },
+      { t: "INNER JOIN ", k: "sql-kw", h: "join" }, { t: "users u\n", k: "", h: "join" },
+      { t: "  ON v.user_id = u.user_id\n", k: "", h: "join" },
+      { t: "ORDER BY v.order_count DESC;", k: "", h: "join" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：WITH句(CTE)は、クエリの最初に「一時的な名前付きのテーブル」を作って、後からそれを通常のテーブルのように何度も呼び出して使えるようにする機能です。長くて複雑なSQLを整理するために使います。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">CTEの命名で意図を伝える：<code>recent_orders</code>（最近の注文）、<code>vip_users</code>（VIPユーザー）のように意味のある名前をつけることで、SQLを読んだ人が「何をしているか」を即座に理解できる。コメントの代わりになる。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">CTEは同じ結果を複数回参照できる：同じサブクエリを2回書く必要があるときにCTEで1回定義すれば複数箇所から参照できる。コードの重複排除とメンテナンス性向上に効果的。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">バッチSQL設計の定番構成：CTEで①データ抽出・②絞り込み・③集計、の各ステップを分けて定義し、本体クエリで最終形を作る構成がバッチSQL設計の王道パターン。デバッグ時はCTEを1段ずつ単独でSELECTして中間結果を確認できる。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">過度にネストしたサブクエリ：<code>SELECT * FROM (SELECT * FROM (SELECT ...) sub1) sub2</code> のように3重・4重にネストするとどこで何をしているか全く読めなくなる。2段階以上になったらCTEへリファクタリングすること。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">CTEに不必要に全列を含める：<code>SELECT * FROM orders</code> でCTEを作ると後続で不要な列まで抱えることになる。CTEでも必要な列だけ明示的に SELECT すること。パフォーマンスと可読性の両方に影響する。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：CTEのパフォーマンスとマテリアライズドビュー</div>
+<div class="column-body">
+CTEはSQLを劇的に読みやすくしますが、巨大なデータに対して何度も同じCTEを呼び出すと、内部的に毎回再計算が走りパフォーマンスが劣化することがあります（※DBのバージョンによる）。分析系バッチで1クエリが数分かかるような場合は、CTEの中間結果を実テーブルや マテリアライズドビュー（Materialized View） として物理的に保存し、それにインデックスを張るアプローチへの切り替えが検討されます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  EXISTS / NOT EXISTS — 存在チェックAPIパターン
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "EXISTS / NOT EXISTS — 関連データの存在チェックを効率的に行う",
+  tags: [["r","EXISTS"],["r","NOT EXISTS"],["o","存在チェック"],["g","条件フィルタ"]],
+  premise: `<p><strong>EXISTS</strong> はサブクエリが1行以上の結果を返すかどうかを TRUE/FALSE で判定します。「関連データが存在する行だけ取得」「まだ処理されていない行を取得」のバッチ処理で頻出です。</p>
+<pre><span class="kw">SELECT</span> col1
+<span class="kw">FROM</span>   <span class="tbl">table_a</span> a
+<span class="kw">WHERE</span>  <span class="kw">EXISTS</span> (                      <span class="cmt">-- サブクエリが1件以上あれば TRUE</span>
+  <span class="kw">SELECT</span> <span class="num">1</span>                          <span class="cmt">-- EXISTS内はSELECT 1でよい（列は何でもよい）</span>
+  <span class="kw">FROM</span>   <span class="tbl">table_b</span> b
+  <span class="kw">WHERE</span>  b.a_id <span class="op">=</span> a.id              <span class="cmt">-- 外側のテーブルを参照（相関サブクエリ）</span>
+);
+
+<span class="kw">WHERE</span>  <span class="kw">NOT EXISTS</span> (...)             <span class="cmt">-- NOT EXISTS: サブクエリが0件のとき TRUE</span></pre>
+<div class="callout"><strong>EXISTS vs IN の違い：</strong><code>WHERE id IN (SELECT id FROM ...)</code> でも似たことができるが、EXISTSはサブクエリが1行見つかった時点でスキャンを中断するため大量データで高速。また IN はサブクエリにNULLが含まれると予期しない動作をする場合がある。</div>`,
+  question: `<p><code>users</code> テーブルから、<em>まだ一度も注文したことがないユーザー</em>（<code>orders</code> テーブルに対応レコードなし）を取得してください。user_id と name を返し、user_id の昇順で並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>name</th></tr>
+        <tr><td>1</td><td>田中 太郎</td></tr>
+        <tr><td>2</td><td>佐藤 花子</td></tr>
+        <tr><td>3</td><td>鈴木 一郎</td></tr>
+        <tr><td>4</td><td>山田 次郎</td></tr>
+        <tr><td>5</td><td>伊藤 三郎</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th></tr>
+        <tr><td>101</td><td>1</td><td>5000</td></tr>
+        <tr><td>102</td><td>3</td><td>3200</td></tr>
+        <tr><td>103</td><td>1</td><td>8800</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>一度も注文していないユーザー（orders に存在しない）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>name</th></tr>
+<tr><td>2</td><td>佐藤 花子</td></tr>
+<tr><td>4</td><td>山田 次郎</td></tr>
+<tr><td>5</td><td>伊藤 三郎</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px">※ user_id:1(2件) / user_id:3(1件) は orders に存在するため除外</p>`,
+  answer: `<pre><span class="kw">SELECT</span>                             <span class="cmt">-- 【超基礎】列の選択</span>
+  u.user_id,                        <span class="cmt">-- ユーザーID</span>
+  u.name                            <span class="cmt">-- ユーザー名</span>
+<span class="kw">FROM</span>  <span class="tbl">users</span> u                       <span class="cmt">-- 【超基礎】メインとなる対象テーブル</span>
+<span class="kw">WHERE</span> <span class="kw">NOT EXISTS</span> (                  <span class="cmt">-- 【超基礎】カッコ内のクエリ結果が「0件」ならTRUEになる条件式</span>
+  <span class="kw">SELECT</span> <span class="num">1</span>                          <span class="cmt">-- EXISTS内は値は何でも良いので、慣例的に「1」を返す</span>
+  <span class="kw">FROM</span>   <span class="tbl">orders</span> o                  <span class="cmt">-- 【超基礎】チェック対象のテーブル</span>
+  <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id      <span class="cmt">-- 【超基礎】外側のクエリの行と関連付ける条件（相関サブクエリ）</span>
+)
+<span class="kw">ORDER BY</span> u.user_id <span class="kw">ASC</span>;            <span class="cmt">-- 【超基礎】昇順並び替え</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. FROM users u              → 【超基礎】users テーブルの各行に対して順に処理
+  2. NOT EXISTS (サブクエリ)   → 【超基礎】orders に u.user_id が存在するか確認する
+     - 存在すれば FALSE (除外)
+     - 存在しなければ TRUE (残る)
+  3. SELECT u.user_id, u.name  → 【超基礎】残った行から列を選択
+  4. ORDER BY u.user_id ASC    → 【超基礎】昇順に並び替え
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "where", badge: "① NOT EXISTS", bc: "badge-orange", label: "WHERE NOT EXISTS (SELECT 1 FROM orders ...)", desc: "users の各行に対して、orders テーブルに該当する user_id が「存在しない」場合に TRUE になります。", type: "eval",
+        cols: ["u.user_id", "u.name", "ordersに一致あり?", "NOT EXISTS"], ch: ["col-eval", "", "", "col-eval"],
+        rows: [
+          { v: [1, "田中 太郎", "あり（101, 103）", "FALSE"], c: "row-dimmed", cc: ["", "", "", "val-fail"] },
+          { v: [2, "佐藤 花子", "なし", "TRUE"], cc: ["", "", "", "val-pass"] },
+          { v: [3, "鈴木 一郎", "あり（102）", "FALSE"], c: "row-dimmed", cc: ["", "", "", "val-fail"] },
+          { v: [4, "山田 次郎", "なし", "TRUE"], cc: ["", "", "", "val-pass"] },
+          { v: [5, "伊藤 三郎", "なし", "TRUE"], cc: ["", "", "", "val-pass"] }
+        ], cnt: "5行 → 3行"
+      },
+      { id: "select", badge: "② SELECT & ORDER", bc: "badge-green", label: "SELECT & ORDER BY user_id ASC", desc: "NOT EXISTS が TRUE だった未注文ユーザーを出力します。", type: "select",
+        cols: ["user_id", "name"], ch: ["col-select", "col-select"],
+        rows: [
+          { v: [2, "佐藤 花子"] },
+          { v: [4, "山田 次郎"] },
+          { v: [5, "伊藤 三郎"] }
+        ], cnt: "結果: 3行"
+      }
+    ],
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  u.user_id, u.name\n", k: "", h: "select" },
+      { t: "FROM  ", k: "sql-kw", h: "where" }, { t: "users u\n", k: "", h: "where" },
+      { t: "WHERE ", k: "sql-kw", h: "where" }, { t: "NOT EXISTS (\n", k: "sql-kw", h: "where" },
+      { t: "  SELECT 1\n", k: "", h: "where" },
+      { t: "  FROM   orders o\n", k: "", h: "where" },
+      { t: "  WHERE  o.user_id = u.user_id\n", k: "", h: "where" },
+      { t: ")\n", k: "", h: "where" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "u.user_id ASC;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：サブクエリ（副問合せ）とは、SQL文の中に別のSELECT文を入れ込む書き方です。EXISTSは、そのサブクエリが「1件でもデータを返せばTRUEになる」という判定を行うための命令です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">バッチ処理での活用例：「まだメールを送っていないユーザーを取得」<code>NOT EXISTS (SELECT 1 FROM email_logs WHERE user_id = u.user_id)</code>、「未課金ユーザーへのリマインダー送信」など、処理済み/未処理を管理するバッチに頻出。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">SELECT 1 の理由：EXISTS はサブクエリが1行でも返せばTRUEになる。SELECT している列の値は評価されないため、<code>SELECT 1</code>（定数）で書くのが慣例。<code>SELECT *</code> でも動くが意図が伝わりにくい。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">LEFT JOIN + IS NULL との使い分け：両者は同じ結果を返すがクエリプランナーによってパフォーマンスが異なる場合がある。PostgreSQLでは両者を同等に最適化することが多い。可読性から NOT EXISTS の方が意図が明確なのでこちらを推奨。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">NOT IN でのNULL問題：<code>WHERE user_id NOT IN (SELECT user_id FROM orders)</code> は orders.user_id にNULLが1件でも含まれると全件 FALSE になり0件が返る。NOT IN はNULLに弱いため NOT EXISTS を使う方が安全。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">相関サブクエリで外側テーブルの参照を忘れる：<code>WHERE EXISTS (SELECT 1 FROM orders)</code>（<code>WHERE o.user_id = u.user_id</code> なし）はordersに1行でもあれば全ユーザーがTRUEになる。外側テーブルとの結合条件は必須。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：アンチジョイン（NOT EXISTS vs LEFT JOIN）</div>
+<div class="column-body">
+「存在しないデータ」を探す手法（アンチジョイン）として、<code>NOT EXISTS</code> の他に <code>LEFT JOIN + IS NULL</code> を使う方法があります。実行計画（パフォーマンス）はデータベースエンジンによって同等に最適化されることが多いですが、<code>NOT EXISTS</code> の方が「存在チェックをしている」という意図がSQLから明確に読み取れるため、チーム開発での可読性・メンテナンス性の観点から実務で好んで採用されます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10 CASE WHEN — 条件分岐でカテゴリ変換・ラベル付け
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "CASE WHEN — バッチ集計・APIレスポンスで値を条件分岐して変換する",
+  tags: [["r","CASE WHEN"],["r","THEN/ELSE"],["o","値変換"],["g","APIレスポンス"]],
+  premise: `<p><strong>CASE WHEN</strong> はSQLのif-else構文です。SELECT・WHERE・ORDER BY・GROUP BY など様々な場所で使えます。APIレスポンスでDBの値をラベル変換したり、集計で条件付きカウントを行うバッチ処理に頻出です。</p>
+<pre><span class="cmt">-- 単純CASE（列の値を列挙して分岐）</span>
+<span class="kw">CASE</span> col1
+  <span class="kw">WHEN</span> <span class="str">'val1'</span> <span class="kw">THEN</span> <span class="str">'表示A'</span>         <span class="cmt">-- col1 = 'val1' のとき</span>
+  <span class="kw">WHEN</span> <span class="str">'val2'</span> <span class="kw">THEN</span> <span class="str">'表示B'</span>         <span class="cmt">-- col1 = 'val2' のとき</span>
+  <span class="kw">ELSE</span> <span class="str">'その他'</span>                    <span class="cmt">-- どれにも一致しない場合（省略すると NULL）</span>
+<span class="kw">END</span>                                <span class="cmt">-- CASE は必ず END で閉じる</span>
+
+<span class="cmt">-- 検索CASE（任意の条件式で分岐・より汎用的）</span>
+<span class="kw">CASE</span>
+  <span class="kw">WHEN</span> col2 <span class="op">&gt;</span> <span class="num">100</span> <span class="kw">THEN</span> <span class="str">'大'</span>         <span class="cmt">-- 比較演算子も使える</span>
+  <span class="kw">WHEN</span> col2 <span class="op">&gt;</span> <span class="num">50</span>  <span class="kw">THEN</span> <span class="str">'中'</span>         <span class="cmt">-- 上から順に評価し最初に一致した THEN を返す</span>
+  <span class="kw">ELSE</span> <span class="str">'小'</span>
+<span class="kw">END</span></pre>
+<div class="callout ok"><strong>CASE WHEN の評価順：</strong>上から順に評価し、最初に TRUE になった WHEN ... THEN を返して終了します。残りの条件は評価されません。</div>`,
+  question: `<p><code>orders</code> テーブルから、各注文の <em>amount を基に購買ランク</em>（10000以上:premium / 5000以上:standard / それ未満:basic）をつけ、さらに <em>status を日本語ラベルに変換</em>して返してください。order_id, amount, rank_label, status_label を ordered_at の降順で返してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>amount</th><th>status</th><th>ordered_at</th></tr>
+        <tr><td>1</td><td>12000</td><td>completed</td><td>2024-05-20</td></tr>
+        <tr><td>2</td><td>4800</td><td>pending</td><td>2024-05-18</td></tr>
+        <tr><td>3</td><td>7500</td><td>cancelled</td><td>2024-05-15</td></tr>
+        <tr><td>4</td><td>500</td><td>completed</td><td>2024-05-10</td></tr>
+        <tr><td>5</td><td>5000</td><td>pending</td><td>2024-05-08</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>期待する出力（amount でランク、status を日本語変換）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>amount</th><th>rank_label</th><th>status_label</th></tr>
+<tr><td>1</td><td>12000</td><td>premium</td><td>完了</td></tr>
+<tr><td>2</td><td>4800</td><td>basic</td><td>処理中</td></tr>
+<tr><td>3</td><td>7500</td><td>standard</td><td>キャンセル</td></tr>
+<tr><td>4</td><td>500</td><td>basic</td><td>完了</td></tr>
+<tr><td>5</td><td>5000</td><td>standard</td><td>処理中</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>                             <span class="cmt">-- 【超基礎】列の選択</span>
+  order_id,                         <span class="cmt">-- 注文ID</span>
+  amount,                           <span class="cmt">-- 注文金額</span>
+
+  <span class="cmt">-- 購買ランクの条件分岐</span>
+  <span class="kw">CASE</span>                               <span class="cmt">-- 【超基礎】条件分岐の開始</span>
+    <span class="kw">WHEN</span> amount <span class="op">&gt;=</span> <span class="num">10000</span> <span class="kw">THEN</span> <span class="str">'premium'</span>   <span class="cmt">-- 【超基礎】条件式がTRUEなら指定の値を返す</span>
+    <span class="kw">WHEN</span> amount <span class="op">&gt;=</span>  <span class="num">5000</span> <span class="kw">THEN</span> <span class="str">'standard'</span>  <span class="cmt">-- 上から順に評価される</span>
+    <span class="kw">ELSE</span>                       <span class="str">'basic'</span>     <span class="cmt">-- 【超基礎】どの条件にも合致しない場合のデフォルト値</span>
+  <span class="kw">END</span> <span class="kw">AS</span> rank_label,                <span class="cmt">-- 【超基礎】分岐を終了(END)し、出力列名を付ける(AS)</span>
+
+  <span class="cmt">-- status を日本語ラベルに変換</span>
+  <span class="kw">CASE</span> status                       <span class="cmt">-- 【超基礎】特定の列の値を直接判定する書き方</span>
+    <span class="kw">WHEN</span> <span class="str">'completed'</span> <span class="kw">THEN</span> <span class="str">'完了'</span>      
+    <span class="kw">WHEN</span> <span class="str">'pending'</span>   <span class="kw">THEN</span> <span class="str">'処理中'</span>    
+    <span class="kw">WHEN</span> <span class="str">'cancelled'</span> <span class="kw">THEN</span> <span class="str">'キャンセル'</span> 
+    <span class="kw">ELSE</span> <span class="str">'不明'</span>                       <span class="cmt">-- 想定外の値への備え</span>
+  <span class="kw">END</span> <span class="kw">AS</span> status_label                
+
+<span class="kw">FROM</span>   <span class="tbl">orders</span>                        <span class="cmt">-- 【超基礎】対象テーブル</span>
+<span class="kw">ORDER BY</span> ordered_at <span class="kw">DESC</span>;           <span class="cmt">-- 【超基礎】降順並び替え</span>
+
+<span class="cmt">/*
+  実行順序（SQLの論理的な評価順）:
+  1. FROM orders               → 【超基礎】全行読み込み
+  2. CASE（rank_label）        → 【超基礎】各行の amount を評価してランクを決定する
+  3. CASE（status_label）      → 【超基礎】status の値に応じて日本語に変換する
+  4. SELECT order_id, ...      → 【超基礎】CASEの結果を含めて列を選択する
+  5. ORDER BY ordered_at DESC  → 【超基礎】降順に並び替え
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "case1", badge: "① CASE WHEN (amount)", bc: "badge-orange", label: "CASE WHEN amount >= ... THEN ...", desc: "amount の値を上から順に評価し、最初に条件を満たしたランク（premium / standard / basic）を割り当てます。", type: "eval",
+        cols: ["order_id", "amount", "rank_label"], ch: ["", "col-eval", "col-eval"],
+        rows: [
+          { v: [1, 12000, "premium"], c: "row-grp-3", cc: ["", "val-pass", "val-pass"] },
+          { v: [2, 4800, "basic"], c: "row-grp-1", cc: ["", "val-fail", "val-pass"] },
+          { v: [3, 7500, "standard"], c: "row-grp-2", cc: ["", "val-pass", "val-pass"] },
+          { v: [4, 500, "basic"], c: "row-grp-1", cc: ["", "val-fail", "val-pass"] },
+          { v: [5, 5000, "standard"], c: "row-grp-2", cc: ["", "val-pass", "val-pass"] }
+        ], cnt: "ランク判定完了"
+      },
+      { id: "case2", badge: "② CASE (status)", bc: "badge-green", label: "CASE status WHEN 'completed' THEN '完了' ...", desc: "status の値に応じて日本語のラベルに変換します。変換後、ordered_at の降順で出力します。", type: "select",
+        cols: ["order_id", "amount", "rank_label", "status_label"], ch: ["col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: [1, 12000, "premium", "完了"] },
+          { v: [2, 4800, "basic", "処理中"] },
+          { v: [3, 7500, "standard", "キャンセル"] },
+          { v: [4, 500, "basic", "完了"] },
+          { v: [5, 5000, "standard", "処理中"] }
+        ], cnt: "結果: 5行"
+      }
+    ],
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "case1 case2" },
+      { t: "  order_id, amount,\n", k: "", h: "case1 case2" },
+      { t: "  CASE\n", k: "sql-kw", h: "case1" },
+      { t: "    WHEN amount >= 10000 THEN 'premium'\n", k: "", h: "case1" },
+      { t: "    WHEN amount >=  5000 THEN 'standard'\n", k: "", h: "case1" },
+      { t: "    ELSE 'basic'\n", k: "", h: "case1" },
+      { t: "  END AS rank_label,\n", k: "", h: "case1" },
+      { t: "  CASE status\n", k: "sql-kw", h: "case2" },
+      { t: "    WHEN 'completed' THEN '完了'\n", k: "", h: "case2" },
+      { t: "    WHEN 'pending'   THEN '処理中'\n", k: "", h: "case2" },
+      { t: "    WHEN 'cancelled' THEN 'キャンセル'\n", k: "", h: "case2" },
+      { t: "    ELSE '不明'\n", k: "", h: "case2" },
+      { t: "  END AS status_label\n", k: "", h: "case2" },
+      { t: "FROM   ", k: "sql-kw", h: "case1 case2" }, { t: "orders\n", k: "", h: "case1 case2" },
+      { t: "ORDER BY ", k: "sql-kw", h: "case2" }, { t: "ordered_at DESC;", k: "", h: "case2" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body">超基礎：CASE WHEN は、SQLの中で使える「If-Else文（条件分岐）」です。条件に合致したときに返す値を指定でき、データの表示名を変えたり、グループ分けをしたりする際にとても便利です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body">APIレスポンスの変換層として活用：DBにはコード値（'completed'）を保存し、APIレスポンスはCASE WHENでラベル変換して返すパターンが実務標準。アプリ側で変換するより1クエリで完結するため効率的。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body">条件付き集計への応用：<code>SUM(CASE WHEN status='completed' THEN amount ELSE 0 END)</code> のように集計関数と組み合わせると「特定条件の合計金額だけ集計」ができる。GROUP BY と組み合わせてKPI集計に頻用される。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body">ELSEは常に書く：ELSEを省略すると一致しない値がNULLになり、APIレスポンスにNULLが混入して予期しないエラーを引き起こす。想定外の値のフォールバックとして必ず <code>ELSE '不明'</code> などを書く習慣が重要。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">WHEN の順序を間違える（検索CASEの落とし穴）：<code>WHEN amount >= 5000 THEN 'standard' WHEN amount >= 10000 THEN 'premium'</code> と順番を逆にすると、12000は最初のWHEN（>=5000）で 'standard' に確定してしまい 'premium' に到達しない。上から順に評価される点を必ず意識すること。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body">END を忘れる：CASE は必ず END で閉じなければならない。CASEのネストや複数CASE使用時に END の数が合わないとエラーになる。書いたCASEと同じ数のENDがあるか確認すること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：ビジネスロジックはアプリ側か？DB側か？</div>
+<div class="column-body">
+CASE WHEN を使えば複雑な条件分岐をSQL内で完結できますが、多用しすぎると「仕様変更のたびにSQLを修正する」ことになり、バックエンドコード（アプリ側）との二重管理になりがちです。実務でのベストプラクティスは、「データの絞り込み・集約に関する条件はDB（SQL）に任せ、表示用の単純なラベル変換や細かなフォーマット調整はアプリ側（フロントエンドやBFF）に任せる」という役割分担を明確にすることです。
+</div>
+</div>
+`
+}
+
+];
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p', fn:'tag-p'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c] || 'tag-r'}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力','期待出力',q.output)}
+      ${acc('✅','pill-red','解答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',
+        (q.viz ? `<div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1"></div>` : '') + q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  QS.forEach((q, i) => { if (q.viz) initVisualizer(document.getElementById('viz-' + i), q.viz); });
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !wasMobile);
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !isMobile);
+  }
+});
+</script>
+</body>
+</html>
