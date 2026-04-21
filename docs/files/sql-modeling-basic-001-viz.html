@@ -1,0 +1,2458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQLデータモデリング10選 — 正規化・主キー・FK・リレーション・NULL設計・型選択（基礎編）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== CSS変数（カラートークン） ===== */
+  :root {
+    --bg:     #0a0e13;
+    --bg2:    #131920;
+    --bg3:    #1c2330;
+    --bg4:    #263040;
+    --border: #2a3545;
+    --text:   #cdd9e5;
+    --dim:    #768390;
+    --accent: #4dabf7;   /* メインアクセント：青 */
+    --green:  #3fb950;
+    --orange: #f0883e;
+    --red:    #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    /* シンタックスハイライト */
+    --kw:  #ff7b72;   /* キーワード */
+    --fn:  #79c0ff;   /* 関数 */
+    --str: #a5d6ff;   /* 文字列 */
+    --num: #f0c674;   /* 数値 */
+    --cmt: #6a737d;   /* コメント */
+    --tbl: #ffa657;   /* テーブル名 */
+    --op:  #f0883e;   /* 演算子 */
+  }
+
+  /* ===== リセット & ベース ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  /* ===== サイトヘッダー ===== */
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex  { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags  { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim);
+  }
+
+  /* ===== タブ（スティッキー） ===== */
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row     { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none;
+    border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+
+  /* ===== プログレスバー ===== */
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  /* ===== メインコンテンツ ===== */
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel       { display: none; }
+  .panel.active { display: block; }
+
+  /* ===== 問題ヘッダー ===== */
+  .q-header   { margin-bottom: 18px; }
+  .q-number   { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title    { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags     { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag      { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r      { background: #1a2c44; color: var(--accent);  border: 1px solid #1e4070; }
+  .tag-g      { background: #162416; color: var(--green);   border: 1px solid #1e3a1e; }
+  .tag-o      { background: #2e1e0a; color: var(--orange);  border: 1px solid #4a2e0a; }
+  .tag-p      { background: #1e1433; color: var(--purple);  border: 1px solid #3a2060; }
+
+  /* ===== アコーディオン ===== */
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head {
+    display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+    cursor: pointer; user-select: none;
+  }
+  .acc-head:hover  { background: var(--bg3); }
+  .acc-icon        { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title       { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill        { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron     { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body        { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  /* ===== 本文テキスト ===== */
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em     { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code   { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  /* ===== コードブロック ===== */
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  /* シンタックスハイライト用クラス */
+  .kw  { color: var(--kw);  font-weight: 700; }
+  .fn  { color: var(--fn);  }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--op);  }
+
+  /* ===== コールアウト ===== */
+  .callout        { border-left: 3px solid var(--accent); background: #0e1e33; padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px; }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  /* ===== データセクション（テーブル表示） ===== */
+  .data-section  { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables   { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  /* ===== データテーブル ===== */
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+
+  /* ===== インサイトボックス ===== */
+  .insight-box   { background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px; padding: 14px 16px; margin-top: 14px; }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row   { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon  { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em     { color: var(--yellow); }
+  .insight-body code   { font-size: 11px; }
+
+  /* ===== アンチパターンボックス ===== */
+  .anti-box   { background: #160a0a; border: 1px solid #3a1515; border-radius: 8px; padding: 14px 16px; margin-top: 10px; }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row   { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code   { font-size: 11px; }
+
+  /* ===== コラムボックス ===== */
+  .column-box   { background: #0d1520; border: 1px solid #1c3550; border-radius: 8px; padding: 14px 16px; margin-top: 10px; border-left: 3px solid var(--fn); }
+  .column-title { font-size: 11px; font-weight: 700; color: var(--fn); letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .column-body  { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--fn); }
+
+  /* ===== ナビゲーションバー ===== */
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  /* ===== レスポンシブ ===== */
+  @media (max-width: 520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title      { font-size: 15px; }
+    pre           { font-size: 11px; padding: 10px; }
+    table.vtbl    { font-size: 10.5px; }
+    .acc-title    { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main          { padding: 16px 10px 60px; }
+    .data-tables  { flex-direction: column; }
+  }
+
+  /* ===== SQL ステップビジュアライザー ===== */
+  .sql-viz-wrapper {
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    --font-sans: system-ui, -apple-system, sans-serif;
+    --color-bg-base:    #0d1117;
+    --color-bg-panel:   #161b22;
+    --color-border-main:#30363d;
+    --color-border-sub: #21262d;
+    --color-txt-main:   #e6edf3;
+    --color-txt-sub:    #8b949e;
+    --color-txt-muted:  #6e7681;
+    --sql-blue-bg:    rgba(88, 166, 255, 0.15);  --sql-blue-txt:   #58a6ff;  --sql-blue-bd:    #1f6feb;
+    --sql-orange-bg:  rgba(227, 137, 59, 0.15);  --sql-orange-txt: #e3893b;  --sql-orange-bd:  #7d4e00;
+    --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
+    --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
+    --sql-grp1-bg: rgba(88, 166, 255, 0.03);
+    --sql-grp2-bg: rgba(88, 166, 255, 0.08);
+    --sql-grp3-bg: rgba(88, 166, 255, 0.14);
+    --border-radius: 6px;
+    background: var(--color-bg-base);
+    color: var(--color-txt-main);
+    font-family: var(--font-sans);
+    min-height: auto;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .sql-viz-wrapper .sv-nav-btn { padding: 6px 16px; border: 1px solid var(--color-border-sub); border-radius: var(--border-radius); font-size: 11px; background: var(--color-bg-panel); color: var(--color-txt-main); cursor: pointer; transition: all 0.2s; }
+  .sql-viz-wrapper .sv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sql-viz-wrapper .sv-nav-btn:not(:disabled):hover { border-color: var(--color-border-main); background: #1f2a38; }
+  .sql-viz-wrapper .sv-nav-btn:focus-visible, .sql-viz-wrapper .sv-dot:focus-visible { outline: 2px solid var(--sql-blue-txt); outline-offset: 2px; }
+  .sql-viz-wrapper .sv-dot { height: 6px; border: none; background: var(--color-border-sub); border-radius: 3px; cursor: pointer; padding: 0; transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s; flex-shrink: 0; width: 8px; }
+  .sql-viz-wrapper .sv-dot.done { background: var(--color-border-main); }
+  .sql-viz-wrapper .sv-dot.active { background: var(--sql-blue-txt); width: 24px; }
+  .sql-viz-wrapper .sv-table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 10px; }
+  .sql-viz-wrapper .sv-table th { padding: 6px 12px; font-size: 9px; font-weight: 600; border: 1px solid var(--color-border-sub); text-align: left; transition: all 0.3s ease; white-space: nowrap; }
+  .sql-viz-wrapper .sv-table td { padding: 6px 12px; border: 1px solid var(--color-border-sub); white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main); transition: background 0.3s ease, opacity 0.3s ease; }
+  .sql-viz-wrapper .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
+  .sql-viz-wrapper .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
+  .sql-viz-wrapper .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+  .sql-viz-wrapper .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
+  .sql-viz-wrapper .sv-table tr.row-grp-1 td { background: var(--sql-grp1-bg); }
+  .sql-viz-wrapper .sv-table tr.row-grp-2 td { background: var(--sql-grp2-bg); }
+  .sql-viz-wrapper .sv-table tr.row-grp-3 td { background: var(--sql-grp3-bg); }
+  .sql-viz-wrapper .sv-table td.val-pass   { background: var(--sql-green-bg) !important; border-left: 2px solid var(--sql-green-txt); color: var(--sql-green-txt); font-weight: 600; }
+  .sql-viz-wrapper .sv-table td.val-fail   { background: var(--sql-red-bg) !important; border-left: 2px solid var(--sql-red-txt); color: var(--sql-red-txt); text-decoration: line-through; opacity: 0.7; }
+  .sql-viz-wrapper .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
+  .sql-viz-wrapper .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
+  .sql-viz-wrapper .sql-hl-from, .sql-viz-wrapper .sql-hl-join { background: var(--sql-blue-bg); border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt); }
+  .sql-viz-wrapper .sql-hl-where, .sql-viz-wrapper .sql-hl-group, .sql-viz-wrapper .sql-hl-having, .sql-viz-wrapper .sql-hl-agg, .sql-viz-wrapper .sql-hl-sub { background: var(--sql-orange-bg); border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt); }
+  .sql-viz-wrapper .sql-hl-select { background: var(--sql-green-bg); border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt); }
+  .sql-viz-wrapper .sv-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: 600; letter-spacing: 0.02em; }
+  .sql-viz-wrapper .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
+  .sql-viz-wrapper .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
+  .sql-viz-wrapper .badge-green  { background: var(--sql-green-bg);  color: var(--sql-green-txt);  border: 1px solid var(--sql-green-bd); }
+  .sql-viz-wrapper .tbl-label { font-size: 9px; font-weight: 500; color: var(--color-txt-sub); margin-bottom: 6px; }
+  .sql-viz-wrapper .sv-mobile-collapse summary::-webkit-details-marker { display: none; }
+  .sql-viz-wrapper .sv-mobile-collapse summary { list-style: none; }
+  .sql-viz-wrapper .sv-collapse-icon { transition: transform 0.2s ease; display: inline-block; }
+  .sql-viz-wrapper .sv-mobile-collapse[open] .sv-collapse-icon { transform: rotate(180deg); }
+  @keyframes sv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sv-animate { animation: sv-fade-in 0.3s ease forwards; }
+  @media (min-width: 641px) { .sql-viz-wrapper .sv-mobile-collapse > summary { pointer-events: none; } .sql-viz-wrapper .sv-collapse-icon { display: none !important; } }
+  @media (max-width: 640px) { .sql-viz-wrapper .sv-sidebar { flex: 1 1 100% !important; min-width: 100% !important; } }
+</style>
+</head>
+<body>
+
+<!-- ===== サイトヘッダー ===== -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">MODEL</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">データモデリングで学ぶ SQL 基礎10選（正規化／主キー／外部キー／1対多・多対多リレーション／NULL設計／型選択／論理削除／ステータス管理／監査カラム設計）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★ 基礎</span>
+      <span class="htag">データモデリング</span>
+      <span class="htag">テーブル設計</span>
+      <span class="htag">PostgreSQL対応</span>
+    </div>
+  </div>
+</header>
+
+<!-- ===== スティッキータブ ===== -->
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+/* ========================================================
+   SQL ステップビジュアライザー
+   initVisualizer(root, data) — 単一ルート要素にビジュアライザーを初期化する
+   root : .sql-viz-wrapper 要素
+   data : { steps: Step[], sql: Token[] }
+======================================================== */
+function initVisualizer(root, data) {
+  if (!root || !data) return;
+  let currentStepIndex = 0;
+
+  function getLegendHTML(type) {
+    const mkLegend = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dimLegend =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const passFail =
+      `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:9px;">✓ 通過</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:9px;">✗ 除外</span></div>
+      </div>`;
+    if (type === "base")   return mkLegend("blue", "データ取得・結合対象") + dimLegend;
+    if (type === "eval")   return mkLegend("orange", "評価対象の列・キー") + dimLegend + passFail;
+    if (type === "group")  return mkLegend("orange", "グループ化キー・集計対象") + `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === "select") return mkLegend("green", "出力対象の列") + dimLegend;
+    return "";
+  }
+
+  function renderSQL(step) {
+    return data.sql.map(t => {
+      const isMatch = t.h && t.h.split(" ").includes(step.id);
+      const cls = `${t.k || ""} ${isMatch ? `sql-hl-${step.id}` : ""}`.trim();
+      return cls ? `<span class="${cls}">${t.t}</span>` : t.t;
+    }).join("");
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:10px 14px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:10px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:9px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:11px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>
+    `;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ""}">${col}</th>`).join("");
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ""}">${val}</td>`).join("");
+      return `<tr class="${r.c || ""}">${tds}</tr>`;
+    }).join("");
+    const labelHtml = label ? `<div class="tbl-label">▸ ${label}</div>` : "";
+    return `<div style="flex:1;min-width:260px;">${labelHtml}<div style="overflow-x:auto;"><table class="sv-table">${thead ? `<thead><tr>${thead}</tr></thead>` : ""}<tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+          ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
+          <div style="display:flex;align-items:center;font-size:20px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+          ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+        </div>
+      `;
+    }
+    return buildTable("", step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? "active" : (i < currentStepIndex ? "done" : "");
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}"></button>`;
+    }).join("");
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:10px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? "disabled" : ""}>← Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? "disabled" : ""}>Next →</button>
+      </div>
+    `;
+  }
+
+  root.innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+        <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:13px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+        <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+          <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+            <span>LEGEND (現在のステップ)</span>
+            <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+          </summary>
+          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+        </details>
+      </div>
+      <div style="flex:1;min-width:300px;">
+        <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+        <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+        <div class="sv-tarea sv-animate"></div>
+        <div class="sv-rowcount" style="font-size:12px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+      </div>
+    </div>
+  `;
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML = renderSQL(step);
+    root.querySelector('.sv-legend').innerHTML = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = window.innerWidth > 640);
+  }
+
+  root.__viz = {
+    next:  () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev:  () => { if (currentStepIndex > 0) { currentStepIndex--; renderAll(); } },
+    goTo:  i  => { if (i >= 0 && i < data.steps.length) { currentStepIndex = i; renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'prev') root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+}
+
+/* ========================================================
+   問題データ定義
+   各問題は以下のキーを持つオブジェクト:
+   num      : 問題番号
+   title    : タイトル
+   tags     : [[色, テキスト], ...] の配列
+   premise  : 前提知識 HTML
+   question : 問題 HTML
+   output   : 期待出力 HTML
+   answer   : 模範解答コード（pre 要素の中身）HTML
+   explain  : 解説 HTML
+   viz      : ステップビジュアライザーデータ（Q1-Q5のみ）
+======================================================== */
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  正規化の基礎 — 繰り返し項目と関数従属性
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "正規化の基礎 — 繰り返し列・非正規形から3NFへ",
+  tags: [["r","正規化"],["r","1NF"],["o","関数従属性"],["g","3NF"]],
+  premise: `<p><strong>正規化（Normalization）</strong>とは、テーブルの冗長性（重複・矛盾）を排除し、データの整合性を保ちやすい設計に変換するプロセスです。正規化の段階を<em>第N正規形（NF: Normal Form）</em>と呼びます。</p>
+<div class="callout"><strong>正規化の3つの主要ステップ：</strong><br>
+・<em>第1正規形（1NF）</em> → 繰り返し列・配列列をなくし、1セルに1値だけ持つ<br>
+・<em>第2正規形（2NF）</em> → 部分関数従属（複合PKの一部だけに依存する列）を別テーブルに分離<br>
+・<em>第3正規形（3NF）</em> → 推移的関数従属（非キー列が別の非キー列に依存）を別テーブルに分離</div>
+<p>実務では <em>3NFを目指すことが基本</em> であり、すべてのWebアプリのテーブル設計の土台となります。過度な正規化（5NF以上）はJOINが複雑になり、パフォーマンスとのトレードオフが発生します。</p>`,
+  question: `<p>以下の「非正規形テーブル」には複数の設計上の問題があります。<em>問題を特定し、適切に正規化（3NF）されたテーブル群を設計・作成してください</em>。</p>
+<div class="data-section">
+  <div class="data-label">問題のある非正規形テーブル（orders_bad）</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>order_id</th><th>user_name</th><th>user_email</th><th>user_zip</th><th>user_city</th><th>item1_name</th><th>item1_qty</th><th>item2_name</th><th>item2_qty</th></tr>
+    <tr><td>1</td><td>田中太郎</td><td>tanaka@example.com</td><td>150-0001</td><td>渋谷区</td><td>Tシャツ</td><td>2</td><td>パンツ</td><td>1</td></tr>
+    <tr><td>2</td><td>田中太郎</td><td>tanaka@example.com</td><td>150-0001</td><td>渋谷区</td><td>靴</td><td>1</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+    <tr><td>3</td><td>鈴木花子</td><td>suzuki@example.com</td><td>160-0022</td><td>新宿区</td><td>バッグ</td><td>1</td><td>財布</td><td>1</td></tr>
+  </table></div>
+</div>
+<p>このテーブルの問題点を列挙し、3NFに正規化された<code>CREATE TABLE</code>文を書いてください。</p>`,
+  output: `<p>正規化後のテーブル構成（3テーブルに分離）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>テーブル</th><th>役割</th><th>解消した問題</th></tr>
+<tr class="tr-hi2"><td>users</td><td>ユーザー情報</td><td class="tc-g">ユーザー情報の重複をなくす</td></tr>
+<tr class="tr-hi2"><td>orders</td><td>注文ヘッダー</td><td class="tc-g">1注文 = 1行に整理</td></tr>
+<tr class="tr-hi2"><td>order_items</td><td>注文明細</td><td class="tc-g">繰り返し列（item1/item2）を行に変換</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① ユーザーテーブル（ユーザー情報の重複を排除）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">users</span> (                     <span class="cmt">-- 【超基礎】テーブルを作るコマンド</span>
+    user_id   <span class="fn">SERIAL</span>      <span class="kw">PRIMARY KEY</span>,  <span class="cmt">-- 【超基礎】SERIAL=自動採番の整数, PRIMARY KEY=重複・NULLを許さない主キー</span>
+    name      <span class="fn">VARCHAR</span>(<span class="num">100</span>) <span class="kw">NOT NULL</span>,     <span class="cmt">-- 【超基礎】NOT NULLで空値を禁止</span>
+    email     <span class="fn">VARCHAR</span>(<span class="num">255</span>) <span class="kw">NOT NULL</span>
+              <span class="kw">UNIQUE</span>,                    <span class="cmt">-- 【超基礎】UNIQUEで同じメールアドレスの二重登録を防ぐ</span>
+    zip_code  <span class="fn">VARCHAR</span>(<span class="num">8</span>),               <span class="cmt">-- 郵便番号（任意のためNULL許可）</span>
+    city      <span class="fn">VARCHAR</span>(<span class="num">100</span>)               <span class="cmt">-- 市区町村（任意のためNULL許可）</span>
+);
+<span class="cmt">-- ↑ 田中太郎の情報を「1か所だけ」に集約。注文が増えても住所変更は1行だけ更新すればよい</span>
+
+<span class="cmt">-- ② 注文ヘッダーテーブル（1注文 = 1行）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">orders</span> (
+    order_id   <span class="fn">SERIAL</span>       <span class="kw">PRIMARY KEY</span>,  <span class="cmt">-- 【超基礎】注文ごとの一意なID</span>
+    user_id    <span class="fn">INTEGER</span>      <span class="kw">NOT NULL</span>      <span class="cmt">-- 【超基礎】どのユーザーの注文かを参照する外部キー列</span>
+               <span class="kw">REFERENCES</span> <span class="tbl">users</span>(user_id)  <span class="cmt">-- 【超基礎】REFERENCES = 外部キー制約（usersにない値は登録できない）</span>
+               <span class="kw">ON DELETE CASCADE</span>,         <span class="cmt">-- ユーザー削除時に関連注文も自動削除</span>
+    ordered_at <span class="fn">TIMESTAMPTZ</span> <span class="kw">NOT NULL</span>
+               <span class="kw">DEFAULT</span> <span class="fn">NOW</span>()              <span class="cmt">-- 【超基礎】DEFAULT = 値が省略された時の初期値（現在時刻）</span>
+);
+
+<span class="cmt">-- ③ 注文明細テーブル（繰り返し列 item1/item2 を行に変換）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">order_items</span> (
+    item_id    <span class="fn">SERIAL</span>       <span class="kw">PRIMARY KEY</span>,
+    order_id   <span class="fn">INTEGER</span>      <span class="kw">NOT NULL</span>
+               <span class="kw">REFERENCES</span> <span class="tbl">orders</span>(order_id) <span class="cmt">-- どの注文に属するかを参照</span>
+               <span class="kw">ON DELETE CASCADE</span>,
+    item_name  <span class="fn">VARCHAR</span>(<span class="num">200</span>) <span class="kw">NOT NULL</span>,     <span class="cmt">-- 商品名</span>
+    quantity   <span class="fn">INTEGER</span>      <span class="kw">NOT NULL</span>
+               <span class="kw">CHECK</span> (quantity <span class="op">&gt;</span> <span class="num">0</span>)       <span class="cmt">-- 【超基礎】CHECK制約で不正値（0以下）を防ぐ</span>
+);
+
+<span class="cmt">/*
+  正規化で解消した問題一覧:
+  NG1: item1_name/item1_qty/item2_name/item2_qty という「繰り返し列」（1NF違反）
+       → order_items テーブルで「1行1商品」に変換
+  NG2: user_name/user_email/user_zip/user_city がordersに重複（更新時異常）
+       → users テーブルに分離して参照（外部キー）で紐付け
+  NG3: user_city が user_zip に依存（推移的従属, 3NF違反）
+       → users テーブル内に閉じることで整理
+
+  実行順序（CREATE TABLE の依存関係）:
+  1. CREATE TABLE users       → 参照される側（親）を先に作る
+  2. CREATE TABLE orders      → usersを参照（子）
+  3. CREATE TABLE order_items → ordersを参照（孫）
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① 非正規形（orders_bad）", bc: "badge-blue",
+        label: "繰り返し列と重複データが問題",
+        desc: "item1/item2 という繰り返し列（1NF違反）と、田中太郎の住所情報が複数行に重複している（更新時異常）。正規化で3テーブルに分離する。",
+        type: "base",
+        cols: ["order_id", "user_name", "item1_name", "item1_qty", "item2_name", "item2_qty"],
+        ch: ["", "", "col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: [1, "田中太郎", "Tシャツ", 2, "パンツ", 1] },
+          { v: [2, "田中太郎", "靴", 1, "NULL", "NULL"], cc: ["", "", "", "", "val-dimmed", "val-dimmed"] },
+          { v: [3, "鈴木花子", "バッグ", 1, "財布", 1] }
+        ],
+        cnt: "3行（繰り返し列が問題）" },
+      { id: "where", badge: "② order_items（正規化後）", bc: "badge-orange",
+        label: "繰り返し列を廃止 → 1行1商品に変換",
+        desc: "item1/item2 という横方向の繰り返しを廃止し、order_id で紐付けた縦方向の行に変換。商品が増えても列追加不要になる（1NF解消）。",
+        type: "eval",
+        cols: ["item_id", "order_id", "item_name", "quantity"],
+        ch: ["", "col-eval", "col-eval", "col-eval"],
+        rows: [
+          { v: [1, 1, "Tシャツ", 2], cc: ["", "", "val-pass", "val-pass"] },
+          { v: [2, 1, "パンツ", 1],  cc: ["", "", "val-pass", "val-pass"] },
+          { v: [3, 2, "靴", 1],     cc: ["", "", "val-pass", "val-pass"] },
+          { v: [4, 3, "バッグ", 1],  cc: ["", "", "val-pass", "val-pass"] }
+        ],
+        cnt: "4行（1行1商品に整理）" },
+      { id: "select", badge: "③ users（正規化後）", bc: "badge-green",
+        label: "ユーザー情報を1テーブルに集約",
+        desc: "田中太郎の情報を1行だけ保持。ordersはuser_idで参照する。メールアドレス変更は1行更新で済み、更新時異常が解消される。",
+        type: "select",
+        cols: ["user_id", "name", "email", "zip_code", "city"],
+        ch: ["col-select", "col-select", "col-select", "", ""],
+        rows: [
+          { v: [1, "田中太郎", "tanaka@example.com", "150-0001", "渋谷区"] },
+          { v: [2, "鈴木花子", "suzuki@example.com", "160-0022", "新宿区"] }
+        ],
+        cnt: "2行（重複なし）" }
+    ],
+    sql: [
+      { t: "CREATE TABLE ", k: "sql-kw", h: "select" }, { t: "users", k: "", h: "select" },
+      { t: " (\n  user_id   SERIAL PRIMARY KEY,\n  name      VARCHAR(100) NOT NULL,\n  email     VARCHAR(255) NOT NULL UNIQUE,\n  zip_code  VARCHAR(8),\n  city      VARCHAR(100)\n);\n\n", k: "", h: "select" },
+      { t: "CREATE TABLE ", k: "sql-kw", h: "from" }, { t: "orders", k: "", h: "from" },
+      { t: " (\n  order_id   SERIAL PRIMARY KEY,\n  user_id    INTEGER NOT NULL\n             REFERENCES users(user_id)\n             ON DELETE CASCADE,\n  ordered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\n", k: "", h: "from" },
+      { t: "CREATE TABLE ", k: "sql-kw", h: "where" }, { t: "order_items", k: "", h: "where" },
+      { t: " (\n  item_id   SERIAL PRIMARY KEY,\n  order_id  INTEGER NOT NULL\n            REFERENCES orders(order_id)\n            ON DELETE CASCADE,\n  item_name VARCHAR(200) NOT NULL,\n  quantity  INTEGER NOT NULL CHECK (quantity > 0)\n);", k: "", h: "where" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>正規化の最初のチェックは「1セルに複数の値が入っていないか」「同じ情報が複数の行に重複していないか」の2点です。繰り返し列（item1,item2…）や同じユーザー情報が複数行に現れる設計はアンチパターンです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>更新時異常（Update Anomaly）：</strong>田中太郎のメールアドレスが変わったとき、非正規形では「田中太郎が登場する全行」を更新する必要があります。1行だけ更新し忘れるとデータが矛盾します（更新時異常）。正規化するとusersの1行を更新するだけで済みます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>正規化の実務的な境界線：</strong>3NFで設計しておけばほぼすべての更新時異常を防げます。ECサイトのような構造では users / orders / order_items の3テーブル分割が基本パターンで、実務でも最も頻出の設計です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>配列・JSON列で繰り返し項目を1列に詰め込む：</strong><code>items TEXT DEFAULT '[]'</code>のようにJSON配列を1列に詰めると1NFを満たさず、SQLで集計・検索が困難になります。後から「特定商品を含む注文を集計したい」という要件が出た際に詰みます。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>過度な正規化（4NF・5NF）：</strong>実務では3NFで十分なケースがほとんどです。過度に正規化するとJOINが増えてクエリが複雑になり、パフォーマンスも悪化します。「読み取りが多いテーブルは意図的に非正規化（denormalize）する」という逆の選択も設計の判断として重要です。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：注文履歴の「スナップショット」問題</div>
+<div class="column-body">
+正規化したorder_itemsには<code>item_name</code>だけを持ちましたが、実務では商品名・価格が後から変更された場合に「注文当時の価格」が変わってしまう問題があります。そのため、<strong>order_items に price_at_order（注文時単価）列を持たせて注文時点の値をスナップショットする</strong>設計がECサイトの実務標準です。これはあえて冗長性を持たせる「意図的な非正規化」の例です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  主キー設計 — サロゲートキー vs 自然キー
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "主キー設計 — サロゲートキー・UUIDと自然キーの使い分け",
+  tags: [["r","PRIMARY KEY"],["r","UUID"],["o","サロゲートキー"],["g","自然キー"]],
+  premise: `<p><strong>主キー（Primary Key）</strong>はテーブルの各行を一意に識別する列（または列の組み合わせ）です。主キーには「DBが自動生成する<em>サロゲートキー</em>」と「業務的に意味を持つ値を使う<em>自然キー</em>」の2種類のアプローチがあります。</p>
+<div class="callout"><strong>代表的な主キー型：</strong><br>
+・<code>SERIAL / BIGSERIAL</code> → 自動採番整数（1,2,3…）。シンプルで結合効率が良い<br>
+・<code>UUID</code> → 128ビットのランダム文字列。分散DB・複数サービス間のID衝突を防ぐ<br>
+・<code>自然キー</code> → メールアドレス・電話番号・マイナンバーなど業務上の一意値をPKにする</div>
+<p>PostgreSQL 13以降では <code>gen_random_uuid()</code> でUUIDを生成でき、16以降では <code>GENERATED ALWAYS AS IDENTITY</code> が推奨の自動採番方式です。</p>`,
+  question: `<p>以下の3つのテーブルを適切な主キー型で設計してください。①<em>内部的な注文管理テーブル</em>（結合が多い）、②<em>外部APIに公開するAPIトークンテーブル</em>（URLに含まれる）、③<em>社員テーブル</em>（社員番号が一意の業務キー）の3パターンです。選択した理由もコメントで示してください。</p>`,
+  output: `<p>各テーブルの主キー設計方針：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>テーブル</th><th>推奨PKの型</th><th>理由</th></tr>
+<tr class="tr-hi2"><td>orders（内部管理）</td><td class="tc-g">BIGSERIAL（自動採番整数）</td><td>JOIN効率が高い、Storage小</td></tr>
+<tr class="tr-hi2"><td>api_tokens（公開URL）</td><td class="tc-g">UUID</td><td>推測困難でセキュア</td></tr>
+<tr class="tr-hi3"><td>employees（社員番号）</td><td class="tc-p">自然キー＋サロゲートキー併用</td><td>業務キーでの検索 + 結合効率</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 内部管理テーブル：BIGSERIAL（自動採番整数）を使用</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">orders</span> (
+    order_id   <span class="fn">BIGSERIAL</span>    <span class="kw">PRIMARY KEY</span>,  <span class="cmt">-- 【超基礎】BIGSERIAL=大きな整数の自動採番。JOIN・インデックスが効率的</span>
+    user_id    <span class="fn">BIGINT</span>       <span class="kw">NOT NULL</span>,     <span class="cmt">-- 外部キーも整数なので比較が高速</span>
+    ordered_at <span class="fn">TIMESTAMPTZ</span> <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="fn">NOW</span>()
+);
+<span class="cmt">-- 整数PKは: ① 4～8バイトと小さい ② B-Treeインデックスが最も効率的
+--           ③ JOIN先も整数なので結合が高速 ④ 連番なのでデバッグ時に追いやすい</span>
+
+<span class="cmt">-- ② APIトークンテーブル：UUIDを使用（URLに含まれる・外部公開される）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">api_tokens</span> (
+    token_id   <span class="fn">UUID</span>         <span class="kw">PRIMARY KEY</span>
+               <span class="kw">DEFAULT</span> <span class="fn">gen_random_uuid</span>(),   <span class="cmt">-- 【超基礎】UUIDをデフォルトで自動生成（PostgreSQL 13+）</span>
+    user_id    <span class="fn">BIGINT</span>       <span class="kw">NOT NULL</span>,
+    token_hash <span class="fn">VARCHAR</span>(<span class="num">64</span>) <span class="kw">NOT NULL</span> <span class="kw">UNIQUE</span>,  <span class="cmt">-- APIトークンはハッシュ化して保存（平文保存はNG）</span>
+    expires_at <span class="fn">TIMESTAMPTZ</span>                    <span class="cmt">-- NULL = 有効期限なし</span>
+);
+<span class="cmt">-- UUIDは: ① 推測困難（セキュリティ） ② 複数DBやマイクロサービス間でID衝突なし
+--         ③ 欠点はストレージが16バイト・整数より結合が遅い</span>
+
+<span class="cmt">-- ③ 社員テーブル：サロゲートキー＋自然キー（業務キー）の併用</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">employees</span> (
+    employee_id     <span class="fn">BIGSERIAL</span>    <span class="kw">PRIMARY KEY</span>,  <span class="cmt">-- サロゲートキー（内部結合用・変わらない）</span>
+    employee_number <span class="fn">VARCHAR</span>(<span class="num">20</span>) <span class="kw">NOT NULL</span>
+                    <span class="kw">UNIQUE</span>,                    <span class="cmt">-- 【超基礎】業務上の社員番号はUNIQUE制約で一意保証</span>
+    name            <span class="fn">VARCHAR</span>(<span class="num">100</span>) <span class="kw">NOT NULL</span>,
+    department_id   <span class="fn">BIGINT</span>
+);
+<span class="cmt">-- 自然キーの問題：社員番号が「変更される」可能性がある場合、
+-- 自然キーをPKにすると参照先（外部キー）も全部更新が必要になる。
+-- サロゲートキーをPKにしておくと内部IDは不変なので安全。
+-- 業務コードはUNIQUE制約で一意性を保証すればよい。
+
+/*
+  実行順序（CREATE TABLE として）:
+  1. 各テーブルを独立して作成（依存関係がなければ順不同）
+  2. BIGSERIAL/UUID のデフォルト値はINSERT時に自動生成される
+  3. UNIQUE制約は自動的に一意インデックスを作成する
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① 主キー型の比較", bc: "badge-blue",
+        label: "BIGSERIAL / UUID / 自然キー — それぞれの特性",
+        desc: "3種類の主キー型はサイズ・生成方法・推測困難性・結合効率で異なる。用途に合わせて選択することが重要。",
+        type: "base",
+        cols: ["テーブル", "PKの型", "サイズ", "推測困難？", "結合効率", "用途"],
+        ch: ["col-base", "col-base", "", "", "", ""],
+        rows: [
+          { v: ["orders（内部管理）",    "BIGSERIAL", "8 byte", "✗ 連番", "◎ 最高", "JOIN・内部管理"],   cc: ["", "val-pass", "val-pass", "val-fail", "val-pass", ""] },
+          { v: ["api_tokens（公開URL）", "UUID",      "16 byte","✓ 乱数", "△ やや遅い","外部公開ID"],    cc: ["", "val-pass", "",        "val-pass", "",          ""] },
+          { v: ["employees（業務キー）", "BIGSERIAL + UNIQUE", "8 byte","✗ 連番","◎ 最高","業務コード併用"], cc: ["", "val-pass", "val-pass", "",         "val-pass", ""] }
+        ],
+        cnt: "3パターン" },
+      { id: "where", badge: "② IDORリスク（整数PKの外部公開）", bc: "badge-orange",
+        label: "整数PKをURLに使うと連番推測攻撃（IDOR）が可能",
+        desc: "攻撃者が GET /orders/1001 を見ると 1000, 999… と連番で試せる（IDOR）。UUIDは 2^128 通りで推測不可能。外部公開IDにはUUIDを使う。",
+        type: "eval",
+        cols: ["URLの例", "PKの型", "問題"],
+        ch: ["", "col-eval", ""],
+        rows: [
+          { v: ["GET /orders/1001",              "整数PK（連番）", "✗ 連番推測可能（IDOR）"],    cc: ["", "val-fail", "val-fail"] },
+          { v: ["GET /orders/f47ac10b-58cc-...", "UUID（乱数）",  "✓ 2^128通りで推測不可能"], cc: ["", "val-pass", "val-pass"] }
+        ],
+        cnt: "外部公開IDにはUUIDを推奨" }
+    ],
+    sql: [
+      { t: "CREATE TABLE ", k: "sql-kw", h: "from" }, { t: "orders", k: "", h: "from" },
+      { t: " (\n  order_id   BIGSERIAL PRIMARY KEY,\n  user_id    BIGINT NOT NULL,\n  ordered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\n", k: "", h: "from" },
+      { t: "CREATE TABLE ", k: "sql-kw", h: "where" }, { t: "api_tokens", k: "", h: "where" },
+      { t: " (\n  token_id   UUID PRIMARY KEY\n             DEFAULT gen_random_uuid(),\n  user_id    BIGINT NOT NULL,\n  token_hash VARCHAR(64) NOT NULL UNIQUE,\n  expires_at TIMESTAMPTZ\n);\n\n", k: "", h: "where" },
+      { t: "CREATE TABLE ", k: "sql-kw", h: "from" }, { t: "employees", k: "", h: "from" },
+      { t: " (\n  employee_id     BIGSERIAL PRIMARY KEY,\n  employee_number VARCHAR(20) NOT NULL UNIQUE,\n  name            VARCHAR(100) NOT NULL,\n  department_id   BIGINT\n);", k: "", h: "from" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>PRIMARY KEY は「テーブルのすべての行を一意に区別するための列」です。DBは自動的にPKにインデックスを作成するため、PKでの検索・結合は常に高速です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>サロゲートキーの最大の利点：</strong>業務の都合でメールアドレスや社員番号が変わっても、内部IDは変わりません。自然キーをPKにすると変更時に外部キーを持つすべてのテーブルのデータも更新が必要になり、データ整合性の維持が困難になります。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>ULID（UUID v7）という選択肢：</strong>UUIDはランダムなためインデックスのページ分割（ページスプリット）が頻繁に起き書き込みが遅くなります。最近では時刻ソート可能なUUID v7やULIDを使うことでUUIDのセキュリティ特性を保ちながら書き込み効率を改善するアプローチが増えています。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>メールアドレスをPKにする：</strong>メールアドレスは変更される可能性があり、VARCHAR(255)のPKはインデックスが巨大になり結合も遅くなります。メールアドレスはUNIQUE制約だけで一意性を保証し、PKは別のサロゲートキーにするのが正解です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>複合自然キーをPKにする：</strong>（年度 + 部署コード + 連番）のような複合自然キーをPKにすると外部キー参照が煩雑になります。<code>REFERENCES 親(year, dept_code, seq)</code> のように複合外部キーになり、JOIN条件も複数列の結合が必要になります。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：「内部ID」と「外部ID」の分離パターン</div>
+<div class="column-body">
+APIレスポンスに含めるIDと、DBの内部結合に使うIDを分離するパターンが実務で増えています。たとえば注文テーブルで <code>order_id BIGSERIAL PRIMARY KEY</code>（内部結合用）と <code>public_order_id UUID DEFAULT gen_random_uuid() UNIQUE</code>（外部公開用）の両方を持たせる設計です。<strong>「URLに出るIDはUUID、テーブル結合にはBIGINT」</strong>という使い分けで、セキュリティと処理効率を両立させます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  外部キー制約 — 参照整合性とON DELETE動作
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "外部キー制約 — 参照整合性とON DELETE/ON UPDATEの動作",
+  tags: [["r","FOREIGN KEY"],["r","ON DELETE"],["o","参照整合性"],["g","CASCADE"]],
+  premise: `<p><strong>外部キー（Foreign Key）制約</strong>は「このテーブルの列の値は、参照先テーブルの主キーに存在する値でなければならない」というルールをDBレベルで強制します。アプリ側の検証だけに頼らず、DB側でデータの整合性を保証する重要な機能です。</p>
+<div class="callout"><strong>ON DELETE / ON UPDATE の選択肢：</strong><br>
+・<code>RESTRICT</code>（デフォルト）→ 参照されている行の削除・更新を禁止（エラー）<br>
+・<code>CASCADE</code> → 親の削除・更新に合わせて子も自動で削除・更新<br>
+・<code>SET NULL</code> → 親が削除されると子の外部キー列をNULLに更新<br>
+・<code>SET DEFAULT</code> → 親が削除されると子の外部キー列をデフォルト値に更新</div>`,
+  question: `<p>ブログアプリのテーブルを設計します。<em>各テーブルのON DELETE動作を適切に選択</em>してください。要件は①ユーザー削除時に投稿も削除、②投稿削除時にコメントも削除、③タグ削除時は投稿タグの紐付けだけ削除（投稿は残す）、④ユーザー削除時にそのユーザーが書いたコメントは「削除済みユーザー」として残す（NULL化）、の4つです。</p>
+<div class="data-section">
+  <div class="data-label">テーブル関連図（ER図の簡略版）</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>親テーブル</th><th>子テーブル</th><th>ON DELETE の要件</th></tr>
+    <tr class="tr-hi2"><td>users</td><td>posts（投稿）</td><td class="tc-g">CASCADE（ユーザー削除→投稿も削除）</td></tr>
+    <tr class="tr-hi2"><td>posts</td><td>comments（コメント）</td><td class="tc-g">CASCADE（投稿削除→コメントも削除）</td></tr>
+    <tr class="tr-hi3"><td>users</td><td>comments（コメント）</td><td class="tc-p">SET NULL（ユーザー削除→コメントはNULL化）</td></tr>
+    <tr class="tr-hi4"><td>tags</td><td>post_tags（中間）</td><td class="tc-y">CASCADE（タグ削除→紐付けのみ削除）</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>外部キー制約の設計と動作確認：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>操作</th><th>影響を受けるテーブル</th><th>動作</th></tr>
+<tr class="tr-hi"><td>users のユーザーを DELETE</td><td>posts, comments(user_id列)</td><td class="tc-g">posts は CASCADE 削除, comments の user_id は NULL化</td></tr>
+<tr class="tr-hi"><td>posts の投稿を DELETE</td><td>comments, post_tags</td><td class="tc-g">comments・post_tags は CASCADE 削除</td></tr>
+<tr class="tr-hi4"><td>tags のタグを DELETE</td><td>post_tags</td><td class="tc-g">post_tags の紐付けのみ CASCADE 削除</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① ユーザーテーブル（他テーブルの親）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">users</span> (
+    user_id <span class="fn">BIGSERIAL</span>    <span class="kw">PRIMARY KEY</span>,
+    name    <span class="fn">VARCHAR</span>(<span class="num">100</span>) <span class="kw">NOT NULL</span>,
+    email   <span class="fn">VARCHAR</span>(<span class="num">255</span>) <span class="kw">NOT NULL</span> <span class="kw">UNIQUE</span>
+);
+
+<span class="cmt">-- ② タグテーブル（投稿に付けるタグ）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">tags</span> (
+    tag_id <span class="fn">BIGSERIAL</span>   <span class="kw">PRIMARY KEY</span>,
+    name   <span class="fn">VARCHAR</span>(<span class="num">50</span>) <span class="kw">NOT NULL</span> <span class="kw">UNIQUE</span>   <span class="cmt">-- タグ名は重複しない</span>
+);
+
+<span class="cmt">-- ③ 投稿テーブル</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">posts</span> (
+    post_id    <span class="fn">BIGSERIAL</span>    <span class="kw">PRIMARY KEY</span>,
+    user_id    <span class="fn">BIGINT</span>       <span class="kw">NOT NULL</span>          <span class="cmt">-- 投稿者（NULL不可 = 必ず誰かが書いた）</span>
+               <span class="kw">REFERENCES</span> <span class="tbl">users</span>(user_id)
+               <span class="kw">ON DELETE CASCADE</span>,             <span class="cmt">-- 【超基礎】ユーザー削除→投稿も削除（要件①）</span>
+    title      <span class="fn">VARCHAR</span>(<span class="num">300</span>) <span class="kw">NOT NULL</span>,
+    body       <span class="fn">TEXT</span>         <span class="kw">NOT NULL</span>,
+    created_at <span class="fn">TIMESTAMPTZ</span> <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="fn">NOW</span>()
+);
+
+<span class="cmt">-- ④ コメントテーブル（2つの外部キーを持つ）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">comments</span> (
+    comment_id <span class="fn">BIGSERIAL</span>    <span class="kw">PRIMARY KEY</span>,
+    post_id    <span class="fn">BIGINT</span>       <span class="kw">NOT NULL</span>          <span class="cmt">-- どの投稿へのコメントか</span>
+               <span class="kw">REFERENCES</span> <span class="tbl">posts</span>(post_id)
+               <span class="kw">ON DELETE CASCADE</span>,             <span class="cmt">-- 【超基礎】投稿削除→コメントも削除（要件②）</span>
+    user_id    <span class="fn">BIGINT</span>                          <span class="cmt">-- コメント投稿者（NULL可 = 削除済みユーザーを表す）</span>
+               <span class="kw">REFERENCES</span> <span class="tbl">users</span>(user_id)
+               <span class="kw">ON DELETE SET NULL</span>,            <span class="cmt">-- 【超基礎】ユーザー削除→このコメントのuser_idはNULLに（要件④）</span>
+    body       <span class="fn">TEXT</span>         <span class="kw">NOT NULL</span>,
+    created_at <span class="fn">TIMESTAMPTZ</span> <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="fn">NOW</span>()
+);
+
+<span class="cmt">-- ⑤ 投稿タグ中間テーブル（多対多の結合テーブル）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">post_tags</span> (
+    post_id <span class="fn">BIGINT</span> <span class="kw">NOT NULL</span> <span class="kw">REFERENCES</span> <span class="tbl">posts</span>(post_id) <span class="kw">ON DELETE CASCADE</span>,  <span class="cmt">-- 投稿削除→紐付け削除</span>
+    tag_id  <span class="fn">BIGINT</span> <span class="kw">NOT NULL</span> <span class="kw">REFERENCES</span>  <span class="tbl">tags</span>(tag_id)  <span class="kw">ON DELETE CASCADE</span>,  <span class="cmt">-- タグ削除→紐付け削除（要件③）</span>
+    <span class="kw">PRIMARY KEY</span> (post_id, tag_id)                                          <span class="cmt">-- 複合主キーで同じ組み合わせの重複を防ぐ</span>
+);
+
+<span class="cmt">/*
+  外部キー定義の依存関係（CREATE TABLE の順序）:
+  1. users, tags     → 参照される側（親）を先に作る
+  2. posts           → usersを参照
+  3. comments        → posts, usersを参照
+  4. post_tags       → posts, tagsを参照
+
+  ON DELETE の動作確認:
+  DELETE FROM users WHERE user_id = 1;
+  → posts の user_id = 1 の行が CASCADE で削除される
+  → posts が削除されるため comments も CASCADE で削除される
+  → comments の user_id が 1 の行は SET NULL される（ただし投稿ごと削除されるので注意）
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① ON DELETE の連鎖（user_id=1削除）", bc: "badge-blue",
+        label: "1つの DELETE が外部キー設定に従い連鎖処理する",
+        desc: "users の user_id=1 を DELETE すると、ON DELETE 設定に基づき自動的に連鎖処理が走る。CASCADE は削除、SET NULL はNULL化、RESTRICT はエラーで禁止。",
+        type: "base",
+        cols: ["テーブル", "ON DELETE設定", "user_id=1削除後の状態"],
+        ch: ["col-base", "col-base", ""],
+        rows: [
+          { v: ["users",                  "—（削除対象）",        "削除される"],                           cc: ["", "", "val-fail"]  },
+          { v: ["posts（user_id FK）",    "CASCADE",             "user_id=1の投稿すべて削除"],             cc: ["", "val-pass", "val-fail"]  },
+          { v: ["comments（post_id FK）", "CASCADE（postsから）", "削除された投稿のコメント削除"],         cc: ["", "val-pass", "val-fail"]  },
+          { v: ["comments（user_id FK）", "SET NULL",            "user_id=1のコメントは user_id → NULL"], cc: ["", "val-pass", "val-pass"] }
+        ],
+        cnt: "CASCADE: 3テーブル連鎖 / SET NULL: 1テーブル" },
+      { id: "where", badge: "② 外部キーなしの危険（孤立行）", bc: "badge-orange",
+        label: "FK制約がないと参照先のないデータが残る",
+        desc: "外部キー制約がなければ、存在しない post_id を持つコメント（孤立行）が生まれる。アプリのバグや直接操作で整合性が崩れても DBは検知できない。",
+        type: "eval",
+        cols: ["comments テーブル", "post_id", "状況"],
+        ch: ["", "col-eval", ""],
+        rows: [
+          { v: ["FK制約あり（正常）",   "1（存在する）",          "✓ 正常な参照"],          cc: ["", "val-pass", "val-pass"] },
+          { v: ["FK制約なし（危険）",   "999（存在しない）",      "✗ 孤立行（幽霊データ）"], cc: ["", "val-fail", "val-fail"] }
+        ],
+        cnt: "外部キー制約はデータ整合性のガードレール" }
+    ],
+    sql: [
+      { t: "CREATE TABLE ", k: "sql-kw", h: "from" }, { t: "users", k: "", h: "from" },
+      { t: " ( user_id BIGSERIAL PRIMARY KEY, ... );\n\n", k: "", h: "from" },
+      { t: "CREATE TABLE ", k: "sql-kw", h: "from" }, { t: "tags", k: "", h: "from" },
+      { t: " ( tag_id BIGSERIAL PRIMARY KEY, ... );\n\n", k: "", h: "from" },
+      { t: "CREATE TABLE ", k: "sql-kw", h: "where" }, { t: "posts", k: "", h: "where" },
+      { t: " (\n  post_id BIGSERIAL PRIMARY KEY,\n  user_id BIGINT NOT NULL\n          REFERENCES users(user_id)\n          ", k: "", h: "where" },
+      { t: "ON DELETE CASCADE", k: "sql-kw", h: "where" }, { t: ",\n  ...\n);\n\n", k: "", h: "where" },
+      { t: "CREATE TABLE ", k: "sql-kw", h: "where" }, { t: "comments", k: "", h: "where" },
+      { t: " (\n  comment_id BIGSERIAL PRIMARY KEY,\n  post_id BIGINT NOT NULL\n           REFERENCES posts(post_id)\n           ", k: "", h: "where" },
+      { t: "ON DELETE CASCADE", k: "sql-kw", h: "where" },
+      { t: ",\n  user_id BIGINT REFERENCES users(user_id)\n           ", k: "", h: "where" },
+      { t: "ON DELETE SET NULL", k: "sql-kw", h: "where" }, { t: ",\n  ...\n);\n\n", k: "", h: "where" },
+      { t: "CREATE TABLE ", k: "sql-kw", h: "where" }, { t: "post_tags", k: "", h: "where" },
+      { t: " (\n  post_id BIGINT NOT NULL REFERENCES posts(post_id) ", k: "", h: "where" },
+      { t: "ON DELETE CASCADE", k: "sql-kw", h: "where" },
+      { t: ",\n  tag_id  BIGINT NOT NULL REFERENCES tags(tag_id)  ", k: "", h: "where" },
+      { t: "ON DELETE CASCADE", k: "sql-kw", h: "where" },
+      { t: ",\n  PRIMARY KEY (post_id, tag_id)\n);", k: "", h: "where" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>外部キー制約は「子テーブルに、親テーブルに存在しないIDを入れることを防ぐ」DBレベルのガードレールです。アプリのバグや直接DBを操作したときでも、データの整合性が守られます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ON DELETE の選び方の基準：</strong>「親が消えたら子も不要」→ CASCADE。「親が消えても子のデータは残したい（誰が書いたか不明として扱う）」→ SET NULL。「親は絶対に削除させたくない（参照されている間は削除禁止）」→ RESTRICT（デフォルト）。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>外部キー列には必ずインデックスを：</strong>PostgreSQLは外部キー列に自動でインデックスを作成しません。子テーブルの外部キー列（post_id, user_id等）には手動でインデックスを作成することで、親テーブルを削除する際のFK検索と、JOINのパフォーマンスが大幅に向上します。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>外部キー制約を「パフォーマンスが落ちる」という理由でやめる：</strong>大量書き込みがある場合に外部キーのバリデーションコストを避けるため制約をなくすケースがありますが、データ整合性の崩壊リスクが高まります。バルクインサート時だけ一時的に制約を遅延実行（DEFERRABLE）する方法を検討しましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CASCADE を多用して連鎖削除を意識しない：</strong>CASCADE は強力ですが、深い階層（親→子→孫→…）に設定するとひとつのDELETEが大量の行を削除し、意図せずデータを全消去する事故につながります。重要なテーブルほどRESTRICTにして「明示的に削除せざるを得ない」設計が安全です。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：論理削除と外部キーの組み合わせ</div>
+<div class="column-body">
+ユーザー削除を「完全削除」でなく「論理削除（deleted_at列）」にする実務では、外部キーのON DELETEが発動しません。この場合はアプリ側で「削除済みユーザーの投稿・コメントをどう扱うか」を明示的に設計する必要があります。<strong>「完全削除かどうかをビジネス要件として先に決め、それに合わせて外部キーのON DELETE動作を選ぶ」</strong>順序が重要です。論理削除の詳細はQ8で解説します。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  1対多リレーション — JOINとテーブル設計
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "1対多リレーション — 親子テーブルの設計とJOINクエリ",
+  tags: [["r","1対多"],["r","JOIN"],["o","INNER JOIN"],["g","LEFT JOIN"]],
+  premise: `<p><strong>1対多（One-to-Many）</strong>は最も基本的なテーブル間の関係です。「1人のユーザーが複数の注文を持つ」「1つのカテゴリが複数の商品を持つ」などが典型例です。「多」側のテーブルに外部キー列を追加して関係を表現します。</p>
+<div class="callout"><strong>2種類のJOIN：</strong><br>
+・<code>INNER JOIN</code>（内部結合）→ 両テーブルに一致する行だけを返す。片方にだけ存在する行は除外。<br>
+・<code>LEFT JOIN</code>（外部結合）→ 左テーブルのすべての行を返す。右テーブルに一致しない場合はNULL。<br>
+・<code>RIGHT JOIN</code> → LEFT JOINの逆（あまり使わない。テーブルの順序を入れ替えてLEFT JOINで書くのが一般的）</div>
+<p>どちらを使うかは「<em>相手テーブルにデータがない行も結果に含めたいか</em>」で決まります。</p>`,
+  question: `<p><code>categories</code>（カテゴリ）と <code>products</code>（商品）の1対多テーブルを設計し、以下の2つのクエリを書いてください。①<em>すべての商品をカテゴリ名付きで取得</em>（カテゴリがない商品は除外）、②<em>すべてのカテゴリを商品数付きで取得</em>（商品がないカテゴリも含める）。</p>
+<div class="data-section">
+  <div class="data-label">サンプルデータ</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ categories</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>category_id</th><th>name</th></tr>
+        <tr><td>1</td><td>衣類</td></tr>
+        <tr><td>2</td><td>食品</td></tr>
+        <tr><td>3</td><td class="tc-y">家電（商品なし）</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ products</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>category_id</th><th>name</th><th>price</th></tr>
+        <tr><td>1</td><td>1</td><td>Tシャツ</td><td>2500</td></tr>
+        <tr><td>2</td><td>1</td><td>パンツ</td><td>5000</td></tr>
+        <tr><td>3</td><td>2</td><td>りんご</td><td>300</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>クエリ①（INNER JOIN）の結果 / クエリ②（LEFT JOIN + GROUP BY）の結果：</p>
+<div class="data-tables">
+<div class="data-tbl-wrap">
+<div class="data-tbl-name">▸ クエリ① 全商品＋カテゴリ名</div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>name（product）</th><th>price</th><th>category_name</th></tr>
+<tr class="tr-hi2"><td>Tシャツ</td><td>2500</td><td class="tc-g">衣類</td></tr>
+<tr class="tr-hi2"><td>パンツ</td><td>5000</td><td class="tc-g">衣類</td></tr>
+<tr class="tr-hi2"><td>りんご</td><td>300</td><td class="tc-g">食品</td></tr>
+</table></div>
+</div>
+<div class="data-tbl-wrap">
+<div class="data-tbl-name">▸ クエリ② カテゴリ別商品数</div>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>category_name</th><th>product_count</th></tr>
+<tr class="tr-hi2"><td>衣類</td><td class="tc-g">2</td></tr>
+<tr class="tr-hi2"><td>食品</td><td class="tc-g">1</td></tr>
+<tr class="tr-hi4"><td>家電</td><td class="tc-y">0（LEFT JOINのみ出る）</td></tr>
+</table></div>
+</div>
+</div>`,
+  answer: `<pre><span class="cmt">-- テーブル設計（1対多: categories 1 → N products）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">categories</span> (
+    category_id <span class="fn">BIGSERIAL</span>   <span class="kw">PRIMARY KEY</span>,         <span class="cmt">-- 【超基礎】親テーブルの主キー</span>
+    name        <span class="fn">VARCHAR</span>(<span class="num">100</span>) <span class="kw">NOT NULL</span> <span class="kw">UNIQUE</span>     <span class="cmt">-- カテゴリ名は重複しない</span>
+);
+
+<span class="kw">CREATE TABLE</span> <span class="tbl">products</span> (
+    product_id  <span class="fn">BIGSERIAL</span>    <span class="kw">PRIMARY KEY</span>,
+    category_id <span class="fn">BIGINT</span>                              <span class="cmt">-- 【超基礎】「多」側が外部キーを持つ</span>
+                <span class="kw">REFERENCES</span> <span class="tbl">categories</span>(category_id)  <span class="cmt">-- categoriesのcategory_idを参照</span>
+                <span class="kw">ON DELETE SET NULL</span>,               <span class="cmt">-- カテゴリ削除時は商品のカテゴリをNULLに（商品は残す）</span>
+    name        <span class="fn">VARCHAR</span>(<span class="num">200</span>) <span class="kw">NOT NULL</span>,
+    price       <span class="fn">INTEGER</span>      <span class="kw">NOT NULL</span>
+                <span class="kw">CHECK</span> (price <span class="op">&gt;=</span> <span class="num">0</span>)                <span class="cmt">-- 価格は0以上（0円=無料商品を許可）</span>
+);
+
+<span class="cmt">-- ① INNER JOIN：両テーブルに一致する行のみ（商品がないカテゴリは出ない）</span>
+<span class="kw">SELECT</span>
+    p.name          <span class="kw">AS</span> product_name,  <span class="cmt">-- 【超基礎】ASでカラムに別名を付ける</span>
+    p.price,
+    c.name          <span class="kw">AS</span> category_name  <span class="cmt">-- 【超基礎】結合したcategoriesテーブルの列</span>
+<span class="kw">FROM</span>       <span class="tbl">products</span>   p               <span class="cmt">-- 【超基礎】メインのテーブル（p はエイリアス）</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">categories</span> c               <span class="cmt">-- 【超基礎】結合するテーブル（c はエイリアス）</span>
+           <span class="kw">ON</span> c.category_id <span class="op">=</span> p.category_id  <span class="cmt">-- 【超基礎】結合条件：外部キーと主キーを等号で結ぶ</span>
+<span class="kw">ORDER BY</span> c.name, p.name;              <span class="cmt">-- カテゴリ名 → 商品名の順で並び替え</span>
+
+<span class="cmt">-- ② LEFT JOIN：左テーブル（categories）のすべての行を返す（商品0件も含む）</span>
+<span class="kw">SELECT</span>
+    c.name                          <span class="kw">AS</span> category_name,
+    <span class="fn">COUNT</span>(p.product_id)             <span class="kw">AS</span> product_count  <span class="cmt">-- 【超基礎】NULLはカウントされないのでLEFT JOINと相性が良い</span>
+<span class="kw">FROM</span>      <span class="tbl">categories</span> c
+<span class="kw">LEFT JOIN</span> <span class="tbl">products</span>   p                               <span class="cmt">-- 【超基礎】c に一致しないpの行はNULLで補完</span>
+          <span class="kw">ON</span> p.category_id <span class="op">=</span> c.category_id
+<span class="kw">GROUP BY</span> c.category_id, c.name                       <span class="cmt">-- 【超基礎】カテゴリごとに集計</span>
+<span class="kw">ORDER BY</span> product_count <span class="kw">DESC</span>, c.name;                <span class="cmt">-- 商品数の多い順</span>
+
+<span class="cmt">/*
+  実行順序（クエリ②の論理的な評価順）:
+  1. FROM categories c              → 左テーブルを読む（全カテゴリ）
+  2. LEFT JOIN products p ON ...    → 各カテゴリに一致するproductsを結合（一致なし→NULL）
+  3. GROUP BY c.category_id, c.name → カテゴリごとにグループ化
+  4. COUNT(p.product_id)            → NULLを除いて件数カウント（商品なしは0）
+  5. ORDER BY product_count DESC    → 並び替え
+  6. SELECT c.name, COUNT(...)      → 列を返す
+*/</span></pre>`,
+  viz: [
+    {
+      steps: [
+        { id: "from", badge: "① FROM / INNER JOIN", bc: "badge-blue",
+          label: "左: products, 右: categories",
+          desc: "products（多）と categories（1）を結合します。INNER JOIN は両方に一致する行だけを保持するため、category_id がない商品・一致しないカテゴリは除外されます。",
+          type: "base", join: true,
+          left: {
+            label: "products (p)", cols: ["product_id", "category_id", "name", "price"],
+            ch: ["", "col-base"],
+            rows: [
+              { v: [1, 1, "Tシャツ", 2500] },
+              { v: [2, 1, "パンツ",  5000] },
+              { v: [3, 2, "りんご",  300] }
+            ]
+          },
+          right: {
+            label: "categories (c)", cols: ["category_id", "name"],
+            ch: ["col-base"],
+            rows: [
+              { v: [1, "衣類"] },
+              { v: [2, "食品"] },
+              { v: [3, "家電"] }
+            ]
+          },
+          cnt: "左: 3行 / 右: 3行" },
+        { id: "join", badge: "② ON（結合条件）", bc: "badge-orange",
+          label: "ON c.category_id = p.category_id",
+          desc: "category_id を突き合わせます。products の全行は categories に一致するため結合成功。category_id=3（家電）は products に対応行がないため INNER JOIN では除外されます。",
+          type: "eval", join: true,
+          left: {
+            label: "products (p)", cols: ["product_id", "category_id", "name", "price"],
+            ch: ["", "col-eval"],
+            rows: [
+              { v: [1, 1, "Tシャツ", 2500], cc: ["", "val-pass"] },
+              { v: [2, 1, "パンツ",  5000], cc: ["", "val-pass"] },
+              { v: [3, 2, "りんご",  300],  cc: ["", "val-pass"] }
+            ]
+          },
+          right: {
+            label: "categories (c)", cols: ["category_id", "name"],
+            ch: ["col-eval"],
+            rows: [
+              { v: [1, "衣類"], cc: ["val-pass"] },
+              { v: [2, "食品"], cc: ["val-pass"] },
+              { c: "row-dimmed", v: [3, "家電"], cc: ["val-fail"] }
+            ]
+          },
+          cnt: "結合成功: 3行 / 家電は INNER JOIN で除外" },
+        { id: "select", badge: "③ SELECT", bc: "badge-green",
+          label: "SELECT p.name, p.price, c.name AS category_name",
+          desc: "結合後の仮想テーブルから必要な列を抽出します。家電カテゴリは INNER JOIN で既に除外済みのため結果に現れません。",
+          type: "select",
+          cols: ["product_name", "price", "category_name", "（結合キー）"],
+          ch:   ["col-select", "col-select", "col-select"],
+          rows: [
+            { v: ["Tシャツ", 2500, "衣類", "c.cat_id=1"], cc: ["", "", "", "val-dimmed"] },
+            { v: ["パンツ",  5000, "衣類", "c.cat_id=1"], cc: ["", "", "", "val-dimmed"] },
+            { v: ["りんご",  300,  "食品", "c.cat_id=2"], cc: ["", "", "", "val-dimmed"] }
+          ],
+          cnt: "結果: 3行 × 3列" }
+      ],
+      sql: [
+        { t: "SELECT",     k: "sql-kw", h: "select" }, { t: "\n  p.name AS product_name,\n  p.price,\n  c.name AS category_name\n", k: "", h: "select" },
+        { t: "FROM",       k: "sql-kw", h: "from"   }, { t: "       products   p\n",   k: "", h: "from" },
+        { t: "INNER JOIN", k: "sql-kw", h: "from"   }, { t: " categories c\n",         k: "", h: "from" },
+        { t: "  ON",       k: "sql-kw", h: "join"   }, { t: " c.category_id = p.category_id\n", k: "", h: "join" },
+        { t: "ORDER BY",   k: "sql-kw", h: "select" }, { t: " c.name, p.name;",        k: "", h: "select" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① FROM / LEFT JOIN", bc: "badge-blue",
+          label: "左: categories（全件保持）, 右: products",
+          desc: "LEFT JOIN では左テーブル（categories）の全行が必ず保持されます。右テーブル（products）に一致しない行はNULLで補完されます。家電カテゴリも結果に残ります。",
+          type: "base", join: true,
+          left: {
+            label: "categories (c) 左テーブル", cols: ["category_id", "name"],
+            ch: ["col-base"],
+            rows: [
+              { v: [1, "衣類"] },
+              { v: [2, "食品"] },
+              { v: [3, "家電"] }
+            ]
+          },
+          right: {
+            label: "products (p) 右テーブル", cols: ["product_id", "category_id", "name"],
+            ch: ["", "col-base"],
+            rows: [
+              { v: [1, 1, "Tシャツ"] },
+              { v: [2, 1, "パンツ"] },
+              { v: [3, 2, "りんご"] }
+            ]
+          },
+          cnt: "左: 3行 / 右: 3行" },
+        { id: "join", badge: "② ON（NULL補完）", bc: "badge-orange",
+          label: "ON p.category_id = c.category_id",
+          desc: "LEFT JOIN ルール：右に一致しない左の行は NULL で補完して保持。家電（category_id=3）は products に対応行がないため product_id・nameが NULL になります。",
+          type: "eval", join: true,
+          left: {
+            label: "categories (c)", cols: ["category_id", "name"],
+            ch: ["col-eval"],
+            rows: [
+              { v: [1, "衣類"], cc: ["val-pass"] },
+              { v: [2, "食品"], cc: ["val-pass"] },
+              { v: [3, "家電"], cc: ["val-pass"] }
+            ]
+          },
+          right: {
+            label: "products (p)", cols: ["product_id", "category_id", "name"],
+            ch: ["", "col-eval"],
+            rows: [
+              { v: [1, 1, "Tシャツ"], cc: ["", "val-pass"] },
+              { v: [2, 1, "パンツ"],  cc: ["", "val-pass"] },
+              { v: [3, 2, "りんご"],  cc: ["", "val-pass"] },
+              { v: ["NULL", "NULL（3に不一致）", "NULL"], cc: ["val-dimmed", "val-fail", "val-dimmed"] }
+            ]
+          },
+          cnt: "結合成功: 3行 / NULL補完: 1行（家電）" },
+        { id: "group", badge: "③ GROUP BY", bc: "badge-orange",
+          label: "GROUP BY c.category_id, c.name",
+          desc: "カテゴリ別にグループ化します。家電グループは products.product_id が NULL のため COUNT(p.product_id) は 0 になります（COUNT(列名)はNULLを除外）。",
+          type: "group",
+          cols: ["category_name", "product_id（右テーブル）", "グループ"],
+          ch: ["col-eval", "col-eval"],
+          rows: [
+            { c: "row-grp-1", v: ["衣類", "1, 2",   "グループA（2件）"] },
+            { c: "row-grp-2", v: ["食品", "3",      "グループB（1件）"] },
+            { c: "row-grp-3", v: ["家電", "NULL",   "グループC（0件）"] }
+          ],
+          cnt: "3グループに分類" },
+        { id: "select", badge: "④ SELECT + COUNT", bc: "badge-green",
+          label: "SELECT c.name, COUNT(p.product_id) AS product_count",
+          desc: "COUNT(p.product_id) はNULLを除外するため、家電の件数は正確に0になります。COUNT(*) を使うと家電が1件とカウントされる誤りに注意。",
+          type: "select",
+          cols: ["category_name", "product_count"],
+          ch: ["col-select", "col-select"],
+          rows: [
+            { v: ["衣類", 2] },
+            { v: ["食品", 1] },
+            { v: ["家電", 0] }
+          ],
+          cnt: "結果: 3行（家電は0件で正しく表示）" }
+      ],
+      sql: [
+        { t: "SELECT",    k: "sql-kw", h: "select" }, { t: "\n  c.name AS category_name,\n  ", k: "", h: "select" },
+        { t: "COUNT",     k: "sql-kw", h: "select" }, { t: "(p.product_id) AS product_count\n", k: "", h: "select agg" },
+        { t: "FROM",      k: "sql-kw", h: "from"   }, { t: "      categories c\n",           k: "", h: "from" },
+        { t: "LEFT JOIN", k: "sql-kw", h: "from"   }, { t: " products   p\n",                k: "", h: "from" },
+        { t: "  ON",      k: "sql-kw", h: "join"   }, { t: " p.category_id = c.category_id\n", k: "", h: "join" },
+        { t: "GROUP BY",  k: "sql-kw", h: "group"  }, { t: " c.category_id, c.name\n",       k: "", h: "group" },
+        { t: "ORDER BY",  k: "sql-kw", h: "select" }, { t: " product_count DESC, c.name;",   k: "", h: "select" }
+      ]
+    }
+  ],
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>INNER JOINは「両方に存在するデータだけほしい」、LEFT JOINは「左テーブルはすべて出したい（右にデータがなくてもOK）」という使い分けです。「商品がないカテゴリも一覧に出す」ような要件はLEFT JOINが正解です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COUNT(列名) vs COUNT(*) の使い分け：</strong>LEFT JOINと組み合わせる場合、<code>COUNT(*)</code>は一致しない行のNULL行も1件とカウントしてしまいます。<code>COUNT(p.product_id)</code>のように「右テーブルの列」を指定すると、NULLを除外して正確な件数（商品なしカテゴリは0）が得られます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>テーブルエイリアス（別名）の使い方：</strong><code>FROM categories c</code>の<code>c</code>がエイリアスです。長いテーブル名を省略できるだけでなく、<em>同じテーブルを複数回JOINする（自己結合）</em>場合に区別するためにも必須の知識です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE句でJOIN条件を書く（古いスタイル）：</strong><code>FROM categories, products WHERE categories.category_id = products.category_id</code>はSQL-89スタイルで現在は非推奨です。意図が不明確でLEFT JOINが書けません。JOIN...ON構文を使いましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BYに含める列を間違える：</strong><code>GROUP BY c.category_id</code>だけだと<code>c.name</code>がSELECTに出せません（PostgreSQLは主キーで分かる場合は許可することもあるが、標準SQLでは全てのSELECT列か集計関数が必要）。GROUP BYには<code>SELECT</code>に出す非集計列をすべて含める習慣を持ちましょう。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：APIのN+1問題とJOINの関係</div>
+<div class="column-body">
+「商品一覧を取得してから、各商品のカテゴリ名を別のクエリで取得する」コードはN+1問題の典型です。商品が100件あれば101回クエリが走ります。<strong>JOIN（またはORMのeager loading）で1回のクエリにまとめる</strong>ことで、DBとの通信回数を劇的に減らせます。「一覧APIが遅い」ときはまずN+1を疑い、EXPLAIN ANALYZEで確認する習慣をつけましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  多対多リレーション — 中間テーブルの設計
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "多対多リレーション — 中間テーブルの設計と複合主キー",
+  tags: [["r","多対多"],["r","中間テーブル"],["o","複合PK"],["g","JOIN"]],
+  premise: `<p><strong>多対多（Many-to-Many）</strong>の関係は、RDBでは直接表現できません。「<em>中間テーブル（Junction Table / Bridge Table）</em>」と呼ばれる第3のテーブルを追加し、両テーブルとの1対多の関係に変換して表現します。</p>
+<div class="callout ok"><strong>中間テーブルの特徴：</strong><br>
+・両テーブルの外部キーを組み合わせた複合主キーが典型的（重複を防ぐ）<br>
+・必要に応じて追加属性（役割・有効期間など）を持てる<br>
+・「スターティングXI」「受講日」など関係自体が属性を持つ場合に中間テーブルが特に有用</div>
+<p>典型例：「生徒と授業（1人の生徒が複数の授業を受け、1つの授業に複数の生徒が参加）」「商品とタグ（1商品が複数のタグを持ち、1つのタグが複数の商品に付く）」</p>`,
+  question: `<p>「生徒（students）」と「授業（courses）」の多対多テーブルを設計してください。中間テーブル名は <code>enrollments</code>（受講）とし、<em>受講日（enrolled_at）と成績（grade）も属性として持つ</em>ように設計してください。さらに、<em>「Alice が受講しているすべての授業名と成績を取得するクエリ」</em>も書いてください。</p>
+<div class="data-section">
+  <div class="data-label">サンプルデータ</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ students</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>student_id</th><th>name</th></tr>
+        <tr><td>1</td><td>Alice</td></tr>
+        <tr><td>2</td><td>Bob</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ courses</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>course_id</th><th>title</th></tr>
+        <tr><td>10</td><td>SQL基礎</td></tr>
+        <tr><td>20</td><td>Python入門</td></tr>
+        <tr><td>30</td><td>統計学</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>期待する出力（Alice の受講状況）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>student_name</th><th>course_title</th><th>grade</th><th>enrolled_at</th></tr>
+<tr class="tr-hi2"><td>Alice</td><td class="tc-g">SQL基礎</td><td class="tc-y">A</td><td>2024-04-01</td></tr>
+<tr class="tr-hi2"><td>Alice</td><td class="tc-g">Python入門</td><td class="tc-y">B+</td><td>2024-04-01</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 生徒テーブル（多対多の一方）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">students</span> (
+    student_id <span class="fn">BIGSERIAL</span>   <span class="kw">PRIMARY KEY</span>,
+    name       <span class="fn">VARCHAR</span>(<span class="num">100</span>) <span class="kw">NOT NULL</span>
+);
+
+<span class="cmt">-- ② 授業テーブル（多対多のもう一方）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">courses</span> (
+    course_id <span class="fn">BIGSERIAL</span>   <span class="kw">PRIMARY KEY</span>,
+    title     <span class="fn">VARCHAR</span>(<span class="num">200</span>) <span class="kw">NOT NULL</span>
+);
+
+<span class="cmt">-- ③ 中間テーブル（多対多を1対多×2に分解）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">enrollments</span> (
+    student_id  <span class="fn">BIGINT</span>       <span class="kw">NOT NULL</span>
+                <span class="kw">REFERENCES</span> <span class="tbl">students</span>(student_id) <span class="kw">ON DELETE CASCADE</span>,  <span class="cmt">-- 生徒削除→受講履歴も削除</span>
+    course_id   <span class="fn">BIGINT</span>       <span class="kw">NOT NULL</span>
+                <span class="kw">REFERENCES</span>  <span class="tbl">courses</span>(course_id) <span class="kw">ON DELETE CASCADE</span>,  <span class="cmt">-- 授業削除→受講履歴も削除</span>
+    enrolled_at <span class="fn">DATE</span>         <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="fn">CURRENT_DATE</span>,       <span class="cmt">-- 【超基礎】DATE型：日付のみ（時刻なし）</span>
+    grade       <span class="fn">VARCHAR</span>(<span class="num">3</span>),                                         <span class="cmt">-- 成績（まだない場合はNULL許可）</span>
+    <span class="kw">PRIMARY KEY</span> (student_id, course_id)                             <span class="cmt">-- 【超基礎】複合PK：同じ生徒が同じ授業に2回登録できない</span>
+);
+<span class="cmt">-- 中間テーブルのポイント:
+-- ・複合PKが「同じ組み合わせの重複」を防ぐ制約として機能する
+-- ・関係の属性（enrolled_at, grade）を持てる
+-- ・サロゲートPKを追加して "id BIGSERIAL PRIMARY KEY" にする設計もある
+--   （その場合 UNIQUE(student_id, course_id) で一意制約を別途付ける）</span>
+
+<span class="cmt">-- ④ Alice が受講しているすべての授業名と成績を取得</span>
+<span class="kw">SELECT</span>
+    s.name          <span class="kw">AS</span> student_name,   <span class="cmt">-- 【超基礎】studentsテーブルの列</span>
+    c.title         <span class="kw">AS</span> course_title,   <span class="cmt">-- 【超基礎】coursesテーブルの列</span>
+    e.grade,                            <span class="cmt">-- 中間テーブルが持つ属性</span>
+    e.enrolled_at
+<span class="kw">FROM</span>       <span class="tbl">students</span>    s               <span class="cmt">-- 【超基礎】起点となるテーブル</span>
+<span class="kw">INNER JOIN</span> <span class="tbl">enrollments</span> e               <span class="cmt">-- 【超基礎】中間テーブルを経由して</span>
+           <span class="kw">ON</span> e.student_id <span class="op">=</span> s.student_id
+<span class="kw">INNER JOIN</span> <span class="tbl">courses</span>     c               <span class="cmt">-- 【超基礎】もう一方のテーブルに到達する</span>
+           <span class="kw">ON</span> c.course_id <span class="op">=</span> e.course_id
+<span class="kw">WHERE</span>      s.name <span class="op">=</span> <span class="str">'Alice'</span>          <span class="cmt">-- 特定の生徒で絞り込み</span>
+<span class="kw">ORDER BY</span>   e.enrolled_at;             <span class="cmt">-- 受講日順に並べる</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM students s                   → 生徒テーブルを読む
+  2. WHERE s.name = 'Alice'            → Aliceだけに絞り込む
+  3. INNER JOIN enrollments e ON ...   → Aliceの受講記録（中間テーブル）を結合
+  4. INNER JOIN courses c ON ...       → 各受講記録の授業を結合
+  5. SELECT s.name, c.title, e.grade   → 必要な列を返す
+  6. ORDER BY e.enrolled_at            → 受講日順に並べる
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM（3テーブル準備）", bc: "badge-blue",
+        label: "students / enrollments（中間）/ courses を読み込む",
+        desc: "多対多は直接結合できないため、enrollments（中間テーブル）を経由して2段階のINNER JOINで繋ぎます。まず全テーブルのデータを確認します。",
+        type: "base", join: true,
+        left: {
+          label: "students (s)", cols: ["student_id", "name"],
+          ch: ["col-base"],
+          rows: [
+            { v: [1, "Alice"] },
+            { v: [2, "Bob"] }
+          ]
+        },
+        right: {
+          label: "enrollments (e)（中間テーブル）", cols: ["student_id", "course_id", "grade"],
+          ch: ["col-base", "col-base"],
+          rows: [
+            { v: [1, 10, "A"] },
+            { v: [1, 20, "B+"] },
+            { v: [2, 10, "B"] }
+          ]
+        },
+        cnt: "students: 2行 / enrollments: 3行" },
+      { id: "where", badge: "② WHERE（Alice に絞り込み）", bc: "badge-orange",
+        label: "WHERE s.name = 'Alice'",
+        desc: "students から Alice だけを絞り込みます。この絞り込みにより、enrollments を JOIN するとき Alice の受講記録（2件）だけが対象になります。",
+        type: "eval",
+        cols: ["student_id", "name"],
+        ch: ["", "col-eval"],
+        rows: [
+          { v: [1, "Alice"], cc: ["", "val-pass"] },
+          { c: "row-dimmed", v: [2, "Bob"], cc: ["", "val-fail"] }
+        ],
+        cnt: "2行 → 1行（Alice のみ）" },
+      { id: "join", badge: "③ INNER JOIN × 2（中間経由）", bc: "badge-orange",
+        label: "JOIN enrollments e → JOIN courses c",
+        desc: "Alice（student_id=1）の enrollments を結合し、さらに courses を結合します。2段階のJOINで「生徒 → 中間 → 授業」と橋渡しします。",
+        type: "eval",
+        cols: ["student_name", "course_id", "course_title", "grade", "enrolled_at"],
+        ch: ["", "col-eval", "col-eval", "", ""],
+        rows: [
+          { v: ["Alice", 10, "SQL基礎",   "A",  "2024-04-01"], cc: ["", "val-pass", "val-pass"] },
+          { v: ["Alice", 20, "Python入門","B+", "2024-04-01"], cc: ["", "val-pass", "val-pass"] }
+        ],
+        cnt: "2件の受講記録を結合" },
+      { id: "select", badge: "④ SELECT + 複合PK確認", bc: "badge-green",
+        label: "SELECT + 複合PKによる重複防止",
+        desc: "enrollments の PRIMARY KEY(student_id, course_id) により、Alice が同じ授業（course_id=10）に2度登録しようとするとエラーになります。別の授業（course_id=20）は問題なし。",
+        type: "select",
+        cols: ["student_id", "course_id", "複合PK違反？"],
+        ch: ["col-select", "col-select", "col-select"],
+        rows: [
+          { v: [1, 10, "✓ 初回登録OK"],         cc: ["", "", "val-pass"] },
+          { v: [1, 10, "✗ 重複エラー（同一組み合わせ）"], cc: ["", "", "val-fail"] },
+          { v: [1, 20, "✓ 別授業なのでOK"],     cc: ["", "", "val-pass"] }
+        ],
+        cnt: "結果: 2行（Alice の受講授業）" }
+    ],
+    sql: [
+      { t: "SELECT",     k: "sql-kw", h: "select" }, { t: "\n  s.name AS student_name,\n  c.title AS course_title,\n  e.grade, e.enrolled_at\n", k: "", h: "select" },
+      { t: "FROM",       k: "sql-kw", h: "from"   }, { t: "       students    s\n",   k: "", h: "from" },
+      { t: "INNER JOIN", k: "sql-kw", h: "from"   }, { t: " enrollments e\n",         k: "", h: "from" },
+      { t: "  ON",       k: "sql-kw", h: "join"   }, { t: " e.student_id = s.student_id\n", k: "", h: "join" },
+      { t: "INNER JOIN", k: "sql-kw", h: "from"   }, { t: " courses     c\n",         k: "", h: "from" },
+      { t: "  ON",       k: "sql-kw", h: "join"   }, { t: " c.course_id = e.course_id\n", k: "", h: "join" },
+      { t: "WHERE",      k: "sql-kw", h: "where"  }, { t: "      s.name = 'Alice'\n",    k: "", h: "where" },
+      { t: "ORDER BY",   k: "sql-kw", h: "select" }, { t: " e.enrolled_at;",             k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>多対多の関係は「中間テーブルを追加して1対多×2に変換する」ことが基本です。「生徒と授業」「ユーザーとタグ」「商品とカテゴリ（複数カテゴリ対応）」など、実務で非常に頻出のパターンです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>複合主キー vs サロゲートキー：</strong>中間テーブルのPKは「両方の外部キーの複合主キー」が最もシンプルです。ただし中間テーブル自体を他のテーブルから参照したい場合（例：受講履歴を別のテーブルが参照）は、<code>id BIGSERIAL PRIMARY KEY</code>のサロゲートキーを追加してUNIQUE(student_id, course_id)で一意性を保証する設計を使います。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>中間テーブルに属性を追加する：</strong>中間テーブルは「関係の事実」だけでなく「関係の属性」も持てます。enrolled_at（受講日）やgrade（成績）は「受講という関係が持つ属性」であり、studentsにもcoursesにも属さないためenrollmentsに置くのが正しい設計です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>コンマ区切りのIDを1列に入れる：</strong><code>students.course_ids = '10,20,30'</code>のようにVARCHAR列にIDを詰め込む設計は正規化違反です。特定の授業を受けている生徒を検索するSQLが複雑になり（LIKE演算で近似検索）、外部キー制約も使えず、データ整合性が保証できません。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>中間テーブルを省略してJSON配列を使う：</strong><code>courses.student_ids = '[1,2,3]'</code>のようにJSONB配列で持つと、特定生徒の全受講授業を取得するクエリが困難になります。多対多は必ず中間テーブルで表現しましょう。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：「受講」テーブルから「購入済みコース」への応用</div>
+<div class="column-body">
+SaaSやeラーニングサービスでは enrollments に相当する「purchases（購入）テーブル」が中心的な役割を持ちます。<strong>purchases テーブルに purchased_at, expires_at（有効期限）, plan_type（プラン種別）を持たせる</strong>ことで「いつ買ったか」「いつまで使えるか」「どのプランで使えるか」を管理できます。中間テーブルへの属性追加がそのままビジネスロジックの拡張になる好例です。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6  NULL設計 — NOT NULL制約とCOALESCEの活用
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "NULL設計 — NOT NULL制約・DEFAULT値とCOALESCEの活用",
+  tags: [["r","NOT NULL"],["r","DEFAULT"],["o","NULL"],["g","COALESCE"]],
+  premise: `<p><strong>NULL</strong> はSQLにおける「値が不明・未設定であることを表す特殊な状態」です。NULLは値ではなく「状態」であるため、<code>= NULL</code>や <code>!= NULL</code>は機能せず、<code>IS NULL</code> / <code>IS NOT NULL</code> を使わなければなりません。また、NULLを含む演算の結果はほぼNULLになります。</p>
+<div class="callout warn"><strong>NULLの落とし穴：</strong><br>
+・<code>NULL = NULL</code> → FALSE（NULLはNULLと等しくない）<br>
+・<code>NULL + 100</code> → NULL（NULLとの演算結果はNULL）<br>
+・<code>COUNT(*)</code> はNULLを数えるが <code>COUNT(列名)</code> はNULLを除外する<br>
+・<code>WHERE col != '値'</code> はcol=NULLの行を含まない（NULLは除外される）</div>
+<p>テーブル設計では「この列にNULLを許可する必要があるか？」を常に意識し、<em>不要なNULLは NOT NULL + DEFAULT で防ぐ</em>のが設計原則です。</p>`,
+  question: `<p>ECサイトのユーザープロファイルテーブルを設計します。各列について<em>NULL許可/NOT NULL/DEFAULT値を適切に設定</em>し、さらに「配送先住所が未設定のユーザーに対してデフォルトの配送先メッセージを表示するクエリ」を書いてください。</p>
+<div class="data-section">
+  <div class="data-label">各列の要件</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>列名</th><th>内容</th><th>NULL許可？</th><th>その理由</th></tr>
+    <tr><td>user_id</td><td>主キー</td><td class="tc-r">NOT NULL</td><td>識別子は必須</td></tr>
+    <tr><td>email</td><td>ログインID</td><td class="tc-r">NOT NULL</td><td>必須項目</td></tr>
+    <tr><td>name</td><td>表示名</td><td class="tc-r">NOT NULL</td><td>必須項目</td></tr>
+    <tr><td>phone</td><td>電話番号</td><td class="tc-g">NULL可</td><td>任意登録</td></tr>
+    <tr><td>shipping_address</td><td>配送先住所</td><td class="tc-g">NULL可</td><td>購入時に入力</td></tr>
+    <tr><td>is_newsletter</td><td>メルマガ購読</td><td class="tc-r">NOT NULL</td><td>明示的にON/OFFを持つ</td></tr>
+    <tr><td>created_at</td><td>登録日時</td><td class="tc-r">NOT NULL</td><td>自動設定</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>配送先メッセージを返すクエリの結果：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>name</th><th>shipping_display</th></tr>
+<tr class="tr-hi2"><td>田中太郎</td><td class="tc-g">東京都渋谷区1-2-3</td></tr>
+<tr class="tr-hi4"><td>鈴木花子</td><td class="tc-y">配送先が未設定です（購入時に入力してください）</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- テーブル定義（NULL設計を明示）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">user_profiles</span> (
+    user_id          <span class="fn">BIGSERIAL</span>     <span class="kw">PRIMARY KEY</span>,          <span class="cmt">-- 【超基礎】自動採番PKはNULL不可が自動適用</span>
+    email            <span class="fn">VARCHAR</span>(<span class="num">255</span>) <span class="kw">NOT NULL</span> <span class="kw">UNIQUE</span>,        <span class="cmt">-- 【超基礎】NOT NULL: 空値禁止、UNIQUE: 重複禁止</span>
+    name             <span class="fn">VARCHAR</span>(<span class="num">100</span>) <span class="kw">NOT NULL</span>,               <span class="cmt">-- 【超基礎】必須項目はNOT NULL</span>
+    phone            <span class="fn">VARCHAR</span>(<span class="num">20</span>),                        <span class="cmt">-- 【超基礎】制約なし = NULL許可（任意項目）</span>
+    shipping_address <span class="fn">TEXT</span>,                               <span class="cmt">-- NULL = まだ配送先が未登録の状態を表す</span>
+    is_newsletter    <span class="fn">BOOLEAN</span>      <span class="kw">NOT NULL</span>
+                     <span class="kw">DEFAULT</span> <span class="fn">FALSE</span>,                      <span class="cmt">-- 【超基礎】DEFAULT: INSERTで省略した場合の初期値。BOOLEANにNULLは不要</span>
+    created_at       <span class="fn">TIMESTAMPTZ</span>  <span class="kw">NOT NULL</span>
+                     <span class="kw">DEFAULT</span> <span class="fn">NOW</span>()                       <span class="cmt">-- 【超基礎】登録日時は自動設定（INSERTで指定不要）</span>
+);
+
+<span class="cmt">-- サンプルデータのINSERT（shipping_address を省略 → NULLになる）</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">user_profiles</span> (email, name, shipping_address)
+<span class="kw">VALUES</span>
+    (<span class="str">'tanaka@example.com'</span>, <span class="str">'田中太郎'</span>, <span class="str">'東京都渋谷区1-2-3'</span>),
+    (<span class="str">'suzuki@example.com'</span>, <span class="str">'鈴木花子'</span>, <span class="kw">NULL</span>);               <span class="cmt">-- 明示的にNULLを入れる</span>
+<span class="cmt">-- ↑ is_newsletter はDEFAULT(FALSE)が適用される
+--   created_at はDEFAULT(NOW())が適用される</span>
+
+<span class="cmt">-- COALESCEで配送先メッセージを表示（NULLの場合に代替テキストを返す）</span>
+<span class="kw">SELECT</span>
+    name,
+    <span class="fn">COALESCE</span>(                                            <span class="cmt">-- 【超基礎】COALESCE: 最初のNULLでない値を返す関数</span>
+        shipping_address,                                <span class="cmt">-- 【超基礎】NULLでなければそのまま返す</span>
+        <span class="str">'配送先が未設定です（購入時に入力してください）'</span>       <span class="cmt">-- 【超基礎】NULLの場合に返すデフォルト値</span>
+    ) <span class="kw">AS</span> shipping_display
+<span class="kw">FROM</span>   <span class="tbl">user_profiles</span>
+<span class="kw">ORDER BY</span> user_id;
+
+<span class="cmt">-- NULLを条件に使う正しいSQL（= は使えない）</span>
+<span class="kw">SELECT</span> name <span class="kw">FROM</span> <span class="tbl">user_profiles</span> <span class="kw">WHERE</span> shipping_address <span class="kw">IS NULL</span>;     <span class="cmt">-- ✅ IS NULL</span>
+<span class="kw">SELECT</span> name <span class="kw">FROM</span> <span class="tbl">user_profiles</span> <span class="kw">WHERE</span> shipping_address <span class="kw">IS NOT NULL</span>; <span class="cmt">-- ✅ IS NOT NULL</span>
+<span class="cmt">-- ❌ NG: WHERE shipping_address = NULL  → 常にFALSEで行が返らない</span>
+
+<span class="cmt">/*
+  実行順序（COALESCEクエリ）:
+  1. FROM user_profiles         → テーブルを読む
+  2. SELECT name, COALESCE(...) → 各行のshipping_addressがNULLかを評価
+     → NULLでない → shipping_address の値を返す
+     → NULL      → 代替テキストを返す
+  3. ORDER BY user_id           → 並び替え
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① user_profiles テーブル（全件）", bc: "badge-blue",
+        label: "FROM user_profiles",
+        desc: "user_profiles 全件を読み込みます。shipping_address は NULL 許可列で、まだ配送先を登録していない鈴木花子の行は NULL になっています。phone も任意入力のため NULL を持ちます。",
+        type: "base",
+        cols: ["user_id", "name", "shipping_address", "is_newsletter"],
+        ch: ["col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: [1, "田中太郎", "東京都渋谷区1-2-3", "TRUE"] },
+          { v: [2, "鈴木花子", "NULL",              "FALSE"], cc: ["", "", "val-dimmed", ""] }
+        ],
+        cnt: "全 2行 読込" },
+      { id: "where", badge: "② NULLの落とし穴（比較・演算）", bc: "badge-orange",
+        label: "NULL を含む比較・演算の結果は常に NULL / UNKNOWN",
+        desc: "NULL は「値が不明」な状態のため、= での比較はすべて UNKNOWN になります。WHERE col = NULL は機能せず IS NULL / IS NOT NULL が正しい構文です。NOT IN にNULLが混入すると全行が除外される致命的な罠もあります。",
+        type: "eval",
+        cols: ["式", "期待値", "実際の結果", "正しい書き方"],
+        ch: ["", "", "col-eval", ""],
+        rows: [
+          { v: ["NULL = NULL",         "TRUE ?",        "UNKNOWN（FALSE）", "IS NULL を使う"],    cc: ["", "", "val-fail", "val-pass"] },
+          { v: ["NULL + 100",          "100 ?",         "NULL",             "COALESCE(col,0)"],   cc: ["", "", "val-fail", "val-pass"] },
+          { v: ["COUNT(NULL列)",       "NULLも1件 ?",   "0（除外される）",  "COUNT(*)と使い分け"], cc: ["", "", "val-fail", "val-pass"] },
+          { v: ["WHERE col != '値'",   "NULLも含む ?",  "NULLは除外される", "AND col IS NOT NULL追加"], cc: ["", "", "val-fail", "val-pass"] }
+        ],
+        cnt: "NULL比較は IS NULL / IS NOT NULL を使う" },
+      { id: "select", badge: "③ COALESCE で NULL を代替値に変換", bc: "badge-green",
+        label: "COALESCE(shipping_address, '配送先が未設定です…') AS shipping_display",
+        desc: "COALESCE は引数を左から評価し、最初に NULL でない値を返します。shipping_address が NULL の行は代替テキストに置き換えられ、アプリ側で NULL チェックが不要になります。",
+        type: "select",
+        cols: ["name", "shipping_address（元の値）", "shipping_display（COALESCE後）"],
+        ch: ["", "", "col-select"],
+        rows: [
+          { v: ["田中太郎", "東京都渋谷区1-2-3",   "東京都渋谷区1-2-3"],             cc: ["", "", "val-pass"] },
+          { v: ["鈴木花子", "NULL",               "配送先が未設定です（購入時に入力してください）"], cc: ["", "val-dimmed", "val-pass"] }
+        ],
+        cnt: "結果: 2行（NULLが代替値に変換）" }
+    ],
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "    name,\n", k: "", h: "select" },
+      { t: "    COALESCE(\n        shipping_address,\n        '配送先が未設定です（購入時に入力してください）'\n    ) AS shipping_display\n", k: "", h: "select" },
+      { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "user_profiles\n", k: "", h: "from" },
+      { t: "ORDER BY", k: "sql-kw", h: "select" }, { t: " user_id;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>NULLは「値がない」ではなく「値が不明」という状態です。NULLを含む演算・比較はほぼすべてNULLかUNKNOWNになります。<code>WHERE col = NULL</code>が機能しない理由がここにあります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>NULLを許可するかの判断基準：</strong>「この列に値がない状態がビジネス的に意味を持つか？」で判断します。shipping_address の NULL は「まだ登録していない」という意味を持つので有効です。一方 is_newsletter を NULL にすると「購読しているかどうか不明」という第3の状態が生まれ、アプリ側の条件分岐が複雑になります。BOOLEANはNOT NULL + DEFAULT で必ずtrue/falseのどちらかを持つ設計が推奨です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULLIF も覚えておこう：</strong><code>NULLIF(expr, value)</code>は「exprがvalueと等しい場合にNULLを返す」関数です。空文字<code>''</code>をNULLとして扱いたい場合に<code>NULLIF(col, '')</code>のように使います。COALESCEと組み合わせて<code>COALESCE(NULLIF(col,''), 'default')</code>でNULLと空文字の両方に対応できます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NULLの代わりに空文字「''」や「0」を使う：</strong>shipping_address が未設定なのに<code>''</code>（空文字）を入れると「入力した（けど空）」なのか「未設定」なのかが区別できません。「まだ値がない」状態はNULLで表現するのが正しいです。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NOT IN の中にNULLが混入する：</strong><code>WHERE id NOT IN (1, 2, NULL)</code>は「NULL以外の全行が除外される」という予期しない動作になります。NOT INのサブクエリにNULLが混入しないよう、サブクエリに<code>WHERE col IS NOT NULL</code>を必ず追加するか、NOT EXISTSを使いましょう。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：「3値論理」とアプリ側のNULL処理</div>
+<div class="column-body">
+SQLのNULLはTRUE/FALSEに加えてUNKNOWNという「3値論理」を導入します。WHERE句の条件がUNKNOWN（＝NULLが絡む比較）の行は除外されます。Railsでは<code>Model.where(col: nil)</code>が<code>WHERE col IS NULL</code>に変換されるため安全ですが、<code>Model.where("col != ?", value)</code>のような生SQLではNULLの行が除外される罠があります。<strong>「NULL許可列に対する!=検索は IS NOT NULL と != の両方の条件が必要」</strong>という点を覚えておきましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  データ型選択 — 適切な型がクエリ性能と整合性を決める
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "データ型選択 — VARCHAR・INTEGER・BOOLEAN・TIMESTAMPTZ・NUMERICの使い分け",
+  tags: [["r","データ型"],["r","VARCHAR"],["o","TIMESTAMPTZ"],["g","NUMERIC"]],
+  premise: `<p>列のデータ型は「格納できる値の種類」「ストレージのサイズ」「演算・比較の効率」を決定します。適切な型を選ぶことは、データの整合性・パフォーマンス・可読性に直結します。</p>
+<div class="callout"><strong>よく使うPostgreSQL型の一覧：</strong><br>
+・<code>SMALLINT/INTEGER/BIGINT</code> → 整数（2/4/8バイト）。ID・件数・年齢など<br>
+・<code>NUMERIC(p, s)</code> → 精度保証の固定小数点。金額・税率など<em>誤差が許されない計算</em>に必須<br>
+・<code>REAL/DOUBLE PRECISION</code> → 浮動小数点。科学計算用（金額には使わない！）<br>
+・<code>VARCHAR(n) / TEXT</code> → 文字列。TEXTは長さ制限なし<br>
+・<code>BOOLEAN</code> → TRUE/FALSE<br>
+・<code>DATE / TIME / TIMESTAMP / TIMESTAMPTZ</code> → 日付・時刻<br>
+・<code>JSONB</code> → バイナリJSON（インデックス可）</div>
+<p>特に<em>金額には NUMERIC を使い FLOAT は使わない</em>こと、<em>タイムゾーン情報を保持する TIMESTAMPTZ を使う</em>ことが実務の常識です。</p>`,
+  question: `<p>以下の「型選択が誤っているテーブル定義」を修正してください。各列の問題点を指摘し、正しい型に直したCREATE TABLE文を書いてください。</p>
+<pre><span class="cmt">-- 問題のあるテーブル定義</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">products_bad</span> (
+    product_id   <span class="fn">SERIAL</span>          <span class="kw">PRIMARY KEY</span>,
+    name         <span class="fn">VARCHAR</span>(<span class="num">10</span>),     <span class="cmt">-- ① 商品名の長さ10文字制限</span>
+    price        <span class="fn">REAL</span>,            <span class="cmt">-- ② 価格に浮動小数点を使用</span>
+    tax_rate     <span class="fn">REAL</span>,            <span class="cmt">-- ③ 税率に浮動小数点を使用</span>
+    is_available <span class="fn">SMALLINT</span>,        <span class="cmt">-- ④ 在庫あり/なしをSMALLINTで管理</span>
+    description  <span class="fn">VARCHAR</span>(<span class="num">500</span>),    <span class="cmt">-- ⑤ 商品説明を500文字制限</span>
+    created_at   <span class="fn">TIMESTAMP</span>        <span class="cmt">-- ⑥ タイムゾーン情報なしのTIMESTAMP</span>
+);</pre>`,
+  output: `<p>型選択の問題点と修正方針：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>#</th><th>列</th><th class="tc-r">問題の型</th><th class="tc-g">正しい型</th><th>理由</th></tr>
+<tr><td>①</td><td>name</td><td class="tc-r">VARCHAR(10)</td><td class="tc-g">VARCHAR(200)</td><td>商品名10文字制限は短すぎる</td></tr>
+<tr><td>②</td><td>price</td><td class="tc-r">REAL</td><td class="tc-g">NUMERIC(10,0)</td><td>金額に浮動小数点は誤差が出る</td></tr>
+<tr><td>③</td><td>tax_rate</td><td class="tc-r">REAL</td><td class="tc-g">NUMERIC(5,4)</td><td>税率（0.1000等）も精度保証が必要</td></tr>
+<tr><td>④</td><td>is_available</td><td class="tc-r">SMALLINT</td><td class="tc-g">BOOLEAN</td><td>2値ならBOOLEAN（意図が明確）</td></tr>
+<tr><td>⑤</td><td>description</td><td class="tc-r">VARCHAR(500)</td><td class="tc-g">TEXT</td><td>商品説明は長さが読めないのでTEXT</td></tr>
+<tr><td>⑥</td><td>created_at</td><td class="tc-r">TIMESTAMP</td><td class="tc-g">TIMESTAMPTZ</td><td>タイムゾーン情報が失われる</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- 修正後のテーブル定義（適切な型を使用）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">products</span> (
+    product_id   <span class="fn">BIGSERIAL</span>         <span class="kw">PRIMARY KEY</span>,
+    <span class="cmt">-- ① SERIAL → BIGSERIAL（将来の行数増加を見越して大きな整数に）</span>
+
+    name         <span class="fn">VARCHAR</span>(<span class="num">200</span>)       <span class="kw">NOT NULL</span>,
+    <span class="cmt">-- ① 長さの上限は「業務上ありうる最大値の2倍程度」で余裕を持つ
+    --   テーブル変更（ALTER TABLE）はコストが高いため最初から余裕を持って設計する</span>
+
+    price        <span class="fn">NUMERIC</span>(<span class="num">10</span>, <span class="num">0</span>)     <span class="kw">NOT NULL</span>
+                 <span class="kw">CHECK</span> (price <span class="op">&gt;=</span> <span class="num">0</span>),
+    <span class="cmt">-- ② NUMERIC(10, 0): 整数10桁の精度保証（円単位）
+    --   REAL/DOUBLEは2進浮動小数点のため 0.1+0.2=0.30000000000000004 のような誤差が出る
+    --   金額・税額・在庫数など「誤差が許されない値」には必ずNUMERICを使う</span>
+
+    tax_rate     <span class="fn">NUMERIC</span>(<span class="num">5</span>, <span class="num">4</span>)      <span class="kw">NOT NULL</span>
+                 <span class="kw">DEFAULT</span> <span class="num">0.1000</span>,
+    <span class="cmt">-- ③ NUMERIC(5, 4): 小数点以下4桁（消費税 0.1000 = 10.00%）
+    --   税率計算の精度を保証する</span>
+
+    is_available <span class="fn">BOOLEAN</span>            <span class="kw">NOT NULL</span>
+                 <span class="kw">DEFAULT</span> <span class="kw">TRUE</span>,
+    <span class="cmt">-- ④ BOOLEAN: TRUE/FALSEの2値。SMALLINTの0/1より意図が明確で型安全
+    --   NOT NULL + DEFAULT TRUE（新商品は販売可能状態で登録）</span>
+
+    description  <span class="fn">TEXT</span>,
+    <span class="cmt">-- ⑤ TEXT: PostgreSQLでは VARCHAR(n) と TEXT のパフォーマンス差はない
+    --   長さの上限が決まらない自由記述欄にはTEXTが適切
+    --   NULL可：商品説明がないケースもある</span>
+
+    created_at   <span class="fn">TIMESTAMPTZ</span>        <span class="kw">NOT NULL</span>
+                 <span class="kw">DEFAULT</span> <span class="fn">NOW</span>()
+    <span class="cmt">-- ⑥ TIMESTAMPTZ（TIMESTAMP WITH TIME ZONE）:
+    --   タイムゾーン情報をUTCで保存し、クエリ時に変換できる
+    --   TIMESTAMP（WITHOUT TIME ZONE）では「これはJST？UTC？」が不明になる
+    --   グローバルサービスや将来のサーバー移転でTZ問題が起きないよう常にTIMESTAMPTZを使う</span>
+);
+
+<span class="cmt">-- 税込み価格を計算するクエリ（NUMERICなので誤差なし）</span>
+<span class="kw">SELECT</span>
+    name,
+    price,
+    tax_rate,
+    price <span class="op">*</span> (<span class="num">1</span> <span class="op">+</span> tax_rate) <span class="kw">AS</span> price_with_tax  <span class="cmt">-- NUMERIC同士の演算は精度保証される</span>
+<span class="kw">FROM</span>   <span class="tbl">products</span>
+<span class="kw">WHERE</span>  is_available <span class="op">=</span> <span class="kw">TRUE</span>;                  <span class="cmt">-- BOOLEANは = TRUE / = FALSE で比較</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM products                  → テーブルを読む
+  2. WHERE is_available = TRUE      → 販売中の商品だけ絞り込む
+  3. price * (1 + tax_rate)         → NUMERIC同士の精度保証された計算
+  4. SELECT name, price, ...        → 列を返す
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① products_bad（問題のある型定義）", bc: "badge-blue",
+        label: "型選択の誤りを持つ元テーブル",
+        desc: "6つの列に設計上の問題があります。REAL は浮動小数点誤差を持ち金額に使えません。TIMESTAMP はタイムゾーン情報がなく国際化・サーバー移転で時刻がズレます。SMALLINT で boolean を表すのは意図が不明確です。",
+        type: "base",
+        cols: ["列名", "問題のある型", "問題の内容"],
+        ch: ["col-base", "col-base", ""],
+        rows: [
+          { v: ["name",         "VARCHAR(10)",  "商品名10文字制限は業務的に短すぎる"],     cc: ["", "val-fail", ""] },
+          { v: ["price",        "REAL",         "浮動小数点誤差 → 0.1+0.2 ≠ 0.3"],       cc: ["", "val-fail", ""] },
+          { v: ["tax_rate",     "REAL",         "税率 0.1000 も精度保証が必要"],           cc: ["", "val-fail", ""] },
+          { v: ["is_available", "SMALLINT",     "0/1 より BOOLEAN の方が意図が明確"],      cc: ["", "val-fail", ""] },
+          { v: ["description",  "VARCHAR(500)", "商品説明の長さは読めない → TEXT が適切"], cc: ["", "val-fail", ""] },
+          { v: ["created_at",   "TIMESTAMP",    "TZ なし → JSTかUTCか不明になる"],         cc: ["", "val-fail", ""] }
+        ],
+        cnt: "6列すべてに改善余地あり" },
+      { id: "where", badge: "② REAL vs NUMERIC（浮動小数点の危険）", bc: "badge-orange",
+        label: "金額・税率には必ず NUMERIC を使う",
+        desc: "REAL（浮動小数点）は2進数で近似値を保存するため 0.1 + 0.2 = 0.30000000000000004 という誤差が生まれます。NUMERIC は10進の固定小数点で誤差なし。金額・税額・在庫数など「誤差が許されない値」には必ず NUMERIC を使います。",
+        type: "eval",
+        cols: ["型", "計算: 0.1 + 0.2", "結果", "金額への使用"],
+        ch: ["col-eval", "", "col-eval", ""],
+        rows: [
+          { v: ["REAL（浮動小数点）",  "0.1 + 0.2", "0.30000000000000004", "✗ 使用不可"], cc: ["val-fail", "", "val-fail", "val-fail"] },
+          { v: ["NUMERIC(10,2)",      "0.10 + 0.20", "0.30（誤差なし）",   "✓ 推奨"],     cc: ["val-pass", "", "val-pass", "val-pass"] }
+        ],
+        cnt: "金額・税率は NUMERIC 一択" },
+      { id: "join", badge: "③ TIMESTAMP vs TIMESTAMPTZ", bc: "badge-orange",
+        label: "タイムゾーン情報の有無がサーバー移転・国際化で問題を起こす",
+        desc: "TIMESTAMP（TZ なし）はサーバーのタイムゾーン設定に依存します。DBサーバーを JST→UTC 環境に移転すると、同じ '2024-01-15 09:00:00' が 9時なのか 0時なのか不定になります。TIMESTAMPTZ は UTC で保存し参照時に自動変換するため安全です。",
+        type: "eval",
+        cols: ["型", "保存値の例", "サーバーをJST→UTCに変更後", "安全性"],
+        ch: ["col-eval", "", "col-eval", ""],
+        rows: [
+          { v: ["TIMESTAMP",    "2024-01-15 09:00:00",       "解釈ズレが発生（9時? 0時?）", "✗ 危険"],   cc: ["val-fail", "", "val-fail", "val-fail"] },
+          { v: ["TIMESTAMPTZ",  "2024-01-15 00:00:00+00",    "UTC基準で常に正確に変換可能",  "✓ 推奨"],   cc: ["val-pass", "", "val-pass", "val-pass"] }
+        ],
+        cnt: "タイムゾーンは常に TIMESTAMPTZ" },
+      { id: "select", badge: "④ products（修正後）", bc: "badge-green",
+        label: "正しい型に修正した定義",
+        desc: "name は VARCHAR(200)、price は NUMERIC(10,0)、tax_rate は NUMERIC(5,4)、is_available は BOOLEAN NOT NULL DEFAULT TRUE、description は TEXT、created_at は TIMESTAMPTZ に修正。型が適切になることでデータ整合性・クエリ安全性が向上します。",
+        type: "select",
+        cols: ["列名", "修正後の型", "ポイント"],
+        ch: ["", "col-select", ""],
+        rows: [
+          { v: ["name",         "VARCHAR(200) NOT NULL",    "上限は業務最大値の余裕を持った設計"] },
+          { v: ["price",        "NUMERIC(10,0) NOT NULL",   "整数円単位、誤差なし"] },
+          { v: ["tax_rate",     "NUMERIC(5,4) NOT NULL",    "0.1000 = 10.00% を精度保証"] },
+          { v: ["is_available", "BOOLEAN NOT NULL DEFAULT TRUE", "意図が明確、デフォルト販売可能"] },
+          { v: ["description",  "TEXT",                     "長さ制限なし、NULL 許可"] },
+          { v: ["created_at",   "TIMESTAMPTZ NOT NULL DEFAULT NOW()", "UTC 保存、自動セット"] }
+        ],
+        cnt: "6列すべて修正完了" }
+    ],
+    sql: [
+      { t: "CREATE TABLE ", k: "sql-kw", h: "from" }, { t: "products_bad", k: "", h: "from" },
+      { t: " (\n  name         VARCHAR(10),\n  price        REAL,\n  tax_rate     REAL,\n  is_available SMALLINT,\n  description  VARCHAR(500),\n  created_at   TIMESTAMP\n);\n\n", k: "", h: "from" },
+      { t: "CREATE TABLE ", k: "sql-kw", h: "select" }, { t: "products", k: "", h: "select" },
+      { t: " (\n  name         VARCHAR(200) NOT NULL,\n  price        ", k: "", h: "select" },
+      { t: "NUMERIC", k: "sql-kw", h: "where" }, { t: "(10, 0) NOT NULL,\n  tax_rate     ", k: "", h: "where select" },
+      { t: "NUMERIC", k: "sql-kw", h: "where" }, { t: "(5, 4) NOT NULL DEFAULT 0.1000,\n  is_available BOOLEAN NOT NULL DEFAULT TRUE,\n  description  TEXT,\n  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);", k: "", h: "where select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>型選択は「格納したいデータの性質」に合わせます。整数ならINTEGER、金額ならNUMERIC、YESorNOならBOOLEAN、日時なら常にTIMESTAMPTZ、長い文字列ならTEXTが基本の選択肢です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>VARCHAR(n) vs TEXT：</strong>PostgreSQLでは内部的にVARCHAR(n)もTEXTも同じ仕組みで格納されます（パフォーマンス差なし）。ただしVARCHAR(n)の長さ制限は「長すぎる入力を拒否するバリデーション」として機能するため、長さが業務的に決まっているもの（郵便番号=8文字など）はVARCHARで制限を設けることが推奨です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>NUMERIC(p,s)の読み方：</strong><code>NUMERIC(10, 2)</code>は「全体で最大10桁、小数点以下2桁」の意味です。円単位（小数なし）は<code>NUMERIC(10, 0)</code>、税率（0.1000のような小数）は<code>NUMERIC(5, 4)</code>のように設計します。精度を超える値を入れるとエラーになります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>金額をFLOAT/REALで保存する：</strong>0.1ドルを100回合計すると9.999999...ドルになる誤差が生じます。銀行・ECサイト・決済システムで金額に浮動小数点を使うことは致命的なバグの元です。必ずNUMERICを使いましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>TIMESTAMPにTZなしを使う：</strong>サーバーのタイムゾーン設定に依存するため、インフラ変更・グローバル展開・クラウドへの移行時に「全データが9時間ズレる」問題が発生します。初期設計からTIMESTAMPTZ（UTC保存）を徹底しましょう。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：JSONB型と「半構造化データ」の扱い</div>
+<div class="column-body">
+商品の仕様（カラーバリエーション・サイズ展開など）はカテゴリによって構造が異なります。このような<strong>半構造化データにはJSONB型が有効</strong>で、PostgreSQLでGINインデックスを使えばJSON内のキーでも高速検索できます。ただし、頻繁に集計・結合する項目はJSONBではなく通常の列として設計することが原則です。「スキーマレスの柔軟性」と「型安全・インデックス効率」のトレードオフを意識した設計判断が求められます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  論理削除パターン — deleted_atとフィルタリング
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "論理削除パターン — deleted_at列と全クエリへのフィルタ適用",
+  tags: [["r","論理削除"],["r","deleted_at"],["o","物理削除"],["g","ビュー"]],
+  premise: `<p><strong>論理削除（Soft Delete）</strong>は、行を物理的にDELETEするのではなく、「削除済みであることを示す列（削除日時）を更新」して「削除したように見せる」パターンです。データの復元・監査・データ分析のために削除履歴を保持できます。</p>
+<div class="callout warn"><strong>論理削除の2パターン：</strong><br>
+・<code>is_deleted BOOLEAN</code> → シンプルだが「いつ削除したか」がわからない<br>
+・<code>deleted_at TIMESTAMPTZ</code> → NULLで「生存中」、値があれば「削除済みで削除日時がわかる」（推奨）</div>
+<p>論理削除の最大の課題は「全クエリに <code>WHERE deleted_at IS NULL</code> を漏れなく追加する」必要があることです。漏れると削除済みデータが混入します。この問題を解決するために<em>VIEWでデフォルトフィルタを適用する</em>手法が有効です。</p>`,
+  question: `<p>ユーザーテーブルに論理削除パターンを実装してください。①deleted_at列を使った論理削除、②論理削除済みユーザーを除外するVIEWの作成、③VIEWを使ったクエリ、④誤って削除したユーザーを復元するUPDATEクエリ、の4つを書いてください。</p>
+<div class="data-section">
+  <div class="data-label">サンプルデータ</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>user_id</th><th>name</th><th>deleted_at</th></tr>
+    <tr><td>1</td><td>田中太郎</td><td class="tc-g">NULL（生存中）</td></tr>
+    <tr><td>2</td><td>鈴木花子</td><td class="tc-r">2024-03-15 12:00:00（削除済み）</td></tr>
+    <tr><td>3</td><td>佐藤次郎</td><td class="tc-g">NULL（生存中）</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>論理削除操作の結果：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>操作</th><th>対象</th><th>結果</th></tr>
+<tr class="tr-hi"><td>論理削除（UPDATE）</td><td>田中太郎</td><td>deleted_at に現在時刻がセットされる</td></tr>
+<tr class="tr-hi2"><td>active_users VIEWを参照</td><td>全ユーザー</td><td class="tc-g">deleted_atがNULLのユーザーのみ表示</td></tr>
+<tr class="tr-hi3"><td>復元（UPDATE）</td><td>削除済みユーザー</td><td class="tc-p">deleted_at を NULL に戻す</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① テーブル定義（deleted_at列で論理削除を管理）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">users</span> (
+    user_id    <span class="fn">BIGSERIAL</span>    <span class="kw">PRIMARY KEY</span>,
+    name       <span class="fn">VARCHAR</span>(<span class="num">100</span>) <span class="kw">NOT NULL</span>,
+    email      <span class="fn">VARCHAR</span>(<span class="num">255</span>) <span class="kw">NOT NULL</span> <span class="kw">UNIQUE</span>,
+    created_at <span class="fn">TIMESTAMPTZ</span>  <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="fn">NOW</span>(),
+    deleted_at <span class="fn">TIMESTAMPTZ</span>                                      <span class="cmt">-- 【超基礎】NULL = 生存中, 値あり = 削除済み（削除日時）</span>
+);
+
+<span class="cmt">-- 論理削除の実行（DELETE文ではなくUPDATEを使う）</span>
+<span class="kw">UPDATE</span> <span class="tbl">users</span>
+<span class="kw">SET</span>    deleted_at <span class="op">=</span> <span class="fn">NOW</span>()          <span class="cmt">-- 【超基礎】削除日時に現在時刻をセット（DELETE文は使わない）</span>
+<span class="kw">WHERE</span>  user_id    <span class="op">=</span> <span class="num">1</span>             <span class="cmt">-- 対象ユーザーを指定</span>
+  <span class="kw">AND</span>  deleted_at  <span class="kw">IS NULL</span>;       <span class="cmt">-- 既に削除済みなら更新しない（べき等性の確保）</span>
+
+<span class="cmt">-- ② VIEWで「生存中ユーザーのみ」をデフォルトフィルタとして定義</span>
+<span class="kw">CREATE VIEW</span> active_users <span class="kw">AS</span>        <span class="cmt">-- 【超基礎】VIEWは保存されたSELECTクエリ（仮想テーブル）</span>
+    <span class="kw">SELECT</span> user_id, name, email, created_at
+    <span class="kw">FROM</span>   <span class="tbl">users</span>
+    <span class="kw">WHERE</span>  deleted_at <span class="kw">IS NULL</span>;     <span class="cmt">-- 【超基礎】deleted_atがNULL = 削除されていない行のみ</span>
+<span class="cmt">-- VIEWを定義しておくと、アプリのクエリが「WHERE deleted_at IS NULL」の書き漏れを防げる</span>
+
+<span class="cmt">-- ③ VIEWを普通のテーブルのように使う（削除済みが自動で除外される）</span>
+<span class="kw">SELECT</span> <span class="op">*</span>                           <span class="cmt">-- VIEWから参照するため削除済みは自動で除外される</span>
+<span class="kw">FROM</span>   active_users               <span class="cmt">-- 【超基礎】VIEWはテーブルと同じ構文で参照できる</span>
+<span class="kw">ORDER BY</span> created_at;
+
+<span class="cmt">-- ④ 誤って削除したユーザーを復元（deleted_at を NULL に戻す）</span>
+<span class="kw">UPDATE</span> <span class="tbl">users</span>
+<span class="kw">SET</span>    deleted_at <span class="op">=</span> <span class="kw">NULL</span>           <span class="cmt">-- 【超基礎】NULLに戻すことで「生存中」の状態に復元</span>
+<span class="kw">WHERE</span>  user_id    <span class="op">=</span> <span class="num">2</span>             <span class="cmt">-- 復元対象のユーザーを指定</span>
+  <span class="kw">AND</span>  deleted_at  <span class="kw">IS NOT NULL</span>;   <span class="cmt">-- 削除済みの行だけ対象（べき等性）</span>
+
+<span class="cmt">-- 削除済みユーザー一覧を確認（監査目的）</span>
+<span class="kw">SELECT</span> user_id, name, deleted_at
+<span class="kw">FROM</span>   <span class="tbl">users</span>                      <span class="cmt">-- VIEWではなく元テーブルを参照して削除済みも見る</span>
+<span class="kw">WHERE</span>  deleted_at <span class="kw">IS NOT NULL</span>    <span class="cmt">-- 削除済みのみ</span>
+<span class="kw">ORDER BY</span> deleted_at <span class="kw">DESC</span>;        <span class="cmt">-- 最近削除した順</span>
+
+<span class="cmt">/*
+  論理削除のクエリ実行ポイント:
+  1. DELETE ではなく UPDATE SET deleted_at = NOW() を使う
+  2. 生存中チェック: AND deleted_at IS NULL（二重削除防止）
+  3. 復元時: SET deleted_at = NULL（NULLで生存状態に戻す）
+  4. 通常クエリ: VIEWを経由して deleted_at IS NULL が自動適用される
+  5. 監査クエリ: 元テーブルを直接参照して削除済みも含めて見る
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① users テーブル（全件）", bc: "badge-blue",
+        label: "FROM users（物理行はすべて存在する）",
+        desc: "論理削除では行を DELETE せず、deleted_at 列に削除日時をセットします。物理的には全行が残り続けるため、通常クエリには必ず WHERE deleted_at IS NULL を追加する必要があります。",
+        type: "base",
+        cols: ["user_id", "name", "deleted_at"],
+        ch: ["col-base", "col-base", "col-base"],
+        rows: [
+          { v: [1, "田中太郎", "NULL"],                   cc: ["", "", "val-pass"] },
+          { v: [2, "鈴木花子", "2024-03-15 12:00:00+09"], cc: ["", "", "val-fail"] },
+          { v: [3, "佐藤次郎", "NULL"],                   cc: ["", "", "val-pass"] }
+        ],
+        cnt: "全 3行（論理削除済み含む）" },
+      { id: "where", badge: "② WHERE deleted_at IS NULL（生存中のみ）", bc: "badge-orange",
+        label: "WHERE deleted_at IS NULL",
+        desc: "deleted_at が NULL の行だけを通過させます。鈴木花子は削除日時が入っているため除外されます。全クエリにこの条件を書き漏れると削除済みデータが混入します。この書き漏れを防ぐために VIEW を使います。",
+        type: "eval",
+        cols: ["user_id", "name", "deleted_at"],
+        ch: ["", "", "col-eval"],
+        rows: [
+          { v: [1, "田中太郎", "NULL"],                   cc: ["", "", "val-pass"] },
+          { c: "row-dimmed", v: [2, "鈴木花子", "2024-03-15 12:00:00+09"], cc: ["", "", "val-fail"] },
+          { v: [3, "佐藤次郎", "NULL"],                   cc: ["", "", "val-pass"] }
+        ],
+        cnt: "3行 → 2行（鈴木花子を除外）" },
+      { id: "sub", badge: "③ active_users VIEW", bc: "badge-orange",
+        label: "CREATE VIEW active_users AS SELECT ... WHERE deleted_at IS NULL",
+        desc: "VIEW は保存されたSELECTクエリです。active_users を定義しておけば、アプリは active_users を参照するだけでよく、WHERE deleted_at IS NULL の書き漏れが根本的になくなります。",
+        type: "eval",
+        cols: ["user_id", "name", "active_users で見える？"],
+        ch: ["", "", "col-eval"],
+        rows: [
+          { v: [1, "田中太郎", "✓ 見える（IS NULL）"],             cc: ["", "", "val-pass"] },
+          { v: [2, "鈴木花子", "✗ 見えない（削除済み）"],          cc: ["", "", "val-fail"] },
+          { v: [3, "佐藤次郎", "✓ 見える（IS NULL）"],             cc: ["", "", "val-pass"] }
+        ],
+        cnt: "VIEWが自動フィルタを集中管理" },
+      { id: "select", badge: "④ 復元（deleted_at → NULL）", bc: "badge-green",
+        label: "UPDATE users SET deleted_at = NULL WHERE user_id = 2",
+        desc: "論理削除の最大のメリットは復元可能なことです。deleted_at を NULL に戻すだけで生存状態に復活します。物理削除（DELETE）では WAL がないと復元は困難ですが、論理削除なら即時復元できます。",
+        type: "select",
+        cols: ["user_id", "name", "deleted_at（復元後）", "active_users で見える？"],
+        ch: ["", "", "col-select", "col-select"],
+        rows: [
+          { v: [1, "田中太郎", "NULL", "✓"] },
+          { v: [2, "鈴木花子", "NULL（復元済み）", "✓ 復活"], cc: ["", "", "val-pass", "val-pass"] },
+          { v: [3, "佐藤次郎", "NULL", "✓"] }
+        ],
+        cnt: "復元完了 → active_users に再登場" }
+    ],
+    sql: [
+      { t: "UPDATE ", k: "sql-kw", h: "where" }, { t: "users\n", k: "", h: "where" },
+      { t: "SET    ", k: "sql-kw", h: "where" }, { t: "deleted_at = NOW()\n", k: "", h: "where" },
+      { t: "WHERE  ", k: "sql-kw", h: "where" }, { t: "user_id = 1\n  AND deleted_at IS NULL;\n\n", k: "", h: "where" },
+      { t: "CREATE VIEW ", k: "sql-kw", h: "sub" }, { t: "active_users AS\n    ", k: "", h: "sub" },
+      { t: "SELECT ", k: "sql-kw", h: "sub" }, { t: "user_id, name, email, created_at\n    ", k: "", h: "sub" },
+      { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "users\n    ", k: "", h: "from" },
+      { t: "WHERE  ", k: "sql-kw", h: "where sub" }, { t: "deleted_at IS NULL;\n\n", k: "", h: "where sub" },
+      { t: "SELECT ", k: "sql-kw", h: "select" }, { t: "* FROM active_users ", k: "", h: "select" },
+      { t: "ORDER BY", k: "sql-kw", h: "select" }, { t: " created_at;\n\n", k: "", h: "select" },
+      { t: "UPDATE ", k: "sql-kw", h: "select" }, { t: "users\n", k: "", h: "select" },
+      { t: "SET    ", k: "sql-kw", h: "select" }, { t: "deleted_at = NULL\n", k: "", h: "select" },
+      { t: "WHERE  ", k: "sql-kw", h: "select" }, { t: "user_id = 2 AND deleted_at IS NOT NULL;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>論理削除では「DELETEを使わず、UPDATEで削除日時をセットする」のが基本パターンです。deleted_atがNULLなら生存中、値があれば削除済みという規則を設計の出発点にします。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>VIEWの役割：</strong>VIEWは「保存されたSELECTクエリ」です。active_usersというVIEWを定義しておけば、アプリのコードはactive_usersを参照するだけでよく、WHERE deleted_at IS NULLの書き漏れが根本的になくなります。VIEWは「よく使うクエリのショートカット」として機能します。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>論理削除とUNIQUE制約の問題：</strong>emailにUNIQUE制約がある場合、ユーザーを論理削除してから同じメールアドレスで再登録しようとすると、削除済み行とUNIQUE衝突が起きます。この問題は「削除済みならemail列をNULLに更新する」か「UNIQUE制約に条件を付ける（WHERE deleted_at IS NULL）部分インデックスで対応する」方法で解決します。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>論理削除フラグを is_deleted BOOLEAN にする：</strong>is_deletedではいつ削除したかが記録されません。監査ログや「30日以上前に削除されたデータを本物削除する」バッチ処理ができなくなります。削除日時が不要なケースは稀なので、deleted_at TIMESTAMPTZが推奨です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>全テーブルに論理削除を適用する：</strong>論理削除はデータ復元や監査が必要なテーブルにのみ適用すべきです。セッショントークン・ログ・通知キューのような「消えてもよいデータ」は物理削除の方がシンプルで効率的です。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：ORMと論理削除の連携</div>
+<div class="column-body">
+Railsでは <code>acts_as_paranoid</code>、Djangoでは <code>django-soft-delete</code> などのgemやライブラリが論理削除を自動化します。これらは <code>Model.destroy(id)</code> を呼ぶとDELETEではなくUPDATE deleted_atに変換し、<code>Model.all</code>は自動的に<code>WHERE deleted_at IS NULL</code>を付けます。<strong>ORM側の自動フィルタに依存していると、生SQLやDB Consoleから参照した際に削除済みデータが混入しているケースに気づきにくい</strong>点に注意が必要です。定期的に元テーブルを直接確認する運用ルールを設けましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  ステータス管理 — ENUMとマスターテーブルの使い分け
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "ステータス管理 — ENUMとマスターテーブルの設計トレードオフ",
+  tags: [["r","ENUM"],["r","マスターテーブル"],["o","ステータス"],["g","CHECK制約"]],
+  premise: `<p>注文の「pending/completed/cancelled」のようなステータス値を管理する方法として、代表的な3つのアプローチがあります。</p>
+<div class="callout"><strong>ステータス管理の3つのアプローチ：</strong><br>
+・<code>VARCHAR + CHECK制約</code> → シンプルだが値のリストをDB内に固定して変更時にALTER TBL必要<br>
+・<code>ENUM型</code> → PostgreSQL独自の型。型安全で明確だが値の追加・削除がALTER TYPE必要<br>
+・<code>マスターテーブル（参照テーブル）</code> → 最も柔軟。ステータスの追加・削除がINSERT/DELETEで対応。画面表示名や順番も管理できる</div>
+<p>実務では「値が変わらない」ならENUMやCHECK制約、「業務要件でステータスの追加・変更が見込まれる」「ステータスに付随するメタデータが必要」ならマスターテーブルが推奨です。</p>`,
+  question: `<p>ECサイトの注文ステータスを管理するテーブルを設計します。以下の要件に応じて<em>①ENUM型での設計</em>と<em>②マスターテーブルでの設計</em>の両方を実装し、それぞれの長所・短所を比較してください。要件：ステータスは pending/processing/shipped/delivered/cancelled の5種類（将来追加の可能性あり）。</p>`,
+  output: `<p>2つのアプローチの比較：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>比較項目</th><th>ENUM</th><th>マスターテーブル</th></tr>
+<tr><td>値の追加</td><td class="tc-r">ALTER TYPE（テーブルロック）</td><td class="tc-g">INSERT（ロックなし）</td></tr>
+<tr><td>値の削除</td><td class="tc-r">難しい（参照中は不可）</td><td class="tc-g">論理削除で対応可</td></tr>
+<tr><td>表示名の管理</td><td class="tc-r">できない</td><td class="tc-g">display_name列で管理</td></tr>
+<tr><td>シンプルさ</td><td class="tc-g">シンプル</td><td class="tc-r">JOIN が必要</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① ENUM型でのステータス管理</span>
+<span class="kw">CREATE TYPE</span> order_status_enum <span class="kw">AS</span> <span class="fn">ENUM</span> (  <span class="cmt">-- 【超基礎】カスタム型を作成する（PostgreSQL独自機能）</span>
+    <span class="str">'pending'</span>,     <span class="cmt">-- 注文受付</span>
+    <span class="str">'processing'</span>, <span class="cmt">-- 処理中</span>
+    <span class="str">'shipped'</span>,    <span class="cmt">-- 発送済み</span>
+    <span class="str">'delivered'</span>, <span class="cmt">-- 配達完了</span>
+    <span class="str">'cancelled'</span>  <span class="cmt">-- キャンセル</span>
+);
+
+<span class="kw">CREATE TABLE</span> <span class="tbl">orders_enum</span> (
+    order_id   <span class="fn">BIGSERIAL</span>          <span class="kw">PRIMARY KEY</span>,
+    user_id    <span class="fn">BIGINT</span>             <span class="kw">NOT NULL</span>,
+    status     order_status_enum  <span class="kw">NOT NULL</span>        <span class="cmt">-- 【超基礎】ENUM型の列。定義外の値はエラーになる</span>
+               <span class="kw">DEFAULT</span> <span class="str">'pending'</span>,               <span class="cmt">-- 注文作成時は pending がデフォルト</span>
+    created_at <span class="fn">TIMESTAMPTZ</span>        <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="fn">NOW</span>()
+);
+<span class="cmt">-- ENUMの長所: 型安全（'pnding' のようなタイポをDB側で弾く）、シンプル、ストレージ効率が良い
+-- ENUMの短所: 値の追加は ALTER TYPE order_status_enum ADD VALUE 'returned';
+--             値の削除は困難（参照している行があるとDROPできない）
+--             表示名（日本語）の管理ができない</span>
+
+<span class="cmt">-- ② マスターテーブルでのステータス管理（推奨：将来の変更に強い）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">order_statuses</span> (           <span class="cmt">-- ステータスのマスターテーブル</span>
+    code         <span class="fn">VARCHAR</span>(<span class="num">20</span>) <span class="kw">PRIMARY KEY</span>, <span class="cmt">-- 【超基礎】VARCHARをPKにする（コードが自然キー）</span>
+    display_name <span class="fn">VARCHAR</span>(<span class="num">50</span>) <span class="kw">NOT NULL</span>,    <span class="cmt">-- 画面表示用の日本語名</span>
+    description  <span class="fn">TEXT</span>,                    <span class="cmt">-- ステータスの説明</span>
+    sort_order   <span class="fn">SMALLINT</span>    <span class="kw">NOT NULL</span>,    <span class="cmt">-- 画面表示の並び順</span>
+    is_terminal  <span class="fn">BOOLEAN</span>     <span class="kw">NOT NULL</span>     <span class="cmt">-- TRUE = これ以上遷移しない終端ステータス</span>
+                 <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>
+);
+
+<span class="cmt">-- マスターデータのINSERT</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">order_statuses</span> (code, display_name, sort_order, is_terminal) <span class="kw">VALUES</span>
+    (<span class="str">'pending'</span>,     <span class="str">'注文受付中'</span>,   <span class="num">1</span>, <span class="kw">FALSE</span>),
+    (<span class="str">'processing'</span>, <span class="str">'処理中'</span>,       <span class="num">2</span>, <span class="kw">FALSE</span>),
+    (<span class="str">'shipped'</span>,    <span class="str">'発送済み'</span>,     <span class="num">3</span>, <span class="kw">FALSE</span>),
+    (<span class="str">'delivered'</span>, <span class="str">'配達完了'</span>,     <span class="num">4</span>, <span class="kw">TRUE</span>),   <span class="cmt">-- 終端ステータス</span>
+    (<span class="str">'cancelled'</span>, <span class="str">'キャンセル'</span>,   <span class="num">5</span>, <span class="kw">TRUE</span>);   <span class="cmt">-- 終端ステータス</span>
+
+<span class="kw">CREATE TABLE</span> <span class="tbl">orders</span> (
+    order_id   <span class="fn">BIGSERIAL</span>   <span class="kw">PRIMARY KEY</span>,
+    user_id    <span class="fn">BIGINT</span>      <span class="kw">NOT NULL</span>,
+    status     <span class="fn">VARCHAR</span>(<span class="num">20</span>) <span class="kw">NOT NULL</span>
+               <span class="kw">DEFAULT</span> <span class="str">'pending'</span>
+               <span class="kw">REFERENCES</span> <span class="tbl">order_statuses</span>(code), <span class="cmt">-- 【超基礎】マスターに存在するコードのみ登録できる</span>
+    created_at <span class="fn">TIMESTAMPTZ</span> <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="fn">NOW</span>()
+);
+
+<span class="cmt">-- マスターテーブルを結合して日本語名付きで注文一覧を取得</span>
+<span class="kw">SELECT</span>
+    o.order_id,
+    o.status      <span class="kw">AS</span> status_code,           <span class="cmt">-- 内部コード</span>
+    s.display_name <span class="kw">AS</span> status_display,        <span class="cmt">-- 画面表示用日本語</span>
+    s.is_terminal                             <span class="cmt">-- 終端ステータスかどうか</span>
+<span class="kw">FROM</span>       <span class="tbl">orders</span>          o
+<span class="kw">INNER JOIN</span> <span class="tbl">order_statuses</span> s <span class="kw">ON</span> s.code <span class="op">=</span> o.status  <span class="cmt">-- マスターテーブルを結合</span>
+<span class="kw">ORDER BY</span>   s.sort_order;                   <span class="cmt">-- マスターの並び順で表示</span>
+
+<span class="cmt">/*
+  実行順序（注文一覧クエリ）:
+  1. FROM orders o                   → 注文テーブルを読む
+  2. INNER JOIN order_statuses s     → status コードでマスターテーブルを結合
+  3. SELECT o.order_id, s.display_name → 注文IDと日本語ステータス名を返す
+  4. ORDER BY s.sort_order           → マスターで定義した表示順
+*/</span></pre>`,
+  viz: [
+    {
+      steps: [
+        { id: "from", badge: "① ENUM 型の定義", bc: "badge-blue",
+          label: "CREATE TYPE order_status_enum AS ENUM (...)",
+          desc: "ENUM は PostgreSQL のカスタム型です。定義した値以外の INSERT はエラーになるため型安全です。ストレージ効率も良く、シンプルなステータス管理に適しています。",
+          type: "base",
+          cols: ["ENUM 値", "意味", "デフォルト？"],
+          ch: ["col-base", "", ""],
+          rows: [
+            { v: ["pending",     "注文受付",   "✓ DEFAULT"] },
+            { v: ["processing",  "処理中",     ""] },
+            { v: ["shipped",     "発送済み",   ""] },
+            { v: ["delivered",   "配達完了",   ""] },
+            { v: ["cancelled",   "キャンセル", ""] }
+          ],
+          cnt: "5種類の ENUM 値を定義" },
+        { id: "where", badge: "② ENUM の値追加：ALTER TYPE が必要", bc: "badge-orange",
+          label: "ALTER TYPE order_status_enum ADD VALUE 'returned'",
+          desc: "ENUM に新しい値を追加するには ALTER TYPE が必要です。PostgreSQL 9.1以降は軽量ですが、他DBや古いバージョンではテーブルロックが発生します。値の削除（DROP VALUE）は PostgreSQL では現時点で未サポートです。",
+          type: "eval",
+          cols: ["操作", "ENUM の場合", "問題点"],
+          ch: ["", "col-eval", ""],
+          rows: [
+            { v: ["値の追加（returned）", "ALTER TYPE ... ADD VALUE 'returned'", "DDL変更が必要"],         cc: ["", "val-fail", ""] },
+            { v: ["値の削除（processing廃止）", "不可（参照行があるとエラー）",   "削除できない"],          cc: ["", "val-fail", ""] },
+            { v: ["表示名の管理",              "できない",                        "日本語名を持てない"],    cc: ["", "val-fail", ""] },
+            { v: ["タイポの防止",              "DB側で弾く",                      "✓ 型安全"],             cc: ["", "val-pass", "val-pass"] }
+          ],
+          cnt: "ENUM は型安全だが変更に弱い" },
+        { id: "select", badge: "③ orders_enum テーブルの状態", bc: "badge-green",
+          label: "status 列に ENUM 型を使った注文テーブル",
+          desc: "ENUM 型の status 列は定義外の値（例: 'pnding'）を INSERT するとエラーになります。シンプルで直感的ですが、将来ステータスが追加される場合はマスターテーブル方式の方が柔軟です。",
+          type: "select",
+          cols: ["order_id", "user_id", "status（ENUM）"],
+          ch: ["", "", "col-select"],
+          rows: [
+            { v: [1, 101, "pending"] },
+            { v: [2, 102, "shipped"] },
+            { v: [3, 103, "delivered"] }
+          ],
+          cnt: "ENUM 型で型安全に管理" }
+      ],
+      sql: [
+        { t: "CREATE TYPE ", k: "sql-kw", h: "from" }, { t: "order_status_enum AS ENUM (\n", k: "", h: "from" },
+        { t: "    'pending', 'processing', 'shipped', 'delivered', 'cancelled'\n);\n\n", k: "", h: "from" },
+        { t: "CREATE TABLE ", k: "sql-kw", h: "select" }, { t: "orders_enum", k: "", h: "select" },
+        { t: " (\n  order_id BIGSERIAL PRIMARY KEY,\n  user_id  BIGINT NOT NULL,\n  status   order_status_enum NOT NULL DEFAULT 'pending',\n  ...\n);\n\n", k: "", h: "select" },
+        { t: "ALTER TYPE ", k: "sql-kw", h: "where" }, { t: "order_status_enum\n", k: "", h: "where" },
+        { t: "ADD VALUE ", k: "sql-kw", h: "where" }, { t: "'returned';", k: "", h: "where" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① order_statuses マスターテーブル", bc: "badge-blue",
+          label: "ステータスのメタデータをテーブルで管理",
+          desc: "マスターテーブル方式はステータスの追加・削除が INSERT/UPDATE で対応でき DDL 変更が不要です。display_name（日本語表示名）・sort_order（表示順）・is_terminal（終端フラグ）などのメタデータも持てます。",
+          type: "base",
+          cols: ["code（PK）", "display_name", "sort_order", "is_terminal"],
+          ch: ["col-base", "", "", "col-base"],
+          rows: [
+            { v: ["pending",    "注文受付中", 1, "FALSE"] },
+            { v: ["processing", "処理中",     2, "FALSE"] },
+            { v: ["shipped",    "発送済み",   3, "FALSE"] },
+            { v: ["delivered",  "配達完了",   4, "TRUE"],  cc: ["", "", "", "val-pass"] },
+            { v: ["cancelled",  "キャンセル", 5, "TRUE"],  cc: ["", "", "", "val-pass"] }
+          ],
+          cnt: "5行のマスターデータ" },
+        { id: "where", badge: "② マスターテーブル：値追加が INSERT のみ", bc: "badge-orange",
+          label: "新ステータス 'returned' を INSERT で追加（DDL 変更不要）",
+          desc: "マスターテーブルへの値追加は INSERT 文だけで完了し、テーブルロックや DDL 変更が一切不要です。is_terminal フラグを使えば「終端ステータス = これ以上遷移しない注文」をSQL側で判定できます。",
+          type: "eval",
+          cols: ["操作", "マスターテーブルの場合", "メリット"],
+          ch: ["", "col-eval", ""],
+          rows: [
+            { v: ["値の追加（returned）",    "INSERT INTO order_statuses VALUES('returned',...)", "DDL不要・ロックなし"], cc: ["", "val-pass", "val-pass"] },
+            { v: ["値の削除（廃止）",         "UPDATE ... SET is_active=FALSE（論理削除）",        "参照履歴が残る"],       cc: ["", "val-pass", "val-pass"] },
+            { v: ["表示名の変更",             "UPDATE order_statuses SET display_name='...'",      "SQL1行で即時変更"],     cc: ["", "val-pass", "val-pass"] },
+            { v: ["タイポの防止",             "REFERENCES order_statuses(code) 外部キー制約",      "✓ 整合性保証"],         cc: ["", "val-pass", "val-pass"] }
+          ],
+          cnt: "マスターテーブルは変更に強い" },
+        { id: "join", badge: "③ INNER JOIN で日本語名付き注文一覧", bc: "badge-orange",
+          label: "INNER JOIN order_statuses s ON s.code = o.status",
+          desc: "orders の status コード（'pending' など）とマスターテーブルを JOIN して日本語表示名を取得します。is_terminal を使えば「処理中の注文のみ」のフィルタがビジネスロジックなしに書けます。",
+          type: "eval", join: true,
+          left: {
+            label: "orders (o)", cols: ["order_id", "status"],
+            ch: ["", "col-eval"],
+            rows: [
+              { v: [1, "pending"],   cc: ["", "val-pass"] },
+              { v: [2, "delivered"], cc: ["", "val-pass"] },
+              { v: [3, "cancelled"], cc: ["", "val-pass"] }
+            ]
+          },
+          right: {
+            label: "order_statuses (s)", cols: ["code", "display_name", "is_terminal"],
+            ch: ["col-eval"],
+            rows: [
+              { v: ["pending",   "注文受付中", "FALSE"], cc: ["val-pass"] },
+              { v: ["delivered", "配達完了",   "TRUE"],  cc: ["val-pass"] },
+              { v: ["cancelled", "キャンセル", "TRUE"],  cc: ["val-pass"] }
+            ]
+          },
+          cnt: "JOIN で日本語名・終端フラグを取得" },
+        { id: "select", badge: "④ 最終出力（日本語ステータス付き）", bc: "badge-green",
+          label: "SELECT o.order_id, s.display_name, s.is_terminal",
+          desc: "JOIN 後の仮想テーブルから必要な列を抽出します。アプリ側でステータスコードと表示名のマッピングを持つ必要がなく、DB から直接日本語名を取得できます。",
+          type: "select",
+          cols: ["order_id", "status_code", "status_display", "is_terminal"],
+          ch: ["col-select", "", "col-select", "col-select"],
+          rows: [
+            { v: [1, "pending",   "注文受付中", "FALSE"] },
+            { v: [2, "delivered", "配達完了",   "TRUE"] },
+            { v: [3, "cancelled", "キャンセル", "TRUE"] }
+          ],
+          cnt: "結果: 3行（日本語ステータス付き）" }
+      ],
+      sql: [
+        { t: "CREATE TABLE ", k: "sql-kw", h: "from" }, { t: "order_statuses", k: "", h: "from" },
+        { t: " (\n  code         VARCHAR(20) PRIMARY KEY,\n  display_name VARCHAR(50) NOT NULL,\n  sort_order   SMALLINT NOT NULL,\n  is_terminal  BOOLEAN NOT NULL DEFAULT FALSE\n);\n\n", k: "", h: "from" },
+        { t: "INSERT INTO ", k: "sql-kw", h: "where" }, { t: "order_statuses", k: "", h: "where" },
+        { t: " (code, display_name, sort_order, is_terminal)\n", k: "", h: "where" },
+        { t: "VALUES ", k: "sql-kw", h: "where" }, { t: "('pending','注文受付中',1,FALSE), ...;\n\n", k: "", h: "where" },
+        { t: "SELECT\n  o.order_id,\n  o.status AS status_code,\n  s.display_name AS status_display,\n  s.is_terminal\n", k: "", h: "select" },
+        { t: "FROM",       k: "sql-kw", h: "from"   }, { t: "       orders          o\n", k: "", h: "from" },
+        { t: "INNER JOIN", k: "sql-kw", h: "join"   }, { t: " order_statuses s\n", k: "", h: "join" },
+        { t: "  ON",       k: "sql-kw", h: "join"   }, { t: " s.code = o.status\n", k: "", h: "join" },
+        { t: "ORDER BY",   k: "sql-kw", h: "select" }, { t: " s.sort_order;", k: "", h: "select" }
+      ]
+    }
+  ],
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>ステータスのような「決まった選択肢から選ぶ値」は、VARCHAR + 制約でも、ENUMでも、マスターテーブルでも表現できます。「値が変わらず少ない（3〜5個程度）」ならENUMかCHECK制約、「追加・変更の可能性があるか表示名が必要」ならマスターテーブルを選びます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>is_terminal（終端ステータス）の活用：</strong>マスターテーブルに is_terminal 列を持たせると「これ以上ステータスが変わらない注文」をアプリ側のロジックなしにSQL側で判定できます。<code>WHERE NOT s.is_terminal</code>で「まだ処理中の注文」を取得するクエリが書けます。このような「ステータス自体の属性」はマスターテーブルならではの設計です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CHECK制約による値制限：</strong>マスターテーブルを使わず「VARCHAR + CHECK制約」で簡易に実装する方法もあります。<code>CHECK (status IN ('pending', 'completed', 'cancelled'))</code>で列レベルのバリデーションが機能します。ただし値を追加するにはCHECK制約を変更するALTER TABLEが必要です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ステータスを数値（0,1,2,3）で管理する：</strong><code>status = 2</code>がどの状態を表すかコードを見ないとわかりません。アプリとDBで番号の意味がズレた場合にサイレントなバグになります。テキストコード（'pending', 'shipped'など）を使いましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ステータス遷移のルールをDB側で持たない：</strong>「キャンセル済みの注文を再度発送済みにできる」というバグはアプリ側だけで防ぐより、DB側のCHECK制約やトリガーで遷移ルールを実装する方が確実です。ビジネスロジックが複雑な場合は状態遷移テーブルをDBに持たせる設計も検討します。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：マスターテーブルのキャッシュ戦略</div>
+<div class="column-body">
+order_statusesのようなマスターテーブルは変更頻度が低く参照頻度が高いため、<strong>アプリ起動時にメモリにキャッシュして毎回JOINを省く</strong>設計がよく使われます。RedisやアプリのインメモリキャッシュにステータスID→表示名のマッピングを保持し、SQLはシンプルにcodesだけ取得してアプリ側で変換します。「マスターは年に数回しか変わらない」ような場合は積極的にキャッシュして、DBへのJOINを減らすことがスループット改善につながります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10  監査カラム設計 — created_at/updated_at/作成者の管理
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "監査カラム設計 — created_at・updated_at・created_byと自動更新トリガー",
+  tags: [["r","監査カラム"],["r","TRIGGER"],["o","updated_at"],["g","自動更新"]],
+  premise: `<p><strong>監査カラム（Audit Columns）</strong>は、データがいつ・誰によって作成・更新されたかを記録するための標準的な列セットです。セキュリティ要件・デバッグ・データ分析・監査証跡のために実務ほぼ全てのテーブルに設けます。</p>
+<div class="callout ok"><strong>典型的な監査カラムセット：</strong><br>
+・<code>created_at TIMESTAMPTZ</code> → 行が作成された日時（一度セットされたら変わらない）<br>
+・<code>updated_at TIMESTAMPTZ</code> → 行が最後に更新された日時（UPDATE のたびに自動更新）<br>
+・<code>created_by BIGINT</code> → 行を作成したユーザーID<br>
+・<code>updated_by BIGINT</code> → 行を最後に更新したユーザーID</div>
+<p><em>updated_at の自動更新</em>は、アプリ側で毎回セットする方法と、PostgreSQLの<strong>TRIGGER（トリガー）</strong>で自動化する方法があります。トリガーを使うとアプリ側の実装漏れを根本的に防げます。</p>`,
+  question: `<p>商品テーブルに監査カラムを追加し、<em>updated_atを自動更新するTRIGGERを作成</em>してください。また、「今週更新された商品一覧」と「最も最近更新した商品とその更新者」を取得するクエリも書いてください。</p>
+<div class="data-section">
+  <div class="data-label">要件</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>監査カラム</th><th>型</th><th>更新タイミング</th></tr>
+    <tr><td>created_at</td><td>TIMESTAMPTZ NOT NULL</td><td>INSERT時に現在時刻を自動セット（変更不可）</td></tr>
+    <tr><td>updated_at</td><td>TIMESTAMPTZ NOT NULL</td><td>INSERT/UPDATE時に現在時刻を自動セット</td></tr>
+    <tr><td>created_by</td><td>BIGINT（usersを参照）</td><td>INSERTで指定</td></tr>
+    <tr><td>updated_by</td><td>BIGINT（usersを参照）</td><td>UPDATE時にアプリが指定</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>監査カラムを活用したクエリの例：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>product_name</th><th>updated_at</th><th>updater_name</th></tr>
+<tr class="tr-hi2"><td>新型スマートフォン</td><td class="tc-g">2024-12-16 14:30:00</td><td class="tc-g">田中太郎（管理者）</td></tr>
+<tr class="tr-hi2"><td>ワイヤレスイヤホン</td><td class="tc-g">2024-12-15 09:15:00</td><td class="tc-g">鈴木花子（管理者）</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 商品テーブル（監査カラム付き）</span>
+<span class="kw">CREATE TABLE</span> <span class="tbl">products</span> (
+    product_id   <span class="fn">BIGSERIAL</span>    <span class="kw">PRIMARY KEY</span>,
+    name         <span class="fn">VARCHAR</span>(<span class="num">200</span>) <span class="kw">NOT NULL</span>,
+    price        <span class="fn">NUMERIC</span>(<span class="num">10</span>,<span class="num">0</span>) <span class="kw">NOT NULL</span>,
+
+    <span class="cmt">-- 監査カラム：いつ作成・更新されたか</span>
+    created_at   <span class="fn">TIMESTAMPTZ</span>  <span class="kw">NOT NULL</span>
+                 <span class="kw">DEFAULT</span> <span class="fn">NOW</span>(),              <span class="cmt">-- 【超基礎】INSERT時に現在時刻を自動セット</span>
+    updated_at   <span class="fn">TIMESTAMPTZ</span>  <span class="kw">NOT NULL</span>
+                 <span class="kw">DEFAULT</span> <span class="fn">NOW</span>(),              <span class="cmt">-- 初回はcreated_atと同値。UPDATEで自動更新（トリガーで実現）</span>
+
+    <span class="cmt">-- 監査カラム：誰が作成・更新したか</span>
+    created_by   <span class="fn">BIGINT</span>                     <span class="cmt">-- 作成者のuser_id（NULL可：システム自動作成の場合）</span>
+                 <span class="kw">REFERENCES</span> <span class="tbl">users</span>(user_id)
+                 <span class="kw">ON DELETE SET NULL</span>,
+    updated_by   <span class="fn">BIGINT</span>                     <span class="cmt">-- 最終更新者のuser_id</span>
+                 <span class="kw">REFERENCES</span> <span class="tbl">users</span>(user_id)
+                 <span class="kw">ON DELETE SET NULL</span>
+);
+
+<span class="cmt">-- ② updated_at を自動更新するトリガー関数を作成</span>
+<span class="kw">CREATE OR REPLACE FUNCTION</span> <span class="fn">set_updated_at</span>()  <span class="cmt">-- 【超基礎】FUNCTION: 再利用可能な処理のまとめ</span>
+<span class="kw">RETURNS</span> TRIGGER                               <span class="cmt">-- 【超基礎】TRIGGER用の特殊な戻り値型</span>
+<span class="kw">LANGUAGE</span> plpgsql                              <span class="cmt">-- PostgreSQLの手続き型言語（PL/pgSQL）を使う</span>
+<span class="kw">AS</span> $$                                         <span class="cmt">-- $$ で囲まれた部分が関数の本体</span>
+<span class="kw">BEGIN</span>
+    NEW.updated_at <span class="op">:=</span> <span class="fn">NOW</span>();              <span class="cmt">-- 【超基礎】NEW = 更新後の行データ。updated_atに現在時刻をセット</span>
+    <span class="kw">RETURN</span> NEW;                           <span class="cmt">-- 【超基礎】RETURN NEW = 変更した行データを返す</span>
+<span class="kw">END</span>;
+$$;
+
+<span class="cmt">-- ③ トリガーをproductsテーブルのUPDATEに紐付ける</span>
+<span class="kw">CREATE TRIGGER</span> trg_products_updated_at      <span class="cmt">-- トリガー名（慣習: trg_テーブル名_役割）</span>
+    <span class="kw">BEFORE UPDATE ON</span> <span class="tbl">products</span>             <span class="cmt">-- 【超基礎】BEFORE UPDATE = UPDATE実行の直前に発動</span>
+    <span class="kw">FOR EACH ROW</span>                          <span class="cmt">-- 【超基礎】更新された各行に対して発動</span>
+    <span class="kw">EXECUTE FUNCTION</span> <span class="fn">set_updated_at</span>();   <span class="cmt">-- 上で定義したFUNCTIONを呼び出す</span>
+<span class="cmt">-- これ以降、productsテーブルへのUPDATEは自動的にupdated_atが更新される</span>
+
+<span class="cmt">-- ④ 今週更新された商品一覧</span>
+<span class="kw">SELECT</span>
+    product_id,
+    name,
+    price,
+    updated_at
+<span class="kw">FROM</span>   <span class="tbl">products</span>
+<span class="kw">WHERE</span>  updated_at <span class="op">&gt;=</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'week'</span>, <span class="fn">NOW</span>())  <span class="cmt">-- 【超基礎】DATE_TRUNC('week', NOW()) = 今週の月曜0時</span>
+<span class="kw">ORDER BY</span> updated_at <span class="kw">DESC</span>;
+
+<span class="cmt">-- ⑤ 最も最近更新した商品とその更新者（JOINで更新者名を取得）</span>
+<span class="kw">SELECT</span>
+    p.name          <span class="kw">AS</span> product_name,
+    p.updated_at,
+    u.name          <span class="kw">AS</span> updater_name       <span class="cmt">-- 更新者の名前（usersをJOINして取得）</span>
+<span class="kw">FROM</span>      <span class="tbl">products</span> p
+<span class="kw">LEFT JOIN</span> <span class="tbl">users</span>    u <span class="kw">ON</span> u.user_id <span class="op">=</span> p.updated_by  <span class="cmt">-- updated_byでusersを結合（NULLの場合もある）</span>
+<span class="kw">ORDER BY</span>  p.updated_at <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>     <span class="num">10</span>;                               <span class="cmt">-- 最新10件だけ取得</span>
+
+<span class="cmt">/*
+  実行順序（TRIGGERの動作）:
+  1. アプリが UPDATE products SET price = 3000 WHERE product_id = 1 を送信
+  2. DBがBEFORE UPDATEトリガーを検知
+  3. set_updated_at() 関数が実行される
+  4. NEW.updated_at = NOW() がセットされる
+  5. 実際のUPDATEが実行される（price=3000 AND updated_at=NOW()）
+  → アプリ側でupdated_atを指定しなくても自動で更新される
+
+  実行順序（⑤のクエリ）:
+  1. FROM products p              → 商品テーブルを読む
+  2. LEFT JOIN users u ON ...     → updated_byでユーザー情報を結合
+  3. ORDER BY updated_at DESC     → 最近更新した順に並べる
+  4. LIMIT 10                     → 先頭10件で打ち切り（早期終了）
+  5. SELECT p.name, u.name, ...   → 列を返す
+*/</span></pre>`,
+  viz: [
+    {
+      steps: [
+        { id: "from", badge: "① products テーブル（監査カラム付き）", bc: "badge-blue",
+          label: "created_at / updated_at / created_by / updated_by を持つ設計",
+          desc: "監査カラムの役割を確認します。created_at は INSERT 時に一度だけ NOW() がセットされ以後変わりません。updated_at は UPDATE のたびに自動更新されます（TRIGGER が担当）。created_by / updated_by は誰が操作したかを記録します。",
+          type: "base",
+          cols: ["product_id", "name", "price", "created_at", "updated_at", "updated_by"],
+          ch: ["col-base", "col-base", "", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: [1, "スマートフォン", 98000, "2024-01-01 09:00", "2024-12-16 14:30", 5] },
+            { v: [2, "イヤホン",       12000, "2024-02-15 11:00", "2024-12-15 09:15", 3] }
+          ],
+          cnt: "全 2行" },
+        { id: "sub", badge: "② TRIGGER の動作フロー", bc: "badge-orange",
+          label: "BEFORE UPDATE → set_updated_at() が自動実行される",
+          desc: "アプリが UPDATE products SET price=99800 を送ると、DB が BEFORE UPDATE トリガーを検知し set_updated_at() 関数を呼び出します。関数は NEW.updated_at = NOW() をセットしてから実際の UPDATE が実行されます。アプリ側に updated_at 指定が不要になります。",
+          type: "eval",
+          cols: ["ステップ", "実行者", "処理内容"],
+          ch: ["col-eval", "", ""],
+          rows: [
+            { v: ["①", "アプリ",          "UPDATE products SET price=99800 WHERE product_id=1 を送信"],      cc: ["", "", ""] },
+            { v: ["②", "DB（TRIGGER）",   "BEFORE UPDATE 発動 → set_updated_at() を呼ぶ"],                 cc: ["val-pass", "", "val-pass"] },
+            { v: ["③", "TRIGGER 関数",    "NEW.updated_at := NOW() をセット"],                              cc: ["val-pass", "", "val-pass"] },
+            { v: ["④", "DB",              "price=99800 AND updated_at=現在時刻 で実際に UPDATE 実行"],       cc: ["val-pass", "", "val-pass"] }
+          ],
+          cnt: "アプリ側の実装漏れをTRIGGERで防止" },
+        { id: "where", badge: "③ created_at vs updated_at の役割", bc: "badge-orange",
+          label: "作成日時は不変、更新日時は変わり続ける",
+          desc: "created_at は INSERT 時に DEFAULT NOW() でセットされ、その後 TRIGGER も触れません。updated_at だけが UPDATE のたびに TRIGGER で NOW() に書き換えられます。この使い分けで「いつ作成してから何回更新されたか」を時系列で把握できます。",
+          type: "eval",
+          cols: ["操作", "created_at", "updated_at"],
+          ch: ["", "col-eval", "col-eval"],
+          rows: [
+            { v: ["INSERT（新規作成）",   "NOW() がセット（以後不変）",   "NOW() がセット"],               cc: ["", "val-pass", "val-pass"] },
+            { v: ["1回目の UPDATE",       "変わらない（作成日時を保持）", "TRIGGER で NOW() に更新"],       cc: ["", "val-pass", "val-pass"] },
+            { v: ["2回目の UPDATE",       "変わらない",                   "TRIGGER で再度 NOW() に更新"],   cc: ["", "val-pass", "val-pass"] }
+          ],
+          cnt: "created_at は不変、updated_at は毎回更新" },
+        { id: "select", badge: "④ 今週更新された商品（DATE_TRUNC）", bc: "badge-green",
+          label: "WHERE updated_at >= DATE_TRUNC('week', NOW())",
+          desc: "DATE_TRUNC('week', NOW()) は今週月曜日の 00:00:00 を返します。updated_at との範囲比較で今週更新された商品のみを抽出できます。監査カラムがあれば「いつ変更されたか」を正確に問い合わせられます。",
+          type: "select",
+          cols: ["product_id", "name", "price", "updated_at"],
+          ch: ["", "", "", "col-select"],
+          rows: [
+            { v: [1, "スマートフォン", 99800, "2024-12-16 14:30（今週）"], cc: ["", "", "", "val-pass"] },
+            { v: [2, "イヤホン",       12000, "2024-12-15 09:15（今週）"], cc: ["", "", "", "val-pass"] }
+          ],
+          cnt: "今週更新分: 2件" }
+      ],
+      sql: [
+        { t: "CREATE TABLE ", k: "sql-kw", h: "from" }, { t: "products", k: "", h: "from" },
+        { t: " (\n  ...,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n  created_by BIGINT REFERENCES users(user_id) ON DELETE SET NULL,\n  updated_by BIGINT REFERENCES users(user_id) ON DELETE SET NULL\n);\n\n", k: "", h: "from" },
+        { t: "CREATE OR REPLACE FUNCTION ", k: "sql-kw", h: "sub" }, { t: "set_updated_at()\n", k: "", h: "sub" },
+        { t: "RETURNS TRIGGER LANGUAGE plpgsql AS $$\n", k: "", h: "sub" },
+        { t: "BEGIN\n  NEW.updated_at := NOW();\n  RETURN NEW;\nEND;\n$$;\n\n", k: "", h: "sub" },
+        { t: "CREATE TRIGGER ", k: "sql-kw", h: "sub" }, { t: "trg_products_updated_at\n", k: "", h: "sub" },
+        { t: "  BEFORE UPDATE ON ", k: "sql-kw", h: "sub" }, { t: "products\n", k: "", h: "sub" },
+        { t: "  FOR EACH ROW EXECUTE FUNCTION ", k: "sql-kw", h: "sub" }, { t: "set_updated_at();\n\n", k: "", h: "sub" },
+        { t: "SELECT ", k: "sql-kw", h: "select" }, { t: "product_id, name, price, updated_at\n", k: "", h: "select" },
+        { t: "FROM   ", k: "sql-kw", h: "from"   }, { t: "products\n", k: "", h: "from" },
+        { t: "WHERE  ", k: "sql-kw", h: "where"  }, { t: "updated_at >= DATE_TRUNC('week', NOW())\n", k: "", h: "where" },
+        { t: "ORDER BY", k: "sql-kw", h: "select" }, { t: " updated_at DESC;", k: "", h: "select" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① FROM / LEFT JOIN（更新者名を取得）", bc: "badge-blue",
+          label: "左: products, 右: users（updated_by で結合）",
+          desc: "products テーブルの updated_by 列（更新者の user_id）を使って users テーブルを LEFT JOIN します。LEFT JOIN を使う理由は updated_by が NULL（システム自動更新など）の場合でも商品行が除外されないようにするためです。",
+          type: "base", join: true,
+          left: {
+            label: "products (p)", cols: ["product_id", "name", "updated_at", "updated_by"],
+            ch: ["col-base", "col-base", "", "col-base"],
+            rows: [
+              { v: [1, "スマートフォン", "2024-12-16 14:30", 5] },
+              { v: [2, "イヤホン",       "2024-12-15 09:15", 3] },
+              { v: [3, "ケーブル",       "2024-11-01 08:00", "NULL"], cc: ["", "", "", "val-dimmed"] }
+            ]
+          },
+          right: {
+            label: "users (u)", cols: ["user_id", "name"],
+            ch: ["col-base"],
+            rows: [
+              { v: [3, "鈴木花子"] },
+              { v: [5, "田中太郎"] }
+            ]
+          },
+          cnt: "左: 3行 / 右: 2行" },
+        { id: "join", badge: "② ON / LEFT JOIN の結合処理", bc: "badge-orange",
+          label: "ON u.user_id = p.updated_by",
+          desc: "updated_by の値で users テーブルを突き合わせます。product_id=3（ケーブル）は updated_by が NULL のため一致なし→ u.name が NULL になりますが、LEFT JOIN なので行は保持されます。",
+          type: "eval", join: true,
+          left: {
+            label: "products (p)", cols: ["product_id", "name", "updated_by"],
+            ch: ["", "", "col-eval"],
+            rows: [
+              { v: [1, "スマートフォン", 5],      cc: ["", "", "val-pass"] },
+              { v: [2, "イヤホン",       3],      cc: ["", "", "val-pass"] },
+              { v: [3, "ケーブル",       "NULL"], cc: ["", "", "val-fail"] }
+            ]
+          },
+          right: {
+            label: "users (u)", cols: ["user_id", "name"],
+            ch: ["col-eval"],
+            rows: [
+              { v: [3, "鈴木花子"], cc: ["val-pass"] },
+              { v: [5, "田中太郎"], cc: ["val-pass"] }
+            ]
+          },
+          cnt: "結合成功: 2行 / NULL補完: 1行（ケーブル）" },
+        { id: "select", badge: "③ SELECT + LIMIT 10", bc: "badge-green",
+          label: "SELECT p.name, p.updated_at, u.name AS updater_name ORDER BY updated_at DESC LIMIT 10",
+          desc: "最も最近更新された商品を updated_at の降順で取得します。更新者が NULL の行は updater_name が NULL のまま結果に残ります（LEFT JOIN の効果）。LIMIT 10 で先頭10件に打ち切ります。",
+          type: "select",
+          cols: ["product_name", "updated_at", "updater_name"],
+          ch: ["col-select", "col-select", "col-select"],
+          rows: [
+            { v: ["スマートフォン", "2024-12-16 14:30", "田中太郎（管理者）"] },
+            { v: ["イヤホン",       "2024-12-15 09:15", "鈴木花子（管理者）"] },
+            { v: ["ケーブル",       "2024-11-01 08:00", "NULL（システム更新）"], cc: ["", "", "val-dimmed"] }
+          ],
+          cnt: "結果: 最新10件（更新者名付き）" }
+      ],
+      sql: [
+        { t: "SELECT\n", k: "sql-kw", h: "select" },
+        { t: "    p.name AS product_name,\n    p.updated_at,\n    u.name AS updater_name\n", k: "", h: "select" },
+        { t: "FROM",      k: "sql-kw", h: "from"   }, { t: "      products p\n",   k: "", h: "from" },
+        { t: "LEFT JOIN", k: "sql-kw", h: "from"   }, { t: " users    u\n", k: "", h: "from" },
+        { t: "  ON",      k: "sql-kw", h: "join"   }, { t: " u.user_id = p.updated_by\n", k: "", h: "join" },
+        { t: "ORDER BY",  k: "sql-kw", h: "select" }, { t: " p.updated_at DESC\n", k: "", h: "select" },
+        { t: "LIMIT",     k: "sql-kw", h: "select" }, { t: " 10;", k: "", h: "select" }
+      ]
+    }
+  ],
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>監査カラム（created_at, updated_at, created_by, updated_by）はほぼ全てのテーブルに追加するべき標準的な設計パターンです。「いつ・誰が作ったか・更新したか」が記録されていないテーブルは、トラブル調査やデータ分析で大きな障害になります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>TRIGGERの使いどころ：</strong>TRIGGERは「特定のDML（INSERT/UPDATE/DELETE）の前後に自動実行される処理」です。updated_at の自動更新のように「どのアプリから更新されても必ず実行したい処理」に適しています。アプリ側に実装するとサービス間・バッチ処理間で実装漏れが起きますが、TRIGGERはDB側で保証されます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>DATE_TRUNC 関数：</strong><code>DATE_TRUNC('week', NOW())</code>は「今週の月曜日の00:00:00」を返します。<code>DATE_TRUNC('month', NOW())</code>なら月初、<code>DATE_TRUNC('day', NOW())</code>なら今日の00:00:00です。期間での絞り込みに頻繁に使う重要な関数です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>updated_at をアプリ側だけで管理する：</strong>複数のサービス・バッチジョブがDBに書き込む場合、どこかで updated_at = NOW() の指定を忘れると古い日時のまま更新されます。TRIGGERで DB 側に持たせるか、少なくとも DEFAULT と NOT NULL でアプリ側の漏れを検知できるようにしましょう。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>created_at を TIMESTAMP（TZなし）で作成する：</strong>監査目的では「正確にいつ」が重要です。タイムゾーンなしのTIMESTAMPでは「これはJSTかUTCか」が曖昧になります。監査カラムには必ずTIMESTAMPTZを使いましょう。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：監査テーブル（変更履歴）への発展</div>
+<div class="column-body">
+更新前の値も保存したい場合は、TRIGGERを使って<strong>変更履歴テーブル（audit_log）に変更前の行を丸ごとINSERT</strong>する設計があります。<code>OLD</code>（更新前の行）と <code>NEW</code>（更新後の行）をTRIGGER内で参照できるため、<code>INSERT INTO product_audit_log SELECT OLD.*, NOW() AS changed_at, 'UPDATE' AS operation</code>のような履歴保存が可能です。金融・医療・コンプライアンス要件のあるシステムでは、この変更履歴テーブルが監査証跡として必須になるケースがあります。
+</div>
+</div>
+`
+}
+
+]; // QS 配列の終わり
+
+/* ========================================================
+   ユーティリティ関数
+======================================================== */
+
+/**
+ * アコーディオンのHTML文字列を生成する
+ * @param {string} icon     - アイコン絵文字
+ * @param {string} pillCls  - ピルのCSSクラス
+ * @param {string} pillTxt  - ピルのテキスト
+ * @param {string} title    - アコーディオンのタイトル
+ * @param {string} content  - 本文HTML
+ */
+function acc(icon, pillCls, pillTxt, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillCls}">${pillTxt}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+/**
+ * タグのHTML文字列を生成する
+ * @param {Array} tags - [[色コード, テキスト], ...] の配列
+ */
+function tagHTML(tags) {
+  const cls = { r: 'tag-r', g: 'tag-g', o: 'tag-o', p: 'tag-p' };
+  return tags.map(([c, t]) => `<span class="q-tag ${cls[c] || 'tag-r'}">${t}</span>`).join('');
+}
+
+/**
+ * 全パネルとタブを生成してDOMに挿入する
+ */
+function buildAll() {
+  // タブ行を生成
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})">
+       <span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}
+     </button>`
+  ).join('');
+
+  // 各問題パネルを生成
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘', 'pill-blue',   '前提', '前提知識',               q.premise)}
+      ${acc('❓', 'pill-green',  '問題', '問題',                   q.question)}
+      ${acc('📊', 'pill-orange', '出力', '期待出力',               q.output)}
+      ${acc('✅', 'pill-red',    '解答', '模範解答コード',         q.answer)}
+      ${acc('🔍', 'pill-purple', '解説', '解説（テーブル変化・ポイント）',
+        (Array.isArray(q.viz)
+          ? q.viz.map((_, vIdx) => `<div class="sql-viz-wrapper" id="viz-${i}-${vIdx}" tabindex="-1" style="margin-bottom: 24px;"></div>`).join('')
+          : q.viz ? `<div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1"></div>` : ''
+        ) + q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i - 1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i + 1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i + 1})" ${i === QS.length - 1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  QS.forEach((q, i) => {
+    if (q.viz) {
+      if (Array.isArray(q.viz)) {
+        q.viz.forEach((v, vIdx) => initVisualizer(document.getElementById(`viz-${i}-${vIdx}`), v));
+      } else {
+        initVisualizer(document.getElementById('viz-' + i), q.viz);
+      }
+    }
+  });
+
+  go(0); // 最初の問題を表示
+}
+
+/**
+ * 指定インデックスの問題に切り替える
+ * @param {number} i - 問題インデックス（0始まり）
+ */
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+
+  // パネルの表示切り替え
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+
+  // タブのアクティブ切り替え
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+
+  // アクティブなタブをスクロールして表示
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+  // プログレスバーを更新
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+
+  // ページトップにスクロール
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ページ読み込み時に全コンテンツを生成
+buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !wasMobile);
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !isMobile);
+  }
+});
+</script>
+</body>
+</html>
