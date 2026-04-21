@@ -133,18 +133,6 @@
   .data-tbl-wrap { flex: 1; min-width: 220px; }
   .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
 
-  /* ── Step visualizer ── */
-  .viz-flow   { margin: 6px 0 14px; }
-  .step-block { margin-bottom: 8px; }
-  .step-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; }
-  .step-num   { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
-  .sn1 { background: #1a2744; color: var(--accent); }
-  .sn2 { background: #1a2e1a; color: var(--green); }
-  .sn3 { background: #2e1a2e; color: var(--purple); }
-  .sn4 { background: #2e1a0a; color: var(--orange); }
-  .step-desc        { color: var(--dim); }
-  .step-desc strong { color: var(--text); }
-
   /* ── Tables ── */
   .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
   table.vtbl {
@@ -155,20 +143,6 @@
   table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
   table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
   table.vtbl tr:nth-child(even) td { background: #080c12; }
-  .tr-hi  td { background: #0e1e33 !important; }
-  .tr-hi2 td { background: #0e1e0e !important; }
-  .tr-hi3 td { background: #1e1433 !important; }
-  .tr-hi4 td { background: #1e1a0a !important; }
-  .tr-dim td { opacity: 0.4; }
-  .tc-hi { color: var(--accent)  !important; font-weight: 700; }
-  .tc-g  { color: var(--green)   !important; font-weight: 700; }
-  .tc-p  { color: var(--purple)  !important; font-weight: 700; }
-  .tc-y  { color: var(--yellow)  !important; font-weight: 700; }
-  .tc-o  { color: var(--orange)  !important; font-weight: 700; }
-  .tc-r  { color: var(--red)     !important; font-weight: 700; }
-  .null  { color: var(--dim)     !important; font-style: italic; }
-  .arrow      { text-align: center; padding: 4px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
-  .arrow-text { color: var(--dim); font-size: 11px; }
 
   /* ── Info boxes — shared flex row ── */
   .flex-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
@@ -213,6 +187,76 @@
     main { padding: 16px 10px 60px; }
     .data-tables { flex-direction: column; }
   }
+
+  /* ── SQL Step Visualizer ── */
+  .sql-viz-wrapper {
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    --font-sans: system-ui, -apple-system, sans-serif;
+    --color-bg-base:    #0d1117;
+    --color-bg-panel:   #161b22;
+    --color-border-main:#30363d;
+    --color-border-sub: #21262d;
+    --color-txt-main:   #e6edf3;
+    --color-txt-sub:    #8b949e;
+    --color-txt-muted:  #6e7681;
+    --sql-blue-bg:    rgba(88, 166, 255, 0.15);  --sql-blue-txt:   #58a6ff;  --sql-blue-bd:    #1f6feb;
+    --sql-orange-bg:  rgba(227, 137, 59, 0.15);  --sql-orange-txt: #e3893b;  --sql-orange-bd:  #7d4e00;
+    --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
+    --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
+    --sql-grp1-bg: rgba(88, 166, 255, 0.03);
+    --sql-grp2-bg: rgba(88, 166, 255, 0.08);
+    --sql-grp3-bg: rgba(88, 166, 255, 0.14);
+    --border-radius: 6px;
+    background: var(--color-bg-base);
+    color: var(--color-txt-main);
+    font-family: var(--font-sans);
+    min-height: auto;
+    padding: 1.5rem;
+  }
+  .sql-viz-wrapper .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0; }
+  .sv-nav-btn { padding: 6px 16px; border: 1px solid var(--color-border-sub); border-radius: var(--border-radius); font-size: 11px; background: var(--color-bg-panel); color: var(--color-txt-main); cursor: pointer; transition: all 0.2s; }
+  .sv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sv-nav-btn:not(:disabled):hover { border-color: var(--color-border-main); background: #1f2a38; }
+  .sv-nav-btn:focus-visible, .sv-dot:focus-visible { outline: 2px solid var(--sql-blue-txt); outline-offset: 2px; }
+  .sv-dot { height: 6px; border: none; background: var(--color-border-sub); border-radius: 3px; cursor: pointer; padding: 0; transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s; flex-shrink: 0; width: 8px; }
+  .sv-dot.done { background: var(--color-border-main); }
+  .sv-dot.active { background: var(--sql-blue-txt); width: 24px; }
+  .sv-table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 10px; }
+  .sv-table th { padding: 6px 12px; font-size: 9px; font-weight: 600; border: 1px solid var(--color-border-sub); text-align: left; transition: all 0.3s ease; white-space: nowrap; }
+  .sv-table td { padding: 6px 12px; border: 1px solid var(--color-border-sub); white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main); transition: background 0.3s ease, opacity 0.3s ease; }
+  .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
+  .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
+  .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+  .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
+  .sv-table tr.row-grp-1 td { background: var(--sql-grp1-bg); }
+  .sv-table tr.row-grp-2 td { background: var(--sql-grp2-bg); }
+  .sv-table tr.row-grp-3 td { background: var(--sql-grp3-bg); }
+  .sv-table td.val-pass   { background: var(--sql-green-bg) !important; border-left: 2px solid var(--sql-green-txt); color: var(--sql-green-txt); font-weight: 600; }
+  .sv-table td.val-fail   { background: var(--sql-red-bg) !important; border-left: 2px solid var(--sql-red-txt); color: var(--sql-red-txt); text-decoration: line-through; opacity: 0.7; }
+  .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
+  .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
+  .sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-select, .sql-hl-sub { border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt); }
+  .sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); color: var(--sql-blue-txt); }
+  .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-sub { background: var(--sql-orange-bg); }
+  .sql-hl-select { background: var(--sql-green-bg); color: var(--sql-green-txt); }
+  .sv-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: 600; letter-spacing: 0.02em; }
+  .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
+  .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
+  .badge-green  { background: var(--sql-green-bg);  color: var(--sql-green-txt);  border: 1px solid var(--sql-green-bd); }
+  @keyframes sv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sv-animate { animation: sv-fade-in 0.3s ease forwards; }
+  .tbl-label { font-size: 9px; font-weight: 500; color: var(--color-txt-sub); margin-bottom: 6px; }
+  .sv-mobile-collapse summary::-webkit-details-marker { display: none; }
+  .sv-mobile-collapse summary { list-style: none; }
+  .sv-collapse-icon { transition: transform 0.2s ease; display: inline-block; }
+  .sv-mobile-collapse[open] .sv-collapse-icon { transform: rotate(180deg); }
+  @media (min-width: 641px) {
+    .sv-mobile-collapse > summary { pointer-events: none; }
+    .sv-collapse-icon { display: none !important; }
+  }
+  @media (max-width: 640px) {
+    .sv-sidebar { flex: 1 1 100% !important; min-width: 100% !important; }
+  }
 </style>
 </head>
 <body>
@@ -243,6 +287,141 @@
 <main id="mainContent"></main>
 
 <script>
+function initVisualizer(root, data) {
+  if (!root || !data) return;
+  let currentStepIndex = 0;
+
+  function getLegendHTML(type) {
+    const mkLegend = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dimLegend =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const passFail =
+      `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:9px;">✓ 通過</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:9px;">✗ 除外</span></div>
+      </div>`;
+    if (type === "base")   return mkLegend("blue", "データ取得・結合対象") + dimLegend;
+    if (type === "eval")   return mkLegend("orange", "評価対象の列・キー") + dimLegend + passFail;
+    if (type === "group")  return mkLegend("orange", "グループ化キー・集計対象") + `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === "select") return mkLegend("green", "出力対象の列") + dimLegend;
+    return "";
+  }
+
+  function renderSQL(ex, stepId) {
+    return ex.sql.map(t => {
+      const isMatch = t.h && t.h.split(" ").includes(stepId);
+      const cls = `${t.k || ""} ${isMatch ? `sql-hl-${stepId}` : ""}`.trim();
+      return `<span class="${cls}">${t.t}</span>`;
+    }).join("");
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:10px 14px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:10px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:9px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:11px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>
+    `;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ""}">${col}</th>`).join("");
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ""}">${val}</td>`).join("");
+      return `<tr class="${r.c || ""}">${tds}</tr>`;
+    }).join("");
+    const labelHtml = label ? `<div class="tbl-label">▸ ${label}</div>` : "";
+    return `<div style="flex:1;min-width:260px;">${labelHtml}<div style="overflow-x:auto;"><table class="sv-table">${thead ? `<thead><tr>${thead}</tr></thead>` : ""}<tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+          ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
+          <div style="display:flex;align-items:center;font-size:20px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+          ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+        </div>
+      `;
+    }
+    return buildTable("", step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? "active" : (i < currentStepIndex ? "done" : "");
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}"></button>`;
+    }).join("");
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:10px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? "disabled" : ""}>← Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? "disabled" : ""}>Next →</button>
+      </div>
+    `;
+  }
+
+  root.innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+        <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:13px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+        <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+          <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+            <span>LEGEND (現在のステップ)</span>
+            <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+          </summary>
+          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+        </details>
+      </div>
+      <div style="flex:1;min-width:300px;">
+        <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+        <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+        <div class="sv-tarea sv-animate"></div>
+        <div class="sv-rowcount" style="font-size:12px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+      </div>
+    </div>
+  `;
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML = renderSQL(data, step.id);
+    root.querySelector('.sv-legend').innerHTML = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = window.innerWidth > 640);
+  }
+
+  root.__viz = {
+    next: () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev: () => { if (currentStepIndex > 0) { currentStepIndex--; renderAll(); } },
+    goTo: i => { if (i >= 0 && i < data.steps.length) { currentStepIndex = i; renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'prev') root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+}
+
 const QS = [
 
 /* ══════════════════════════════════════════════════
@@ -315,34 +494,99 @@ const QS = [
   3. SELECT emp_id, ..., row_num → 指定した列＋計算した連番を出力
   4. ORDER BY dept_id, row_num   → 部署→連番の順で並び替え
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM employees",
+        desc: "employeesテーブル全6行をメモリに読み込みます。この段階では順位列はまだありません。",
+        type: "base",
+        cols: ["emp_id","emp_name","dept_id","salary"],
+        ch: ["col-base","col-base","col-base","col-base"],
+        rows: [
+          {v:[1,"田中 一郎",10,"450,000"]},
+          {v:[2,"佐藤 花子",10,"380,000"]},
+          {v:[3,"山田 太郎",20,"520,000"]},
+          {v:[4,"鈴木 次郎",10,"410,000"]},
+          {v:[5,"高橋 三郎",30,"390,000"]},
+          {v:[6,"木村 四郎",10,"350,000"]}
+        ],
+        cnt: "全 6行 読込" },
+      { id: "group", badge: "② PARTITION BY dept_id", bc: "badge-orange",
+        label: "PARTITION BY dept_id",
+        desc: "dept_idの値でウィンドウ（仮想グループ）を区切ります。GROUP BYと違い行は消えません。同じ色の行が同じウィンドウです。",
+        type: "group",
+        cols: ["emp_id","emp_name","dept_id","salary"],
+        ch: ["","","col-eval",""],
+        rows: [
+          {c:"row-grp-1",v:[1,"田中 一郎",10,"450,000"]},
+          {c:"row-grp-1",v:[4,"鈴木 次郎",10,"410,000"]},
+          {c:"row-grp-1",v:[2,"佐藤 花子",10,"380,000"]},
+          {c:"row-grp-1",v:[6,"木村 四郎",10,"350,000"]},
+          {c:"row-grp-2",v:[3,"山田 太郎",20,"520,000"]},
+          {c:"row-grp-3",v:[5,"高橋 三郎",30,"390,000"]}
+        ],
+        cnt: "3ウィンドウ（dept_id別）に分類" },
+      { id: "agg", badge: "③ ROW_NUMBER() 付与", bc: "badge-orange",
+        label: "ORDER BY salary DESC → 連番付与",
+        desc: "各ウィンドウ内でsalaryの降順に1,2,3…と連番を付けます。行数は変わらずrow_num列が追加されます。同率でも必ず異なる番号が付きます。",
+        type: "group",
+        cols: ["emp_id","emp_name","dept_id","salary","row_num"],
+        ch: ["","","col-eval","col-eval","col-select"],
+        rows: [
+          {c:"row-grp-1",v:[1,"田中 一郎",10,"450,000",1],cc:["","","","val-pass",""]},
+          {c:"row-grp-1",v:[4,"鈴木 次郎",10,"410,000",2]},
+          {c:"row-grp-1",v:[2,"佐藤 花子",10,"380,000",3]},
+          {c:"row-grp-1",v:[6,"木村 四郎",10,"350,000",4]},
+          {c:"row-grp-2",v:[3,"山田 太郎",20,"520,000",1],cc:["","","","val-pass",""]},
+          {c:"row-grp-3",v:[5,"高橋 三郎",30,"390,000",1],cc:["","","","val-pass",""]}
+        ],
+        cnt: "6行（行数変わらず）· row_num 列追加" },
+      { id: "select", badge: "④ SELECT + ORDER BY", bc: "badge-green",
+        label: "ORDER BY dept_id ASC, row_num ASC",
+        desc: "全列を選択してdept_id昇順→row_num昇順で並び替えます。ウィンドウ関数なので行数は最初から変わらず6行のままです。",
+        type: "select",
+        cols: ["emp_id","emp_name","dept_id","salary","row_num"],
+        ch: ["col-select","col-select","col-select","col-select","col-select"],
+        rows: [
+          {v:[1,"田中 一郎",10,"450,000",1]},
+          {v:[4,"鈴木 次郎",10,"410,000",2]},
+          {v:[2,"佐藤 花子",10,"380,000",3]},
+          {v:[6,"木村 四郎",10,"350,000",4]},
+          {v:[3,"山田 太郎",20,"520,000",1]},
+          {v:[5,"高橋 三郎",30,"390,000",1]}
+        ],
+        cnt: "結果: 6行 × 5列" }
+    ],
+    sql: [
+      {t:"SELECT\n",         k:"sql-kw", h:"select"},
+      {t:"  emp_id,\n",      k:"",       h:"select"},
+      {t:"  emp_name,\n",    k:"",       h:"select"},
+      {t:"  dept_id,\n",     k:"",       h:"select"},
+      {t:"  salary,\n",      k:"",       h:"select"},
+      {t:"  ROW_NUMBER",      k:"",       h:"agg select"},
+      {t:"() ",               k:"",       h:"agg"},
+      {t:"OVER",              k:"sql-kw", h:"agg group"},
+      {t:" (\n",             k:"",       h:"agg group"},
+      {t:"    PARTITION BY",  k:"sql-kw", h:"group"},
+      {t:" dept_id\n",       k:"",       h:"group"},
+      {t:"    ORDER BY",      k:"sql-kw", h:"group"},
+      {t:" salary ",          k:"",       h:"group"},
+      {t:"DESC\n",           k:"sql-kw", h:"group"},
+      {t:"  ) ",              k:"",       h:"agg"},
+      {t:"AS",                k:"sql-kw", h:"agg select"},
+      {t:" row_num\n",       k:"",       h:"agg select"},
+      {t:"FROM",              k:"sql-kw", h:"from"},
+      {t:"  employees\n",    k:"",       h:"from"},
+      {t:"ORDER BY\n",       k:"sql-kw", h:"select"},
+      {t:"  dept_id  ",       k:"",       h:"select"},
+      {t:"ASC",               k:"sql-kw", h:"select"},
+      {t:",\n  row_num  ",   k:"",       h:"select"},
+      {t:"ASC",               k:"sql-kw", h:"select"},
+      {t:";",                 k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>PARTITION BY dept_id</strong> — 部署ごとにウィンドウ（仮想グループ）を区切る</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>ウィンドウ</th><th>emp_id</th><th>emp_name</th><th>salary</th></tr>
-<tr class="tr-hi"><td class="tc-hi" rowspan="4">dept_id = 10</td><td>1</td><td>田中 一郎</td><td>450,000</td></tr>
-<tr class="tr-hi"><td>4</td><td>鈴木 次郎</td><td>410,000</td></tr>
-<tr class="tr-hi"><td>2</td><td>佐藤 花子</td><td>380,000</td></tr>
-<tr class="tr-hi"><td>6</td><td>木村 四郎</td><td>350,000</td></tr>
-<tr class="tr-hi2"><td class="tc-g">dept_id = 20</td><td>3</td><td>山田 太郎</td><td>520,000</td></tr>
-<tr class="tr-hi3"><td class="tc-p">dept_id = 30</td><td>5</td><td>高橋 三郎</td><td>390,000</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">ORDER BY salary DESC → ウィンドウ内で給与降順に 1,2,3... を付与</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>ROW_NUMBER() の付与</strong> — 行数は変わらず連番列が追加される</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>emp_id</th><th>emp_name</th><th>dept_id</th><th>salary</th><th class="tc-hi">row_num</th></tr>
-<tr class="tr-hi"><td>1</td><td>田中 一郎</td><td>10</td><td class="tc-g">450,000 ←最高</td><td class="tc-hi">1</td></tr>
-<tr class="tr-hi"><td>4</td><td>鈴木 次郎</td><td>10</td><td>410,000</td><td class="tc-hi">2</td></tr>
-<tr class="tr-hi"><td>2</td><td>佐藤 花子</td><td>10</td><td>380,000</td><td class="tc-hi">3</td></tr>
-<tr class="tr-hi"><td>6</td><td>木村 四郎</td><td>10</td><td>350,000</td><td class="tc-hi">4</td></tr>
-<tr class="tr-hi2"><td>3</td><td>山田 太郎</td><td>20</td><td class="tc-g">520,000 ←最高</td><td class="tc-hi">1</td></tr>
-<tr class="tr-hi3"><td>5</td><td>高橋 三郎</td><td>30</td><td class="tc-g">390,000 ←最高</td><td class="tc-hi">1</td></tr>
-</table></div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>ウィンドウ関数は <code>GROUP BY</code> と違って<strong>行を消しません</strong>。全6行が出力されたまま、計算列が横に追加されます。「集計値を元データと一緒に見たい」ときにウィンドウ関数が最適です。</div></div>
@@ -429,21 +673,91 @@ const QS = [
   4. SELECT emp_id, ...        → 2つの順位列を含めて出力
   5. ORDER BY salary DESC      → 給与の降順で並べ、同率はemp_id昇順
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM employees",
+        desc: "employeesテーブル全6行を読み込みます。給与に同率が存在します（450,000円: 2名、390,000円: 2名）。",
+        type: "base",
+        cols: ["emp_id","emp_name","dept_id","salary"],
+        ch: ["col-base","col-base","col-base","col-base"],
+        rows: [
+          {v:[1,"田中 一郎",10,"450,000"]},
+          {v:[2,"佐藤 花子",10,"390,000"]},
+          {v:[3,"山田 太郎",20,"520,000"]},
+          {v:[4,"鈴木 次郎",10,"390,000"]},
+          {v:[5,"高橋 三郎",30,"350,000"]},
+          {v:[6,"木村 四郎",10,"450,000"]}
+        ],
+        cnt: "全 6行 読込" },
+      { id: "group", badge: "② ORDER BY salary DESC（同率グループ確認）", bc: "badge-orange",
+        label: "OVER (ORDER BY salary DESC)",
+        desc: "給与の降順でウィンドウ内を並べます。450,000円と390,000円に同率グループが発生します。同じ色の行が同率です。",
+        type: "group",
+        cols: ["emp_id","emp_name","salary"],
+        ch: ["","","col-eval"],
+        rows: [
+          {v:[3,"山田 太郎","520,000"]},
+          {c:"row-grp-1",v:[1,"田中 一郎","450,000"]},
+          {c:"row-grp-1",v:[6,"木村 四郎","450,000"]},
+          {c:"row-grp-3",v:[2,"佐藤 花子","390,000"]},
+          {c:"row-grp-3",v:[4,"鈴木 次郎","390,000"]},
+          {v:[5,"高橋 三郎","350,000"]}
+        ],
+        cnt: "同率グループ: 450,000円×2名 / 390,000円×2名" },
+      { id: "select", badge: "③ RANK vs DENSE_RANK 結果比較", bc: "badge-green",
+        label: "RANK() AS rnk, DENSE_RANK() AS dense_rnk",
+        desc: "同率2人が「2位」になった後、RANKは次を4位（3位が欠番）にします。DENSE_RANKは次を3位（飛ばさない）にします。",
+        type: "select",
+        cols: ["emp_id","emp_name","salary","rnk","dense_rnk"],
+        ch: ["","","col-eval","col-select","col-select"],
+        rows: [
+          {v:[3,"山田 太郎","520,000",1,1],cc:["","","","val-pass","val-pass"]},
+          {c:"row-grp-1",v:[1,"田中 一郎","450,000",2,2],cc:["","","","val-pass","val-pass"]},
+          {c:"row-grp-1",v:[6,"木村 四郎","450,000",2,2],cc:["","","","val-pass","val-pass"]},
+          {c:"row-grp-3",v:[2,"佐藤 花子","390,000","4 ← 3は欠番",3],cc:["","","","val-fail","val-pass"]},
+          {c:"row-grp-3",v:[4,"鈴木 次郎","390,000","4 ← 3は欠番",3],cc:["","","","val-fail","val-pass"]},
+          {v:[5,"高橋 三郎","350,000","6 ← 5は欠番",4],cc:["","","","val-fail","val-pass"]}
+        ],
+        cnt: "結果: 6行 × 5列 (RANK=欠番あり / DENSE_RANK=連番保持)" }
+    ],
+    sql: [
+      {t:"SELECT\n",           k:"sql-kw", h:"select"},
+      {t:"  emp_id,\n",        k:"",       h:"select"},
+      {t:"  emp_name,\n",      k:"",       h:"select"},
+      {t:"  salary,\n",        k:"",       h:"select"},
+      {t:"  RANK",              k:"",       h:"select"},
+      {t:"() ",                 k:"",       h:"select"},
+      {t:"OVER",                k:"sql-kw", h:"select group"},
+      {t:" (\n",               k:"",       h:"select group"},
+      {t:"    ORDER BY",        k:"sql-kw", h:"group"},
+      {t:" salary ",            k:"",       h:"group"},
+      {t:"DESC\n",             k:"sql-kw", h:"group"},
+      {t:"  ) ",                k:"",       h:"select"},
+      {t:"AS",                  k:"sql-kw", h:"select"},
+      {t:" rnk,\n",            k:"",       h:"select"},
+      {t:"  DENSE_RANK",        k:"",       h:"select"},
+      {t:"() ",                 k:"",       h:"select"},
+      {t:"OVER",                k:"sql-kw", h:"select group"},
+      {t:" (\n",               k:"",       h:"select group"},
+      {t:"    ORDER BY",        k:"sql-kw", h:"group"},
+      {t:" salary ",            k:"",       h:"group"},
+      {t:"DESC\n",             k:"sql-kw", h:"group"},
+      {t:"  ) ",                k:"",       h:"select"},
+      {t:"AS",                  k:"sql-kw", h:"select"},
+      {t:" dense_rnk\n",       k:"",       h:"select"},
+      {t:"FROM",                k:"sql-kw", h:"from"},
+      {t:"  employees\n",      k:"",       h:"from"},
+      {t:"ORDER BY",            k:"sql-kw", h:"select"},
+      {t:" salary ",            k:"",       h:"select"},
+      {t:"DESC",                k:"sql-kw", h:"select"},
+      {t:", emp_id ",           k:"",       h:"select"},
+      {t:"ASC",                 k:"sql-kw", h:"select"},
+      {t:";",                   k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>3関数の動作比較</strong> — 同率（450,000円・2人, 390,000円・2人）の扱いの違い</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>salary</th><th>ROW_NUMBER</th><th class="tc-hi">RANK</th><th class="tc-g">DENSE_RANK</th><th>説明</th></tr>
-<tr><td>520,000</td><td>1</td><td class="tc-hi">1</td><td class="tc-g">1</td><td>単独1位</td></tr>
-<tr><td>450,000</td><td>2</td><td class="tc-hi">2</td><td class="tc-g">2</td><td rowspan="2">同率2人</td></tr>
-<tr><td>450,000</td><td>3</td><td class="tc-hi">2</td><td class="tc-g">2</td></tr>
-<tr class="tr-hi4"><td>390,000</td><td>4</td><td class="tc-y">4 ← 3は欠番</td><td class="tc-g">3 ← 飛ばない</td><td rowspan="2">同率2人</td></tr>
-<tr class="tr-hi4"><td>390,000</td><td>5</td><td class="tc-y">4</td><td class="tc-g">3</td></tr>
-<tr><td>350,000</td><td>6</td><td class="tc-hi">6 ← 5は欠番</td><td class="tc-g">4</td><td>最下位</td></tr>
-</table></div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>RANK</code> の「順位が飛ぶ」のは直感的なスポーツ順位と同じです。「2位が2人いれば次は4位」です。<code>DENSE_RANK</code> は「何種類の値があるか」で順位を付けるイメージです。</div></div>
@@ -545,34 +859,110 @@ MySQL: <code>YEAR()</code>・<code>MONTH()</code>・<code>DATEDIFF()</code>・<c
   6. SELECT emp_id, ...                   → 全計算列を含めて出力
   7. ORDER BY hire_year, hire_date        → 入社年→入社日の昇順で並べる
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM employees",
+        desc: "employeesテーブル全6行を読み込みます。hire_date列（入社日）が日付計算の起点になります。",
+        type: "base",
+        cols: ["emp_id","emp_name","dept_id","salary","hire_date"],
+        ch: ["col-base","col-base","col-base","col-base","col-base"],
+        rows: [
+          {v:[1,"田中 一郎",10,"450,000","2020-04-01"]},
+          {v:[2,"佐藤 花子",10,"380,000","2021-04-01"]},
+          {v:[3,"山田 太郎",20,"520,000","2019-07-01"]},
+          {v:[4,"鈴木 次郎",10,"410,000","2022-04-01"]},
+          {v:[5,"高橋 三郎",30,"390,000","2021-10-01"]},
+          {v:[6,"木村 四郎",10,"350,000","2023-04-01"]}
+        ],
+        cnt: "全 6行 読込" },
+      { id: "where", badge: "② AGE() + EXTRACT(YEAR)", bc: "badge-orange",
+        label: "DATE_PART('year', AGE('2025-04-01', hire_date)) / EXTRACT(YEAR FROM hire_date)",
+        desc: "各行でAGE()で勤続期間をINTERVAL型で計算し、DATE_PART('year',...)で年数部分を取り出します。EXTRACT(YEAR FROM hire_date)で入社年も取り出します。",
+        type: "eval",
+        cols: ["emp_name","hire_date","AGE(基準日, hire_date)","years_of_service","hire_year"],
+        ch: ["","col-eval","col-eval","col-select","col-select"],
+        rows: [
+          {v:["山田 太郎","2019-07-01","5年9ヶ月",5,2019]},
+          {v:["田中 一郎","2020-04-01","5年0ヶ月",5,2020]},
+          {v:["佐藤 花子","2021-04-01","4年0ヶ月",4,2021]},
+          {v:["高橋 三郎","2021-10-01","3年6ヶ月",3,2021]},
+          {v:["鈴木 次郎","2022-04-01","3年0ヶ月",3,2022]},
+          {v:["木村 四郎","2023-04-01","2年0ヶ月",2,2023]}
+        ],
+        cnt: "各行に勤続年数・入社年を計算" },
+      { id: "group", badge: "③ COUNT(*) OVER (PARTITION BY hire_year)", bc: "badge-orange",
+        label: "COUNT(*) OVER (PARTITION BY EXTRACT(YEAR FROM hire_date))",
+        desc: "ウィンドウ関数でhire_yearごとに人数を集計します。GROUP BYと違い全行を残しながら集計値を横に付与します。同じ入社年の行は同色で表示。",
+        type: "group",
+        cols: ["emp_name","hire_year","year_count（ウィンドウ集計）"],
+        ch: ["","col-eval","col-select"],
+        rows: [
+          {c:"row-grp-2",v:["山田 太郎",2019,"1（2019年入社は1人）"]},
+          {c:"row-grp-1",v:["田中 一郎",2020,"1（2020年入社は1人）"]},
+          {c:"row-grp-3",v:["佐藤 花子",2021,"2（2021年入社は2人）"]},
+          {c:"row-grp-3",v:["高橋 三郎",2021,"2（2021年入社は2人）"]},
+          {c:"row-grp-2",v:["鈴木 次郎",2022,"1（2022年入社は1人）"]},
+          {c:"row-grp-1",v:["木村 四郎",2023,"1（2023年入社は1人）"]}
+        ],
+        cnt: "6行維持（GROUP BYと異なり行は消えない）" },
+      { id: "select", badge: "④ SELECT + ORDER BY", bc: "badge-green",
+        label: "ORDER BY hire_year ASC, hire_date ASC",
+        desc: "全計算列を含めて出力し、入社年昇順→入社日昇順で並び替えます。2021年入社の2名は入社日順（4月→10月）になります。",
+        type: "select",
+        cols: ["emp_id","emp_name","hire_date","years_of_service","hire_year","year_count"],
+        ch: ["col-select","col-select","col-select","col-select","col-select","col-select"],
+        rows: [
+          {v:[3,"山田 太郎","2019-07-01",5,2019,1]},
+          {v:[1,"田中 一郎","2020-04-01",5,2020,1]},
+          {v:[2,"佐藤 花子","2021-04-01",4,2021,2]},
+          {v:[5,"高橋 三郎","2021-10-01",3,2021,2]},
+          {v:[4,"鈴木 次郎","2022-04-01",3,2022,1]},
+          {v:[6,"木村 四郎","2023-04-01",2,2023,1]}
+        ],
+        cnt: "結果: 6行 × 6列" }
+    ],
+    sql: [
+      {t:"SELECT\n",                         k:"sql-kw", h:"select"},
+      {t:"  emp_id,\n",                       k:"",       h:"select"},
+      {t:"  emp_name,\n",                     k:"",       h:"select"},
+      {t:"  hire_date,\n",                    k:"",       h:"select"},
+      {t:"  DATE_PART",                        k:"",       h:"where select"},
+      {t:"(",                                  k:"",       h:"where"},
+      {t:"'year'",                             k:"",       h:"where"},
+      {t:", ",                                 k:"",       h:"where"},
+      {t:"AGE",                                k:"",       h:"where"},
+      {t:"(",                                  k:"",       h:"where"},
+      {t:"'2025-04-01'",                       k:"",       h:"where"},
+      {t:"::DATE, hire_date)) ::INT\n",       k:"",       h:"where"},
+      {t:"    AS",                             k:"sql-kw", h:"where select"},
+      {t:" years_of_service,\n",              k:"",       h:"where select"},
+      {t:"  EXTRACT",                          k:"",       h:"where select"},
+      {t:"(",                                  k:"",       h:"where"},
+      {t:"YEAR",                               k:"sql-kw", h:"where"},
+      {t:" FROM hire_date)::INT\n",           k:"",       h:"where"},
+      {t:"    AS",                             k:"sql-kw", h:"where select"},
+      {t:" hire_year,\n",                     k:"",       h:"where select"},
+      {t:"  COUNT",                            k:"",       h:"group select"},
+      {t:"(*) ",                               k:"",       h:"group"},
+      {t:"OVER",                               k:"sql-kw", h:"group"},
+      {t:" (PARTITION BY ",                    k:"",       h:"group"},
+      {t:"EXTRACT",                            k:"",       h:"group"},
+      {t:"(YEAR FROM hire_date))::INT\n",     k:"",       h:"group"},
+      {t:"    AS",                             k:"sql-kw", h:"group select"},
+      {t:" year_count\n",                     k:"",       h:"group select"},
+      {t:"FROM",                               k:"sql-kw", h:"from"},
+      {t:"  employees\n",                     k:"",       h:"from"},
+      {t:"ORDER BY\n",                        k:"sql-kw", h:"select"},
+      {t:"  hire_year ",                       k:"",       h:"select"},
+      {t:"ASC",                                k:"sql-kw", h:"select"},
+      {t:",\n  hire_date ",                   k:"",       h:"select"},
+      {t:"ASC",                                k:"sql-kw", h:"select"},
+      {t:";",                                  k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>AGE() + DATE_PART</strong> — 勤続年数の計算</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>emp_name</th><th>hire_date</th><th>AGE('2025-04-01', hire_date)</th><th class="tc-hi">years</th></tr>
-<tr><td>山田 太郎</td><td>2019-07-01</td><td>5 years 9 months</td><td class="tc-hi">5</td></tr>
-<tr><td>田中 一郎</td><td>2020-04-01</td><td>5 years 0 months</td><td class="tc-hi">5</td></tr>
-<tr><td>佐藤 花子</td><td>2021-04-01</td><td>4 years 0 months</td><td class="tc-hi">4</td></tr>
-<tr><td>高橋 三郎</td><td>2021-10-01</td><td>3 years 6 months</td><td class="tc-hi">3</td></tr>
-<tr><td>鈴木 次郎</td><td>2022-04-01</td><td>3 years 0 months</td><td class="tc-hi">3</td></tr>
-<tr><td>木村 四郎</td><td>2023-04-01</td><td>2 years 0 months</td><td class="tc-hi">2</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">EXTRACT(YEAR) + COUNT OVER (PARTITION BY 入社年) で年ごとの人数を追加</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>ウィンドウ関数で入社年ごとの人数</strong> — 行を消さずに集計値を付与</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>emp_name</th><th class="tc-g">hire_year</th><th class="tc-g">year_count（ウィンドウ集計）</th></tr>
-<tr class="tr-hi2"><td>山田 太郎</td><td class="tc-g">2019</td><td class="tc-g">1（2019年入社は1人）</td></tr>
-<tr class="tr-hi"><td>田中 一郎</td><td class="tc-g">2020</td><td class="tc-g">1（2020年入社は1人）</td></tr>
-<tr class="tr-hi4"><td>佐藤 花子</td><td class="tc-g">2021</td><td class="tc-g">2（2021年入社は2人）</td></tr>
-<tr class="tr-hi4"><td>高橋 三郎</td><td class="tc-g">2021</td><td class="tc-g">2（2021年入社は2人）</td></tr>
-<tr class="tr-hi2"><td>鈴木 次郎</td><td class="tc-g">2022</td><td class="tc-g">1（2022年入社は1人）</td></tr>
-<tr class="tr-hi3"><td>木村 四郎</td><td class="tc-g">2023</td><td class="tc-g">1（2023年入社は1人）</td></tr>
-</table></div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>日付型は文字列とは異なります。<code>'2025-04-01'</code> という文字列は、<code>::DATE</code>（PostgreSQL）や <code>CAST('2025-04-01' AS DATE)</code>（標準SQL）でDATE型に変換してから計算します。型が合っていないと意図しない結果になります。</div></div>
@@ -652,32 +1042,107 @@ MySQL: <code>YEAR()</code>・<code>MONTH()</code>・<code>DATEDIFF()</code>・<c
   4. SELECT e.emp_id, ...        → 必要な列を出力（全6行維持）
   5. ORDER BY e.emp_id           → 社員IDで昇順に並べる
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM employees e", bc: "badge-blue",
+        label: "FROM employees e（部下側として読込）",
+        desc: "部下側として扱うemployeesテーブル（エイリアスe）の全6行を読み込みます。manager_idがNULLの山田太郎はトップ（上司なし）です。",
+        type: "base",
+        cols: ["e.emp_id","e.emp_name","e.dept_id","e.manager_id"],
+        ch: ["col-base","col-base","col-base","col-base"],
+        rows: [
+          {v:[1,"田中 一郎",10,3]},
+          {v:[2,"佐藤 花子",10,1]},
+          {v:[3,"山田 太郎",20,"NULL"],cc:["","","","val-dimmed"]},
+          {v:[4,"鈴木 次郎",10,1]},
+          {v:[5,"高橋 三郎",30,3]},
+          {v:[6,"木村 四郎",10,1]}
+        ],
+        cnt: "employees (e) 全 6行 読込" },
+      { id: "join", badge: "② LEFT JOIN employees m（自己結合）", bc: "badge-blue",
+        label: "FROM employees e LEFT JOIN employees m ON e.manager_id = m.emp_id",
+        desc: "同じテーブルを上司側（エイリアスm）として再度読み込みます。LEFT JOINなので部下側の全行が保持されます。ON条件はe.manager_idとm.emp_idの一致チェックです。",
+        type: "base", join: true,
+        left: {
+          label: "employees e（部下側）",
+          cols: ["emp_id","emp_name","manager_id"],
+          ch: ["","","col-eval"],
+          rows: [
+            {v:[1,"田中 一郎",3]},
+            {v:[2,"佐藤 花子",1]},
+            {v:[3,"山田 太郎","NULL"],cc:["","","val-dimmed"]},
+            {v:[4,"鈴木 次郎",1]},
+            {v:[5,"高橋 三郎",3]},
+            {v:[6,"木村 四郎",1]}
+          ]
+        },
+        right: {
+          label: "employees m（上司側）",
+          cols: ["emp_id","emp_name"],
+          ch: ["col-eval",""],
+          rows: [
+            {v:[1,"田中 一郎"]},
+            {v:[2,"佐藤 花子"]},
+            {v:[3,"山田 太郎"]},
+            {v:[4,"鈴木 次郎"]},
+            {v:[5,"高橋 三郎"]},
+            {v:[6,"木村 四郎"]}
+          ]
+        },
+        cnt: "左: 6行 / 右: 6行（同じテーブルを別名で使用）" },
+      { id: "where", badge: "③ ON条件の適用結果", bc: "badge-orange",
+        label: "ON e.manager_id = m.emp_id",
+        desc: "e.manager_idとm.emp_idが一致する行を結合します。山田太郎（manager_id=NULL）は一致なし → LEFT JOINなので右側がNULLのまま行が残ります。",
+        type: "eval",
+        cols: ["e.emp_id","e.emp_name","e.manager_id","ON条件","m.emp_name（上司）"],
+        ch: ["","","col-eval","","col-select"],
+        rows: [
+          {v:[1,"田中 一郎",3,"3 = m.emp_id(3) ✓","山田 太郎"],cc:["","","val-pass","",""]},
+          {v:[2,"佐藤 花子",1,"1 = m.emp_id(1) ✓","田中 一郎"],cc:["","","val-pass","",""]},
+          {c:"row-grp-3",v:[3,"山田 太郎","NULL","NULL → 一致なし","NULL（上司なし）"],cc:["","","val-dimmed","","val-dimmed"]},
+          {v:[4,"鈴木 次郎",1,"1 = m.emp_id(1) ✓","田中 一郎"],cc:["","","val-pass","",""]},
+          {v:[5,"高橋 三郎",3,"3 = m.emp_id(3) ✓","山田 太郎"],cc:["","","val-pass","",""]},
+          {v:[6,"木村 四郎",1,"1 = m.emp_id(1) ✓","田中 一郎"],cc:["","","val-pass","",""]}
+        ],
+        cnt: "結合成功: 5行 / NULL保持: 1行（LEFT JOIN）" },
+      { id: "select", badge: "④ COALESCE + SELECT", bc: "badge-green",
+        label: "COALESCE(m.emp_name, '（上司なし）') AS manager_name",
+        desc: "NULLだった山田太郎の上司欄をCOALESCEで「（上司なし）」に置換し、必要列を出力します。ORDER BY e.emp_idで社員ID順に整列。",
+        type: "select",
+        cols: ["emp_id","emp_name","manager_name"],
+        ch: ["col-select","col-select","col-select"],
+        rows: [
+          {v:[1,"田中 一郎","山田 太郎"]},
+          {v:[2,"佐藤 花子","田中 一郎"]},
+          {c:"row-grp-3",v:[3,"山田 太郎","（上司なし）"]},
+          {v:[4,"鈴木 次郎","田中 一郎"]},
+          {v:[5,"高橋 三郎","山田 太郎"]},
+          {v:[6,"木村 四郎","田中 一郎"]}
+        ],
+        cnt: "結果: 6行 × 3列" }
+    ],
+    sql: [
+      {t:"SELECT\n",                            k:"sql-kw", h:"select"},
+      {t:"  e.emp_id,\n",                       k:"",       h:"select"},
+      {t:"  e.emp_name,\n",                     k:"",       h:"select"},
+      {t:"  COALESCE",                           k:"",       h:"select"},
+      {t:"(m.emp_name, ",                        k:"",       h:"select"},
+      {t:"'（上司なし）'",                        k:"",       h:"select"},
+      {t:")\n",                                  k:"",       h:"select"},
+      {t:"    AS",                               k:"sql-kw", h:"select"},
+      {t:" manager_name\n",                     k:"",       h:"select"},
+      {t:"FROM",                                 k:"sql-kw", h:"from"},
+      {t:"      employees e\n",                 k:"",       h:"from"},
+      {t:"LEFT JOIN",                            k:"sql-kw", h:"join from"},
+      {t:" employees m\n",                      k:"",       h:"join from"},
+      {t:"  ON",                                 k:"sql-kw", h:"where join"},
+      {t:" e.manager_id = m.emp_id\n",          k:"",       h:"where join"},
+      {t:"ORDER BY",                             k:"sql-kw", h:"select"},
+      {t:" e.emp_id;",                           k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>SELF JOIN の仕組み</strong> — 同じテーブルを2役（部下・上司）に使う</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>e.emp_id</th><th>e.emp_name（部下）</th><th>e.manager_id</th><th>→ ON条件</th><th class="tc-hi">m.emp_name（上司）</th></tr>
-<tr><td>1</td><td>田中 一郎</td><td>3</td><td class="tc-g">3 = m.emp_id(3) ✓</td><td class="tc-hi">山田 太郎</td></tr>
-<tr><td>2</td><td>佐藤 花子</td><td>1</td><td class="tc-g">1 = m.emp_id(1) ✓</td><td class="tc-hi">田中 一郎</td></tr>
-<tr class="tr-hi4"><td>3</td><td>山田 太郎</td><td class="null">NULL</td><td class="tc-r">NULL → 一致なし</td><td class="null">NULL（上司なし）</td></tr>
-<tr><td>4</td><td>鈴木 次郎</td><td>1</td><td class="tc-g">1 = m.emp_id(1) ✓</td><td class="tc-hi">田中 一郎</td></tr>
-<tr><td>5</td><td>高橋 三郎</td><td>3</td><td class="tc-g">3 = m.emp_id(3) ✓</td><td class="tc-hi">山田 太郎</td></tr>
-<tr><td>6</td><td>木村 四郎</td><td>1</td><td class="tc-g">1 = m.emp_id(1) ✓</td><td class="tc-hi">田中 一郎</td></tr>
-</table></div>
-</div>
-<div class="step-block" style="margin-top:10px;">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>組織階層のイメージ</strong></span></div>
-<div class="callout ok" style="font-family:'JetBrains Mono',monospace;font-size:12px;">
-山田 太郎（emp_id=3, manager_id=NULL）← トップ<br>
-├── 田中 一郎（emp_id=1, manager_id=3）<br>
-│   ├── 佐藤 花子（emp_id=2, manager_id=1）<br>
-│   ├── 鈴木 次郎（emp_id=4, manager_id=1）<br>
-│   └── 木村 四郎（emp_id=6, manager_id=1）<br>
-└── 高橋 三郎（emp_id=5, manager_id=3）
-</div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>自己結合は特殊な JOIN ではなく、普通の LEFT JOIN を「同じテーブル」に対して行うだけです。必ず2つの異なるエイリアス（<code>e</code> と <code>m</code> など）を付けて区別します。</div></div>
@@ -774,31 +1239,88 @@ MySQL: <code>YEAR()</code>・<code>MONTH()</code>・<code>DATEDIFF()</code>・<c
 
   結果: 佐藤・鈴木・木村の3行
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM employees e", bc: "badge-blue",
+        label: "FROM employees e",
+        desc: "外側クエリの対象テーブル employees 全6行を読み込みます。各行について「ordersに対応する受注が存在するか」をサブクエリで確認します。",
+        type: "base",
+        cols: ["emp_id","emp_name","dept_id"],
+        ch: ["col-base","col-base","col-base"],
+        rows: [
+          {v:[1,"田中 一郎",10]},
+          {v:[2,"佐藤 花子",10]},
+          {v:[3,"山田 太郎",20]},
+          {v:[4,"鈴木 次郎",10]},
+          {v:[5,"高橋 三郎",30]},
+          {v:[6,"木村 四郎",10]}
+        ],
+        cnt: "全 6行 読込" },
+      { id: "sub", badge: "② サブクエリ: orders を確認", bc: "badge-orange",
+        label: "SELECT 1 FROM orders o WHERE o.emp_id = e.emp_id",
+        desc: "ordersテーブルに担当受注が存在するか確認します。emp_id: 1（田中）・3（山田）・5（高橋）は受注あり、2（佐藤）・4（鈴木）・6（木村）は受注なしです。",
+        type: "eval",
+        cols: ["order_id","emp_id","amount","→ 担当社員"],
+        ch: ["","col-eval","",""],
+        rows: [
+          {v:[1001,1,"120,000","田中 一郎"],cc:["","val-pass","",""]},
+          {v:[1002,3,"80,000","山田 太郎"],cc:["","val-pass","",""]},
+          {v:[1003,1,"95,000","田中 一郎"],cc:["","val-pass","",""]},
+          {v:[1004,5,"200,000","高橋 三郎"],cc:["","val-pass","",""]}
+        ],
+        cnt: "ordersに存在: emp_id 1, 3, 5 / 存在しない: 2, 4, 6" },
+      { id: "where", badge: "③ NOT EXISTS フィルタ", bc: "badge-orange",
+        label: "WHERE NOT EXISTS (サブクエリ)",
+        desc: "ordersに受注が存在する社員（EXISTS=TRUE → NOT EXISTS=FALSE）は除外。受注のない社員（EXISTS=FALSE → NOT EXISTS=TRUE）が残ります。",
+        type: "eval",
+        cols: ["emp_id","emp_name","ordersに存在?","NOT EXISTS","結果"],
+        ch: ["","","col-eval","",""],
+        rows: [
+          {c:"row-dimmed",v:[1,"田中 一郎","あり（1001, 1003）","FALSE","除外"],cc:["","","","","val-fail"]},
+          {c:"row-grp-2", v:[2,"佐藤 花子","なし","TRUE","残る"],cc:["","","","","val-pass"]},
+          {c:"row-dimmed",v:[3,"山田 太郎","あり（1002）","FALSE","除外"],cc:["","","","","val-fail"]},
+          {c:"row-grp-2", v:[4,"鈴木 次郎","なし","TRUE","残る"],cc:["","","","","val-pass"]},
+          {c:"row-dimmed",v:[5,"高橋 三郎","あり（1004）","FALSE","除外"],cc:["","","","","val-fail"]},
+          {c:"row-grp-2", v:[6,"木村 四郎","なし","TRUE","残る"],cc:["","","","","val-pass"]}
+        ],
+        cnt: "6行 → 3行（受注なし社員のみ）" },
+      { id: "select", badge: "④ SELECT + ORDER BY", bc: "badge-green",
+        label: "SELECT e.emp_id, e.emp_name, e.dept_id",
+        desc: "NOT EXISTSを通過した3行を出力します。受注のなかった佐藤花子・鈴木次郎・木村四郎の3名がemp_id昇順で返ります。",
+        type: "select",
+        cols: ["emp_id","emp_name","dept_id"],
+        ch: ["col-select","col-select","col-select"],
+        rows: [
+          {v:[2,"佐藤 花子",10]},
+          {v:[4,"鈴木 次郎",10]},
+          {v:[6,"木村 四郎",10]}
+        ],
+        cnt: "結果: 3行 × 3列" }
+    ],
+    sql: [
+      {t:"SELECT\n",             k:"sql-kw", h:"select"},
+      {t:"  e.emp_id,\n",        k:"",       h:"select"},
+      {t:"  e.emp_name,\n",      k:"",       h:"select"},
+      {t:"  e.dept_id\n",        k:"",       h:"select"},
+      {t:"FROM",                  k:"sql-kw", h:"from"},
+      {t:"   employees e\n",     k:"",       h:"from"},
+      {t:"WHERE",                 k:"sql-kw", h:"where"},
+      {t:"  ",                    k:"",       h:"where"},
+      {t:"NOT EXISTS",            k:"sql-kw", h:"where"},
+      {t:" (\n",                 k:"",       h:"where"},
+      {t:"  SELECT",              k:"sql-kw", h:"sub"},
+      {t:" 1\n",                 k:"",       h:"sub"},
+      {t:"  FROM",                k:"sql-kw", h:"sub"},
+      {t:"   orders o\n",        k:"",       h:"sub"},
+      {t:"  WHERE",               k:"sql-kw", h:"sub"},
+      {t:"  o.emp_id = e.emp_id\n", k:"",   h:"sub"},
+      {t:")\n",                  k:"",       h:"where"},
+      {t:"ORDER BY",              k:"sql-kw", h:"select"},
+      {t:" e.emp_id;",            k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>NOT EXISTS の評価</strong> — 外側クエリの行ごとにサブクエリで存在チェック</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>e.emp_id</th><th>e.emp_name</th><th>ordersに存在?</th><th>EXISTS</th><th>NOT EXISTS</th><th>結果</th></tr>
-<tr class="tr-dim"><td>1</td><td>田中 一郎</td><td class="tc-g">あり（1001,1003）</td><td class="tc-g">TRUE</td><td class="tc-r">FALSE</td><td class="tc-r">除外</td></tr>
-<tr class="tr-hi2"><td>2</td><td>佐藤 花子</td><td class="tc-r">なし</td><td class="tc-r">FALSE</td><td class="tc-g">TRUE</td><td class="tc-g">残る</td></tr>
-<tr class="tr-dim"><td>3</td><td>山田 太郎</td><td class="tc-g">あり（1002）</td><td class="tc-g">TRUE</td><td class="tc-r">FALSE</td><td class="tc-r">除外</td></tr>
-<tr class="tr-hi2"><td>4</td><td>鈴木 次郎</td><td class="tc-r">なし</td><td class="tc-r">FALSE</td><td class="tc-g">TRUE</td><td class="tc-g">残る</td></tr>
-<tr class="tr-dim"><td>5</td><td>高橋 三郎</td><td class="tc-g">あり（1004）</td><td class="tc-g">TRUE</td><td class="tc-r">FALSE</td><td class="tc-r">除外</td></tr>
-<tr class="tr-hi2"><td>6</td><td>木村 四郎</td><td class="tc-r">なし</td><td class="tc-r">FALSE</td><td class="tc-g">TRUE</td><td class="tc-g">残る</td></tr>
-</table></div>
-</div>
-<div class="step-block" style="margin-top:12px">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>NOT IN との NULL問題</strong> — なぜ NOT EXISTS が安全か</span></div>
-<div class="callout danger" style="font-size:12px;">
-<strong>例：ordersに emp_id = NULL の行があった場合</strong><br><br>
-<code>WHERE emp_id NOT IN (1, 3, 5, NULL)</code><br>
-→ NULL との比較は常に UNKNOWN → 全件 0行になる！（バグ）<br><br>
-<code>WHERE NOT EXISTS (SELECT 1 FROM orders WHERE o.emp_id = e.emp_id)</code><br>
-→ NULLの影響を受けない → 正しく動作する
-</div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>EXISTS</code> は「サブクエリが1行でも返したら TRUE」です。<code>SELECT 1</code> の「1」は何の意味もなく、<code>SELECT *</code> でも <code>SELECT NULL</code> でも同じ動作をします。あくまで「行の存在チェック」が目的です。</div></div>
@@ -899,29 +1421,106 @@ MySQL: <code>YEAR()</code>・<code>MONTH()</code>・<code>DATEDIFF()</code>・<c
   3. UNION ALL            → 2つの結果を縦に結合（計6行・重複排除なし）
   4. ORDER BY pay DESC    → 全6行を pay の降順で並び替え
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① 第1クエリ: FROM employees", bc: "badge-blue",
+        label: "SELECT emp_id AS id, emp_name AS name, dept_id, salary AS pay, '正社員' AS emp_type FROM employees",
+        desc: "正社員テーブルから3行を取得し、emp_typeに固定値'正社員'を付加します。列名は第1クエリのエイリアスが最終出力に使われます。",
+        type: "base",
+        cols: ["id","name","dept_id","pay","emp_type"],
+        ch: ["col-base","col-base","col-base","col-base","col-base"],
+        rows: [
+          {c:"row-grp-1",v:[1,"田中 一郎",10,"450,000","正社員"]},
+          {c:"row-grp-1",v:[2,"佐藤 花子",10,"380,000","正社員"]},
+          {c:"row-grp-1",v:[3,"山田 太郎",20,"520,000","正社員"]}
+        ],
+        cnt: "employees: 3行" },
+      { id: "join", badge: "② 第2クエリ: FROM part_timers", bc: "badge-blue",
+        label: "SELECT pt_id AS id, pt_name AS name, dept_id, hourly_wage AS pay, 'パート' AS emp_type FROM part_timers",
+        desc: "パート社員テーブルから3行を取得します。列名は第1クエリのエイリアスに揃えます（id/name/pay）。列数と型が一致していることがUNIONの条件です。",
+        type: "base",
+        cols: ["id","name","dept_id","pay","emp_type"],
+        ch: ["col-base","col-base","col-base","col-base","col-base"],
+        rows: [
+          {c:"row-grp-2",v:[101,"中村 美咲",10,"1,500","パート"]},
+          {c:"row-grp-2",v:[102,"松本 健二",20,"1,200","パート"]},
+          {c:"row-grp-2",v:[103,"加藤 裕子",30,"1,800","パート"]}
+        ],
+        cnt: "part_timers: 3行" },
+      { id: "where", badge: "③ UNION ALL — 縦に結合", bc: "badge-orange",
+        label: "UNION ALL（重複排除なし・高速）",
+        desc: "2つのSELECT結果を縦に積み重ねます。UNION ALLは重複排除しないため高速です。IDが被らないことが保証されているので安全にALLが使えます。",
+        type: "eval",
+        cols: ["id","name","dept_id","pay","emp_type"],
+        ch: ["","","","","col-eval"],
+        rows: [
+          {c:"row-grp-1",v:[1,"田中 一郎",10,"450,000","正社員"]},
+          {c:"row-grp-1",v:[2,"佐藤 花子",10,"380,000","正社員"]},
+          {c:"row-grp-1",v:[3,"山田 太郎",20,"520,000","正社員"]},
+          {c:"row-grp-2",v:[101,"中村 美咲",10,"1,500","パート"]},
+          {c:"row-grp-2",v:[102,"松本 健二",20,"1,200","パート"]},
+          {c:"row-grp-2",v:[103,"加藤 裕子",30,"1,800","パート"]}
+        ],
+        cnt: "縦結合: 3行 + 3行 = 6行" },
+      { id: "select", badge: "④ ORDER BY pay DESC", bc: "badge-green",
+        label: "ORDER BY pay DESC（全体に適用）",
+        desc: "UNION全体の結果を pay の降順で並び替えます。ORDER BYはUNION全体の最後に1つだけ書きます。正社員の月給とパートの時給は単位が違いますが、数値として比較されます。",
+        type: "select",
+        cols: ["id","name","dept_id","pay","emp_type"],
+        ch: ["col-select","col-select","col-select","col-select","col-select"],
+        rows: [
+          {c:"row-grp-1",v:[3,"山田 太郎",20,"520,000","正社員"]},
+          {c:"row-grp-1",v:[1,"田中 一郎",10,"450,000","正社員"]},
+          {c:"row-grp-1",v:[2,"佐藤 花子",10,"380,000","正社員"]},
+          {c:"row-grp-2",v:[103,"加藤 裕子",30,"1,800","パート"]},
+          {c:"row-grp-2",v:[101,"中村 美咲",10,"1,500","パート"]},
+          {c:"row-grp-2",v:[102,"松本 健二",20,"1,200","パート"]}
+        ],
+        cnt: "結果: 6行 × 5列" }
+    ],
+    sql: [
+      {t:"SELECT\n",       k:"sql-kw", h:"from"},
+      {t:"  emp_id ",       k:"",       h:"from"},
+      {t:"AS",              k:"sql-kw", h:"from"},
+      {t:" id,\n",         k:"",       h:"from"},
+      {t:"  emp_name ",     k:"",       h:"from"},
+      {t:"AS",              k:"sql-kw", h:"from"},
+      {t:" name,\n",       k:"",       h:"from"},
+      {t:"  dept_id,\n",   k:"",       h:"from"},
+      {t:"  salary ",       k:"",       h:"from"},
+      {t:"AS",              k:"sql-kw", h:"from"},
+      {t:" pay,\n",        k:"",       h:"from"},
+      {t:"  '正社員' ",     k:"",       h:"from"},
+      {t:"AS",              k:"sql-kw", h:"from"},
+      {t:" emp_type\n",    k:"",       h:"from"},
+      {t:"FROM",            k:"sql-kw", h:"from"},
+      {t:" employees\n\n",k:"",       h:"from"},
+      {t:"UNION ALL",       k:"sql-kw", h:"where"},
+      {t:"\n\n",          k:"",       h:"where"},
+      {t:"SELECT\n",       k:"sql-kw", h:"join"},
+      {t:"  pt_id ",        k:"",       h:"join"},
+      {t:"AS",              k:"sql-kw", h:"join"},
+      {t:" id,\n",         k:"",       h:"join"},
+      {t:"  pt_name ",      k:"",       h:"join"},
+      {t:"AS",              k:"sql-kw", h:"join"},
+      {t:" name,\n",       k:"",       h:"join"},
+      {t:"  dept_id,\n",   k:"",       h:"join"},
+      {t:"  hourly_wage ",  k:"",       h:"join"},
+      {t:"AS",              k:"sql-kw", h:"join"},
+      {t:" pay,\n",        k:"",       h:"join"},
+      {t:"  'パート' ",     k:"",       h:"join"},
+      {t:"AS",              k:"sql-kw", h:"join"},
+      {t:" emp_type\n",    k:"",       h:"join"},
+      {t:"FROM",            k:"sql-kw", h:"join"},
+      {t:" part_timers\n\n",k:"",     h:"join"},
+      {t:"ORDER BY",        k:"sql-kw", h:"select"},
+      {t:" pay ",           k:"",       h:"select"},
+      {t:"DESC",            k:"sql-kw", h:"select"},
+      {t:";",               k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>UNION ALL の動作</strong> — 2つの SELECT 結果を縦に積み重ねる</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>クエリ</th><th>id</th><th>name</th><th>pay</th><th class="tc-hi">emp_type</th></tr>
-<tr class="tr-hi"><td>第1クエリ</td><td>3</td><td>山田 太郎</td><td>520,000</td><td class="tc-hi">正社員</td></tr>
-<tr class="tr-hi"><td>第1クエリ</td><td>1</td><td>田中 一郎</td><td>450,000</td><td class="tc-hi">正社員</td></tr>
-<tr class="tr-hi"><td>第1クエリ</td><td>2</td><td>佐藤 花子</td><td>380,000</td><td class="tc-hi">正社員</td></tr>
-<tr class="tr-hi2"><td>第2クエリ</td><td>103</td><td>加藤 裕子</td><td>1,800</td><td class="tc-g">パート</td></tr>
-<tr class="tr-hi2"><td>第2クエリ</td><td>101</td><td>中村 美咲</td><td>1,500</td><td class="tc-g">パート</td></tr>
-<tr class="tr-hi2"><td>第2クエリ</td><td>102</td><td>松本 健二</td><td>1,200</td><td class="tc-g">パート</td></tr>
-</table></div>
-</div>
-<div class="step-block" style="margin-top:10px">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>JOIN（横方向）vs UNION（縦方向）</strong></span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>操作</th><th>方向</th><th>列数</th><th>行数</th><th>用途</th></tr>
-<tr><td>JOIN</td><td class="tc-hi">横方向（列追加）</td><td class="tc-hi">増える</td><td>変わらない（or 増える）</td><td>テーブルを横に繋げて情報を付与</td></tr>
-<tr><td>UNION</td><td class="tc-g">縦方向（行追加）</td><td>変わらない</td><td class="tc-g">増える</td><td>同じ構造のデータを縦に積み上げ</td></tr>
-</table></div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>ORDER BY</code> は UNION 全体に対して最後に1つだけ書きます。各 SELECT の末尾に書くとエラーになります（DBによっては許容されますが非推奨）。</div></div>
@@ -1019,30 +1618,87 @@ first_name <span class="op">||</span> <span class="str">' '</span> <span class="
   5. SELECT emp_id, full_name, email_user → 指定列を出力
   6. ORDER BY emp_id                      → 社員ID昇順で並べる
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM employees_detail", bc: "badge-blue",
+        label: "FROM employees_detail",
+        desc: "employees_detailテーブル全5行を読み込みます。last_name・first_name・email列が処理対象です。",
+        type: "base",
+        cols: ["emp_id","last_name","first_name","email"],
+        ch: ["col-base","col-base","col-base","col-base"],
+        rows: [
+          {v:[1,"田中","一郎","tanaka.ichiro@company.co.jp"]},
+          {v:[2,"佐藤","花子","sato.hanako@company.co.jp"]},
+          {v:[3,"山田","太郎","yamada.taro@company.co.jp"]},
+          {v:[4,"本田","健太","honda.kenta@company.co.jp"]},
+          {v:[5,"高橋","三郎","takahashi.saburo@company.co.jp"]}
+        ],
+        cnt: "全 5行 読込" },
+      { id: "where", badge: "② WHERE CONCAT(...) LIKE '%田%'", bc: "badge-orange",
+        label: "WHERE CONCAT(last_name, first_name) LIKE '%田%'",
+        desc: "姓と名を結合した文字列に「田」が含まれる行を絞り込みます。%は任意の0文字以上にマッチするワイルドカードです。田中・山田・本田の3名が該当します。",
+        type: "eval",
+        cols: ["last_name","first_name","CONCAT(姓,名)","LIKE '%田%'"],
+        ch: ["col-eval","col-eval","col-eval",""],
+        rows: [
+          {v:["田中","一郎","田中一郎","✓ 残る"],cc:["","","val-pass","val-pass"]},
+          {c:"row-dimmed",v:["佐藤","花子","佐藤花子","✗ 除外"],cc:["","","","val-fail"]},
+          {v:["山田","太郎","山田太郎","✓ 残る"],cc:["","","val-pass","val-pass"]},
+          {v:["本田","健太","本田健太","✓ 残る"],cc:["","","val-pass","val-pass"]},
+          {c:"row-dimmed",v:["高橋","三郎","高橋三郎","✗ 除外"],cc:["","","","val-fail"]}
+        ],
+        cnt: "5行 → 3行（田を含む社員）" },
+      { id: "agg", badge: "③ POSITION('@') — @の位置を特定", bc: "badge-orange",
+        label: "POSITION('@' IN email) — @が何文字目にあるかを返す",
+        desc: "POSITION関数でemail内の@の位置を数値で取得します。SUBSTRING(email, 1, 位置-1)とすることで先頭から@直前までを切り出せます。emailごとに@位置が異なる点がポイントです。",
+        type: "eval",
+        cols: ["emp_id","email","POSITION('@' IN email)","→ SUBSTRING(email,1,位置-1)"],
+        ch: ["","col-eval","col-eval","col-select"],
+        rows: [
+          {v:[1,"tanaka.ichiro@company.co.jp",14,"tanaka.ichiro"],cc:["","","val-pass",""]},
+          {v:[3,"yamada.taro@company.co.jp",12,"yamada.taro"],cc:["","","val-pass",""]},
+          {v:[4,"honda.kenta@company.co.jp",12,"honda.kenta"],cc:["","","val-pass",""]}
+        ],
+        cnt: "@の位置を数値で特定 → 切り出し長 = 位置 - 1" },
+      { id: "select", badge: "④ SELECT — CONCAT + SUBSTRING 最終出力", bc: "badge-green",
+        label: "CONCAT(last_name, ' ', first_name) AS full_name / SUBSTRING(email,1,POSITION-1) AS email_user",
+        desc: "CONCAT で「田中 一郎」形式のfull_nameを生成し、SUBSTRINGで@より前のユーザー名を切り出します。ORDER BY emp_idで社員ID昇順に整列して出力します。",
+        type: "select",
+        cols: ["emp_id","full_name","email_user"],
+        ch: ["","col-select","col-select"],
+        rows: [
+          {v:[1,"田中 一郎","tanaka.ichiro"]},
+          {v:[3,"山田 太郎","yamada.taro"]},
+          {v:[4,"本田 健太","honda.kenta"]}
+        ],
+        cnt: "結果: 3行 × 3列" }
+    ],
+    sql: [
+      {t:"SELECT\n",                   k:"sql-kw", h:"select"},
+      {t:"  emp_id,\n",               k:"",       h:"select"},
+      {t:"  CONCAT",                    k:"",       h:"select"},
+      {t:"(last_name, ' ', first_name) ", k:"",    h:"select"},
+      {t:"AS",                          k:"sql-kw", h:"select"},
+      {t:" full_name,\n",              k:"",       h:"select"},
+      {t:"  SUBSTRING",                 k:"",       h:"agg select"},
+      {t:"(\n    email, 1,\n    ",    k:"",       h:"agg"},
+      {t:"POSITION",                    k:"",       h:"agg"},
+      {t:"('@' IN email) - 1\n  ) ",   k:"",       h:"agg"},
+      {t:"AS",                          k:"sql-kw", h:"agg select"},
+      {t:" email_user\n",              k:"",       h:"agg select"},
+      {t:"FROM",                        k:"sql-kw", h:"from"},
+      {t:"  employees_detail\n",       k:"",       h:"from"},
+      {t:"WHERE",                       k:"sql-kw", h:"where"},
+      {t:" CONCAT",                     k:"",       h:"where"},
+      {t:"(last_name, first_name) ",    k:"",       h:"where"},
+      {t:"LIKE",                        k:"sql-kw", h:"where"},
+      {t:" '%田%'\n",                  k:"",       h:"where"},
+      {t:"ORDER BY",                    k:"sql-kw", h:"select"},
+      {t:" emp_id;",                    k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>LIKE '%田%'</strong> — 姓+名の結合文字列に「田」を含む行を検索</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>last_name</th><th>first_name</th><th>CONCAT(姓,名)の結果</th><th>LIKE '%田%'</th></tr>
-<tr class="tr-hi2"><td>田中</td><td>一郎</td><td class="tc-g">田中一郎 ← 田あり</td><td class="tc-g">✓ 残る</td></tr>
-<tr class="tr-dim"><td>佐藤</td><td>花子</td><td>佐藤花子</td><td class="tc-r">✗ 除外</td></tr>
-<tr class="tr-hi2"><td>山田</td><td>太郎</td><td class="tc-g">山田太郎 ← 田あり</td><td class="tc-g">✓ 残る</td></tr>
-<tr class="tr-hi2"><td>本田</td><td>健太</td><td class="tc-g">本田健太 ← 田あり</td><td class="tc-g">✓ 残る</td></tr>
-<tr class="tr-dim"><td>高橋</td><td>三郎</td><td>高橋三郎</td><td class="tc-r">✗ 除外</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">CONCAT / SUBSTRING で列を加工</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>SUBSTRING + POSITION</strong> — @より前のユーザー名を切り出す</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>email</th><th>POSITION('@')</th><th class="tc-g">SUBSTRING結果</th></tr>
-<tr><td>tanaka.ichiro@company.co.jp</td><td>14</td><td class="tc-g">tanaka.ichiro</td></tr>
-<tr><td>yamada.taro@company.co.jp</td><td>12</td><td class="tc-g">yamada.taro</td></tr>
-<tr><td>honda.kenta@company.co.jp</td><td>12</td><td class="tc-g">honda.kenta</td></tr>
-</table></div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>LIKE</code> のワイルドカードは2種類です。<code>%</code>（パーセント）は0文字以上の任意の文字列、<code>_</code>（アンダースコア）は任意の1文字です。<code>LIKE '田_'</code> は「田」で始まる2文字の文字列（「田中」はOK、「山田」はNG）にマッチします。</div></div>
@@ -1160,26 +1816,100 @@ first_name <span class="op">||</span> <span class="str">' '</span> <span class="
   5. SELECT e.emp_name, ...          → 必要な列を出力（4行）
   6. ORDER BY e.emp_id, p.project_id → 社員ID→プロジェクトID昇順で並べる
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM employees e", bc: "badge-blue",
+        label: "FROM employees e（起点テーブル）",
+        desc: "起点テーブル employees 全4行を読み込みます。dept_idでdepartmentsへ、emp_idでproject_assignmentsへ繋げます。",
+        type: "base",
+        cols: ["emp_id","emp_name","dept_id"],
+        ch: ["col-base","col-base","col-base"],
+        rows: [
+          {v:[1,"田中 一郎",10]},
+          {v:[2,"佐藤 花子",10]},
+          {v:[3,"山田 太郎",20]},
+          {v:[4,"鈴木 次郎",10]}
+        ],
+        cnt: "employees: 4行" },
+      { id: "join", badge: "② JOIN departments + project_assignments", bc: "badge-blue",
+        label: "INNER JOIN departments ON dept_id / INNER JOIN project_assignments ON emp_id",
+        desc: "departmentsをdept_idで結合して全員に部署名を付与（4行維持）。続いてproject_assignmentsをemp_idで結合します。左パネルで薄い佐藤（担当案件なし）は右パネルに対応行がないためINNER JOINで除外、田中は2件担当なので2行に増えます。",
+        type: "base", join: true,
+        left: {
+          label: "employees e（部署JOIN後）",
+          cols: ["emp_id","emp_name","dept_name"],
+          ch: ["col-eval","",""],
+          rows: [
+            {v:[1,"田中 一郎","営業部"]},
+            {c:"row-dimmed",v:[2,"佐藤 花子","営業部"],cc:["val-fail","",""]},
+            {v:[3,"山田 太郎","開発部"]},
+            {v:[4,"鈴木 次郎","営業部"]}
+          ]
+        },
+        right: {
+          label: "project_assignments pa",
+          cols: ["emp_id","project_id"],
+          ch: ["col-eval",""],
+          rows: [
+            {v:[1,"P01"]},
+            {v:[1,"P02"]},
+            {v:[3,"P01"]},
+            {v:[4,"P03"]}
+          ]
+        },
+        cnt: "4行 → 4行（田中2行に増・佐藤除外）" },
+      { id: "where", badge: "③ JOIN projects（最終結合）", bc: "badge-orange",
+        label: "INNER JOIN projects ON pa.project_id = p.project_id",
+        desc: "project_assignmentsのproject_idとprojectsのproject_idを突き合わせます。全件一致するため行数は変わらず4行です。",
+        type: "eval",
+        cols: ["emp_name","dept_name","pa.project_id","project_name"],
+        ch: ["","","col-eval","col-select"],
+        rows: [
+          {v:["田中 一郎","営業部","P01","ECサイト刷新"],cc:["","","val-pass",""]},
+          {v:["田中 一郎","営業部","P02","CRM導入"],cc:["","","val-pass",""]},
+          {v:["山田 太郎","開発部","P01","ECサイト刷新"],cc:["","","val-pass",""]},
+          {v:["鈴木 次郎","営業部","P03","新規顧客開拓"],cc:["","","val-pass",""]}
+        ],
+        cnt: "4行 × 4列（全件プロジェクトマスタに一致）" },
+      { id: "select", badge: "④ SELECT + ORDER BY", bc: "badge-green",
+        label: "SELECT e.emp_name, d.dept_name, p.project_name ORDER BY emp_id, project_id",
+        desc: "必要な列を選択してemp_id→project_id昇順で整列します。佐藤はproject_assignmentsに存在しなかったためINNER JOINで除外済みです。",
+        type: "select",
+        cols: ["emp_name","dept_name","project_name"],
+        ch: ["col-select","col-select","col-select"],
+        rows: [
+          {v:["田中 一郎","営業部","ECサイト刷新"]},
+          {v:["田中 一郎","営業部","CRM導入"]},
+          {v:["山田 太郎","開発部","ECサイト刷新"]},
+          {v:["鈴木 次郎","営業部","新規顧客開拓"]}
+        ],
+        cnt: "結果: 4行 × 3列（佐藤は除外済み）" }
+    ],
+    sql: [
+      {t:"SELECT\n",                     k:"sql-kw", h:"select"},
+      {t:"  e.emp_name,\n",              k:"",       h:"select"},
+      {t:"  d.dept_name,\n",             k:"",       h:"select"},
+      {t:"  p.project_name\n",           k:"",       h:"select"},
+      {t:"FROM",                          k:"sql-kw", h:"from"},
+      {t:"       employees e\n",         k:"",       h:"from"},
+      {t:"INNER JOIN",                    k:"sql-kw", h:"join from"},
+      {t:" departments d\n",             k:"",       h:"join from"},
+      {t:"  ON",                          k:"sql-kw", h:"join"},
+      {t:" e.dept_id = d.dept_id\n",     k:"",       h:"join"},
+      {t:"INNER JOIN",                    k:"sql-kw", h:"join from"},
+      {t:" project_assignments pa\n",    k:"",       h:"join from"},
+      {t:"  ON",                          k:"sql-kw", h:"join"},
+      {t:" e.emp_id = pa.emp_id\n",      k:"",       h:"join"},
+      {t:"INNER JOIN",                    k:"sql-kw", h:"where join"},
+      {t:" projects p\n",                k:"",       h:"where join"},
+      {t:"  ON",                          k:"sql-kw", h:"where"},
+      {t:" pa.project_id = p.project_id\n", k:"",   h:"where"},
+      {t:"ORDER BY\n",                   k:"sql-kw", h:"select"},
+      {t:"  e.emp_id, p.project_id;",     k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>4テーブルの連鎖 JOIN のイメージ</strong></span></div>
-<div class="callout" style="font-family:'JetBrains Mono',monospace;font-size:12px;">
-employees ─(dept_id)─→ departments<br>
-employees ─(emp_id)──→ project_assignments ─(project_id)─→ projects
-</div>
-</div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>JOIN 後の行数の変化</strong> — 多対多で行が増えることを確認</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>JOINのステップ</th><th>行数</th><th>説明</th></tr>
-<tr><td>① FROM employees</td><td>4行</td><td>田中・佐藤・山田・鈴木</td></tr>
-<tr><td>② ⊕ departments</td><td>4行</td><td>全員部署マスタに存在（変わらず）</td></tr>
-<tr class="tr-hi4"><td>③ ⊕ project_assignments</td><td class="tc-y">4行</td><td>田中は2件→2行に増加、佐藤は0件→除外、山田1件・鈴木1件</td></tr>
-<tr><td>④ ⊕ projects</td><td>4行</td><td>全件プロジェクトマスタに存在（変わらず）</td></tr>
-</table></div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>JOINは「テーブルを横に広げていく」操作です。FROM で最初のテーブルを置いたら、JOIN を1つ追加するごとに列が追加されていきます。ON で「どのキーで繋ぐか」を指定するのを忘れないようにしましょう。</div></div>
@@ -1277,31 +2007,108 @@ employees ─(emp_id)──→ project_assignments ─(project_id)─→ project
   4. SELECT sales_month, ...             → 指定列を出力
   5. ORDER BY sales_month                → 月の昇順で並べる
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM monthly_sales", bc: "badge-blue",
+        label: "FROM monthly_sales",
+        desc: "monthly_salesテーブル全5行を読み込みます。sales_month列が時系列の基準、sales_amount列が計算対象です。",
+        type: "base",
+        cols: ["sales_month","sales_amount"],
+        ch: ["col-base","col-base"],
+        rows: [
+          {v:["2025-01-01","1,200,000"]},
+          {v:["2025-02-01","980,000"]},
+          {v:["2025-03-01","1,450,000"]},
+          {v:["2025-04-01","1,320,000"]},
+          {v:["2025-05-01","1,600,000"]}
+        ],
+        cnt: "全 5行 読込" },
+      { id: "group", badge: "② LAG() OVER (ORDER BY sales_month)", bc: "badge-orange",
+        label: "LAG(sales_amount, 1, 0) OVER (ORDER BY sales_month)",
+        desc: "ORDER BY sales_monthで月昇順にウィンドウを定義し、各行の1行前のsales_amountを取得します。最初の行は前の行が存在しないためデフォルト値0が入ります。",
+        type: "group",
+        cols: ["sales_month","sales_amount","prev_sales（LAG）"],
+        ch: ["","col-eval","col-select"],
+        rows: [
+          {c:"row-grp-3",v:["2025-01-01","1,200,000","0（デフォルト）"]},
+          {v:["2025-02-01","980,000","1,200,000"]},
+          {v:["2025-03-01","1,450,000","980,000"]},
+          {v:["2025-04-01","1,320,000","1,450,000"]},
+          {v:["2025-05-01","1,600,000","1,320,000"]}
+        ],
+        cnt: "LAG付与完了（5行・行数変わらず）" },
+      { id: "where", badge: "③ CASE WHEN: 前月比を計算", bc: "badge-orange",
+        label: "CASE WHEN LAG(...) IS NULL THEN NULL ELSE ROUND(...*100.0/LAG(...), 1) END AS growth_rate",
+        desc: "前月が存在しない最初の行（LAGがNULL）はNULLを返し、それ以外は当月÷前月×100で前月比を計算します。整数除算を避けるため *100.0 で浮動小数点にします。",
+        type: "eval",
+        cols: ["sales_month","sales_amount","prev_sales","growth_rate"],
+        ch: ["","col-eval","col-eval","col-select"],
+        rows: [
+          {c:"row-grp-3",v:["2025-01-01","1,200,000",0,"NULL（前月なし）"],cc:["","","","val-dimmed"]},
+          {v:["2025-02-01","980,000","1,200,000","81.7%"],cc:["","","","val-fail"]},
+          {v:["2025-03-01","1,450,000","980,000","148.0%"],cc:["","","","val-pass"]},
+          {v:["2025-04-01","1,320,000","1,450,000","91.0%"],cc:["","","","val-fail"]},
+          {v:["2025-05-01","1,600,000","1,320,000","121.2%"],cc:["","","","val-pass"]}
+        ],
+        cnt: "前月比算出完了（5行）" },
+      { id: "select", badge: "④ SELECT + ORDER BY", bc: "badge-green",
+        label: "ORDER BY sales_month",
+        desc: "全計算列を含めて月昇順で出力します。最初の行のprev_salesは0、growth_rateはNULLです。",
+        type: "select",
+        cols: ["sales_month","sales_amount","prev_sales","growth_rate"],
+        ch: ["col-select","col-select","col-select","col-select"],
+        rows: [
+          {v:["2025-01-01","1,200,000",0,"NULL"]},
+          {v:["2025-02-01","980,000","1,200,000","81.7%"]},
+          {v:["2025-03-01","1,450,000","980,000","148.0%"]},
+          {v:["2025-04-01","1,320,000","1,450,000","91.0%"]},
+          {v:["2025-05-01","1,600,000","1,320,000","121.2%"]}
+        ],
+        cnt: "結果: 5行 × 4列" }
+    ],
+    sql: [
+      {t:"SELECT\n",               k:"sql-kw", h:"select"},
+      {t:"  sales_month,\n",       k:"",       h:"select"},
+      {t:"  sales_amount,\n",      k:"",       h:"select"},
+      {t:"  LAG",                   k:"",       h:"group select"},
+      {t:"(sales_amount, 1, 0) ",   k:"",       h:"group"},
+      {t:"OVER",                    k:"sql-kw", h:"group"},
+      {t:" (\n    ",               k:"",       h:"group"},
+      {t:"ORDER BY",                k:"sql-kw", h:"group"},
+      {t:" sales_month\n  ) ",     k:"",       h:"group"},
+      {t:"AS",                      k:"sql-kw", h:"group select"},
+      {t:" prev_sales,\n",         k:"",       h:"group select"},
+      {t:"  CASE\n",               k:"sql-kw", h:"where"},
+      {t:"    WHEN ",               k:"",       h:"where"},
+      {t:"LAG",                     k:"",       h:"where"},
+      {t:"(sales_amount, 1) ",      k:"",       h:"where"},
+      {t:"OVER",                    k:"sql-kw", h:"where"},
+      {t:" (",                      k:"",       h:"where"},
+      {t:"ORDER BY",                k:"sql-kw", h:"where"},
+      {t:" sales_month) ",          k:"",       h:"where"},
+      {t:"IS NULL\n",              k:"sql-kw", h:"where"},
+      {t:"    THEN ",               k:"",       h:"where"},
+      {t:"NULL\n",                 k:"sql-kw", h:"where"},
+      {t:"    ELSE ROUND(\n",      k:"",       h:"where"},
+      {t:"      sales_amount * 100.0\n      / ", k:"", h:"where"},
+      {t:"LAG",                     k:"",       h:"where"},
+      {t:"(sales_amount, 1) ",      k:"",       h:"where"},
+      {t:"OVER",                    k:"sql-kw", h:"where"},
+      {t:" (",                      k:"",       h:"where"},
+      {t:"ORDER BY",                k:"sql-kw", h:"where"},
+      {t:" sales_month), 1)\n  ",  k:"",       h:"where"},
+      {t:"END",                     k:"sql-kw", h:"where"},
+      {t:" ",                       k:"",       h:"where"},
+      {t:"AS",                      k:"sql-kw", h:"where select"},
+      {t:" growth_rate\n",         k:"",       h:"where select"},
+      {t:"FROM",                    k:"sql-kw", h:"from"},
+      {t:"  monthly_sales\n",      k:"",       h:"from"},
+      {t:"ORDER BY",                k:"sql-kw", h:"select"},
+      {t:" sales_month;",           k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>LAG の動作</strong> — ORDER BY sales_month で「1行前」を参照</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>sales_month</th><th>sales_amount</th><th class="tc-hi">LAG(1行前)</th><th>前月比の計算</th></tr>
-<tr class="tr-hi4"><td>2025-01-01</td><td>1,200,000</td><td class="tc-o">0（デフォルト値）</td><td class="null">NULL（前月なし）</td></tr>
-<tr><td>2025-02-01</td><td>980,000</td><td class="tc-hi">1,200,000</td><td>980,000÷1,200,000×100 = 81.7%</td></tr>
-<tr><td>2025-03-01</td><td>1,450,000</td><td class="tc-hi">980,000</td><td>1,450,000÷980,000×100 = 148.0%</td></tr>
-<tr><td>2025-04-01</td><td>1,320,000</td><td class="tc-hi">1,450,000</td><td>1,320,000÷1,450,000×100 = 91.0%</td></tr>
-<tr><td>2025-05-01</td><td>1,600,000</td><td class="tc-hi">1,320,000</td><td>1,600,000÷1,320,000×100 = 121.2%</td></tr>
-</table></div>
-</div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>LAG vs LEAD</strong> — 前後どちらの行を参照するか</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>月</th><th>売上</th><th class="tc-hi">LAG（前月）</th><th class="tc-g">LEAD（翌月）</th></tr>
-<tr><td>1月</td><td>1,200,000</td><td class="null">NULL（前月なし）</td><td class="tc-g">980,000</td></tr>
-<tr><td>2月</td><td>980,000</td><td class="tc-hi">1,200,000</td><td class="tc-g">1,450,000</td></tr>
-<tr><td>3月</td><td>1,450,000</td><td class="tc-hi">980,000</td><td class="tc-g">1,320,000</td></tr>
-<tr><td>4月</td><td>1,320,000</td><td class="tc-hi">1,450,000</td><td class="tc-g">1,600,000</td></tr>
-<tr><td>5月</td><td>1,600,000</td><td class="tc-hi">1,320,000</td><td class="null">NULL（翌月なし）</td></tr>
-</table></div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>LAG(列, 1, 0)</code> の第3引数はデフォルト値です。省略すると前の行が存在しない場合に NULL が返ります。NULL を 0 に変換したい場合は第3引数で指定するか <code>COALESCE(LAG(...), 0)</code> を使います。</div></div>
@@ -1442,42 +2249,129 @@ top2_with_info <span class="kw">AS</span> (
   6. SELECT d.dept_name,... → 必要な列を出力（4行）
   7. ORDER BY dept_name,... → 部署名降順→部署内順位昇順で並べる
 */</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① CTE ranked_employees: ROW_NUMBER付与", bc: "badge-blue",
+        label: "ROW_NUMBER() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS dept_rank",
+        desc: "employees全6行にROW_NUMBER()で部署内給与順位を付与します。行数は変わらず6行のまま、dept_rank列が追加されます。CTE内なのでWHEREで絞り込めるようになります。",
+        type: "base",
+        cols: ["emp_name","dept_id","salary","dept_rank"],
+        ch: ["col-base","col-base","col-base","col-base"],
+        rows: [
+          {c:"row-grp-1",v:["田中 一郎",10,"450,000",1]},
+          {c:"row-grp-1",v:["鈴木 次郎",10,"410,000",2]},
+          {c:"row-grp-1",v:["佐藤 花子",10,"380,000",3]},
+          {c:"row-grp-1",v:["木村 四郎",10,"350,000",4]},
+          {c:"row-grp-2",v:["山田 太郎",20,"520,000",1]},
+          {c:"row-grp-3",v:["高橋 三郎",30,"390,000",1]}
+        ],
+        cnt: "全 6行（行数変わらず）· dept_rank列追加" },
+      { id: "group", badge: "② CTE dept_avg: 部署平均を集計", bc: "badge-orange",
+        label: "AVG(salary) FROM employees GROUP BY dept_id（元テーブルを対象 = 全員ベース）",
+        desc: "元テーブルemployeesを対象に部署ごとの平均給与を集計します。①のCTEではなく元テーブルを使うことで「上位2名に絞る前の全員ベース」の平均になります。",
+        type: "group",
+        cols: ["dept_id","avg_salary","計算内訳"],
+        ch: ["col-eval","col-select",""],
+        rows: [
+          {c:"row-grp-1",v:[10,"397,500","(450+410+380+350)÷4"]},
+          {c:"row-grp-2",v:[20,"520,000","520,000÷1"]},
+          {c:"row-grp-3",v:[30,"390,000","390,000÷1"]}
+        ],
+        cnt: "6行 → 3行（部署単位に集約）" },
+      { id: "where", badge: "③ CTE top2_with_info: WHERE dept_rank <= 2 で絞込", bc: "badge-orange",
+        label: "JOIN dept_avg ON dept_id / WHERE r.dept_rank <= 2",
+        desc: "①と②をJOINして平均給与を付与し、dept_rank <= 2 の行だけ残します。CTEに包まれているためウィンドウ関数の結果をWHEREで絞り込めます。これがCTE+ウィンドウ関数の核心です。",
+        type: "eval",
+        cols: ["emp_name","dept_id","salary","dept_rank","avg_salary"],
+        ch: ["","","col-eval","col-eval","col-select"],
+        rows: [
+          {c:"row-grp-1",v:["田中 一郎",10,"450,000",1,"397,500"],cc:["","","","val-pass",""]},
+          {c:"row-grp-1",v:["鈴木 次郎",10,"410,000",2,"397,500"],cc:["","","","val-pass",""]},
+          {c:"row-dimmed",v:["佐藤 花子",10,"380,000","3 → 除外","397,500"],cc:["","","","val-fail",""]},
+          {c:"row-dimmed",v:["木村 四郎",10,"350,000","4 → 除外","397,500"],cc:["","","","val-fail",""]},
+          {c:"row-grp-2",v:["山田 太郎",20,"520,000",1,"520,000"],cc:["","","","val-pass",""]},
+          {c:"row-grp-3",v:["高橋 三郎",30,"390,000",1,"390,000"],cc:["","","","val-pass",""]}
+        ],
+        cnt: "6行 → 4行（各部署の上位2名のみ）" },
+      { id: "select", badge: "④ JOIN departments + SELECT + ORDER BY", bc: "badge-green",
+        label: "INNER JOIN departments ON dept_id / ORDER BY dept_name DESC, dept_rank ASC",
+        desc: "departmentsテーブルを結合して部署名を付加し、必要列を出力します。部署名降順（開発→マーケ→営業）→部署内順位昇順で整列します。",
+        type: "select",
+        cols: ["dept_name","emp_name","salary","dept_rank","dept_avg_salary"],
+        ch: ["col-select","col-select","col-select","col-select","col-select"],
+        rows: [
+          {c:"row-grp-2",v:["開発部","山田 太郎","520,000",1,"520,000"]},
+          {c:"row-grp-3",v:["マーケ部","高橋 三郎","390,000",1,"390,000"]},
+          {c:"row-grp-1",v:["営業部","田中 一郎","450,000",1,"397,500"]},
+          {c:"row-grp-1",v:["営業部","鈴木 次郎","410,000",2,"397,500"]}
+        ],
+        cnt: "結果: 4行 × 5列" }
+    ],
+    sql: [
+      {t:"WITH\n",             k:"sql-kw", h:"from"},
+      {t:"ranked_employees ",   k:"",       h:"from"},
+      {t:"AS",                  k:"sql-kw", h:"from"},
+      {t:" (\n  ",             k:"",       h:"from"},
+      {t:"SELECT",              k:"sql-kw", h:"from"},
+      {t:" emp_id, emp_name, dept_id, salary,\n  ",k:"",h:"from"},
+      {t:"ROW_NUMBER",          k:"",       h:"from"},
+      {t:"() ",                 k:"",       h:"from"},
+      {t:"OVER",                k:"sql-kw", h:"from"},
+      {t:" (\n    ",           k:"",       h:"from"},
+      {t:"PARTITION BY",        k:"sql-kw", h:"from"},
+      {t:" dept_id\n    ",     k:"",       h:"from"},
+      {t:"ORDER BY",            k:"sql-kw", h:"from"},
+      {t:" salary ",            k:"",       h:"from"},
+      {t:"DESC\n",             k:"sql-kw", h:"from"},
+      {t:"  ) ",                k:"",       h:"from"},
+      {t:"AS",                  k:"sql-kw", h:"from"},
+      {t:" dept_rank\n  ",     k:"",       h:"from"},
+      {t:"FROM",                k:"sql-kw", h:"from"},
+      {t:" employees\n),\n\n",k:"",      h:"from"},
+      {t:"dept_avg ",           k:"",       h:"group"},
+      {t:"AS",                  k:"sql-kw", h:"group"},
+      {t:" (\n  ",             k:"",       h:"group"},
+      {t:"SELECT",              k:"sql-kw", h:"group"},
+      {t:" dept_id, ",          k:"",       h:"group"},
+      {t:"AVG",                 k:"",       h:"group"},
+      {t:"(salary) ",           k:"",       h:"group"},
+      {t:"AS",                  k:"sql-kw", h:"group"},
+      {t:" avg_salary\n  ",    k:"",       h:"group"},
+      {t:"FROM",                k:"sql-kw", h:"group"},
+      {t:" employees\n  ",     k:"",       h:"group"},
+      {t:"GROUP BY",            k:"sql-kw", h:"group"},
+      {t:" dept_id\n),\n\n", k:"",       h:"group"},
+      {t:"top2_with_info ",     k:"",       h:"where"},
+      {t:"AS",                  k:"sql-kw", h:"where"},
+      {t:" (\n  ",             k:"",       h:"where"},
+      {t:"SELECT",              k:"sql-kw", h:"where"},
+      {t:" r.*, da.avg_salary\n  ",k:"",   h:"where"},
+      {t:"FROM",                k:"sql-kw", h:"where"},
+      {t:" ranked_employees r\n  ",k:"",   h:"where"},
+      {t:"INNER JOIN",          k:"sql-kw", h:"where"},
+      {t:" dept_avg da ",       k:"",       h:"where"},
+      {t:"ON",                  k:"sql-kw", h:"where"},
+      {t:" r.dept_id = da.dept_id\n  ",k:"",h:"where"},
+      {t:"WHERE",               k:"sql-kw", h:"where"},
+      {t:" r.dept_rank <= 2\n)\n\n",k:"",h:"where"},
+      {t:"SELECT\n",           k:"sql-kw", h:"select"},
+      {t:"  d.dept_name, t.emp_name, t.salary, t.dept_rank,\n  ROUND(t.dept_avg_salary, 0) AS dept_avg_salary\n",k:"",h:"select"},
+      {t:"FROM",                k:"sql-kw", h:"select"},
+      {t:" top2_with_info t\n",k:"",       h:"select"},
+      {t:"INNER JOIN",          k:"sql-kw", h:"select"},
+      {t:" departments d ",     k:"",       h:"select"},
+      {t:"ON",                  k:"sql-kw", h:"select"},
+      {t:" t.dept_id = d.dept_id\n",k:"",  h:"select"},
+      {t:"ORDER BY",            k:"sql-kw", h:"select"},
+      {t:" d.dept_name ",       k:"",       h:"select"},
+      {t:"DESC",                k:"sql-kw", h:"select"},
+      {t:", t.dept_rank ",      k:"",       h:"select"},
+      {t:"ASC",                 k:"sql-kw", h:"select"},
+      {t:";",                   k:"",       h:"select"}
+    ]
+  },
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE ① ranked_employees</strong> — 全員に部署内順位を付与（行数は変わらず）</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>emp_name</th><th>dept_id</th><th>salary</th><th class="tc-hi">dept_rank</th></tr>
-<tr class="tr-hi"><td>田中 一郎</td><td>10</td><td class="tc-g">450,000</td><td class="tc-hi">1位</td></tr>
-<tr class="tr-hi"><td>鈴木 次郎</td><td>10</td><td>410,000</td><td class="tc-hi">2位</td></tr>
-<tr class="tr-dim"><td>佐藤 花子</td><td>10</td><td>380,000</td><td>3位 → 除外</td></tr>
-<tr class="tr-dim"><td>木村 四郎</td><td>10</td><td>350,000</td><td>4位 → 除外</td></tr>
-<tr class="tr-hi2"><td>山田 太郎</td><td>20</td><td class="tc-g">520,000</td><td class="tc-hi">1位</td></tr>
-<tr class="tr-hi3"><td>高橋 三郎</td><td>30</td><td class="tc-g">390,000</td><td class="tc-hi">1位</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">② dept_avg CTE → 部署ごとの平均給与（元テーブルで全員対象）</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>CTE ② dept_avg</strong> — 全員を対象にした部署平均（上位2名で絞る前）</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>dept_id</th><th class="tc-g">avg_salary</th><th>計算内訳</th></tr>
-<tr><td>10</td><td class="tc-g">397,500</td><td>(450+410+380+350)÷4 = 397,500</td></tr>
-<tr><td>20</td><td class="tc-g">520,000</td><td>520,000÷1 = 520,000</td></tr>
-<tr><td>30</td><td class="tc-g">390,000</td><td>390,000÷1 = 390,000</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">③ top2_with_info CTE → JOIN + WHERE dept_rank &lt;= 2 で上位2名に絞る</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終結果</strong> — 部署名を付加して4行に</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>dept_name</th><th>emp_name</th><th>salary</th><th class="tc-hi">dept_rank</th><th class="tc-g">dept_avg_salary</th></tr>
-<tr class="tr-hi2"><td>開発部</td><td>山田 太郎</td><td>520,000</td><td class="tc-hi">1</td><td class="tc-g">520,000</td></tr>
-<tr class="tr-hi3"><td>マーケ部</td><td>高橋 三郎</td><td>390,000</td><td class="tc-hi">1</td><td class="tc-g">390,000</td></tr>
-<tr class="tr-hi"><td>営業部</td><td>田中 一郎</td><td>450,000</td><td class="tc-hi">1</td><td class="tc-g">397,500</td></tr>
-<tr class="tr-hi"><td>営業部</td><td>鈴木 次郎</td><td>410,000</td><td class="tc-hi">2</td><td class="tc-g">397,500</td></tr>
-</table></div>
-</div>
-</div>
+
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="flex-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>このパターンの核心は「<strong>ウィンドウ関数をCTEで包むことでWHEREが使えるようになる</strong>」点です。直接 <code>WHERE ROW_NUMBER() OVER (...) &lt;= 2</code> は書けないため、CTEやサブクエリでワンクッション置く必要があります。</div></div>
@@ -1531,7 +2425,11 @@ function buildAll() {
       ${acc('❓','pill-green','問題','問題',q.question)}
       ${acc('📊','pill-orange','出力例','期待出力',q.output)}
       ${acc('✅','pill-red'  ,'模範回答','模範解答コード',q.answer)}
-      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',q.explain)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',
+        (Array.isArray(q.viz)
+          ? q.viz.map((_, vIdx) => `<div class="sql-viz-wrapper" id="viz-${i}-${vIdx}" tabindex="-1" style="margin-bottom: 24px;"></div>`).join('')
+          : `<div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1"></div>`
+        ) + q.explain)}
       <div class="nav-bar">
         <button class="nav-btn" onclick="go(${i-1})" ${i===0?'disabled':''}>← 前の問題</button>
         <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
@@ -1539,6 +2437,16 @@ function buildAll() {
       </div>
     </div>
   `).join('');
+
+  QS.forEach((q, i) => {
+    if (q.viz) {
+      if (Array.isArray(q.viz)) {
+        q.viz.forEach((v, vIdx) => initVisualizer(document.getElementById(`viz-${i}-${vIdx}`), v));
+      } else {
+        initVisualizer(document.getElementById('viz-' + i), q.viz);
+      }
+    }
+  });
 
   go(0);
 }
@@ -1554,6 +2462,24 @@ function go(i) {
 }
 
 buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !wasMobile);
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !isMobile);
+  }
+});
 </script>
 </body>
 </html>
