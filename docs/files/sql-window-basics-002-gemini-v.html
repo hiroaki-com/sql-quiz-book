@@ -447,7 +447,7 @@ const QS = [
   num: 1,
   title: "MAX() / MIN() OVER() — グループ内の最大値・最小値との比較",
   tags: [["r","MAX/MIN"],["g","PARTITION BY"],["o","基準値比較"],["p","基本"]],
-  premise: `<p><code>SUM()</code> だけでなく、<code>MAX()</code> や <code>MIN()</code> などの集約関数もウィンドウ関数として使用できます。これを利用すると、「部署ごとの最高給与」などを各行の横に付与し、<strong>自身の値との差額</strong>を1つのクエリで簡単に計算できます。</p>
+  premise: `<p>「行を潰さずに全体の集計値を各行に付与する」という <code>OVER()</code> の特性は、<code>MAX()</code> や <code>MIN()</code> と組み合わせることで真価を発揮します。これを利用すると、「部署ごとの最高給与」などを各行の横に付与し、<strong>自身の値との差額</strong>を1つのクエリで簡単に計算できます。</p>
 <pre><span class="kw">SELECT</span>
   name, score,
   <span class="fn">MAX</span>(score) <span class="kw">OVER</span>() <span class="kw">AS</span> top_score
@@ -510,7 +510,7 @@ const QS = [
         ], cnt: "全 4行 読込" },
       { id: "window", badge: "② PARTITION BY dept", bc: "badge-orange",
         label: "MAX(salary) OVER(PARTITION BY dept)",
-        desc: "部署ごとにグループ化し、グループ内で一番大きい値（MAX）を探してすべての行に配ります。",
+        desc: "部署ごとにグループ化し、それぞれのグループ内での最大値（MAX）を計算し、グループ内のすべての行に同じ値を付与します。",
         type: "group",
         cols: ["emp_name","dept","salary","dept_max"],
         ch:   ["","col-eval","","col-eval"],
@@ -519,10 +519,10 @@ const QS = [
           { c: "row-grp-1", v: ["Bさん","営業",250000,"300,000"], cc: ["","","","val-hl"] },
           { c: "row-grp-2", v: ["Cさん","開発",400000,"400,000"], cc: ["","","","val-hl"] },
           { c: "row-grp-2", v: ["Dさん","開発",380000,"400,000"], cc: ["","","","val-hl"] }
-        ], cnt: "部署ごとの最高額を算出" },
+        ], cnt: "部署ごとの最高額を算出・付与" },
       { id: "select", badge: "③ SELECT (差額の計算)", bc: "badge-green",
         label: "MAX() - salary",
-        desc: "取得した dept_max から自身の salary を引き、差額を計算して出力します。",
+        desc: "ステップ②で取得した dept_max から自身の salary を引き、差額（diff_from_max）を計算して最終的な結果を出力します。",
         type: "select",
         cols: ["emp_name","dept","salary","dept_max","diff_from_max"],
         ch:   ["col-select","col-select","col-select","col-select","col-select"],
@@ -555,7 +555,7 @@ const QS = [
   num: 2,
   title: "COUNT() OVER() — 条件付き集計とデータ件数の付与",
   tags: [["r","COUNT"],["g","PARTITION BY"],["o","件数付与"]],
-  premise: `<p><code>COUNT()</code> もウィンドウ関数として頻繁に使用されます。「このユーザーは今まで何回注文したか」という<strong>グループ内のデータ件数</strong>を、行を潰さずに各行に持たせることができます。</p>
+  premise: `<p><code>COUNT()</code> もウィンドウ関数として頻繁に使用されます。「このユーザーの全注文回数」や「全注文金額」といった<strong>グループ内のデータ件数・合計</strong>を、行を潰さずに各明細行に持たせることができます。</p>
 <pre><span class="kw">SELECT</span>
   order_id, user_id,
   <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> user_id) <span class="kw">AS</span> user_order_count
@@ -620,7 +620,7 @@ const QS = [
         ], cnt: "全 5行 読込" },
       { id: "window", badge: "② PARTITION BY user_id", bc: "badge-orange",
         label: "COUNT(*) OVER, SUM(amount) OVER",
-        desc: "ユーザーごとにグループ化し、それぞれのグループ内での「行数(COUNT)」と「合計(SUM)」を同時に計算して横に付与します。",
+        desc: "ユーザーごとにグループ化し、それぞれのグループ内での「行数(COUNT)」と「合計金額(SUM)」を同時に計算し、各明細行に付与します。",
         type: "group",
         cols: ["order_id","user_id","amount","order_count","total_amount"],
         ch:   ["","col-eval","","col-eval","col-eval"],
@@ -656,7 +656,7 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>フラグ立て・異常検知への応用：</strong>「注文回数が2回以上のユーザーだけを抽出したい」といった場合、このクエリをサブクエリで囲み <code>WHERE order_count >= 2</code> とすることで簡単に絞り込めます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>フラグ立て・異常検知への応用：</strong>「注文回数が2回以上のユーザーだけを抽出したい」といった場合、このクエリをサブクエリ（またはCTE）で囲み <code>WHERE order_count >= 2</code> とすることで、詳細な注文履歴を残したまま対象ユーザーだけを抽出できます。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>COUNT(列名) と COUNT(*) の違い：</strong>ウィンドウ関数でも通常の集約関数と同様に、<code>COUNT(列名)</code> はその列が NULL でない行だけをカウントし、<code>COUNT(*)</code> は NULL を含めた全ての行数をカウントします。</div></div>
 </div>`
 },
@@ -732,16 +732,16 @@ const QS = [
         ], cnt: "全 4行 読込" },
       { id: "window", badge: "② FIRST_VALUE() の評価", bc: "badge-orange",
         label: "PARTITION BY user_id ORDER BY event_date",
-        desc: "ユーザーごとに日付順で並べ、そのグループの「1行目」の値（U1なら「登録」）を、グループ内のすべての行にコピーして伝播させます。",
+        desc: "ユーザーごとに日付順で並べ、そのグループの先頭行の値（U1なら「登録」）を、グループ内のすべての行にコピーして付与します。",
         type: "group",
-        cols: ["user_id","event_date","event_name","グループ内1行目","first_event"],
+        cols: ["user_id","event_date","event_name","先頭行の判定","first_event"],
         ch:   ["col-eval","col-eval","","","col-eval"],
         rows: [
-          { c: "row-grp-1", v: ["U1","04-01","登録","← 1行目","登録"], cc: ["","","","val-hl","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-01","登録","← 先頭","登録"], cc: ["","","","val-hl","val-pass"] },
           { c: "row-grp-1", v: ["U1","04-02","閲覧","","登録"], cc: ["","","","","val-pass"] },
           { c: "row-grp-1", v: ["U1","04-05","購入","","登録"], cc: ["","","","","val-pass"] },
-          { c: "row-grp-2", v: ["U2","04-03","登録","← 1行目","登録"], cc: ["","","","val-hl","val-pass"] }
-        ], cnt: "先頭の値を伝播" },
+          { c: "row-grp-2", v: ["U2","04-03","登録","← 先頭","登録"], cc: ["","","","val-hl","val-pass"] }
+        ], cnt: "先頭の値をグループ全体に伝播" },
       { id: "select", badge: "③ SELECT", bc: "badge-green",
         label: "最終出力",
         desc: "計算結果を出力します。",
@@ -768,7 +768,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>MIN() との違い：</strong>「最初のイベント名」を取る際、<code>MIN(event_name)</code> を使うと文字コード順（辞書順）で一番小さいものが取れてしまい、日付順の「最初」にはなりません。時間軸に沿った最初の値を取るには必ず <code>FIRST_VALUE()</code> を使います。</div></div>
-<div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>実務テクニック (IGNORE NULLS)：</strong>「一番最初に『購入』以外の何かをしたイベント」など、途中にNULLが混じるデータで最初の有効値を取りたい場合、PostgreSQLやBigQuery等では <code>FIRST_VALUE(event_name IGNORE NULLS) OVER(...)</code> という書き方ができ、非常に強力です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>対となる LAST_VALUE()：</strong>最後の値を取得する <code>LAST_VALUE()</code> もありますが、デフォルトのフレーム指定（<code>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code>）の仕様により、そのまま使うと「現在の行の値」が返ってしまいます。実務では <code>ORDER BY ... DESC</code> に並べ替えて <code>FIRST_VALUE()</code> を使う方が安全で直感的です。</div></div>
 </div>`
 },
 
@@ -836,15 +836,15 @@ const QS = [
         ], cnt: "全 4行 読込" },
       { id: "window", badge: "② LEAD() による次行参照", bc: "badge-orange",
         label: "LEAD(visit_date) OVER(PARTITION BY user_id ...)",
-        desc: "各グループ内で、現在の行から見て「1つ下の行」の値を引っ張ってきます。",
+        desc: "各グループ内で、現在の行から見て「1つ下の行」の値を引っ張ってきます。次行が存在しない場合は NULL になります。",
         type: "group",
         cols: ["user_id","visit_date","参照先 (次行)","next_visit (LEAD)"],
         ch:   ["col-eval","","","col-eval"],
         rows: [
-          { c: "row-grp-1", v: ["U1","04-01","↓ 次行 (04-05)","04-05"], cc: ["","","","val-pass"] },
-          { c: "row-grp-1", v: ["U1","04-05","↓ 次行 (04-10)","04-10"], cc: ["","","","val-pass"] },
-          { c: "row-grp-1", v: ["U1","04-10","なし (最後の行)","NULL"], cc: ["","","","val-fail"] },
-          { c: "row-grp-2", v: ["U2","04-02","なし (最後の行)","NULL"], cc: ["","","","val-fail"] }
+          { c: "row-grp-1", v: ["U1","04-01","↓ (04-05)","04-05"], cc: ["","","","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-05","↓ (04-10)","04-10"], cc: ["","","","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-10","なし","NULL"], cc: ["","","","val-fail"] },
+          { c: "row-grp-2", v: ["U2","04-02","なし","NULL"], cc: ["","","","val-fail"] }
         ], cnt: "次行の値を横に付与" },
       { id: "select", badge: "③ SELECT", bc: "badge-green",
         label: "最終出力",
@@ -871,7 +871,7 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での活用例（DATEDIFF）：</strong><code>DATEDIFF(LEAD(visit_date) OVER(...), visit_date)</code> のように日付の差分関数と組み合わせることで、「ユーザーが平均して何日おきにサイトを訪れるか（再訪間隔）」を簡単に分析できます。マーケティング分析における超重要テクニックです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での活用例（DATEDIFF）：</strong><code>DATEDIFF(LEAD(visit_date) OVER(...), visit_date)</code> のように日付の差分関数と組み合わせることで、「ユーザーが平均して何日おきにサイトを訪れるか（再訪間隔）」を1クエリで簡単に分析できます。マーケティング分析における超重要テクニックです。</div></div>
 </div>`
 },
 
@@ -939,14 +939,14 @@ const QS = [
         ], cnt: "全 3行 読込" },
       { id: "window", badge: "② LAG(..., 1, 0)", bc: "badge-orange",
         label: "LAG(users, 1, 0) OVER(...)",
-        desc: "1つ前の行を取得します。先頭行（04-01）は前行が存在しないため、指定されたデフォルト値「0」が適用されます。",
+        desc: "1つ前の行を取得します。先頭行（04-01）は前行が存在しないため、指定されたデフォルト値の 0 が適用されます。",
         type: "eval",
         cols: ["date","users","参照元","prev_users (LAG)"],
         ch:   ["","","","col-eval"],
         rows: [
-          { v: ["04-01",100,"なし → デフォルト値","0"], cc: ["","","","val-hl"] },
-          { v: ["04-02",120,"↑ 前行 (100)","100"], cc: ["","","","val-pass"] },
-          { v: ["04-03",150,"↑ 前行 (120)","120"], cc: ["","","","val-pass"] }
+          { v: ["04-01",100,"なし → デフォルト","0"], cc: ["","","","val-hl"] },
+          { v: ["04-02",120,"↑ (100)","100"], cc: ["","","","val-pass"] },
+          { v: ["04-03",150,"↑ (120)","120"], cc: ["","","","val-pass"] }
         ], cnt: "NULL回避で値を取得" },
       { id: "select", badge: "③ SELECT", bc: "badge-green",
         label: "最終出力",
@@ -971,7 +971,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCE() との使い分け：</strong><code>COALESCE(LAG(users) OVER(...), 0)</code> と書くのと同じ結果になりますが、LAGの第3引数を使う方がコードがすっきりし、ウィンドウ関数の意図（デフォルト値の補完）が明確になります。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>データ型の罠に注意：</strong>LAGの第3引数は、第1引数（取得対象の列）と<strong>同じデータ型</strong>でなければならないRDBMSが多いです。たとえば取得対象が日付型なのに <code>0</code> を指定するとエラーになるため、適切な型（<code>'1970-01-01'</code> など）を指定する必要があります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>複数行ずらす：</strong>第2引数を変更して <code>LAG(users, 7)</code> とすれば「1週間前（7行前）のデータ」を取得できます。曜日ごとのトレンドを比較する（先週の同曜日との比較）際によく使われます。</div></div>
 </div>`
 },
 
@@ -1041,15 +1041,15 @@ const QS = [
         ], cnt: "全 5行 読込" },
       { id: "window", badge: "② NTILE(3) による分割", bc: "badge-orange",
         label: "NTILE(3) OVER(ORDER BY total_amount DESC)",
-        desc: "売上順に並べた5行を3つのバケットに分割します。5行÷3＝1件、余り2件。余りは若い番号のバケット(1と2)に順に1行ずつ割り振られます。",
+        desc: "売上順に並べた5行を3つのバケットに分割します。均等に割れない場合は、若い番号のバケットから順に1行ずつ多く割り振られます。",
         type: "eval",
         cols: ["customer_id","total_amount","分割ロジック","tier (NTILE)"],
         ch:   ["","","","col-eval"],
         rows: [
-          { v: ["C1",50000,"上位層 (1+1=2件)","1"], cc: ["","","","val-hl"] },
-          { v: ["C2",40000,"上位層 (1+1=2件)","1"], cc: ["","","","val-hl"] },
-          { v: ["C3",30000,"中位層 (1+1=2件)","2"], cc: ["","","","val-hl"] },
-          { v: ["C4",20000,"中位層 (1+1=2件)","2"], cc: ["","","","val-hl"] },
+          { v: ["C1",50000,"上位層 (2件)","1"], cc: ["","","","val-hl"] },
+          { v: ["C2",40000,"上位層 (2件)","1"], cc: ["","","","val-hl"] },
+          { v: ["C3",30000,"中位層 (2件)","2"], cc: ["","","","val-hl"] },
+          { v: ["C4",20000,"中位層 (2件)","2"], cc: ["","","","val-hl"] },
           { v: ["C5",10000,"下位層 (1件)","3"], cc: ["","","","val-hl"] }
         ], cnt: "3グループに分割" },
       { id: "select", badge: "③ SELECT", bc: "badge-green",
@@ -1080,7 +1080,7 @@ const QS = [
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同値の境界またぎ：</strong>NTILE は「行数」だけで機械的に分割するため、同じ売上の人が境界線をまたいで別々のグループに分かれてしまうことがあります。厳密に「同じ値なら同じグループ」にしたい場合は、<code>NTILE</code> ではなく <code>PERCENT_RANK</code> などを利用します。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同値の境界またぎ：</strong>NTILE は「行数」だけで機械的に分割するため、同じ売上の人が境界線をまたいで別々のグループに分かれてしまうことがあります。厳密に「同じ値なら同じグループ」にしたい場合は、<code>NTILE</code> ではなく <code>PERCENT_RANK</code> や <code>RANK</code> などを利用して自前で分割ロジックを組む必要があります。</div></div>
 </div>`
 },
 
@@ -1150,13 +1150,13 @@ const QS = [
         label: "PERCENT_RANK() OVER(ORDER BY score DESC)",
         desc: "降順での RANK に基づき、(RANK - 1) / (全体の行数 - 1) を計算します。1位が0、最下位が1になります。",
         type: "eval",
-        cols: ["student_id","score","RANK","pct_rank (計算式)"],
+        cols: ["student_id","score","RANK","pct_rank"],
         ch:   ["","","","col-eval"],
         rows: [
-          { v: ["S1",95,"1位","(1-1) / 3 = 0"], cc: ["","","","val-hl"] },
-          { v: ["S2",88,"2位","(2-1) / 3 = 0.333..."], cc: ["","","","val-hl"] },
-          { v: ["S3",75,"3位","(3-1) / 3 = 0.666..."], cc: ["","","","val-hl"] },
-          { v: ["S4",60,"4位","(4-1) / 3 = 1"], cc: ["","","","val-hl"] }
+          { v: ["S1",95,"1位","0"], cc: ["","","","val-hl"] },
+          { v: ["S2",88,"2位","0.333..."], cc: ["","","","val-hl"] },
+          { v: ["S3",75,"3位","0.666..."], cc: ["","","","val-hl"] },
+          { v: ["S4",60,"4位","1"], cc: ["","","","val-hl"] }
         ], cnt: "相対位置を計算" },
       { id: "select", badge: "③ SELECT", bc: "badge-green",
         label: "最終出力",
@@ -1181,7 +1181,7 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での絞り込み：</strong>「上位20%のユーザーを抽出したい」場合は、Q8で学んだサブクエリと組み合わせて <code>WHERE pct_rank <= 0.2</code> と指定します。全体の人数が100人でも10000人でも、クエリを変えずに常に上位20%を動的に抽出できるのが強みです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での絞り込み：</strong>「上位20%のユーザーを抽出したい」場合は、サブクエリ（またはCTE）と組み合わせて <code>WHERE pct_rank <= 0.2</code> と指定します。全体の人数が100人でも10000人でも、クエリを変えずに常に上位20%を動的に抽出できるのが強みです。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CUME_DIST() との違い：</strong>似た関数に <code>CUME_DIST()</code>（累積分布）があります。PERCENT_RANK が「1位を0とする」のに対し、CUME_DIST は「1位の時点で 1/4(0.25)」からスタートし、最後が必ず1になります。要件によって使い分けます。</div></div>
 </div>`
 },
@@ -1191,9 +1191,9 @@ const QS = [
 ══════════════════════════════════════════════════ */
 {
   num: 8,
-  title: "ROWS BETWEEN 応用 — 「自身を含まない」過去の累計",
+  title: "ROWS BETWEEN 応用 — 「自身を含まない」直前の行までの過去累計",
   tags: [["r","フレーム指定"],["g","PRECEDING"],["o","過去累計"]],
-  premise: `<p>フレーム指定（ROWS BETWEEN）を活用すると、「先頭行から現在の行まで」だけでなく、<strong>「先頭行から1つ前の行まで（自身を含まない）」</strong>といった柔軟な集計範囲を定義できます。</p>
+  premise: `<p>フレーム指定（ROWS BETWEEN）を活用すると、「先頭行から現在の行まで」だけでなく、<strong>「先頭行から1つ前の行まで（現在の行を含まない）」</strong>といった柔軟な集計範囲を定義できます。</p>
 <pre><span class="fn">SUM</span>(sales) <span class="kw">OVER</span>(
   <span class="kw">ORDER BY</span> month
   <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND</span> <span class="num">1</span> <span class="kw">PRECEDING</span>
@@ -1255,13 +1255,13 @@ const QS = [
         ], cnt: "全 4行 読込" },
       { id: "window", badge: "② フレームの評価", bc: "badge-orange",
         label: "ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING",
-        desc: "「一番最初」から「現在の行の1つ前」までを足し合わせます。現在の行（自分自身の売上）は足されません。",
+        desc: "「一番最初」から「現在の行の1つ前」までの範囲（フレーム）を足し合わせます。現在の行の値自身は足されません。",
         type: "eval",
-        cols: ["month","sales","集計フレーム (自身を含まない)","prev_running_total"],
+        cols: ["month","sales","集計フレーム","prev_running_total"],
         ch:   ["","","col-eval","col-eval"],
         rows: [
           { v: ["04-01",10,"(範囲なし)","NULL"], cc: ["","","","val-hl"] },
-          { v: ["04-02",20,"[04-01の売上 10]","10"], cc: ["","","","val-hl"] },
+          { v: ["04-02",20,"[10]","10"], cc: ["","","","val-hl"] },
           { v: ["04-03",30,"[10, 20]","30"], cc: ["","","","val-hl"] },
           { v: ["04-04",40,"[10, 20, 30]","60"], cc: ["","","","val-hl"] }
         ], cnt: "過去の累計を計算" },
@@ -1302,7 +1302,7 @@ const QS = [
   title: "RANGE vs ROWS — 同じ日付が存在する時の累計の罠",
   tags: [["r","RANGE"],["g","ROWS"],["o","同値の扱い"],["p","超重要"]],
   premise: `<p><code>ORDER BY</code> を指定してフレーム句を省略した場合、デフォルトで <strong>RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</strong> が適用されます。<br>
-<code>ROWS</code> は物理的な「行」単位で処理しますが、<code>RANGE</code> は論理的な「値」単位で処理するため、<strong>ソートキーに同じ値（同順位）が存在した場合の挙動</strong>に決定的な違いが出ます。</p>`,
+<code>ROWS</code> は物理的な「行」単位で処理しますが、<code>RANGE</code> は論理的な「値」単位で処理するため、<strong>ソートキーに同じ値（同日など）が存在した場合の挙動</strong>に決定的な違いが出ます。</p>`,
   question: `<p>以下の <code>sales_records</code> テーブルには、<code>04-02</code> のデータが2件存在します。<br>
 単に <code>ORDER BY</code> だけを指定したデフォルトの累計（<strong>RANGE</strong>相当）と、<code>ROWS BETWEEN...</code> を明示的に指定した累計（<strong>ROWS</strong>）の2つを出力し、同日のデータにおける挙動の違いを確認してください。</p>
 <div class="data-section">
@@ -1370,7 +1370,7 @@ const QS = [
         ], cnt: "全 4行 読込" },
       { id: "window", badge: "② RANGE vs ROWS", bc: "badge-orange",
         label: "フレーム評価の違い",
-        desc: "RANGE（デフォルト）は同じ日付のデータを一つのブロックとみなし、合計値を共有します。ROWS は純粋に上の行から物理的に1行ずつ順番に足していきます。",
+        desc: "RANGE（デフォルト）は同じ日付のデータを一つのブロックとみなし、合計値を共有します。ROWS は純粋に上の行から1行ずつ順番に足していきます。",
         type: "eval",
         cols: ["sale_date","amount","RANGE (値で評価)","ROWS (行で評価)"],
         ch:   ["","","col-eval","col-eval"],
@@ -1382,7 +1382,7 @@ const QS = [
         ], cnt: "同順位の計算方法の違い" },
       { id: "select", badge: "③ SELECT", bc: "badge-green",
         label: "最終出力",
-        desc: "結果を出力します。",
+        desc: "それぞれの計算結果を出力します。",
         type: "select",
         cols: ["sale_date","amount","range_total","rows_total"],
         ch:   ["col-select","col-select","col-select","col-select"],
@@ -1405,7 +1405,6 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での使い分け：</strong>「その日が終わった時点での累計売上」を出したい場合は、同日の売上をまとめる RANGE（デフォルト）の挙動が正解です。一方で、「1件1件の注文に対して、その時点での累計額を厳密に出したい」場合は、必ず <code>ORDER BY date, id</code> のように一意になるキーを追加するか、<code>ROWS</code> を明示的に指定する必要があります。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>パフォーマンスの観点：</strong>RDBMSによっては、RANGE は値の同値チェックが入るため、物理行で計算する ROWS の方が高速に動作する場合があります。大量データの累計を出す際は ROWS を明示するのも一つのテクニックです。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
@@ -1421,9 +1420,9 @@ const QS = [
   title: "実務総まとめ — 顧客の購買トラッキング（回数・累計・前回履歴）",
   tags: [["r","総まとめ"],["g","データマート"],["o","実務レポート"],["p","複合"]],
   premise: `<p>実際のデータ基盤（データマート）構築では、1行のイベントデータに対して「その時点での顧客のステータス」を横付けする処理が頻繁に行われます。<br>
-これまでに学んだ <code>COUNT()</code>, <code>SUM()</code>, <code>LAG()</code> を組み合わせて、強力なトラッキングクエリを作成しましょう。</p>`,
+これまでに学んだ <code>ROW_NUMBER()</code>, <code>SUM()</code>, <code>LAG()</code> を組み合わせて、強力なトラッキングクエリを作成しましょう。</p>`,
   question: `<p>以下の <code>order_history</code> テーブルから、各注文行に対して以下の3つの指標を付与してください。</p>
-1. <strong>order_num</strong>：そのユーザーにとって「何回目の注文か」（ROW_NUMBER または COUNT での累計）<br>
+1. <strong>order_num</strong>：そのユーザーにとって「何回目の注文か」（ROW_NUMBER）<br>
 2. <strong>running_amt</strong>：そのユーザーの「その時点までの累計購入金額」（SUM）<br>
 3. <strong>prev_date</strong>：そのユーザーの「前回の購入日」（LAG。初回はNULL）
 <div class="data-section">
@@ -1468,8 +1467,8 @@ const QS = [
 <span class="cmt">/*
   実行順序:
   1. FROM order_history
-  2. SELECT句内の3つのWindow関数が、すべて「ユーザーごとの日付順」で同時に独立して評価される
-     - U1 の 04-05行目: 連番(ROW_NUMBER)は2、累計(SUM)は 1000+2000=3000、前日(LAG)は 04-01 となる。
+  2. SELECT句内の3つのWindow関数が、すべて「ユーザーごとの日付順」で同時に評価される
+     - U1 の 04-05行目: 連番は2、累計は 1000+2000=3000、前日は 04-01 となる。
   3. ORDER BY 出力
   ★ 1回のスキャンで「回数」「累計金額」「前回からの間隔」を計算できる最強のパターンです。
 */</span></pre>`,
@@ -1487,7 +1486,7 @@ const QS = [
         ], cnt: "全 4行 読込" },
       { id: "window", badge: "② 複合ウィンドウ演算", bc: "badge-orange",
         label: "ROW_NUMBER, SUM, LAG の同時評価",
-        desc: "ユーザーごとに日付順で並べた上で、連番（回数）、累計金額、前回の購入日の3つの関数が同時に独立して計算され、各行に付与されます。",
+        desc: "ユーザーごとに日付順で並べた上で、連番（回数）、累計金額、前回の購入日を同時に計算し、各明細行に付与します。",
         type: "group",
         cols: ["user_id","order_date","amount","num (連番)","running (累計)","prev (LAG)"],
         ch:   ["col-eval","col-eval","","col-eval","col-eval","col-eval"],
