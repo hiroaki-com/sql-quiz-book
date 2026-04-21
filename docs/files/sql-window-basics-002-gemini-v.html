@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL ウィンドウ関数 10選 続編 — 実務で活きる分析関数の徹底理解</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw); font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl { border-collapse: collapse; width: 100%; font-size: 11.5px; font-family: 'JetBrains Mono', monospace; }
+  table.vtbl th, table.vtbl td { border: 1px solid var(--border); padding: 5px 10px; text-align: left; white-space: nowrap; }
+  table.vtbl th { background: var(--bg3); color: var(--dim); font-weight: 600; }
+  .tc-g { color: var(--green); font-weight: 600; }
+  .tc-y { color: var(--yellow); font-weight: 600; }
+  .tc-r { color: var(--red); font-weight: 600; }
+  .tc-p { color: var(--purple); font-weight: 600; }
+  .tc-hi { color: var(--accent); font-weight: 600; }
+  .null { color: var(--dim); font-style: italic; }
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em { color: var(--yellow); }
+  .insight-body code { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code { font-size: 11px; }
+
+  .biz-box {
+    background: #0f1912; border: 1px solid #1c3d25; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .biz-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--green); letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .biz-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .biz-body strong { color: var(--green); }
+  .biz-body em { color: var(--yellow); }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+
+  /* SQL Visualizer Styles */
+  .sql-viz-wrapper {
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    --font-sans: system-ui, -apple-system, sans-serif;
+
+    --color-bg-base:    #0d1117;
+    --color-bg-panel:   #161b22;
+    --color-border-main:#30363d;
+    --color-border-sub: #21262d;
+    --color-txt-main:   #e6edf3;
+    --color-txt-sub:    #8b949e;
+    --color-txt-muted:  #6e7681;
+
+    --sql-blue-bg:    rgba(88, 166, 255, 0.15);  --sql-blue-txt:   #58a6ff;  --sql-blue-bd:    #1f6feb;
+    --sql-orange-bg:  rgba(227, 137, 59, 0.15);  --sql-orange-txt: #e3893b;  --sql-orange-bd:  #7d4e00;
+    --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
+    --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
+
+    --sql-grp1-bg: rgba(88, 166, 255, 0.06);
+    --sql-grp2-bg: rgba(63, 185, 80, 0.06);
+    --sql-grp3-bg: rgba(227, 137, 59, 0.06);
+    --sql-grp4-bg: rgba(188, 140, 255, 0.06);
+
+    --border-radius: 6px;
+
+    background: var(--color-bg-base);
+    color: var(--color-txt-main);
+    font-family: var(--font-sans);
+    min-height: auto;
+    padding: 1.5rem;
+  }
+
+  .sv-nav-btn:focus-visible, .sv-dot:focus-visible { outline: 2px solid var(--sql-blue-txt); outline-offset: 2px; }
+
+  .sv-nav-btn { padding: 6px 16px; border: 1px solid var(--color-border-sub); border-radius: var(--border-radius); font-size: 12px; background: var(--color-bg-panel); color: var(--color-txt-main); cursor: pointer; transition: all 0.2s; }
+  .sv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sv-nav-btn:not(:disabled):hover { border-color: var(--color-border-main); background: #1f2a38; }
+
+  .sv-dot { height: 6px; border: none; background: var(--color-border-sub); border-radius: 3px; cursor: pointer; padding: 0; transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s; flex-shrink: 0; width: 8px; }
+  .sv-dot.done { background: var(--color-border-main); }
+  .sv-dot.active { background: var(--sql-blue-txt); width: 24px; }
+
+  .sv-table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 12px; }
+  .sv-table th { padding: 6px 12px; font-size: 11px; font-weight: 600; border: 1px solid var(--color-border-sub); text-align: left; transition: all 0.3s ease; white-space: nowrap; }
+  .sv-table td { padding: 6px 12px; border: 1px solid var(--color-border-sub); white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main); transition: background 0.3s ease, opacity 0.3s ease; }
+
+  .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
+  .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
+  .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+
+  .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
+  .sv-table tr.row-grp-1 td { background: var(--sql-grp1-bg); }
+  .sv-table tr.row-grp-2 td { background: var(--sql-grp2-bg); }
+  .sv-table tr.row-grp-3 td { background: var(--sql-grp3-bg); }
+  .sv-table tr.row-grp-4 td { background: var(--sql-grp4-bg); }
+
+  .sv-table td.val-pass   { background: var(--sql-green-bg) !important; border-left: 2px solid var(--sql-green-txt); color: var(--sql-green-txt); font-weight: 600; }
+  .sv-table td.val-fail   { background: var(--sql-red-bg) !important; border-left: 2px solid var(--sql-red-txt); color: var(--sql-red-txt); text-decoration: line-through; opacity: 0.7; }
+  .sv-table td.val-hl     { background: rgba(227,137,59,0.2) !important; font-weight: 600; color: var(--sql-orange-txt); }
+
+  .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
+  .sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-window, .sql-hl-agg, .sql-hl-select, .sql-hl-sub {
+    border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
+  }
+  .sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); }
+  .sql-hl-where, .sql-hl-window, .sql-hl-agg, .sql-hl-sub { background: var(--sql-orange-bg); }
+  .sql-hl-select { background: var(--sql-green-bg); }
+
+  .sv-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+  .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
+  .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
+  .badge-green  { background: var(--sql-green-bg);  color: var(--sql-green-txt);  border: 1px solid var(--sql-green-bd); }
+
+  @keyframes sv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sv-animate { animation: sv-fade-in 0.3s ease forwards; }
+
+  .tbl-label { font-size: 12px; font-weight: 500; color: var(--color-txt-sub); margin-bottom: 6px; }
+
+  .sv-mobile-collapse summary::-webkit-details-marker { display: none; }
+  .sv-mobile-collapse summary { list-style: none; }
+  .sv-collapse-icon { transition: transform 0.2s ease; display: inline-block; }
+  .sv-mobile-collapse[open] .sv-collapse-icon { transform: rotate(180deg); }
+
+  @media (min-width: 641px) {
+    .sv-mobile-collapse > summary { pointer-events: none; }
+    .sv-collapse-icon { display: none !important; }
+  }
+  @media (max-width: 640px) {
+    .sv-sidebar { flex: 1 1 100% !important; min-width: 100% !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">Window</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">実務で活きるSQL ウィンドウ関数 10選 続編（分析関数の徹底理解）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★★ 応用</span>
+      <span class="htag">分析・集計</span>
+      <span class="htag">データマート構築</span>
+      <span class="htag">PostgreSQL/MySQL8.0+/BigQuery対応</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+function initVisualizer(root, data) {
+  let currentStepIndex = 0;
+
+  function getLegendHTML(type) {
+    const mkLegend = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dimLegend =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    
+    if (type === "base")   return mkLegend("blue",   "データ取得対象") + dimLegend;
+    if (type === "eval")   return mkLegend("orange", "評価対象・ウィンドウ演算") + dimLegend;
+    if (type === "group")  return mkLegend("orange", "パーティション分割・ウィンドウ演算") + `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">パーティション（グループ）</span></div>`;
+    if (type === "select") return mkLegend("green",  "最終出力") + dimLegend;
+    return "";
+  }
+
+  function renderSQL(d, stepId) {
+    return d.sql.map(t => {
+      const isMatch = t.h && t.h.split(" ").includes(stepId);
+      const cls = `${t.k || ""} ${isMatch ? `sql-hl-${stepId}` : ""}`.trim();
+      return `<span class="${cls}">${t.t}</span>`;
+    }).join("");
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:10px 14px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:14px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:10px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:13px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>
+    `;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ""}">${col}</th>`).join("");
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ""}">${val}</td>`).join("");
+      return `<tr class="${r.c || ""}">${tds}</tr>`;
+    }).join("");
+    const labelHtml = label ? `<div class="tbl-label">▸ ${label}</div>` : "";
+    return `<div style="flex:1;min-width:260px;">${labelHtml}<div style="overflow-x:auto;"><table class="sv-table">${thead ? `<thead><tr>${thead}</tr></thead>` : ""}<tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+          ${buildTable(step.left.label,  step.left.cols,  step.left.rows,  step.left.ch)}
+          <div style="display:flex;align-items:center;font-size:24px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+          ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+        </div>
+      `;
+    }
+    return buildTable("", step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? "active" : (i < currentStepIndex ? "done" : "");
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}"></button>`;
+    }).join("");
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:12px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? "disabled" : ""}>← Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? "disabled" : ""}>Next →</button>
+      </div>
+    `;
+  }
+
+  root.innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+        <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+        <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+          <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+            <span>LEGEND (現在のステップ)</span>
+            <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+          </summary>
+          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+        </details>
+      </div>
+      <div style="flex:1;min-width:300px;">
+        <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+        <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+        <div class="sv-tarea sv-animate"></div>
+        <div class="sv-rowcount" style="font-size:12px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+      </div>
+    </div>
+  `;
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML  = renderSQL(data, step.id);
+    root.querySelector('.sv-legend').innerHTML  = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = window.innerWidth > 640);
+  }
+
+  root.__viz = {
+    next: () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev: () => { if (currentStepIndex > 0)                     { currentStepIndex--; renderAll(); } },
+    goTo: i  => { if (i >= 0 && i < data.steps.length)          { currentStepIndex = i;  renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'prev')      root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+}
+
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  MAX() / MIN() OVER()
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "MAX() / MIN() OVER() — グループ内の最大値・最小値との比較",
+  tags: [["r","MAX/MIN"],["g","PARTITION BY"],["o","基準値比較"],["p","基本"]],
+  premise: `<p><code>SUM()</code> だけでなく、<code>MAX()</code> や <code>MIN()</code> などの集約関数もウィンドウ関数として使用できます。これを利用すると、「部署ごとの最高給与」などを各行の横に付与し、<strong>自身の値との差額</strong>を1つのクエリで簡単に計算できます。</p>
+<pre><span class="kw">SELECT</span>
+  name, score,
+  <span class="fn">MAX</span>(score) <span class="kw">OVER</span>() <span class="kw">AS</span> top_score
+<span class="kw">FROM</span> <span class="tbl">exams</span>;</pre>`,
+  question: `<p>以下の <code>employee_salaries</code> テーブルから、各従業員の「名前」「部署」「給与」と、<strong>「同じ部署の最高給与（dept_max）」</strong>、および<strong>「最高給与との差額（diff_from_max）」</strong>を取得してください。</p>
+<p>※ 差額は <code>最高給与 - 自身の給与</code> で計算すること。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employee_salaries</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_name</th><th>dept</th><th>salary</th></tr>
+        <tr><td>Aさん</td><td>営業</td><td>300000</td></tr>
+        <tr><td>Bさん</td><td>営業</td><td>250000</td></tr>
+        <tr><td>Cさん</td><td>開発</td><td>400000</td></tr>
+        <tr><td>Dさん</td><td>開発</td><td>380000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>dept</th><th>salary</th><th class="tc-y">dept_max</th><th class="tc-p">diff_from_max</th></tr>
+<tr class="tr-hi"><td>Aさん</td><td>営業</td><td>300000</td><td class="tc-y">300000</td><td class="tc-p">0</td></tr>
+<tr class="tr-hi"><td>Bさん</td><td>営業</td><td>250000</td><td class="tc-y">300000</td><td class="tc-p">50000</td></tr>
+<tr class="tr-hi2"><td>Cさん</td><td>開発</td><td>400000</td><td class="tc-y">400000</td><td class="tc-p">0</td></tr>
+<tr class="tr-hi2"><td>Dさん</td><td>開発</td><td>380000</td><td class="tc-y">400000</td><td class="tc-p">20000</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  emp_name,
+  dept,
+  salary,
+  <span class="fn">MAX</span>(salary) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> dept) <span class="kw">AS</span> dept_max,
+  <span class="cmt">-- PARTITION BY dept: 部署ごとに区切って MAX を取得する</span>
+
+  <span class="fn">MAX</span>(salary) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> dept) <span class="op">-</span> salary <span class="kw">AS</span> diff_from_max
+  <span class="cmt">-- 取得した最高給与から自身の給与を引き、差額を計算</span>
+<span class="kw">FROM</span> <span class="tbl">employee_salaries</span>
+<span class="kw">ORDER BY</span> dept, diff_from_max;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM employee_salaries → 4行取得
+  2. Window関数が dept ごとに評価
+     営業グループ: MAX(30万, 25万) = 30万 を各行に付与
+     開発グループ: MAX(40万, 38万) = 40万 を各行に付与
+  3. SELECT 出力 (引き算を実行)
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM employee_salaries",
+        desc: "テーブル全体を読み込みます。",
+        type: "base",
+        cols: ["emp_name","dept","salary"],
+        ch:   ["col-base","col-base","col-base"],
+        rows: [
+          { v: ["Aさん","営業",300000] }, { v: ["Bさん","営業",250000] },
+          { v: ["Cさん","開発",400000] }, { v: ["Dさん","開発",380000] }
+        ], cnt: "全 4行 読込" },
+      { id: "window", badge: "② PARTITION BY dept", bc: "badge-orange",
+        label: "MAX(salary) OVER(PARTITION BY dept)",
+        desc: "部署ごとにグループ化し、グループ内で一番大きい値（MAX）を探してすべての行に配ります。",
+        type: "group",
+        cols: ["emp_name","dept","salary","dept_max"],
+        ch:   ["","col-eval","","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["Aさん","営業",300000,"300,000"], cc: ["","","","val-hl"] },
+          { c: "row-grp-1", v: ["Bさん","営業",250000,"300,000"], cc: ["","","","val-hl"] },
+          { c: "row-grp-2", v: ["Cさん","開発",400000,"400,000"], cc: ["","","","val-hl"] },
+          { c: "row-grp-2", v: ["Dさん","開発",380000,"400,000"], cc: ["","","","val-hl"] }
+        ], cnt: "部署ごとの最高額を算出" },
+      { id: "select", badge: "③ SELECT (差額の計算)", bc: "badge-green",
+        label: "MAX() - salary",
+        desc: "取得した dept_max から自身の salary を引き、差額を計算して出力します。",
+        type: "select",
+        cols: ["emp_name","dept","salary","dept_max","diff_from_max"],
+        ch:   ["col-select","col-select","col-select","col-select","col-select"],
+        rows: [
+          { v: ["Aさん","営業",300000,300000,0] },
+          { v: ["Bさん","営業",250000,300000,50000] },
+          { v: ["Cさん","開発",400000,400000,0] },
+          { v: ["Dさん","開発",380000,400000,20000] }
+        ], cnt: "結果: 4行" }
+    ],
+    sql: [
+      { t: "SELECT\n  emp_name, dept, salary,\n", k: "", h: "select" },
+      { t: "  MAX(salary) ", k: "", h: "window select" }, { t: "OVER(PARTITION BY dept) AS dept_max,\n", k: "sql-kw", h: "window select" },
+      { t: "  MAX(salary) ", k: "", h: "window select" }, { t: "OVER(PARTITION BY dept) - salary AS diff_from_max\n", k: "sql-kw", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "employee_salaries\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "dept, diff_from_max;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>相対的な比較が容易に：</strong>「一番高い人と比べて自分はどれくらい差があるか」「全体の平均からどれくらい離れているか」といった相対評価は、ウィンドウ関数の得意領域です。GROUP BY と自己結合を組み合わせる従来の方法に比べ、圧倒的にシンプルかつ高速に書けます。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  COUNT() OVER()
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "COUNT() OVER() — 条件付き集計とデータ件数の付与",
+  tags: [["r","COUNT"],["g","PARTITION BY"],["o","件数付与"]],
+  premise: `<p><code>COUNT()</code> もウィンドウ関数として頻繁に使用されます。「このユーザーは今まで何回注文したか」という<strong>グループ内のデータ件数</strong>を、行を潰さずに各行に持たせることができます。</p>
+<pre><span class="kw">SELECT</span>
+  order_id, user_id,
+  <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> user_id) <span class="kw">AS</span> user_order_count
+<span class="kw">FROM</span> <span class="tbl">orders</span>;</pre>`,
+  question: `<p>以下の <code>orders</code> テーブルから、「注文ID」「ユーザーID」「金額」と、<strong>「そのユーザーの合計注文回数(order_count)」</strong>、<strong>「そのユーザーの合計注文金額(total_amount)」</strong>を出力してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th></tr>
+        <tr><td>1</td><td>U1</td><td>1000</td></tr>
+        <tr><td>2</td><td>U1</td><td>2000</td></tr>
+        <tr><td>3</td><td>U2</td><td>1500</td></tr>
+        <tr><td>4</td><td>U3</td><td>3000</td></tr>
+        <tr><td>5</td><td>U1</td><td>500</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>amount</th><th class="tc-g">order_count</th><th class="tc-hi">total_amount</th></tr>
+<tr class="tr-hi"><td>1</td><td>U1</td><td>1000</td><td class="tc-g">3</td><td class="tc-hi">3500</td></tr>
+<tr class="tr-hi"><td>2</td><td>U1</td><td>2000</td><td class="tc-g">3</td><td class="tc-hi">3500</td></tr>
+<tr class="tr-hi"><td>5</td><td>U1</td><td>500</td><td class="tc-g">3</td><td class="tc-hi">3500</td></tr>
+<tr class="tr-hi2"><td>3</td><td>U2</td><td>1500</td><td class="tc-g">1</td><td class="tc-hi">1500</td></tr>
+<tr><td>4</td><td>U3</td><td>3000</td><td class="tc-g">1</td><td class="tc-hi">3000</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  order_id,
+  user_id,
+  amount,
+  <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> user_id) <span class="kw">AS</span> order_count,
+  <span class="cmt">-- ユーザーごとの行数（注文回数）をカウント</span>
+
+  <span class="fn">SUM</span>(amount) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> user_id) <span class="kw">AS</span> total_amount
+  <span class="cmt">-- ユーザーごとの金額の合計を算出</span>
+<span class="kw">FROM</span> <span class="tbl">orders</span>
+<span class="kw">ORDER BY</span> user_id, order_id;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders → 5行取得
+  2. Window関数が user_id ごとに評価
+     U1: 行数は3、金額合計は 1000+2000+500 = 3500
+     U2: 行数は1、金額合計は 1500
+     U3: 行数は1、金額合計は 3000
+  3. SELECT 出力
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM orders",
+        desc: "テーブルを読み込みます。",
+        type: "base",
+        cols: ["order_id","user_id","amount"],
+        ch:   ["col-base","col-base","col-base"],
+        rows: [
+          { v: [1,"U1",1000] }, { v: [2,"U1",2000] }, { v: [3,"U2",1500] },
+          { v: [4,"U3",3000] }, { v: [5,"U1",500] }
+        ], cnt: "全 5行 読込" },
+      { id: "window", badge: "② PARTITION BY user_id", bc: "badge-orange",
+        label: "COUNT(*) OVER, SUM(amount) OVER",
+        desc: "ユーザーごとにグループ化し、それぞれのグループ内での「行数(COUNT)」と「合計(SUM)」を同時に計算して横に付与します。",
+        type: "group",
+        cols: ["order_id","user_id","amount","order_count","total_amount"],
+        ch:   ["","col-eval","","col-eval","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: [1,"U1",1000,3,"3,500"], cc: ["","","","val-hl","val-hl"] },
+          { c: "row-grp-1", v: [2,"U1",2000,3,"3,500"], cc: ["","","","val-hl","val-hl"] },
+          { c: "row-grp-1", v: [5,"U1",500,3,"3,500"], cc: ["","","","val-hl","val-hl"] },
+          { c: "row-grp-2", v: [3,"U2",1500,1,"1,500"], cc: ["","","","val-hl","val-hl"] },
+          { c: "row-grp-3", v: [4,"U3",3000,1,"3,000"], cc: ["","","","val-hl","val-hl"] }
+        ], cnt: "ユーザーごとの集計値を付与" },
+      { id: "select", badge: "③ SELECT", bc: "badge-green",
+        label: "最終出力",
+        desc: "計算結果をまとめて出力します。",
+        type: "select",
+        cols: ["order_id","user_id","amount","order_count","total_amount"],
+        ch:   ["col-select","col-select","col-select","col-select","col-select"],
+        rows: [
+          { v: [1,"U1",1000,3,3500] },
+          { v: [2,"U1",2000,3,3500] },
+          { v: [5,"U1",500,3,3500] },
+          { v: [3,"U2",1500,1,1500] },
+          { v: [4,"U3",3000,1,3000] }
+        ], cnt: "結果: 5行" }
+    ],
+    sql: [
+      { t: "SELECT\n  order_id, user_id, amount,\n", k: "", h: "select" },
+      { t: "  COUNT(*) ", k: "", h: "window select" }, { t: "OVER(PARTITION BY user_id) AS order_count,\n", k: "sql-kw", h: "window select" },
+      { t: "  SUM(amount) ", k: "", h: "window select" }, { t: "OVER(PARTITION BY user_id) AS total_amount\n", k: "sql-kw", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "orders\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "user_id, order_id;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>フラグ立て・異常検知への応用：</strong>「注文回数が2回以上のユーザーだけを抽出したい」といった場合、このクエリをサブクエリで囲み <code>WHERE order_count >= 2</code> とすることで簡単に絞り込めます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>COUNT(列名) と COUNT(*) の違い：</strong>ウィンドウ関数でも通常の集約関数と同様に、<code>COUNT(列名)</code> はその列が NULL でない行だけをカウントし、<code>COUNT(*)</code> は NULL を含めた全ての行数をカウントします。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  FIRST_VALUE()
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "FIRST_VALUE() — グループ内の「最初の値」を取得する",
+  tags: [["r","FIRST_VALUE"],["g","ORDER BY"],["o","初回アクション抽出"]],
+  premise: `<p><strong>FIRST_VALUE(列名)</strong> は、指定した順序で並べたときの「一番最初の行の値」を取得する関数です。顧客の「初回購入日」や「最初に閲覧したページ」などを全履歴に付与したい場合に非常に便利です。</p>
+<pre><span class="kw">SELECT</span>
+  user_id, event_date,
+  <span class="fn">FIRST_VALUE</span>(event_name) <span class="kw">OVER</span>(
+    <span class="kw">PARTITION BY</span> user_id
+    <span class="kw">ORDER BY</span> event_date <span class="kw">ASC</span>
+  ) <span class="kw">AS</span> first_event
+<span class="kw">FROM</span> <span class="tbl">events</span>;</pre>`,
+  question: `<p>以下の <code>user_events</code> テーブルから、各イベントの履歴に対して、<strong>「そのユーザーが一番最初に実行したイベント（first_event）」</strong>を付与してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ user_events</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>event_date</th><th>event_name</th></tr>
+        <tr><td>U1</td><td>04-01</td><td>登録</td></tr>
+        <tr><td>U1</td><td>04-02</td><td>閲覧</td></tr>
+        <tr><td>U1</td><td>04-05</td><td>購入</td></tr>
+        <tr><td>U2</td><td>04-03</td><td>登録</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>event_date</th><th>event_name</th><th class="tc-g">first_event</th></tr>
+<tr class="tr-hi"><td>U1</td><td>04-01</td><td>登録</td><td class="tc-g">登録</td></tr>
+<tr class="tr-hi"><td>U1</td><td>04-02</td><td>閲覧</td><td class="tc-g">登録</td></tr>
+<tr class="tr-hi"><td>U1</td><td>04-05</td><td>購入</td><td class="tc-g">登録</td></tr>
+<tr class="tr-hi2"><td>U2</td><td>04-03</td><td>登録</td><td class="tc-g">登録</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  user_id,
+  event_date,
+  event_name,
+  <span class="fn">FIRST_VALUE</span>(event_name) <span class="kw">OVER</span>(
+    <span class="kw">PARTITION BY</span> user_id
+    <span class="kw">ORDER BY</span> event_date <span class="kw">ASC</span>
+  ) <span class="kw">AS</span> first_event
+  <span class="cmt">-- ユーザーごとに日付順に並べ、そのグループの一番最初の event_name を取得する</span>
+<span class="kw">FROM</span> <span class="tbl">user_events</span>
+<span class="kw">ORDER BY</span> user_id, event_date;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM user_events
+  2. user_id ごとにグループ化し、event_date の昇順でソート
+  3. FIRST_VALUE() により、U1グループの先頭行の「登録」が U1 の全行に付与される
+  4. SELECT 出力
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM user_events",
+        desc: "テーブルを読み込みます。",
+        type: "base",
+        cols: ["user_id","event_date","event_name"],
+        ch:   ["col-base","col-base","col-base"],
+        rows: [
+          { v: ["U1","04-01","登録"] }, { v: ["U1","04-02","閲覧"] },
+          { v: ["U1","04-05","購入"] }, { v: ["U2","04-03","登録"] }
+        ], cnt: "全 4行 読込" },
+      { id: "window", badge: "② FIRST_VALUE() の評価", bc: "badge-orange",
+        label: "PARTITION BY user_id ORDER BY event_date",
+        desc: "ユーザーごとに日付順で並べ、そのグループの「1行目」の値（U1なら「登録」）を、グループ内のすべての行にコピーして伝播させます。",
+        type: "group",
+        cols: ["user_id","event_date","event_name","グループ内1行目","first_event"],
+        ch:   ["col-eval","col-eval","","","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U1","04-01","登録","← 1行目","登録"], cc: ["","","","val-hl","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-02","閲覧","","登録"], cc: ["","","","","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-05","購入","","登録"], cc: ["","","","","val-pass"] },
+          { c: "row-grp-2", v: ["U2","04-03","登録","← 1行目","登録"], cc: ["","","","val-hl","val-pass"] }
+        ], cnt: "先頭の値を伝播" },
+      { id: "select", badge: "③ SELECT", bc: "badge-green",
+        label: "最終出力",
+        desc: "計算結果を出力します。",
+        type: "select",
+        cols: ["user_id","event_date","event_name","first_event"],
+        ch:   ["col-select","col-select","col-select","col-select"],
+        rows: [
+          { v: ["U1","04-01","登録","登録"] },
+          { v: ["U1","04-02","閲覧","登録"] },
+          { v: ["U1","04-05","購入","登録"] },
+          { v: ["U2","04-03","登録","登録"] }
+        ], cnt: "結果: 4行" }
+    ],
+    sql: [
+      { t: "SELECT\n  user_id, event_date, event_name,\n", k: "", h: "select" },
+      { t: "  FIRST_VALUE(event_name) ", k: "sql-kw", h: "window select" }, { t: "OVER(\n", k: "", h: "window select" },
+      { t: "    PARTITION BY", k: "sql-kw", h: "window select" }, { t: " user_id\n", k: "", h: "window select" },
+      { t: "    ORDER BY", k: "sql-kw", h: "window select" }, { t: " event_date ASC\n  ) AS first_event\n", k: "", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "user_events\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "user_id, event_date;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>MIN() との違い：</strong>「最初のイベント名」を取る際、<code>MIN(event_name)</code> を使うと文字コード順（辞書順）で一番小さいものが取れてしまい、日付順の「最初」にはなりません。時間軸に沿った最初の値を取るには必ず <code>FIRST_VALUE()</code> を使います。</div></div>
+<div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>実務テクニック (IGNORE NULLS)：</strong>「一番最初に『購入』以外の何かをしたイベント」など、途中にNULLが混じるデータで最初の有効値を取りたい場合、PostgreSQLやBigQuery等では <code>FIRST_VALUE(event_name IGNORE NULLS) OVER(...)</code> という書き方ができ、非常に強力です。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  LEAD()
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "LEAD() — 「次回のアクセス」を横に並べる",
+  tags: [["r","LEAD"],["g","PARTITION BY"],["o","次回予測・間隔"]],
+  premise: `<p>前の行を取得する <code>LAG()</code> に対し、<strong>LEAD()</strong> は「次の行（未来のデータ）」を取得します。ユーザーの「次の訪問日」などを現在の行に持ってくることで、訪問間隔（何日後に再訪したか）の計算に利用できます。</p>`,
+  question: `<p>以下の <code>website_visits</code> テーブルから、各ユーザーの訪問日（visit_date）と、<strong>「そのユーザーの次回の訪問日（next_visit）」</strong>を取得してください。</p>
+<p>※ 次回の訪問がない（最後の行）場合は NULL で構いません。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ website_visits</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>visit_date</th></tr>
+        <tr><td>U1</td><td>04-01</td></tr>
+        <tr><td>U1</td><td>04-05</td></tr>
+        <tr><td>U1</td><td>04-10</td></tr>
+        <tr><td>U2</td><td>04-02</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>visit_date</th><th class="tc-y">next_visit</th></tr>
+<tr class="tr-hi"><td>U1</td><td>04-01</td><td class="tc-y">04-05</td></tr>
+<tr class="tr-hi"><td>U1</td><td>04-05</td><td class="tc-y">04-10</td></tr>
+<tr class="tr-hi"><td>U1</td><td>04-10</td><td class="null">NULL</td></tr>
+<tr class="tr-hi2"><td>U2</td><td>04-02</td><td class="null">NULL</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  user_id,
+  visit_date,
+  <span class="fn">LEAD</span>(visit_date) <span class="kw">OVER</span>(
+    <span class="kw">PARTITION BY</span> user_id
+    <span class="kw">ORDER BY</span> visit_date <span class="kw">ASC</span>
+  ) <span class="kw">AS</span> next_visit
+  <span class="cmt">-- ユーザーごとに日付順に並べ、「1つ次の行の visit_date」を取得する</span>
+<span class="kw">FROM</span> <span class="tbl">website_visits</span>
+<span class="kw">ORDER BY</span> user_id, visit_date;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM website_visits
+  2. user_id ごとにグループ化し、visit_date の昇順でソート
+  3. U1の04-01行は、次の行である04-05を取得。最後の04-10行は次がないためNULL。
+  4. SELECT 出力
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM website_visits",
+        desc: "テーブルを読み込みます。",
+        type: "base",
+        cols: ["user_id","visit_date"],
+        ch:   ["col-base","col-base"],
+        rows: [
+          { v: ["U1","04-01"] }, { v: ["U1","04-05"] },
+          { v: ["U1","04-10"] }, { v: ["U2","04-02"] }
+        ], cnt: "全 4行 読込" },
+      { id: "window", badge: "② LEAD() による次行参照", bc: "badge-orange",
+        label: "LEAD(visit_date) OVER(PARTITION BY user_id ...)",
+        desc: "各グループ内で、現在の行から見て「1つ下の行」の値を引っ張ってきます。",
+        type: "group",
+        cols: ["user_id","visit_date","参照先 (次行)","next_visit (LEAD)"],
+        ch:   ["col-eval","","","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U1","04-01","↓ 次行 (04-05)","04-05"], cc: ["","","","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-05","↓ 次行 (04-10)","04-10"], cc: ["","","","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-10","なし (最後の行)","NULL"], cc: ["","","","val-fail"] },
+          { c: "row-grp-2", v: ["U2","04-02","なし (最後の行)","NULL"], cc: ["","","","val-fail"] }
+        ], cnt: "次行の値を横に付与" },
+      { id: "select", badge: "③ SELECT", bc: "badge-green",
+        label: "最終出力",
+        desc: "結果を出力します。",
+        type: "select",
+        cols: ["user_id","visit_date","next_visit"],
+        ch:   ["col-select","col-select","col-select"],
+        rows: [
+          { v: ["U1","04-01","04-05"] },
+          { v: ["U1","04-05","04-10"] },
+          { v: ["U1","04-10","NULL"] },
+          { v: ["U2","04-02","NULL"] }
+        ], cnt: "結果: 4行" }
+    ],
+    sql: [
+      { t: "SELECT\n  user_id, visit_date,\n", k: "", h: "select" },
+      { t: "  LEAD(visit_date) ", k: "sql-kw", h: "window select" }, { t: "OVER(\n", k: "", h: "window select" },
+      { t: "    PARTITION BY", k: "sql-kw", h: "window select" }, { t: " user_id\n", k: "", h: "window select" },
+      { t: "    ORDER BY", k: "sql-kw", h: "window select" }, { t: " visit_date ASC\n  ) AS next_visit\n", k: "", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "website_visits\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "user_id, visit_date;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での活用例（DATEDIFF）：</strong><code>DATEDIFF(LEAD(visit_date) OVER(...), visit_date)</code> のように日付の差分関数と組み合わせることで、「ユーザーが平均して何日おきにサイトを訪れるか（再訪間隔）」を簡単に分析できます。マーケティング分析における超重要テクニックです。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  LAG() の引数活用 (デフォルト値)
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "LAG() の引数 — NULLを防ぐ「デフォルト値」の指定",
+  tags: [["r","LAG"],["g","デフォルト値"],["o","NULL回避"]],
+  premise: `<p><code>LAG()</code> や <code>LEAD()</code> は、対象の行が存在しない場合デフォルトで <code>NULL</code> を返します。しかし、計算（引き算など）を行う際に NULL が混じると結果も NULL になってしまいます。<br>
+これを防ぐため、関数に<strong>第3引数（デフォルト値）</strong>を指定することができます。</p>
+<pre><span class="cmt">-- LAG(列名, ずらす行数, デフォルト値)</span>
+<span class="fn">LAG</span>(amount, <span class="num">1</span>, <span class="num">0</span>) <span class="kw">OVER</span>(<span class="kw">ORDER BY</span> date)</pre>`,
+  question: `<p>以下の <code>daily_metrics</code> テーブルから、日付ごとの「ユーザー数(users)」と、<strong>「前日のユーザー数(prev_users)」</strong>を取得してください。<br>
+ただし、前日のデータが存在しない最初の行については、NULLではなく <strong>0</strong> を返すように指定してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ daily_metrics</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>date</th><th>users</th></tr>
+        <tr><td>04-01</td><td>100</td></tr>
+        <tr><td>04-02</td><td>120</td></tr>
+        <tr><td>04-03</td><td>150</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>date</th><th>users</th><th class="tc-y">prev_users</th></tr>
+<tr><td>04-01</td><td>100</td><td class="tc-y">0</td></tr>
+<tr><td>04-02</td><td>120</td><td class="tc-y">100</td></tr>
+<tr><td>04-03</td><td>150</td><td class="tc-y">120</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  date,
+  users,
+  <span class="fn">LAG</span>(users, <span class="num">1</span>, <span class="num">0</span>) <span class="kw">OVER</span>(<span class="kw">ORDER BY</span> date) <span class="kw">AS</span> prev_users
+  <span class="cmt">-- 第1引数: 取得したい列 (users)</span>
+  <span class="cmt">-- 第2引数: 何行前か (1)</span>
+  <span class="cmt">-- 第3引数: 存在しない場合のデフォルト値 (0)</span>
+<span class="kw">FROM</span> <span class="tbl">daily_metrics</span>
+<span class="kw">ORDER BY</span> date;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM daily_metrics
+  2. Window関数が date 順に評価
+     04-01: 前の行がないため、第3引数で指定した 0 が返る
+     04-02: 1つ前の 100 が返る
+  3. SELECT 出力
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM daily_metrics",
+        desc: "テーブルを読み込みます。",
+        type: "base",
+        cols: ["date","users"],
+        ch:   ["col-base","col-base"],
+        rows: [
+          { v: ["04-01",100] }, { v: ["04-02",120] }, { v: ["04-03",150] }
+        ], cnt: "全 3行 読込" },
+      { id: "window", badge: "② LAG(..., 1, 0)", bc: "badge-orange",
+        label: "LAG(users, 1, 0) OVER(...)",
+        desc: "1つ前の行を取得します。先頭行（04-01）は前行が存在しないため、指定されたデフォルト値「0」が適用されます。",
+        type: "eval",
+        cols: ["date","users","参照元","prev_users (LAG)"],
+        ch:   ["","","","col-eval"],
+        rows: [
+          { v: ["04-01",100,"なし → デフォルト値","0"], cc: ["","","","val-hl"] },
+          { v: ["04-02",120,"↑ 前行 (100)","100"], cc: ["","","","val-pass"] },
+          { v: ["04-03",150,"↑ 前行 (120)","120"], cc: ["","","","val-pass"] }
+        ], cnt: "NULL回避で値を取得" },
+      { id: "select", badge: "③ SELECT", bc: "badge-green",
+        label: "最終出力",
+        desc: "結果を出力します。",
+        type: "select",
+        cols: ["date","users","prev_users"],
+        ch:   ["col-select","col-select","col-select"],
+        rows: [
+          { v: ["04-01",100,0] },
+          { v: ["04-02",120,100] },
+          { v: ["04-03",150,120] }
+        ], cnt: "結果: 3行" }
+    ],
+    sql: [
+      { t: "SELECT\n  date, users,\n", k: "", h: "select" },
+      { t: "  LAG(users, 1, 0) ", k: "sql-kw", h: "window select" }, { t: "OVER(ORDER BY date) AS prev_users\n", k: "", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "daily_metrics\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "date;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCE() との使い分け：</strong><code>COALESCE(LAG(users) OVER(...), 0)</code> と書くのと同じ結果になりますが、LAGの第3引数を使う方がコードがすっきりし、ウィンドウ関数の意図（デフォルト値の補完）が明確になります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>データ型の罠に注意：</strong>LAGの第3引数は、第1引数（取得対象の列）と<strong>同じデータ型</strong>でなければならないRDBMSが多いです。たとえば取得対象が日付型なのに <code>0</code> を指定するとエラーになるため、適切な型（<code>'1970-01-01'</code> など）を指定する必要があります。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q6  NTILE()
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "NTILE() — データをN個のグループに均等に分割する",
+  tags: [["r","NTILE"],["g","ORDER BY"],["o","RFM分析/ランク付け"]],
+  premise: `<p><strong>NTILE(N)</strong> は、ソートされたデータを「N個のバケット（グループ）」にできるだけ均等に分割し、1からNまでの番号を振る関数です。<br>
+たとえば顧客を購買金額順に並べて「上位層(1)・中位層(2)・下位層(3)」に分類する（RFM分析など）のに非常に便利です。</p>`,
+  question: `<p>以下の <code>customer_sales</code> テーブルから、顧客を<strong>売上(total_amount)が高い順に「3つ」のグループ（1, 2, 3）に分割</strong>し、そのグループ番号（tier）を出力してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ customer_sales</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>customer_id</th><th>total_amount</th></tr>
+        <tr><td>C1</td><td>50000</td></tr>
+        <tr><td>C2</td><td>40000</td></tr>
+        <tr><td>C3</td><td>30000</td></tr>
+        <tr><td>C4</td><td>20000</td></tr>
+        <tr><td>C5</td><td>10000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>customer_id</th><th>total_amount</th><th class="tc-p">tier</th></tr>
+<tr><td>C1</td><td>50000</td><td class="tc-p">1</td></tr>
+<tr><td>C2</td><td>40000</td><td class="tc-p">1</td></tr>
+<tr><td>C3</td><td>30000</td><td class="tc-p">2</td></tr>
+<tr><td>C4</td><td>20000</td><td class="tc-p">2</td></tr>
+<tr><td>C5</td><td>10000</td><td class="tc-p">3</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ 5件を3分割すると、余りは前のグループから順に割り振られるため、グループ1と2が2件、グループ3が1件になります。</p>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  customer_id,
+  total_amount,
+  <span class="fn">NTILE</span>(<span class="num">3</span>) <span class="kw">OVER</span>(<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>) <span class="kw">AS</span> tier
+  <span class="cmt">-- 売上降順に並べ、全体を3つのグループに均等分割する</span>
+<span class="kw">FROM</span> <span class="tbl">customer_sales</span>
+<span class="kw">ORDER BY</span> total_amount <span class="kw">DESC</span>;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM customer_sales (全5行)
+  2. Window関数が total_amount 降順で評価
+     5行を3分割 → 5 ÷ 3 = 1 余り 2。
+     余りはグループ1から順に1つずつ追加されるため、
+     グループ1: 2件, グループ2: 2件, グループ3: 1件 となる。
+  3. SELECT 出力
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM customer_sales",
+        desc: "テーブルを読み込みます。",
+        type: "base",
+        cols: ["customer_id","total_amount"],
+        ch:   ["col-base","col-base"],
+        rows: [
+          { v: ["C1",50000] }, { v: ["C2",40000] }, { v: ["C3",30000] },
+          { v: ["C4",20000] }, { v: ["C5",10000] }
+        ], cnt: "全 5行 読込" },
+      { id: "window", badge: "② NTILE(3) による分割", bc: "badge-orange",
+        label: "NTILE(3) OVER(ORDER BY total_amount DESC)",
+        desc: "売上順に並べた5行を3つのバケットに分割します。5行÷3＝1件、余り2件。余りは若い番号のバケット(1と2)に順に1行ずつ割り振られます。",
+        type: "eval",
+        cols: ["customer_id","total_amount","分割ロジック","tier (NTILE)"],
+        ch:   ["","","","col-eval"],
+        rows: [
+          { v: ["C1",50000,"上位層 (1+1=2件)","1"], cc: ["","","","val-hl"] },
+          { v: ["C2",40000,"上位層 (1+1=2件)","1"], cc: ["","","","val-hl"] },
+          { v: ["C3",30000,"中位層 (1+1=2件)","2"], cc: ["","","","val-hl"] },
+          { v: ["C4",20000,"中位層 (1+1=2件)","2"], cc: ["","","","val-hl"] },
+          { v: ["C5",10000,"下位層 (1件)","3"], cc: ["","","","val-hl"] }
+        ], cnt: "3グループに分割" },
+      { id: "select", badge: "③ SELECT", bc: "badge-green",
+        label: "最終出力",
+        desc: "結果を出力します。",
+        type: "select",
+        cols: ["customer_id","total_amount","tier"],
+        ch:   ["col-select","col-select","col-select"],
+        rows: [
+          { v: ["C1",50000,1] },
+          { v: ["C2",40000,1] },
+          { v: ["C3",30000,2] },
+          { v: ["C4",20000,2] },
+          { v: ["C5",10000,3] }
+        ], cnt: "結果: 5行" }
+    ],
+    sql: [
+      { t: "SELECT\n  customer_id, total_amount,\n", k: "", h: "select" },
+      { t: "  NTILE(3) ", k: "sql-kw", h: "window select" }, { t: "OVER(ORDER BY total_amount DESC) AS tier\n", k: "", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "customer_sales\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "total_amount DESC;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>分析での活用：</strong><code>NTILE(10)</code> を使えば「デシル分析（10等分）」、<code>NTILE(4)</code> を使えば「四分位数」のグループ分けが一瞬で完了します。「上位10%の顧客群と下位10%の顧客群で、行動にどんな違いがあるか」を比較するデータセットを作る際によく使われます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同値の境界またぎ：</strong>NTILE は「行数」だけで機械的に分割するため、同じ売上の人が境界線をまたいで別々のグループに分かれてしまうことがあります。厳密に「同じ値なら同じグループ」にしたい場合は、<code>NTILE</code> ではなく <code>PERCENT_RANK</code> などを利用します。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  PERCENT_RANK()
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "PERCENT_RANK() — 自分が全体の上位何パーセントか（相対順位）",
+  tags: [["r","PERCENT_RANK"],["g","ORDER BY"],["o","パーセンタイル"]],
+  premise: `<p><strong>PERCENT_RANK()</strong> は、データの相対的な位置を <code>0.0</code>（1位）から <code>1.0</code>（最下位）の範囲で計算します。<br>
+計算式は <code>(自身のRANK - 1) / (全体の行数 - 1)</code> です。「上位20%に入る優秀なデータだけを抽出したい」といった要件で活躍します。</p>`,
+  question: `<p>以下の <code>exam_scores</code> テーブルから、各生徒の点数と、<strong>「その点数が全体の中で上位何パーセントに位置するか（pct_rank）」</strong>を計算してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ exam_scores</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>student_id</th><th>score</th></tr>
+        <tr><td>S1</td><td>95</td></tr>
+        <tr><td>S2</td><td>88</td></tr>
+        <tr><td>S3</td><td>75</td></tr>
+        <tr><td>S4</td><td>60</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>student_id</th><th>score</th><th class="tc-g">pct_rank</th></tr>
+<tr><td>S1</td><td>95</td><td class="tc-g">0</td></tr>
+<tr><td>S2</td><td>88</td><td class="tc-g">0.3333</td></tr>
+<tr><td>S3</td><td>75</td><td class="tc-g">0.6666</td></tr>
+<tr><td>S4</td><td>60</td><td class="tc-g">1</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ トップ(1位)は 0、最下位(4位)は 1 になります。S2は (2位-1)/(4人-1) = 1/3 = 0.333... となります。</p>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  student_id,
+  score,
+  <span class="fn">PERCENT_RANK</span>() <span class="kw">OVER</span>(<span class="kw">ORDER BY</span> score <span class="kw">DESC</span>) <span class="kw">AS</span> pct_rank
+<span class="kw">FROM</span> <span class="tbl">exam_scores</span>
+<span class="kw">ORDER BY</span> score <span class="kw">DESC</span>;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM exam_scores (全4行)
+  2. Window関数が score 降順で評価
+     S1 (1位): (1 - 1) / (4 - 1) = 0 / 3 = 0
+     S2 (2位): (2 - 1) / (4 - 1) = 1 / 3 = 0.333...
+     S3 (3位): (3 - 1) / (4 - 1) = 2 / 3 = 0.666...
+     S4 (4位): (4 - 1) / (4 - 1) = 3 / 3 = 1
+  3. SELECT 出力
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM exam_scores",
+        desc: "テーブルを読み込みます。",
+        type: "base",
+        cols: ["student_id","score"],
+        ch:   ["col-base","col-base"],
+        rows: [
+          { v: ["S1",95] }, { v: ["S2",88] },
+          { v: ["S3",75] }, { v: ["S4",60] }
+        ], cnt: "全 4行 読込" },
+      { id: "window", badge: "② PERCENT_RANK() 評価", bc: "badge-orange",
+        label: "PERCENT_RANK() OVER(ORDER BY score DESC)",
+        desc: "降順での RANK に基づき、(RANK - 1) / (全体の行数 - 1) を計算します。1位が0、最下位が1になります。",
+        type: "eval",
+        cols: ["student_id","score","RANK","pct_rank (計算式)"],
+        ch:   ["","","","col-eval"],
+        rows: [
+          { v: ["S1",95,"1位","(1-1) / 3 = 0"], cc: ["","","","val-hl"] },
+          { v: ["S2",88,"2位","(2-1) / 3 = 0.333..."], cc: ["","","","val-hl"] },
+          { v: ["S3",75,"3位","(3-1) / 3 = 0.666..."], cc: ["","","","val-hl"] },
+          { v: ["S4",60,"4位","(4-1) / 3 = 1"], cc: ["","","","val-hl"] }
+        ], cnt: "相対位置を計算" },
+      { id: "select", badge: "③ SELECT", bc: "badge-green",
+        label: "最終出力",
+        desc: "結果を出力します。",
+        type: "select",
+        cols: ["student_id","score","pct_rank"],
+        ch:   ["col-select","col-select","col-select"],
+        rows: [
+          { v: ["S1",95,0] },
+          { v: ["S2",88,0.3333] },
+          { v: ["S3",75,0.6666] },
+          { v: ["S4",60,1] }
+        ], cnt: "結果: 4行" }
+    ],
+    sql: [
+      { t: "SELECT\n  student_id, score,\n", k: "", h: "select" },
+      { t: "  PERCENT_RANK() ", k: "sql-kw", h: "window select" }, { t: "OVER(ORDER BY score DESC) AS pct_rank\n", k: "", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "exam_scores\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "score DESC;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での絞り込み：</strong>「上位20%のユーザーを抽出したい」場合は、Q8で学んだサブクエリと組み合わせて <code>WHERE pct_rank <= 0.2</code> と指定します。全体の人数が100人でも10000人でも、クエリを変えずに常に上位20%を動的に抽出できるのが強みです。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CUME_DIST() との違い：</strong>似た関数に <code>CUME_DIST()</code>（累積分布）があります。PERCENT_RANK が「1位を0とする」のに対し、CUME_DIST は「1位の時点で 1/4(0.25)」からスタートし、最後が必ず1になります。要件によって使い分けます。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  フレーム指定の応用 (自身を含まない累計)
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "ROWS BETWEEN 応用 — 「自身を含まない」過去の累計",
+  tags: [["r","フレーム指定"],["g","PRECEDING"],["o","過去累計"]],
+  premise: `<p>フレーム指定（ROWS BETWEEN）を活用すると、「先頭行から現在の行まで」だけでなく、<strong>「先頭行から1つ前の行まで（自身を含まない）」</strong>といった柔軟な集計範囲を定義できます。</p>
+<pre><span class="fn">SUM</span>(sales) <span class="kw">OVER</span>(
+  <span class="kw">ORDER BY</span> month
+  <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND</span> <span class="num">1</span> <span class="kw">PRECEDING</span>
+)</pre>`,
+  question: `<p>以下の <code>monthly_targets</code> テーブルから、各月の売上と、<strong>「前月までの売上累計（prev_running_total）」</strong>を計算してください。</p>
+<p>※ 最初の月（04-01）は「前月までの累計」が存在しないため、NULL になります。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ monthly_targets</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>month</th><th>sales</th></tr>
+        <tr><td>04-01</td><td>10</td></tr>
+        <tr><td>04-02</td><td>20</td></tr>
+        <tr><td>04-03</td><td>30</td></tr>
+        <tr><td>04-04</td><td>40</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month</th><th>sales</th><th class="tc-y">prev_running_total</th></tr>
+<tr><td>04-01</td><td>10</td><td class="null">NULL</td></tr>
+<tr><td>04-02</td><td>20</td><td class="tc-y">10</td></tr>
+<tr><td>04-03</td><td>30</td><td class="tc-y">30</td></tr>
+<tr><td>04-04</td><td>40</td><td class="tc-y">60</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  month,
+  sales,
+  <span class="fn">SUM</span>(sales) <span class="kw">OVER</span>(
+    <span class="kw">ORDER BY</span> month
+    <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND</span> <span class="num">1</span> <span class="kw">PRECEDING</span>
+  ) <span class="kw">AS</span> prev_running_total
+  <span class="cmt">-- UNBOUNDED PRECEDING: 最初の行から</span>
+  <span class="cmt">-- 1 PRECEDING: 1つ前の行まで（現在の行を含めない）</span>
+<span class="kw">FROM</span> <span class="tbl">monthly_targets</span>
+<span class="kw">ORDER BY</span> month;
+
+<span class="cmt">/*
+  実行順序:
+  04-01: 対象フレームなし → NULL
+  04-02: [04-01] の合計 → 10
+  04-03: [04-01, 04-02] の合計 → 10 + 20 = 30
+  04-04: [04-01, 04-02, 04-03] の合計 → 10 + 20 + 30 = 60
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM monthly_targets",
+        desc: "テーブルを読み込みます。",
+        type: "base",
+        cols: ["month","sales"],
+        ch:   ["col-base","col-base"],
+        rows: [
+          { v: ["04-01",10] }, { v: ["04-02",20] },
+          { v: ["04-03",30] }, { v: ["04-04",40] }
+        ], cnt: "全 4行 読込" },
+      { id: "window", badge: "② フレームの評価", bc: "badge-orange",
+        label: "ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING",
+        desc: "「一番最初」から「現在の行の1つ前」までを足し合わせます。現在の行（自分自身の売上）は足されません。",
+        type: "eval",
+        cols: ["month","sales","集計フレーム (自身を含まない)","prev_running_total"],
+        ch:   ["","","col-eval","col-eval"],
+        rows: [
+          { v: ["04-01",10,"(範囲なし)","NULL"], cc: ["","","","val-hl"] },
+          { v: ["04-02",20,"[04-01の売上 10]","10"], cc: ["","","","val-hl"] },
+          { v: ["04-03",30,"[10, 20]","30"], cc: ["","","","val-hl"] },
+          { v: ["04-04",40,"[10, 20, 30]","60"], cc: ["","","","val-hl"] }
+        ], cnt: "過去の累計を計算" },
+      { id: "select", badge: "③ SELECT", bc: "badge-green",
+        label: "最終出力",
+        desc: "計算結果を出力します。",
+        type: "select",
+        cols: ["month","sales","prev_running_total"],
+        ch:   ["col-select","col-select","col-select"],
+        rows: [
+          { v: ["04-01",10,"NULL"] },
+          { v: ["04-02",20,10] },
+          { v: ["04-03",30,30] },
+          { v: ["04-04",40,60] }
+        ], cnt: "結果: 4行" }
+    ],
+    sql: [
+      { t: "SELECT\n  month, sales,\n", k: "", h: "select" },
+      { t: "  SUM(sales) ", k: "sql-kw", h: "window select" }, { t: "OVER(\n", k: "", h: "window select" },
+      { t: "    ORDER BY", k: "sql-kw", h: "window select" }, { t: " month\n", k: "", h: "window select" },
+      { t: "    ROWS BETWEEN", k: "sql-kw", h: "window select" }, { t: " UNBOUNDED PRECEDING ", k: "", h: "window select" }, { t: "AND", k: "sql-kw", h: "window select" }, { t: " 1 PRECEDING\n  ) AS prev_running_total\n", k: "", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "monthly_targets\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "month;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務でのユースケース：</strong>「当月の目標達成率」を出す際、当月の売上に加えて「前月までの未達分（負債）」を足し合わせて目標を再計算するような、複雑な予実管理ダッシュボードでこのフレーム指定が活躍します。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  RANGE と ROWS の違い
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "RANGE vs ROWS — 同じ日付が存在する時の累計の罠",
+  tags: [["r","RANGE"],["g","ROWS"],["o","同値の扱い"],["p","超重要"]],
+  premise: `<p><code>ORDER BY</code> を指定してフレーム句を省略した場合、デフォルトで <strong>RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</strong> が適用されます。<br>
+<code>ROWS</code> は物理的な「行」単位で処理しますが、<code>RANGE</code> は論理的な「値」単位で処理するため、<strong>ソートキーに同じ値（同順位）が存在した場合の挙動</strong>に決定的な違いが出ます。</p>`,
+  question: `<p>以下の <code>sales_records</code> テーブルには、<code>04-02</code> のデータが2件存在します。<br>
+単に <code>ORDER BY</code> だけを指定したデフォルトの累計（<strong>RANGE</strong>相当）と、<code>ROWS BETWEEN...</code> を明示的に指定した累計（<strong>ROWS</strong>）の2つを出力し、同日のデータにおける挙動の違いを確認してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sales_records</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>sale_date</th><th>amount</th></tr>
+        <tr><td>04-01</td><td>10</td></tr>
+        <tr><td>04-02</td><td>20</td></tr>
+        <tr><td>04-02</td><td>30</td></tr>
+        <tr><td>04-03</td><td>40</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>sale_date</th><th>amount</th><th class="tc-y">range_total (省略時)</th><th class="tc-p">rows_total (明示的)</th></tr>
+<tr><td>04-01</td><td>10</td><td class="tc-y">10</td><td class="tc-p">10</td></tr>
+<tr class="tr-hi"><td>04-02</td><td>20</td><td class="tc-y">60</td><td class="tc-p">30</td></tr>
+<tr class="tr-hi"><td>04-02</td><td>30</td><td class="tc-y">60</td><td class="tc-p">60</td></tr>
+<tr><td>04-03</td><td>40</td><td class="tc-y">100</td><td class="tc-p">100</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ RANGE(省略時)は、同日(04-02)の 20 と 30 をまとめて合算し、両方の行に 60 を付与します。ROWS は行ごとに 10+20=30、30+30=60 と個別に足します。</p>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  sale_date,
+  amount,
+
+  <span class="cmt">-- 省略時 (暗黙の RANGE BETWEEN...)</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">OVER</span>(
+    <span class="kw">ORDER BY</span> sale_date
+  ) <span class="kw">AS</span> range_total,
+
+  <span class="cmt">-- ROWS を明示的に指定</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">OVER</span>(
+    <span class="kw">ORDER BY</span> sale_date
+    <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</span>
+  ) <span class="kw">AS</span> rows_total
+
+<span class="kw">FROM</span> <span class="tbl">sales_records</span>
+<span class="kw">ORDER BY</span> sale_date, amount;
+
+<span class="cmt">/*
+  実行順序と評価の違い:
+  【RANGEの場合】"値" で判断する。
+  04-02の行が来た時、「04-02以下のすべての行」をまとめて足す。
+  (10 + 20 + 30 = 60) となり、04-02の2行には同じ 60 が入る。
+
+  【ROWSの場合】"行" で判断する。
+  04-02(20)の行: [10, 20] = 30
+  04-02(30)の行: [10, 20, 30] = 60
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM sales_records",
+        desc: "テーブルを読み込みます。04-02 のデータが2行あることに注目してください。",
+        type: "base",
+        cols: ["sale_date","amount"],
+        ch:   ["col-base","col-base"],
+        rows: [
+          { v: ["04-01",10] }, { v: ["04-02",20] },
+          { v: ["04-02",30] }, { v: ["04-03",40] }
+        ], cnt: "全 4行 読込" },
+      { id: "window", badge: "② RANGE vs ROWS", bc: "badge-orange",
+        label: "フレーム評価の違い",
+        desc: "RANGE（デフォルト）は同じ日付のデータを一つのブロックとみなし、合計値を共有します。ROWS は純粋に上の行から物理的に1行ずつ順番に足していきます。",
+        type: "eval",
+        cols: ["sale_date","amount","RANGE (値で評価)","ROWS (行で評価)"],
+        ch:   ["","","col-eval","col-eval"],
+        rows: [
+          { v: ["04-01",10,"10","10"], cc: ["","","val-pass","val-pass"] },
+          { v: ["04-02",20,"60 (20と30を合算)","30 (10+20)"], cc: ["","","val-hl","val-hl"] },
+          { v: ["04-02",30,"60 (20と30を合算)","60 (30+30)"], cc: ["","","val-hl","val-hl"] },
+          { v: ["04-03",40,"100","100"], cc: ["","","val-pass","val-pass"] }
+        ], cnt: "同順位の計算方法の違い" },
+      { id: "select", badge: "③ SELECT", bc: "badge-green",
+        label: "最終出力",
+        desc: "結果を出力します。",
+        type: "select",
+        cols: ["sale_date","amount","range_total","rows_total"],
+        ch:   ["col-select","col-select","col-select","col-select"],
+        rows: [
+          { v: ["04-01",10,10,10] },
+          { v: ["04-02",20,60,30] },
+          { v: ["04-02",30,60,60] },
+          { v: ["04-03",40,100,100] }
+        ], cnt: "結果: 4行" }
+    ],
+    sql: [
+      { t: "SELECT\n  sale_date, amount,\n", k: "", h: "select" },
+      { t: "  SUM(amount) ", k: "", h: "window select" }, { t: "OVER(ORDER BY sale_date) AS range_total,\n", k: "sql-kw", h: "window select" },
+      { t: "  SUM(amount) ", k: "", h: "window select" }, { t: "OVER(ORDER BY sale_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rows_total\n", k: "sql-kw", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "sales_records\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "sale_date, amount;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での使い分け：</strong>「その日が終わった時点での累計売上」を出したい場合は、同日の売上をまとめる RANGE（デフォルト）の挙動が正解です。一方で、「1件1件の注文に対して、その時点での累計額を厳密に出したい」場合は、必ず <code>ORDER BY date, id</code> のように一意になるキーを追加するか、<code>ROWS</code> を明示的に指定する必要があります。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>パフォーマンスの観点：</strong>RDBMSによっては、RANGE は値の同値チェックが入るため、物理行で計算する ROWS の方が高速に動作する場合があります。大量データの累計を出す際は ROWS を明示するのも一つのテクニックです。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>意図せず RANGE になっている：</strong>移動平均を出そうとして <code>ORDER BY date</code> しか書かなかった場合、暗黙的に <code>RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code> になり、平均ではなく「その日までの累計平均」という謎の数値になってしまいます。フレームは常に意識しましょう。</div></div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q10 実務総まとめ (ユーザー行動トラッキング)
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "実務総まとめ — 顧客の購買トラッキング（回数・累計・前回履歴）",
+  tags: [["r","総まとめ"],["g","データマート"],["o","実務レポート"],["p","複合"]],
+  premise: `<p>実際のデータ基盤（データマート）構築では、1行のイベントデータに対して「その時点での顧客のステータス」を横付けする処理が頻繁に行われます。<br>
+これまでに学んだ <code>COUNT()</code>, <code>SUM()</code>, <code>LAG()</code> を組み合わせて、強力なトラッキングクエリを作成しましょう。</p>`,
+  question: `<p>以下の <code>order_history</code> テーブルから、各注文行に対して以下の3つの指標を付与してください。</p>
+1. <strong>order_num</strong>：そのユーザーにとって「何回目の注文か」（ROW_NUMBER または COUNT での累計）<br>
+2. <strong>running_amt</strong>：そのユーザーの「その時点までの累計購入金額」（SUM）<br>
+3. <strong>prev_date</strong>：そのユーザーの「前回の購入日」（LAG。初回はNULL）
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ order_history</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>order_date</th><th>amount</th></tr>
+        <tr><td>U1</td><td>04-01</td><td>1000</td></tr>
+        <tr><td>U2</td><td>04-02</td><td>1500</td></tr>
+        <tr><td>U1</td><td>04-05</td><td>2000</td></tr>
+        <tr><td>U1</td><td>04-10</td><td>3000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th>order_date</th><th>amount</th><th class="tc-g">order_num</th><th class="tc-hi">running_amt</th><th class="tc-y">prev_date</th></tr>
+<tr><td>U1</td><td>04-01</td><td>1000</td><td class="tc-g">1</td><td class="tc-hi">1000</td><td class="null">NULL</td></tr>
+<tr><td>U1</td><td>04-05</td><td>2000</td><td class="tc-g">2</td><td class="tc-hi">3000</td><td class="tc-y">04-01</td></tr>
+<tr><td>U1</td><td>04-10</td><td>3000</td><td class="tc-g">3</td><td class="tc-hi">6000</td><td class="tc-y">04-05</td></tr>
+<tr><td>U2</td><td>04-02</td><td>1500</td><td class="tc-g">1</td><td class="tc-hi">1500</td><td class="null">NULL</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  user_id,
+  order_date,
+  amount,
+
+  <span class="cmt">-- ① 何回目の注文か (日付順の連番)</span>
+  <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> user_id <span class="kw">ORDER BY</span> order_date) <span class="kw">AS</span> order_num,
+
+  <span class="cmt">-- ② その時点までの累計購入金額</span>
+  <span class="fn">SUM</span>(amount) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> user_id <span class="kw">ORDER BY</span> order_date) <span class="kw">AS</span> running_amt,
+
+  <span class="cmt">-- ③ 前回の購入日</span>
+  <span class="fn">LAG</span>(order_date) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> user_id <span class="kw">ORDER BY</span> order_date) <span class="kw">AS</span> prev_date
+
+<span class="kw">FROM</span> <span class="tbl">order_history</span>
+<span class="kw">ORDER BY</span> user_id, order_date;
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM order_history
+  2. SELECT句内の3つのWindow関数が、すべて「ユーザーごとの日付順」で同時に独立して評価される
+     - U1 の 04-05行目: 連番(ROW_NUMBER)は2、累計(SUM)は 1000+2000=3000、前日(LAG)は 04-01 となる。
+  3. ORDER BY 出力
+  ★ 1回のスキャンで「回数」「累計金額」「前回からの間隔」を計算できる最強のパターンです。
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM order_history",
+        desc: "テーブルを読み込みます。",
+        type: "base",
+        cols: ["user_id","order_date","amount"],
+        ch:   ["col-base","col-base","col-base"],
+        rows: [
+          { v: ["U1","04-01",1000] }, { v: ["U2","04-02",1500] },
+          { v: ["U1","04-05",2000] }, { v: ["U1","04-10",3000] }
+        ], cnt: "全 4行 読込" },
+      { id: "window", badge: "② 複合ウィンドウ演算", bc: "badge-orange",
+        label: "ROW_NUMBER, SUM, LAG の同時評価",
+        desc: "ユーザーごとに日付順で並べた上で、連番（回数）、累計金額、前回の購入日の3つの関数が同時に独立して計算され、各行に付与されます。",
+        type: "group",
+        cols: ["user_id","order_date","amount","num (連番)","running (累計)","prev (LAG)"],
+        ch:   ["col-eval","col-eval","","col-eval","col-eval","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U1","04-01",1000,1,1000,"NULL"], cc: ["","","","val-hl","val-hl","val-hl"] },
+          { c: "row-grp-1", v: ["U1","04-05",2000,2,3000,"04-01"], cc: ["","","","val-hl","val-hl","val-hl"] },
+          { c: "row-grp-1", v: ["U1","04-10",3000,3,6000,"04-05"], cc: ["","","","val-hl","val-hl","val-hl"] },
+          { c: "row-grp-2", v: ["U2","04-02",1500,1,1500,"NULL"], cc: ["","","","val-hl","val-hl","val-hl"] }
+        ], cnt: "顧客のステータスを付与" },
+      { id: "select", badge: "③ 最終出力", bc: "badge-green",
+        label: "SELECT ...",
+        desc: "完成したデータを出力します。このデータマートがあれば、機械学習の予測モデルの特徴量などにもそのまま使えます。",
+        type: "select",
+        cols: ["user_id","order_date","amount","order_num","running_amt","prev_date"],
+        ch:   ["col-select","col-select","col-select","col-select","col-select","col-select"],
+        rows: [
+          { v: ["U1","04-01",1000,1,1000,"NULL"] },
+          { v: ["U1","04-05",2000,2,3000,"04-01"] },
+          { v: ["U1","04-10",3000,3,6000,"04-05"] },
+          { v: ["U2","04-02",1500,1,1500,"NULL"] }
+        ], cnt: "結果: 4行" }
+    ],
+    sql: [
+      { t: "SELECT\n  user_id, order_date, amount,\n", k: "", h: "select" },
+      { t: "  ROW_NUMBER() ", k: "sql-kw", h: "window select" }, { t: "OVER(PARTITION BY user_id ORDER BY order_date) AS order_num,\n", k: "", h: "window select" },
+      { t: "  SUM(amount) ", k: "sql-kw", h: "window select" }, { t: "OVER(PARTITION BY user_id ORDER BY order_date) AS running_amt,\n", k: "", h: "window select" },
+      { t: "  LAG(order_date) ", k: "sql-kw", h: "window select" }, { t: "OVER(PARTITION BY user_id ORDER BY order_date) AS prev_date\n", k: "", h: "window select" },
+      { t: "FROM ", k: "sql-kw", h: "from" }, { t: "order_history\n", k: "", h: "from" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "user_id, order_date;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>WINDOW句で重複をなくす：</strong>同じ <code>PARTITION BY ... ORDER BY ...</code> を何度も書くのが面倒な場合、モダンなSQLでは <code>WINDOW w AS (PARTITION BY user_id ORDER BY order_date)</code> と下部に定義し、SELECT内では <code>SUM(amount) OVER w</code> のようにスッキリ書くことができます（DRY原則）。</div></div>
+<div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>データエンジニアリングの要：</strong>「顧客の育成状況（CRM）」を分析する際、このクエリで作ったテーブルがあれば、「2回目の購入までの平均日数は？」「累計5000円を超えた顧客の離脱率は？」といった高度な分析が、シンプルな GROUP BY だけで可能になります。ウィンドウ関数は複雑なビジネスロジックを解きほぐす最高のツールです。</div></div>
+</div>`
+}
+
+];
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力例','期待出力',q.output)}
+      ${acc('✅','pill-red','模範回答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント・アンチパターン等）',
+        `<div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1"></div>${q.explain}`)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  QS.forEach((q, i) => {
+    if (!q.viz) return;
+    const container = document.getElementById('viz-' + i);
+    if (Array.isArray(q.viz)) {
+      q.viz.forEach((vdata) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'sql-viz-wrapper';
+        wrap.setAttribute('tabindex', '-1');
+        if (vdata.label) {
+          const lbl = document.createElement('div');
+          lbl.style.cssText = 'font-size:11px;font-family:var(--font-mono);color:var(--sql-blue-txt);letter-spacing:.05em;margin-bottom:8px;';
+          lbl.textContent = vdata.label;
+          wrap.appendChild(lbl);
+        }
+        container.appendChild(wrap);
+        initVisualizer(wrap, vdata);
+      });
+    } else {
+      initVisualizer(container, q.viz);
+    }
+  });
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !wasMobile);
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !isMobile);
+  }
+});
+</script>
+</body>
+</html>
