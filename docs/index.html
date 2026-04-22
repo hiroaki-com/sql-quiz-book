@@ -33,53 +33,22 @@
       text-decoration: underline;
       color: #79b8ff;
     }
-  </style>
-</head>
-<body>
-  <h1>SQL Quiz Book</h1>
+ ファイルリストの抽出とHTMLへの書き出し ---
+# エッジケース対策: ファイルが存在しない場合に `*.html` が文字列として残るのを防ぐ
+shopt -s nullglob
+# エッジケース対策: ファイル名にスペースが含まれていても安全に処理する
+files=("$FILES_DIR"/*.html)
 
-  <ul>
-    <li><a href="./files/sql-api-basic-001-v.html">sql-api-basic-001-v</a></li>
-    <li><a href="./files/sql-api-prac-001.html">sql-api-prac-001</a></li>
-    <li><a href="./files/sql-api-prac-002.html">sql-api-prac-002</a></li>
-    <li><a href="./files/sql-batch-basic-001-v.html">sql-batch-basic-001-v</a></li>
-    <li><a href="./files/sql-batch-basic-002-v.html">sql-batch-basic-002-v</a></li>
-    <li><a href="./files/sql-batch-prac-001.html">sql-batch-prac-001</a></li>
-    <li><a href="./files/sql-batch-prac-002.html">sql-batch-prac-002</a></li>
-    <li><a href="./files/sql-batch-prac-003.html">sql-batch-prac-003</a></li>
-    <li><a href="./files/sql-bi-basic-001-v.html">sql-bi-basic-001-v</a></li>
-    <li><a href="./files/sql-bi-prac-001.html">sql-bi-prac-001</a></li>
-    <li><a href="./files/sql-bi-prac-002.html">sql-bi-prac-002</a></li>
-    <li><a href="./files/sql-cte-basics-001-gemini-all.html">sql-cte-basics-001-gemini-all</a></li>
-    <li><a href="./files/sql-cte-basics-001-v.html">sql-cte-basics-001-v</a></li>
-    <li><a href="./files/sql-cte-prac-001.html">sql-cte-prac-001</a></li>
-    <li><a href="./files/sql-modeling-basic-001-v.html">sql-modeling-basic-001-v</a></li>
-    <li><a href="./files/sql-org-basic-001-v.html">sql-org-basic-001-v</a></li>
-    <li><a href="./files/sql-org-basic-002-v.html">sql-org-basic-002-v</a></li>
-    <li><a href="./files/sql-org-prac-001.html">sql-org-prac-001</a></li>
-    <li><a href="./files/sql-org-prac-002.html">sql-org-prac-002</a></li>
-    <li><a href="./files/sql-perf-basic-001-v.html">sql-perf-basic-001-v</a></li>
-    <li><a href="./files/sql-perf-basic-002-v.html">sql-perf-basic-002-v</a></li>
-    <li><a href="./files/sql-perf-basic-003-v.html">sql-perf-basic-003-v</a></li>
-    <li><a href="./files/sql-perf-prac-001.html">sql-perf-prac-001</a></li>
-    <li><a href="./files/sql-perf-prac-002.html">sql-perf-prac-002</a></li>
-    <li><a href="./files/sql-perf-prac-003.html">sql-perf-prac-003</a></li>
-    <li><a href="./files/sql-timezone-basic-001-v.html">sql-timezone-basic-001-v</a></li>
-    <li><a href="./files/sql-timezone-basic-001.html">sql-timezone-basic-001</a></li>
-    <li><a href="./files/sql-window-basics-001-gemini-v.html">sql-window-basics-001-gemini-v</a></li>
-    <li><a href="./files/sql-window-basics-002-gemini-v.html">sql-window-basics-002-gemini-v</a></li>
-    <li><a href="./files/sql_step_visualizer_1.html">sql_step_visualizer_1</a></li>
-    <li><a href="./files/sql_step_visualizer_2.html">sql_step_visualizer_2</a></li>
-    <li><a href="./files/sql_step_visualizer_example_1.html">sql_step_visualizer_example_1</a></li>
-    <li><a href="./files/sql_step_visualizer_example_2.html">sql_step_visualizer_example_2</a></li>
-    <li><a href="./files/sql_step_visualizer_example_3.html">sql_step_visualizer_example_3</a></li>
-    <li><a href="./files/sql_step_visualizer_example_4.html">sql_step_visualizer_example_4</a></li>
-    <li><a href="./files/sql_step_visualizer_example_5.html">sql_step_visualizer_example_5</a></li>
-    <li><a href="./files/sql_step_visualizer_example_v10.html">sql_step_visualizer_example_v10</a></li>
-    <li><a href="./files/sql_step_visualizer_example_v6.html">sql_step_visualizer_example_v6</a></li>
-    <li><a href="./files/sql_step_visualizer_example_v7.html">sql_step_visualizer_example_v7</a></li>
-    <li><a href="./files/sql_step_visualizer_example_v8.html">sql_step_visualizer_example_v8</a></li>
-    <li><a href="./files/sql_step_visualizer_example_v9.html">sql_step_visualizer_example_v9</a></li>
+# HTMLファイルが1件以上ある場合のみ処理
+if [ ${#files[@]} -
+  done
+else
+  # エッジケース対策: ファイルがすべて削除された場合
+  echo "    <li>No quiz files available at the moment.</li>" >> "$INDEX_FILE"
+fi
+
+# --- 3. HTMLフッターの生成 ---
+cat << 'EOF' >> "$INDEX_FILE"
   </ul>
 </body>
 </html>
