@@ -1,0 +1,42 @@
+name: Auto Update Index HTML
+
+on:
+  push:
+    # 対象ブランチ (masterをお使いの場合は master に変更してください)
+    branches:
+      - main
+    # 以下のファイル/フォルダに追加・変更・削除・リネームがあった場合に実行
+    paths:
+      - 'docs/files/**'
+      - 'generate_index.sh'
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    
+    # Botがリポジトリに変更をプッシュするための権限
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate index.html
+        run: |
+          chmod +x generate_index.sh
+          ./generate_index.sh
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add docs/index.html
+          
+          # index.html に差分がある場合のみコミッ"
+            git push
+            echo "✅ index.html has been updated and pushed."
+          else
+            echo "ℹ️ No changes in index.html. Skip committing."
+          fi
