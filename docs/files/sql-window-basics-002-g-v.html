@@ -1199,7 +1199,7 @@ const QS = [
   <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND</span> <span class="num">1</span> <span class="kw">PRECEDING</span>
 )</pre>`,
   question: `<p>以下の <code>monthly_targets</code> テーブルから、各月の売上と、<strong>「前月までの売上累計（prev_running_total）」</strong>を計算してください。</p>
-<p>※ 最初の月（04-01）は「前月までの累計」が存在しないため、NULL になります。</p>
+<p>※ 最初の月（2026-01）は「前月までの累計」が存在しないため、NULL になります。</p>
 <div class="data-section">
   <div class="data-label">使用テーブル</div>
   <div class="data-tables">
@@ -1207,20 +1207,20 @@ const QS = [
       <div class="data-tbl-name">▸ monthly_targets</div>
       <div class="tbl-wrap"><table class="vtbl">
         <tr><th>month</th><th>sales</th></tr>
-        <tr><td>04-01</td><td>10</td></tr>
-        <tr><td>04-02</td><td>20</td></tr>
-        <tr><td>04-03</td><td>30</td></tr>
-        <tr><td>04-04</td><td>40</td></tr>
+        <tr><td>2026-01</td><td>10</td></tr>
+        <tr><td>2026-02</td><td>20</td></tr>
+        <tr><td>2026-03</td><td>30</td></tr>
+        <tr><td>2026-04</td><td>40</td></tr>
       </table></div>
     </div>
   </div>
 </div>`,
   output: `<div class="tbl-wrap"><table class="vtbl">
 <tr><th>month</th><th>sales</th><th class="tc-y">prev_running_total</th></tr>
-<tr><td>04-01</td><td>10</td><td class="null">NULL</td></tr>
-<tr><td>04-02</td><td>20</td><td class="tc-y">10</td></tr>
-<tr><td>04-03</td><td>30</td><td class="tc-y">30</td></tr>
-<tr><td>04-04</td><td>40</td><td class="tc-y">60</td></tr>
+<tr><td>2026-01</td><td>10</td><td class="null">NULL</td></tr>
+<tr><td>2026-02</td><td>20</td><td class="tc-y">10</td></tr>
+<tr><td>2026-03</td><td>30</td><td class="tc-y">30</td></tr>
+<tr><td>2026-04</td><td>40</td><td class="tc-y">60</td></tr>
 </table></div>`,
   answer: `<pre><span class="kw">SELECT</span>
   month,
@@ -1236,10 +1236,10 @@ const QS = [
 
 <span class="cmt">/*
   実行順序:
-  04-01: 対象フレームなし → NULL
-  04-02: [04-01] の合計 → 10
-  04-03: [04-01, 04-02] の合計 → 10 + 20 = 30
-  04-04: [04-01, 04-02, 04-03] の合計 → 10 + 20 + 30 = 60
+  2026-01: 対象フレームなし → NULL
+  2026-02: [2026-01] の合計 → 10
+  2026-03: [2026-01, 2026-02] の合計 → 10 + 20 = 30
+  2026-04: [2026-01, 2026-02, 2026-03] の合計 → 10 + 20 + 30 = 60
 */</span></pre>`,
   viz: {
     steps: [
@@ -1250,8 +1250,8 @@ const QS = [
         cols: ["month","sales"],
         ch:   ["col-base","col-base"],
         rows: [
-          { v: ["04-01",10] }, { v: ["04-02",20] },
-          { v: ["04-03",30] }, { v: ["04-04",40] }
+          { v: ["2026-01",10] }, { v: ["2026-02",20] },
+          { v: ["2026-03",30] }, { v: ["2026-04",40] }
         ], cnt: "全 4行 読込" },
       { id: "window", badge: "② フレームの評価", bc: "badge-orange",
         label: "ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING",
@@ -1260,10 +1260,10 @@ const QS = [
         cols: ["month","sales","集計フレーム","prev_running_total"],
         ch:   ["","","col-eval","col-eval"],
         rows: [
-          { v: ["04-01",10,"(範囲なし)","NULL"], cc: ["","","","val-hl"] },
-          { v: ["04-02",20,"[10]","10"], cc: ["","","","val-hl"] },
-          { v: ["04-03",30,"[10, 20]","30"], cc: ["","","","val-hl"] },
-          { v: ["04-04",40,"[10, 20, 30]","60"], cc: ["","","","val-hl"] }
+          { v: ["2026-01",10,"(範囲なし)","NULL"], cc: ["","","","val-hl"] },
+          { v: ["2026-02",20,"[10]","10"], cc: ["","","","val-hl"] },
+          { v: ["2026-03",30,"[10, 20]","30"], cc: ["","","","val-hl"] },
+          { v: ["2026-04",40,"[10, 20, 30]","60"], cc: ["","","","val-hl"] }
         ], cnt: "過去の累計を計算" },
       { id: "select", badge: "③ SELECT", bc: "badge-green",
         label: "最終出力",
@@ -1272,10 +1272,10 @@ const QS = [
         cols: ["month","sales","prev_running_total"],
         ch:   ["col-select","col-select","col-select"],
         rows: [
-          { v: ["04-01",10,"NULL"] },
-          { v: ["04-02",20,10] },
-          { v: ["04-03",30,30] },
-          { v: ["04-04",40,60] }
+          { v: ["2026-01",10,"NULL"] },
+          { v: ["2026-02",20,10] },
+          { v: ["2026-03",30,30] },
+          { v: ["2026-04",40,60] }
         ], cnt: "結果: 4行" }
     ],
     sql: [
