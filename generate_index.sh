@@ -45,7 +45,7 @@ export LC_ALL=C
 
 files=("$FILES_DIR"/*.html)
 
-if[ "${#files[@]}" -gt 0 ]; then
+if [ "${#files[@]}" -gt 0 ]; then
   for file in "${files[@]}"; do
     filename="$(basename "$file")"
     display_name="${filename%.html}"
