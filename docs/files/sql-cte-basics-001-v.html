@@ -248,12 +248,12 @@
   .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
 
   .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
-  .sql-hl-cte, .sql-hl-cte_eval, .sql-hl-main_from, .sql-hl-main_select, .sql-hl-join {
+  .sql-hl-cte, .sql-hl-cte_eval, .sql-hl-cte_eval_1, .sql-hl-cte_eval_2, .sql-hl-main_from, .sql-hl-main_select, .sql-hl-join, .sql-hl-join_1, .sql-hl-join_2 {
     border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
   }
   .sql-hl-cte { background: var(--sql-purple-bg); color: var(--sql-purple-txt); }
-  .sql-hl-cte_eval { background: var(--sql-orange-bg); }
-  .sql-hl-main_from, .sql-hl-join { background: var(--sql-blue-bg); color: var(--sql-blue-txt); }
+  .sql-hl-cte_eval, .sql-hl-cte_eval_1, .sql-hl-cte_eval_2 { background: var(--sql-orange-bg); }
+  .sql-hl-main_from, .sql-hl-join, .sql-hl-join_1, .sql-hl-join_2 { background: var(--sql-blue-bg); color: var(--sql-blue-txt); }
   .sql-hl-main_select { background: var(--sql-green-bg); color: var(--sql-green-txt); }
 
   .sv-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
@@ -510,9 +510,9 @@ const QS = [
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "cte_eval", badge: "① CTE内の評価", bc: "badge-orange",
+      { id: "cte_eval", badge: "① CTE内クエリの評価", bc: "badge-orange",
         label: "FROM users WHERE status = 'active'",
-        desc: "まず、WITH 句の中の SQL が評価されます。users テーブル全体から status が 'active' でない行（佐藤）が除外されます。",
+        desc: "まず、WITH句内のSELECT文が評価されます。usersテーブル全体から条件（status = 'active'）に合致しない行が除外され、必要なデータだけが絞り込まれます。",
         type: "eval",
         cols: ["user_id", "name", "status"],
         ch:   ["", "", "col-eval"],
@@ -523,9 +523,9 @@ const QS = [
         ],
         cnt: "3行 → 2行" },
 
-      { id: "cte", badge: "② CTEの生成", bc: "badge-purple",
+      { id: "cte", badge: "② 一時テーブル(CTE)の生成", bc: "badge-purple",
         label: "WITH active_users AS (...)",
-        desc: "評価結果から user_id と name を取り出し、これを「active_users」という名前の独立した一時テーブルとして保持します。",
+        desc: "絞り込まれた結果が「active_users」という名前の独立した一時テーブルとしてメモリ上に保持されます。これで後続の処理で自由に使える部品が完成しました。",
         type: "cte",
         cols: ["user_id", "name"],
         ch:   ["col-cte", "col-cte"],
@@ -560,7 +560,7 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>CTE（WITH句）の基本：</strong>SQLは通常 <code>SELECT</code> から書き始めますが、CTEを使うと <code>WITH 変数名 AS ( クエリ )</code> のように、クエリの最初に部品（仮想テーブル）を定義できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>CTE（WITH句）の基本：</strong>SQLは通常 <code>SELECT</code> から書き始めますが、CTEを使うと <code>WITH 変数名 AS ( クエリ )</code> のように、クエリの最初に部品（仮想テーブル）を定義できます。これにより、「元の大きなテーブルから、必要なデータだけを先に切り出す」という思考プロセスをそのままコードに落とし込めます。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>スコープ（有効範囲）：</strong>定義したCTEは、その直後に続く 1 つのメインクエリ（SELECT / UPDATE / DELETE など）の中でだけ利用可能です。クエリが終了すると破棄されます。</div></div>
 </div>
 <div class="column-box">
@@ -648,9 +648,9 @@ high_orders <span class="kw">AS</span> (
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "cte_eval", badge: "① 1つ目のCTE評価", bc: "badge-purple",
+      { id: "cte_eval_1", badge: "① 1つ目のCTEの生成", bc: "badge-purple",
         label: "CTE: premium_users",
-        desc: "users テーブルから rank が 'premium' な行だけを抽出し、premium_users テーブルとして用意します。佐藤(normal)は除外されます。",
+        desc: "まず users テーブルから特定のユーザーを抽出し、1つ目の一時テーブル（premium_users）を生成します。不要なデータが削ぎ落とされます。",
         type: "eval",
         cols: ["user_id", "name", "rank"],
         ch:   ["", "", "col-eval"],
@@ -661,9 +661,9 @@ high_orders <span class="kw">AS</span> (
         ],
         cnt: "3行 → 2行" },
 
-      { id: "cte_eval", badge: "② 2つ目のCTE評価", bc: "badge-purple",
+      { id: "cte_eval_2", badge: "② 2つ目のCTEの生成", bc: "badge-purple",
         label: "CTE: high_orders",
-        desc: "orders テーブルから amount >= 5000 の行を抽出し、high_orders テーブルとして用意します。order_id=3(3000円) は除外されます。",
+        desc: "続いて orders テーブルからも条件に合う注文だけを抽出し、2つ目の一時テーブル（high_orders）を生成します。",
         type: "eval",
         cols: ["order_id", "user_id", "amount", "≥5000?"],
         ch:   ["", "", "col-eval", ""],
@@ -675,9 +675,9 @@ high_orders <span class="kw">AS</span> (
         ],
         cnt: "4行 → 3行" },
 
-      { id: "join", badge: "③ メインクエリでJOIN", bc: "badge-blue",
+      { id: "join", badge: "③ メインクエリでの結合", bc: "badge-blue",
         label: "premium_users JOIN high_orders",
-        desc: "2つのCTEを user_id で結合します。high_orders に残っていた user_id=2 (佐藤の注文) は、premium_users 側に存在しないため INNER JOIN の仕様で除外されます。",
+        desc: "2つの事前処理済み一時テーブルを結合します。結合前にデータ量が減っているため、結合処理自体がシンプルかつ高速になります。",
         type: "eval", join: true,
         left: {
           label: "premium_users (p)",
@@ -700,7 +700,7 @@ high_orders <span class="kw">AS</span> (
         },
         cnt: "結合成功: 2件" },
 
-      { id: "main_select", badge: "④ SELECT", bc: "badge-green",
+      { id: "main_select", badge: "④ 最終結果の出力", bc: "badge-green",
         label: "SELECT p.name, h.amount",
         desc: "結合されたデータから、要求された name と amount だけを出力します。",
         type: "select",
@@ -714,14 +714,14 @@ high_orders <span class="kw">AS</span> (
     ],
     sql: [
       { t: "WITH ", k: "sql-kw", h: "cte" }, { t: "premium_users ", k: "", h: "cte" }, { t: "AS ", k: "sql-kw", h: "cte" }, { t: "(\n", k: "", h: "cte" },
-      { t: "  SELECT ", k: "sql-kw", h: "cte_eval" }, { t: "user_id, name\n", k: "", h: "cte_eval" },
-      { t: "  FROM ", k: "sql-kw", h: "cte_eval" }, { t: "users\n", k: "", h: "cte_eval" },
-      { t: "  WHERE ", k: "sql-kw", h: "cte_eval" }, { t: "rank = 'premium'\n", k: "", h: "cte_eval" },
+      { t: "  SELECT ", k: "sql-kw", h: "cte_eval_1" }, { t: "user_id, name\n", k: "", h: "cte_eval_1" },
+      { t: "  FROM ", k: "sql-kw", h: "cte_eval_1" }, { t: "users\n", k: "", h: "cte_eval_1" },
+      { t: "  WHERE ", k: "sql-kw", h: "cte_eval_1" }, { t: "rank = 'premium'\n", k: "", h: "cte_eval_1" },
       { t: "),\n", k: "", h: "cte" },
       { t: "high_orders ", k: "", h: "cte" }, { t: "AS ", k: "sql-kw", h: "cte" }, { t: "(\n", k: "", h: "cte" },
-      { t: "  SELECT ", k: "sql-kw", h: "cte_eval" }, { t: "user_id, amount\n", k: "", h: "cte_eval" },
-      { t: "  FROM ", k: "sql-kw", h: "cte_eval" }, { t: "orders\n", k: "", h: "cte_eval" },
-      { t: "  WHERE ", k: "sql-kw", h: "cte_eval" }, { t: "amount >= 5000\n", k: "", h: "cte_eval" },
+      { t: "  SELECT ", k: "sql-kw", h: "cte_eval_2" }, { t: "user_id, amount\n", k: "", h: "cte_eval_2" },
+      { t: "  FROM ", k: "sql-kw", h: "cte_eval_2" }, { t: "orders\n", k: "", h: "cte_eval_2" },
+      { t: "  WHERE ", k: "sql-kw", h: "cte_eval_2" }, { t: "amount >= 5000\n", k: "", h: "cte_eval_2" },
       { t: ")\n", k: "", h: "cte" },
       { t: "SELECT\n", k: "sql-kw", h: "main_select" },
       { t: "  p.name,\n  h.amount\n", k: "", h: "main_select" },
@@ -813,9 +813,9 @@ high_orders <span class="kw">AS</span> (
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "cte_eval", badge: "① CTEでグループ集計", bc: "badge-orange",
+      { id: "cte_eval", badge: "① CTEでのグループ集計", bc: "badge-orange",
         label: "GROUP BY user_id → SUM(amount)",
-        desc: "orders テーブルを user_id でグループ化し、合計金額 total_amount を算出します。これが user_sales テーブルとして機能します。",
+        desc: "orders テーブルをユーザー単位でグループ化（縦の圧縮）し、合計金額を算出します。この集計結果を user_sales という一時テーブルにします。",
         type: "group",
         cols: ["user_id", "total_amount"],
         ch:   ["col-eval", "col-eval"],
@@ -825,9 +825,9 @@ high_orders <span class="kw">AS</span> (
         ],
         cnt: "3行 → 2グループ" },
 
-      { id: "join", badge: "② メインクエリでJOIN", bc: "badge-blue",
+      { id: "join", badge: "② マスタとの結合", bc: "badge-blue",
         label: "users JOIN user_sales",
-        desc: "マスタである users テーブルと、集計済みの user_sales (CTE) を結合します。注文のない 山田(3) は CTE 側にデータがないため INNER JOIN で除外されます。",
+        desc: "ユーザーの基本情報（users）に、ステップ①で作った集計データ（user_sales）を結合（横の拡張）します。役割ごとに処理を分けたことで構造が明確になります。",
         type: "eval", join: true,
         left: {
           label: "users (u)",
@@ -850,9 +850,9 @@ high_orders <span class="kw">AS</span> (
         },
         cnt: "山田が除外され2件が結合" },
 
-      { id: "main_select", badge: "③ SELECT + ORDER BY", bc: "badge-green",
+      { id: "main_select", badge: "③ 最終抽出と並べ替え", bc: "badge-green",
         label: "SELECT u.name, s.total_amount ORDER BY DESC",
-        desc: "結合結果から名前と合計金額を出力し、合計金額が高い順に並べ替えます。佐藤(10000) が上に来ます。",
+        desc: "結合結果から名前と合計金額を出力し、合計金額が高い順に並べ替えます。",
         type: "select",
         cols: ["name", "total_amount"],
         ch:   ["col-select", "col-select"],
@@ -878,8 +878,8 @@ high_orders <span class="kw">AS</span> (
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>サブクエリの代替としてのCTE：</strong>このSQLは <code>FROM users u JOIN (SELECT user_id, SUM(amount)...) s ON ...</code> というように、FROM句の中でサブクエリを書くことでも実現できます。しかしCTEとして一番上に切り出すことで、「何を集計しているのか」が名前（user_sales）から一目で分かり、コードの構造が劇的に読みやすくなります。</div></div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>注文のないユーザー（山田）を残すには？：</strong> 山田を出力したい場合は、<code>JOIN</code> を <code>LEFT JOIN</code> に変更します。その際、total_amount は NULL になるため、<code>COALESCE(s.total_amount, 0)</code> のように 0 に変換する処理が必要になります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>集計と結合の分離：</strong>「グループごとの合計を出す（縦の圧縮）」処理と、「別のテーブルとくっつける（横の拡張）」処理を同時に行おうとすると混乱します。CTEで先に「縦の圧縮」を終わらせてシンプルな1対1の対応表を作っておくことで、メインクエリでの「横の拡張（JOIN）」が非常に直感的になります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>サブクエリの代替としてのCTE：</strong>このSQLは <code>FROM users u JOIN (SELECT user_id, SUM(amount)...) s ON ...</code> というように、FROM句の中でサブクエリを書くことでも実現できます。しかしCTEとして一番上に切り出すことで、「何を集計しているのか」が名前（user_sales）から一目で分かり、コードの構造が劇的に読みやすくなります。</div></div>
 </div>`
 },
 
@@ -957,9 +957,9 @@ user_totals <span class="kw">AS</span> (
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "cte_eval", badge: "① 1つ目のCTE", bc: "badge-purple",
+      { id: "cte_eval_1", badge: "① 第1ステップ: 不要データ除外", bc: "badge-purple",
         label: "CTE: valid_orders",
-        desc: "orders テーブルから cancelled の行(order_id=2) を除外し、前処理済みの valid_orders を作成します。もしここで除外しないと、user_id=1 の合計にキャンセルの5000円が含まれてしまいます。",
+        desc: "まず、キャンセルされた注文を除外します。このように「前処理」を最初のCTEで行うことで、後続の集計ロジックがシンプルになります。",
         type: "eval",
         cols: ["order_id", "user_id", "amount", "status"],
         ch:   ["", "", "", "col-eval"],
@@ -971,9 +971,9 @@ user_totals <span class="kw">AS</span> (
         ],
         cnt: "4行 → 3行" },
 
-      { id: "cte_eval", badge: "② 2つ目のCTE (集計)", bc: "badge-orange",
+      { id: "cte_eval_2", badge: "② 第2ステップ: 集計", bc: "badge-orange",
         label: "CTE: user_totals",
-        desc: "1つ目の valid_orders を読み込み、user_id で集計して user_totals を作成します。user_id=1 は 15000、user_id=2 は 8000+3000=11000 になります。",
+        desc: "直前のステップで作った valid_orders を参照して集計を行います。上のCTEから下のCTEへ、データがパイプラインのように流れて処理されます。",
         type: "group",
         cols: ["user_id", "total"],
         ch:   ["col-eval", "col-eval"],
@@ -983,9 +983,9 @@ user_totals <span class="kw">AS</span> (
         ],
         cnt: "3行 → 2グループ" },
 
-      { id: "main_select", badge: "③ メインクエリで抽出", bc: "badge-green",
+      { id: "main_select", badge: "③ 第3ステップ: 最終抽出", bc: "badge-green",
         label: "WHERE total >= 10000",
-        desc: "最後に、user_totals に対して WHERE total >= 10000 で絞り込みを行います。今回は2人とも10000以上なので両方出力されます。",
+        desc: "集計済みの user_totals に対して最終的な絞り込みを行います。思考プロセスとコードの記述順序が完全に一致していることが確認できます。",
         type: "eval",
         cols: ["user_id", "total", "≥10000?"],
         ch:   ["", "col-eval", ""],
@@ -997,10 +997,10 @@ user_totals <span class="kw">AS</span> (
     ],
     sql: [
       { t: "WITH ", k: "sql-kw", h: "cte" }, { t: "valid_orders ", k: "", h: "cte" }, { t: "AS ", k: "sql-kw", h: "cte" }, { t: "(\n", k: "", h: "cte" },
-      { t: "  SELECT user_id, amount\n  FROM orders\n  WHERE status != 'cancelled'\n", k: "", h: "cte_eval" },
+      { t: "  SELECT user_id, amount\n  FROM orders\n  WHERE status != 'cancelled'\n", k: "", h: "cte_eval_1" },
       { t: "),\n", k: "", h: "cte" },
       { t: "user_totals ", k: "", h: "cte" }, { t: "AS ", k: "sql-kw", h: "cte" }, { t: "(\n", k: "", h: "cte" },
-      { t: "  SELECT user_id, SUM(amount) AS total\n  FROM valid_orders\n  GROUP BY user_id\n", k: "", h: "cte_eval" },
+      { t: "  SELECT user_id, SUM(amount) AS total\n  FROM valid_orders\n  GROUP BY user_id\n", k: "", h: "cte_eval_2" },
       { t: ")\n", k: "", h: "cte" },
       { t: "SELECT\n  user_id,\n  total\n", k: "", h: "main_select" },
       { t: "FROM ", k: "sql-kw", h: "main_select" }, { t: "user_totals\n", k: "", h: "main_select" },
@@ -1084,7 +1084,7 @@ user_totals <span class="kw">AS</span> (
     steps: [
       { id: "cte_eval", badge: "① CTEで最新日付を算出", bc: "badge-orange",
         label: "GROUP BY user_id → MAX(ordered_at)",
-        desc: "ordersテーブルからユーザーごとに最も新しい(MAX)日付を算出し、latest_dates(CTE) を作成します。",
+        desc: "まずユーザーごとに「最も新しい注文日付（MAX）」だけを算出し、latest_dates という一時テーブルを作成します。この時点ではまだ他の列（金額など）は取得できません。",
         type: "group",
         cols: ["user_id", "max_date"],
         ch:   ["col-eval", "col-eval"],
@@ -1094,9 +1094,9 @@ user_totals <span class="kw">AS</span> (
         ],
         cnt: "4行 → 2グループ (CTE完成)" },
 
-      { id: "join", badge: "② 複合条件でJOIN", bc: "badge-blue",
+      { id: "join", badge: "② 複合条件で元データと結合", bc: "badge-blue",
         label: "ON user_id AND ordered_at = max_date",
-        desc: "元の orders テーブルと、CTEで作った最新日付リストを突き合わせます。日付が一致しない古い注文（order_id=1, 3）は結合条件から外れ、除外されます。",
+        desc: "元の orders テーブルに対して、「ユーザーIDが一致」かつ「注文日が先ほど算出したMAX日付と一致」するという2つの条件で結合し、最新の行だけを特定します。",
         type: "eval", join: true,
         left: {
           label: "orders (o)",
@@ -1120,7 +1120,7 @@ user_totals <span class="kw">AS</span> (
         },
         cnt: "各ユーザーの最新1行のみが残る" },
 
-      { id: "main_select", badge: "③ SELECT", bc: "badge-green",
+      { id: "main_select", badge: "③ 最終結果の出力", bc: "badge-green",
         label: "SELECT o.user_id, o.order_id ...",
         desc: "結合して生き残った「最新の行」の全データを元テーブル(o)から取得します。これで最新の order_id や amount が分かります。",
         type: "select",
@@ -1241,9 +1241,9 @@ user_reviews <span class="kw">AS</span> (
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "cte_eval", badge: "① 2つのCTEを事前集計", bc: "badge-purple",
+      { id: "cte_eval", badge: "① 複数のCTEで事前集計", bc: "badge-purple",
         label: "CTE: user_orders / user_reviews",
-        desc: "それぞれの子テーブルを user_id で GROUP BY し、ユーザーごとに1行（1対1）の仮想テーブルを作成します。この「事前に1行にまとめる」作業が Fan-out を防ぐ鍵です。",
+        desc: "orders と reviews の両方を事前にユーザー単位でグループ化し、「1ユーザーにつき1行」の状態にしておきます。これが Fan-out（行増殖）を防ぐ最大のポイントです。",
         type: "group", join: true,
         left: {
           label: "user_orders (CTE)",
@@ -1266,7 +1266,7 @@ user_reviews <span class="kw">AS</span> (
 
       { id: "join", badge: "② LEFT JOIN + COALESCE", bc: "badge-blue",
         label: "users LEFT JOIN o LEFT JOIN r",
-        desc: "親テーブルの users に2つのCTEを結合します。user_id=2 (佐藤) は reviews にデータがないため、結合結果は NULL になります。COALESCE 関数は最初の NULL でない値を返すため、NULL を 0 に安全に変換します。",
+        desc: "主となる users テーブルに対し、1対1に整理された2つのCTEを安全に結合します。データが存在せず NULL になった箇所は、COALESCE 関数で 0 に変換します。",
         type: "eval",
         cols: ["u.name", "o.total_amount", "r.review_count"],
         ch:   ["col-base", "col-eval", "col-eval"],
@@ -1305,8 +1305,8 @@ user_reviews <span class="kw">AS</span> (
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Fan-out（行増殖）の回避とCTE：</strong>1対多のテーブルを複数同時にJOINすると、データが掛け算で増殖します。これを防ぐための「JOINする前に各子テーブルを1行（1対1）に集約する（事前集計）」という処理単位を明示的に作る上で、CTEは最も適した構文です。</div></div>
 <div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>COALESCE（コアレス）関数の必須性：</strong>LEFT JOIN を使うと、子テーブルにデータが存在しない場合に NULL が返ります。APIレスポンスで <code>total_amount: null</code> が返るとフロントエンドで計算エラー（NaN）を起こすため、<code>COALESCE(値, 0)</code> で確実に数値の 0 に変換して返すのがAPI開発の鉄則です。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Fan-outの回避：</strong>1対多のテーブルを2つ同時にJOINすると、例えば「注文3回 × レビュー2回 = 6行」という直積（掛け算）が発生します。これを防ぐには「JOINする前に、各テーブルを1行（1対1）に集約しておく」のが最も確実な設計パターンです。</div></div>
 </div>`
 },
 
@@ -1376,9 +1376,9 @@ feb_users <span class="kw">AS</span> (
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "cte_eval", badge: "① 各月の購入者リスト(CTE)", bc: "badge-purple",
+      { id: "cte_eval", badge: "① 各条件でのリスト作成", bc: "badge-purple",
         label: "CTE: jan_users / feb_users",
-        desc: "それぞれの条件（1月の注文、2月の注文）でユーザーIDを抽出し、重複を排除（DISTINCT）してリスト化します。",
+        desc: "「1月に購入したユーザー」と「2月に購入したユーザー」のリストを、それぞれ独立したCTEとして作成します。複雑な条件も分割すればシンプルになります。",
         type: "eval", join: true,
         left: {
           label: "jan_users (CTE)",
@@ -1400,9 +1400,9 @@ feb_users <span class="kw">AS</span> (
         },
         cnt: "jan: 2名 / feb: 2名" },
 
-      { id: "join", badge: "② INNER JOIN で共通項抽出", bc: "badge-blue",
+      { id: "join", badge: "② 結合による共通項の抽出", bc: "badge-blue",
         label: "jan_users JOIN feb_users",
-        desc: "2つのCTEを user_id で INNER JOIN します。user_id=1 は2月にいないため除外、user_id=3 は1月にいないため除外され、両月に存在する user_id=2 だけが残ります。",
+        desc: "作成した2つのリストを INNER JOIN します。INNER JOIN は「両方に存在するものだけを残す」性質があるため、これにより両月で購入したリピーターだけが抽出されます。",
         type: "eval",
         cols: ["j.user_id", "f.user_id", "結果 (INNER JOIN)"],
         ch:   ["col-base", "col-eval", ""],
@@ -1515,9 +1515,9 @@ feb_users <span class="kw">AS</span> (
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "cte_eval", badge: "① CTEで ROW_NUMBER() を評価", bc: "badge-purple",
+      { id: "cte_eval", badge: "① ウィンドウ関数で連番付与", bc: "badge-purple",
         label: "PARTITION BY user_id ORDER BY ordered_at DESC",
-        desc: "ウィンドウ関数は GROUP BY のように行を圧縮せず、元の行を残したまま追加の列（連番 rn）を付与します。user_id ごとに独立して、新しい日付順に 1, 2... と番号が振られます。",
+        desc: "PARTITION BY でユーザーごとに区切り、ORDER BY で日付の新しい順に並べ、ROW_NUMBER() で 1, 2, 3... と連番（順位）を付与した一時テーブルを作成します。",
         type: "eval",
         cols: ["order_id", "user_id", "ordered_at", "rn (連番)"],
         ch:   ["", "col-eval", "col-eval", "col-eval"],
@@ -1529,9 +1529,9 @@ feb_users <span class="kw">AS</span> (
         ],
         cnt: "全4行に連番が付与される" },
 
-      { id: "main_select", badge: "② メインクエリで WHERE rn = 1", bc: "badge-green",
+      { id: "main_select", badge: "② WHERE で最新行のみ抽出", bc: "badge-green",
         label: "SELECT ... FROM ranked_orders WHERE rn = 1",
-        desc: "CTEで付与された連番 rn を使い、rn = 1 の行だけを抽出します。これで JOIN を一切使わずに、各グループの最新行だけを綺麗に取り出すことができます。",
+        desc: "付与された連番を使って WHERE rn = 1（1位の行）だけを抽出します。同着があっても必ず一意の連番が振られるため、データが増殖するバグが絶対に起こりません。",
         type: "select",
         cols: ["user_id", "order_id", "amount", "ordered_at", "rn"],
         ch:   ["col-select", "col-select", "col-select", "col-select", "col-eval"],
@@ -1636,9 +1636,9 @@ feb_users <span class="kw">AS</span> (
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "cte_eval", badge: "① CTEでグループ平均の算出", bc: "badge-orange",
+      { id: "cte_eval", badge: "① カテゴリごとの平均値算出", bc: "badge-orange",
         label: "GROUP BY category_id → AVG(price)",
-        desc: "products テーブルを category_id でグループ化し、それぞれのカテゴリの平均価格（avg_price）を計算します。category 1 は 50000、category 2 は 3000 になります。",
+        desc: "まず、カテゴリごとの平均価格を計算し、category_avgs という一時テーブルを作ります。後で個別の商品と比較するための「基準値」の準備です。",
         type: "group",
         cols: ["category_id", "avg_price"],
         ch:   ["col-eval", "col-eval"],
@@ -1648,9 +1648,9 @@ feb_users <span class="kw">AS</span> (
         ],
         cnt: "5行 → 2グループ (CTE完成)" },
 
-      { id: "join", badge: "② JOINによる平均値の紐付け", bc: "badge-blue",
-        label: "products JOIN category_avgs",
-        desc: "各商品の横に、その商品が属するカテゴリの平均価格（avg_price）を結合（マッピング）します。これで個別の価格とカテゴリ全体の平均を1行の中で比較できる準備が整いました。",
+      { id: "join", badge: "② 基準値の紐付けと行内比較", bc: "badge-blue",
+        label: "JOIN ... WHERE p.price >= c.avg_price",
+        desc: "個別の商品データにカテゴリ平均を結合（横付け）します。これにより、同じ行の中で「自分の価格」と「カテゴリの平均」を直接比較（WHERE）できるようになります。",
         type: "eval", join: true,
         left: {
           label: "products (p)",
@@ -1780,9 +1780,9 @@ feb_users <span class="kw">AS</span> (
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "cte_eval", badge: "① 非再帰項 (ベースの抽出)", bc: "badge-purple",
+      { id: "cte_eval", badge: "① 非再帰項 (出発点の取得)", bc: "badge-purple",
         label: "WHERE id = 1",
-        desc: "まず出発点として、id = 1（家電）を categories テーブルから抽出します。これが再帰の第1階層となります。",
+        desc: "WITH RECURSIVE の最初のステップです。起点となる id=1（家電）を抽出し、これを階層ツリーの「第1階層」として保持します。",
         type: "eval",
         cols: ["id", "name", "parent_id"],
         ch:   ["col-eval", "", ""],
@@ -1795,9 +1795,9 @@ feb_users <span class="kw">AS</span> (
         ],
         cnt: "取得完了: 第1階層 (家電)" },
 
-      { id: "join", badge: "② 再帰ループ (1周目)", bc: "badge-orange",
-        label: "JOIN ON c.parent_id = ct.id (親=1)",
-        desc: "先ほど見つけた id=1 (家電) を親として持つ子を探します。parent_id=1 である id=2 (PC) が見つかり、ツリーに追加されます。",
+      { id: "join_1", badge: "② 再帰ループ (第2階層の探索)", bc: "badge-orange",
+        label: "JOIN ON c.parent_id = ct.id",
+        desc: "直前のステップで見つけた id=1 (家電) を「親」として持つ子カテゴリを探します。parent_id=1 である「PC」が抽出され、ツリーに追加されます。",
         type: "eval",
         cols: ["id", "name", "parent_id", "現在の親(ct.id)"],
         ch:   ["", "", "col-eval", "col-eval"],
@@ -1810,9 +1810,9 @@ feb_users <span class="kw">AS</span> (
         ],
         cnt: "取得完了: 第2階層 (PC)" },
 
-      { id: "join", badge: "③ 再帰ループ (2周目・終了)", bc: "badge-orange",
-        label: "JOIN ON c.parent_id = ct.id (親=2)",
-        desc: "さらに先ほど見つけた id=2 (PC) を親として持つ孫を探します。parent_id=2 である id=3, 4 が見つかりツリーに追加されます。次のループで親=3,4 を探しますが何も見つからないため、ここで再帰が自動的にストップします。",
+      { id: "join_2", badge: "③ 再帰ループ (第3階層の探索)", bc: "badge-orange",
+        label: "JOIN ON c.parent_id = ct.id",
+        desc: "今度は直前のステップで見つけた「PC」を親として持つ孫カテゴリを探します。「ノートPC」と「デスクトップ」が抽出されます。次のループでは結果が空になるため、再帰が自動終了します。",
         type: "eval",
         cols: ["id", "name", "parent_id", "現在の親(ct.id)"],
         ch:   ["", "", "col-eval", "col-eval"],
@@ -1843,8 +1843,8 @@ feb_users <span class="kw">AS</span> (
       { t: "WITH RECURSIVE ", k: "sql-kw", h: "cte" }, { t: "category_tree ", k: "", h: "cte" }, { t: "AS ", k: "sql-kw", h: "cte" }, { t: "(\n", k: "", h: "cte" },
       { t: "  SELECT id, name, parent_id\n  FROM categories\n  WHERE id = 1\n", k: "", h: "cte_eval" },
       { t: "\n  UNION ALL\n\n", k: "sql-kw", h: "cte" },
-      { t: "  SELECT c.id, c.name, c.parent_id\n  FROM categories c\n", k: "", h: "join" },
-      { t: "  JOIN ", k: "sql-kw", h: "join" }, { t: "category_tree ct\n    ON c.parent_id = ct.id\n", k: "", h: "join" },
+      { t: "  SELECT c.id, c.name, c.parent_id\n  FROM categories c\n", k: "", h: "join_1 join_2" },
+      { t: "  JOIN ", k: "sql-kw", h: "join_1 join_2" }, { t: "category_tree ct\n    ON c.parent_id = ct.id\n", k: "", h: "join_1 join_2" },
       { t: ")\n", k: "", h: "cte" },
       { t: "SELECT\n  *\n", k: "", h: "main_select" },
       { t: "FROM ", k: "sql-kw", h: "main_select" }, { t: "category_tree;", k: "", h: "main_select" }
