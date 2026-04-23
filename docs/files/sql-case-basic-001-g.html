@@ -563,8 +563,8 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>単純CASE式と検索CASE式の違い：</strong>今回使ったのは「単純CASE式」です。<code>CASE 列名</code> から始まり、値の「完全一致（=）」しか判定できません。より複雑な条件（大小比較など）が必要な場合は、次の問題で扱う「検索CASE式」を使います。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CASE式は文ではなく「式（Expression）」：</strong>プログラミング言語の <code>switch</code> 文と似ていますが、SQLのCASEは最終的に「1つの値」になる式です。そのため、<code>SELECT</code> の一部として列を生成するのに使えます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>単純CASE式と検索CASE式の使い分け：</strong>本問で使用した「単純CASE式」は、特定の値との完全一致（=）によるマッピングに最適で、コードがすっきりします。不等号や複数列の条件が必要な場合は、Q2以降で扱う「検索CASE式」を使います。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CASE式は文ではなく「式（Expression）」：</strong>プログラミング言語の <code>switch</code> 文と似ていますが、SQLのCASEは最終的に「1つの値」を返す式です。そのため、<code>SELECT</code> の一部として列を生成したり、後述の <code>ORDER BY</code> など、値が書ける場所ならどこでも使えます。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
@@ -697,12 +697,12 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>上から順に評価される：</strong>検索CASE式は、最初に <code>true</code> になった時点で評価を終了します。そのため、<code>WHEN price >= 3000</code> のところに到達したデータは、必然的に「10000未満である」ことが確定しています。無駄な <code>AND price < 10000</code> を書く必要はありません。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>柔軟な条件指定：</strong>検索CASE式は <code>WHEN status = 'active' AND age >= 20</code> のような複数列を組み合わせた複合条件も書くことができます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>上から順に評価される（ショートサーキット）：</strong>検索CASE式は、上の条件から順に評価され、最初に <code>true</code> となった時点で評価を終了します。そのため、<code>WHEN price >= 3000</code> の判定時には、必然的に「10000未満である」ことが確定しており、無駄な <code>AND price < 10000</code> を書く必要はありません。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>柔軟な条件指定：</strong>検索CASE式の <code>WHEN</code> の後には、<code>>=</code> などの不等号だけでなく、<code>IN</code> や <code>LIKE</code>、さらには複数列を用いた <code>AND / OR</code> 条件など、WHERE句と同等の柔軟な条件式を記述できます。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>条件の順序を間違える：</strong>もし <code>WHEN price >= 3000 THEN '中価格'</code> を先に書いてしまうと、120,000円のノートPCも <code>>= 3000</code> を満たすため「中価格」と判定され、そこで処理が終了してしまいます。<em>範囲条件は必ず厳しい条件（大きな値や狭い範囲）から順に書く</em>のが鉄則です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>条件の順序を間違える：</strong>もし <code>WHEN price >= 3000 THEN '中価格'</code> を先に書いてしまうと、120,000円のノートPCも <code>>= 3000</code> を満たすため「中価格」と誤判定され、そこで処理が終了してしまいます。<em>範囲条件は必ず厳しい条件（大きな値や狭い範囲）から順に書く</em>のが鉄則です。</div></div>
 </div>
 <div class="column-box">
 <div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
@@ -901,22 +901,22 @@ const QS = [
           { v: [4, "サーバー保守", "High"] }
         ],
         cnt: "全 4行 読込" },
-      { id: "order", badge: "② ORDER BY CASE (内部ソートキー)", bc: "badge-orange",
+      { id: "eval", badge: "② ORDER BY CASE (評価)", bc: "badge-orange",
         label: "ORDER BY CASE priority WHEN 'High' THEN 1 ...",
-        desc: "ORDER BY の裏側で、CASE式によって一時的な「ソート用数値キー」が生成されます。このキーを使って昇順(ASC)ソートが行われます。",
-        type: "order",
-        cols: ["task_id", "title", "priority", "裏のソートキー"],
+        desc: "ORDER BY 句の中でCASE式が評価され、各行に対して一時的な「ソート用数値キー」が生成されます。まだ並び替えは行われていません。",
+        type: "eval",
+        cols: ["task_id", "title", "priority", "裏のソートキー (生成)"],
         ch: ["", "", "col-eval", "col-eval"],
         rows: [
           { v: [1, "バグ修正", "High", "1"], cc: ["", "", "val-pass", "val-pass"] },
-          { v: [4, "サーバー保守", "High", "1"], cc: ["", "", "val-pass", "val-pass"] },
+          { v: [2, "ドキュメント更新", "Low", "3"], cc: ["", "", "val-pass", "val-pass"] },
           { v: [3, "新機能開発", "Medium", "2"], cc: ["", "", "val-pass", "val-pass"] },
-          { v: [2, "ドキュメント更新", "Low", "3"], cc: ["", "", "val-pass", "val-pass"] }
+          { v: [4, "サーバー保守", "High", "1"], cc: ["", "", "val-pass", "val-pass"] }
         ],
-        cnt: "並べ替え完了" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
-        label: "SELECT task_id, title, priority",
-        desc: "並べ替えられた状態から、指定された3列だけを出力します。裏で作ったソートキーは出力されません。",
+        cnt: "キー生成完了" },
+      { id: "select", badge: "③ ソート実行 & SELECT", bc: "badge-green",
+        label: "ASC ソート → SELECT",
+        desc: "裏のソートキーに基づいて昇順（1→2→3）で並べ替えが行われ、最終的に指定された3列だけが出力されます。",
         type: "select",
         cols: ["task_id", "title", "priority"],
         ch: ["col-select", "col-select", "col-select"],
@@ -933,31 +933,32 @@ const QS = [
       { t: "  task_id,\n  title,\n  priority\n", k: "", h: "select" },
       { t: "FROM ", k: "sql-kw", h: "from" },
       { t: "tasks\n", k: "", h: "from" },
-      { t: "ORDER BY ", k: "sql-kw", h: "order" },
-      { t: "CASE ", k: "sql-kw", h: "order" },
-      { t: "priority\n", k: "", h: "order" },
-      { t: "  WHEN ", k: "sql-kw", h: "order" },
-      { t: "'High' ", k: "", h: "order" },
-      { t: "THEN ", k: "sql-kw", h: "order" },
-      { t: "1\n", k: "", h: "order" },
-      { t: "  WHEN ", k: "sql-kw", h: "order" },
-      { t: "'Medium' ", k: "", h: "order" },
-      { t: "THEN ", k: "sql-kw", h: "order" },
-      { t: "2\n", k: "", h: "order" },
-      { t: "  WHEN ", k: "sql-kw", h: "order" },
-      { t: "'Low' ", k: "", h: "order" },
-      { t: "THEN ", k: "sql-kw", h: "order" },
-      { t: "3\n", k: "", h: "order" },
-      { t: "  ELSE ", k: "sql-kw", h: "order" },
-      { t: "99\n", k: "", h: "order" },
-      { t: "END ASC;", k: "sql-kw", h: "order" }
+      { t: "ORDER BY ", k: "sql-kw", h: "eval select" },
+      { t: "CASE ", k: "sql-kw", h: "eval" },
+      { t: "priority\n", k: "", h: "eval" },
+      { t: "  WHEN ", k: "sql-kw", h: "eval" },
+      { t: "'High' ", k: "", h: "eval" },
+      { t: "THEN ", k: "sql-kw", h: "eval" },
+      { t: "1\n", k: "", h: "eval" },
+      { t: "  WHEN ", k: "sql-kw", h: "eval" },
+      { t: "'Medium' ", k: "", h: "eval" },
+      { t: "THEN ", k: "sql-kw", h: "eval" },
+      { t: "2\n", k: "", h: "eval" },
+      { t: "  WHEN ", k: "sql-kw", h: "eval" },
+      { t: "'Low' ", k: "", h: "eval" },
+      { t: "THEN ", k: "sql-kw", h: "eval" },
+      { t: "3\n", k: "", h: "eval" },
+      { t: "  ELSE ", k: "sql-kw", h: "eval" },
+      { t: "99\n", k: "", h: "eval" },
+      { t: "END ", k: "sql-kw", h: "eval" },
+      { t: "ASC;", k: "sql-kw", h: "select" }
     ]
   },
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>ORDER BY句での式の利用：</strong>ORDER BY は単純な列名だけでなく、関数やCASE式の結果を指定することができます。「指定した特定のIDの行だけを先頭に持ってくる」といった要件でもよく使われます。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ELSE 99 の意味：</strong>予期せぬ値（NULLや 'Urgent' など）が入ってきた場合、ELSE を書いておかないと NULL（DBによっては先頭に来てしまう）になります。<code>ELSE 99</code> のように大きな数字を割り当てておくことで、未知の値は安全にリストの最後に回すことができます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>ORDER BY句での式の利用：</strong>ORDER BY には単純な列名だけでなく、関数やCASE式の結果を指定することができます。「指定した特定のIDの行だけを先頭に持ってくる」「特定のステータス順に並べる」といったカスタムソートの要件で非常に役立ちます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ELSE 99 の意味：</strong>予期せぬ値（NULLや新しいステータスなど）が入ってきた場合、ELSE を書いておかないと評価結果が NULL となり、DBによってはリストの先頭に来てしまいます。<code>ELSE 99</code> のように大きな数字を割り当てておくことで、未知の値は安全にリストの最後に回すことができます。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
@@ -1059,7 +1060,7 @@ const QS = [
         label: "SUM(CASE WHEN ... THEN 1 ELSE 0)",
         desc: "各グループ内で、行ごとにCASE式が評価され「1」または「0」に変換されます。それをSUMで合計することで、条件別の件数が算出されます。",
         type: "group",
-        cols: ["user_id", "completed_count", "cancelled_count"],
+        cols: ["user_id", "completed_count (計算)", "cancelled_count (計算)"],
         ch: ["col-eval", "col-eval", "col-eval"],
         rows: [
           { c: "row-grp-1", v: [1, "1 + 1 + 0 = 2", "0 + 0 + 1 = 1"] },
@@ -1083,26 +1084,26 @@ const QS = [
     sql: [
       { t: "SELECT\n", k: "sql-kw", h: "select" },
       { t: "  user_id,\n", k: "", h: "select group" },
-      { t: "  SUM(", k: "sql-kw", h: "select agg" },
-      { t: "CASE WHEN ", k: "sql-kw", h: "select agg" },
-      { t: "status = 'completed' ", k: "", h: "select agg" },
-      { t: "THEN ", k: "sql-kw", h: "select agg" },
-      { t: "1 ", k: "", h: "select agg" },
-      { t: "ELSE ", k: "sql-kw", h: "select agg" },
-      { t: "0 ", k: "", h: "select agg" },
-      { t: "END", k: "sql-kw", h: "select agg" },
-      { t: ") ", k: "", h: "select agg" },
+      { t: "  SUM(", k: "sql-kw", h: "agg select" },
+      { t: "CASE WHEN ", k: "sql-kw", h: "agg select" },
+      { t: "status = 'completed' ", k: "", h: "agg select" },
+      { t: "THEN ", k: "sql-kw", h: "agg select" },
+      { t: "1 ", k: "", h: "agg select" },
+      { t: "ELSE ", k: "sql-kw", h: "agg select" },
+      { t: "0 ", k: "", h: "agg select" },
+      { t: "END", k: "sql-kw", h: "agg select" },
+      { t: ") ", k: "", h: "agg select" },
       { t: "AS ", k: "sql-kw", h: "select" },
       { t: "completed_count,\n", k: "", h: "select" },
-      { t: "  SUM(", k: "sql-kw", h: "select agg" },
-      { t: "CASE WHEN ", k: "sql-kw", h: "select agg" },
-      { t: "status = 'cancelled' ", k: "", h: "select agg" },
-      { t: "THEN ", k: "sql-kw", h: "select agg" },
-      { t: "1 ", k: "", h: "select agg" },
-      { t: "ELSE ", k: "sql-kw", h: "select agg" },
-      { t: "0 ", k: "", h: "select agg" },
-      { t: "END", k: "sql-kw", h: "select agg" },
-      { t: ") ", k: "", h: "select agg" },
+      { t: "  SUM(", k: "sql-kw", h: "agg select" },
+      { t: "CASE WHEN ", k: "sql-kw", h: "agg select" },
+      { t: "status = 'cancelled' ", k: "", h: "agg select" },
+      { t: "THEN ", k: "sql-kw", h: "agg select" },
+      { t: "1 ", k: "", h: "agg select" },
+      { t: "ELSE ", k: "sql-kw", h: "agg select" },
+      { t: "0 ", k: "", h: "agg select" },
+      { t: "END", k: "sql-kw", h: "agg select" },
+      { t: ") ", k: "", h: "agg select" },
       { t: "AS ", k: "sql-kw", h: "select" },
       { t: "cancelled_count\n", k: "", h: "select" },
       { t: "FROM ", k: "sql-kw", h: "from" },
@@ -1117,6 +1118,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>クロス集計（ピボット）の基本形：</strong>「縦に並んだデータを横に展開する」この書き方は、データ分析やダッシュボード用のAPIを作る上で絶対に避けては通れない最重要テクニックです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>なぜ COUNT ではなく SUM なのか：</strong><code>1</code> と <code>0</code> を足し合わせる（SUM）ことで件数を数えます。<code>COUNT(CASE WHEN ... THEN 1 END)</code> でも同じ結果になりますが、SUM ＋ 0/1 の方が「金額の合計」などにも応用が利きやすく、直感的で汎用的な書き方として標準的に使われています。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
@@ -1216,7 +1218,7 @@ const QS = [
         label: "SUM(CASE WHEN ... THEN amount ELSE 0)",
         desc: "各グループで、channelが一致すればamountを、一致しなければ0を加算します。101グループのonlineは 5000 + 0 + 8000 = 13000 となります。",
         type: "group",
-        cols: ["store_id", "online_sales", "offline_sales"],
+        cols: ["store_id", "online_sales (計算)", "offline_sales (計算)"],
         ch: ["col-eval", "col-eval", "col-eval"],
         rows: [
           { c: "row-grp-1", v: [101, "5000 + 0 + 8000 = 13000", "0 + 12000 + 0 = 12000"] },
@@ -1238,26 +1240,26 @@ const QS = [
     sql: [
       { t: "SELECT\n", k: "sql-kw", h: "select" },
       { t: "  store_id,\n", k: "", h: "select group" },
-      { t: "  SUM(", k: "sql-kw", h: "select agg" },
-      { t: "CASE WHEN ", k: "sql-kw", h: "select agg" },
-      { t: "channel = 'online' ", k: "", h: "select agg" },
-      { t: "THEN ", k: "sql-kw", h: "select agg" },
-      { t: "amount ", k: "", h: "select agg" },
-      { t: "ELSE ", k: "sql-kw", h: "select agg" },
-      { t: "0 ", k: "", h: "select agg" },
-      { t: "END", k: "sql-kw", h: "select agg" },
-      { t: ") ", k: "", h: "select agg" },
+      { t: "  SUM(", k: "sql-kw", h: "agg select" },
+      { t: "CASE WHEN ", k: "sql-kw", h: "agg select" },
+      { t: "channel = 'online' ", k: "", h: "agg select" },
+      { t: "THEN ", k: "sql-kw", h: "agg select" },
+      { t: "amount ", k: "", h: "agg select" },
+      { t: "ELSE ", k: "sql-kw", h: "agg select" },
+      { t: "0 ", k: "", h: "agg select" },
+      { t: "END", k: "sql-kw", h: "agg select" },
+      { t: ") ", k: "", h: "agg select" },
       { t: "AS ", k: "sql-kw", h: "select" },
       { t: "online_sales,\n", k: "", h: "select" },
-      { t: "  SUM(", k: "sql-kw", h: "select agg" },
-      { t: "CASE WHEN ", k: "sql-kw", h: "select agg" },
-      { t: "channel = 'offline' ", k: "", h: "select agg" },
-      { t: "THEN ", k: "sql-kw", h: "select agg" },
-      { t: "amount ", k: "", h: "select agg" },
-      { t: "ELSE ", k: "sql-kw", h: "select agg" },
-      { t: "0 ", k: "", h: "select agg" },
-      { t: "END", k: "sql-kw", h: "select agg" },
-      { t: ") ", k: "", h: "select agg" },
+      { t: "  SUM(", k: "sql-kw", h: "agg select" },
+      { t: "CASE WHEN ", k: "sql-kw", h: "agg select" },
+      { t: "channel = 'offline' ", k: "", h: "agg select" },
+      { t: "THEN ", k: "sql-kw", h: "agg select" },
+      { t: "amount ", k: "", h: "agg select" },
+      { t: "ELSE ", k: "sql-kw", h: "agg select" },
+      { t: "0 ", k: "", h: "agg select" },
+      { t: "END", k: "sql-kw", h: "agg select" },
+      { t: ") ", k: "", h: "agg select" },
       { t: "AS ", k: "sql-kw", h: "select" },
       { t: "offline_sales\n", k: "", h: "select" },
       { t: "FROM ", k: "sql-kw", h: "from" },
@@ -1269,7 +1271,7 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>THEN に指定する値：</strong>Q5のように「件数」を知りたいなら <code>THEN 1</code>、今回のように「合計額」を知りたいなら <code>THEN amount</code>（列名）を指定します。これだけでどんな条件付き集計も自由に構築できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>THEN に指定する値で集計内容を変える：</strong>Q5のように「件数」を知りたいなら <code>THEN 1</code>、今回のように「合計額」を知りたいなら <code>THEN amount</code>（列名）を指定します。これだけでどんな条件付き集計も自由に構築できます。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ELSE 0 の省略：</strong>多くのDBでは <code>ELSE 0</code> を省略して <code>SUM(CASE WHEN ... THEN amount END)</code> と書いても、NULL は SUM で無視されるため同じ結果になります。しかし、0件の時に NULL が返るのを防ぐため、また意図を明確にするために <code>ELSE 0</code> を明記するスタイルが好まれます。</div></div>
 </div>`
 },
@@ -1419,8 +1421,8 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>別解：サブクエリ（CTE）を使う方法：</strong>長いCASE式を SELECT と GROUP BY の両方に書くのは冗長です。実務では <code>WITH</code> 句（CTE）やサブクエリを使って先に <code>age_group</code> 列を作ってから外側で <code>GROUP BY age_group</code> とする書き方もよく使われます。これによりコードの重複を防げます。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>DBによる仕様の違い：</strong>PostgreSQLやMySQLでは、SELECT句で付けたエイリアス（<code>AS age_group</code>）をそのまま <code>GROUP BY age_group</code> として指定できる場合があります。しかし、標準SQLでは許可されていないため、厳密にはこの問題の解答のように式全体を書くか、サブクエリにするのが確実です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>動的なグルーピング：</strong>テーブルに「年代」という列が存在しなくても、GROUP BY にCASE式を記述することで、任意のカテゴリを動的に生成し、その単位で集計を行うことができます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>別解：サブクエリ（CTE）を使う方法：</strong>長いCASE式を SELECT と GROUP BY の両方に書くのは冗長です。実務では <code>WITH</code> 句（CTE）やサブクエリを使って先に <code>age_group</code> 列を作ってから外側で <code>GROUP BY age_group</code> とする書き方もよく使われます。これによりコードの重複を防げます。</div></div>
 </div>`
 },
 
@@ -1528,11 +1530,11 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>UPDATE文でCASEを使うメリット：</strong>通常、条件ごとに <code>UPDATE employees SET salary = salary * 1.10 WHERE department = 'Sales';</code> のように複数回クエリを発行すると、トランザクション管理が必要になり、パフォーマンスも落ちます。CASE式を使えば1回のスキャンで全て完了します。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>UPDATE文でCASEを使うメリット：</strong>通常、条件ごとに <code>UPDATE</code> を複数回発行すると、トランザクション管理が必要になり、パフォーマンスも落ちます。CASE式を使えば1回のテーブルスキャンで全ての更新が完了し、効率的かつ安全です。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE を書き忘れてデータが消滅する：</strong>UPDATE文のSET句でCASE式を使い、<code>ELSE</code> を書き忘れた場合、条件に合致しない行（この例ではHR）には <strong>NULL</strong> がセットされてしまいます。給与データが消失する大事故につながるため、UPDATEでの <code>ELSE 現在の列名</code> は絶対に忘れないようにしてください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ELSE を書き忘れてデータが消滅する：</strong>UPDATE文のSET句でCASE式を使い、<code>ELSE</code> を書き忘れた場合、条件に合致しない行には <strong>NULL</strong> がセットされてしまいます。既存データが消失する大事故につながるため、UPDATEでの <code>ELSE 現在の列名</code> は絶対に忘れないようにしてください。</div></div>
 </div>`
 },
 
@@ -1651,7 +1653,8 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>ロジックをどこに置くか？：</strong>このようなビジネスロジックは、SQL内に書くか、APIサーバ側のプログラム（RubyやPython）で書くか、意見が分かれます。単一のレコードを扱うだけならプログラム側でも良いですが、<strong>「送料無料の注文だけを抽出したい（WHERE句）」「送料の合計額を集計したい（SUM）」</strong>といった要件がある場合は、DB側（SQL）で計算できる状態にしておくのが圧倒的に有利です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>複合条件によるロジックのカプセル化：</strong>検索CASE式の <code>WHEN</code> 句には、<code>AND</code> や <code>OR</code> を用いた複合条件を記述できます。これにより、複雑なビジネスロジックをSQL側にカプセル化できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ロジックをどこに置くか？：</strong>このようなロジックはAPIサーバ側（プログラム）で書くことも可能ですが、「送料無料の注文だけを抽出したい（WHERE句）」「送料の合計額を集計したい（SUM）」といった要件がある場合、DB側（SQL）で計算できる状態にしておくのが圧倒的に有利です。</div></div>
 </div>`
 },
 
@@ -1753,12 +1756,8 @@ CASE式を使っても書けますが、今回はより簡潔な <strong><code>C
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>COALESCE の利点：</strong>CASE式でも同じことができますが、<code>COALESCE</code> を使うとコードが短くなり、意図（NULLの代替値を設定したい）が明確になります。引数は3つ以上渡すこともでき、<code>COALESCE(tel1, tel2, tel3, '電話なし')</code> のように連鎖的なフォールバックも可能です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>COALESCE は CASE式の糖衣構文：</strong>COALESCE関数は、内部的には <code>CASE WHEN A IS NOT NULL THEN A ELSE B END</code> のショートカットです。NULLの代替値を設定する定型処理を簡潔かつ意図を明確に記述できます。引数は3つ以上渡すこともでき、<code>COALESCE(tel1, tel2, tel3, '電話なし')</code> のように連鎖的なフォールバックも可能です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>対になる関数 NULLIF：</strong><code>COALESCE</code> とは逆に、<strong>「2つの引数が等しければ NULL を返す」</strong> <code>NULLIF(A, B)</code> という関数もあります。これも <code>CASE WHEN A = B THEN NULL ELSE A END</code> のショートカットです。「0割りエラー（Division by zero）」を防ぐために <code>amount / NULLIF(count, 0)</code> のように使うのが実務の定番テクニックです。</div></div>
-</div>
-<div class="column-box">
-<div class="column-title"><span class="insight-icon">💼</span> REAL WORLD COLUMN</div>
-<div class="column-body">CASE式はSQLの中で最も柔軟な機能ですが、長くなりがちです。実務では可読性を高めるために、単純なNULL置き換えなら <code>COALESCE</code> を、簡単なゼロ除算回避なら <code>NULLIF</code> を使うのがベストプラクティスです。</div>
 </div>`
 }
 
