@@ -250,11 +250,13 @@
   .sv-table td.val-hl     { background: rgba(227,137,59,0.2) !important; font-weight: 600; color: var(--sql-orange-txt); }
 
   .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
-  .sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-window, .sql-hl-agg, .sql-hl-select, .sql-hl-sub {
+  .sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-window, .sql-hl-agg, .sql-hl-select, .sql-hl-sub,
+  .sql-hl-partition, .sql-hl-sort, .sql-hl-rownum, .sql-hl-running, .sql-hl-lag {
     border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
   }
   .sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); }
-  .sql-hl-where, .sql-hl-window, .sql-hl-agg, .sql-hl-sub { background: var(--sql-orange-bg); }
+  .sql-hl-where, .sql-hl-window, .sql-hl-agg, .sql-hl-sub,
+  .sql-hl-partition, .sql-hl-sort, .sql-hl-rownum, .sql-hl-running, .sql-hl-lag { background: var(--sql-orange-bg); }
   .sql-hl-select { background: var(--sql-green-bg); }
 
   .sv-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
@@ -386,21 +388,21 @@ function initVisualizer(root, data) {
   root.innerHTML = `
     <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
       <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
-        <div style="font-size:11px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+        <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
         <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
         <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
           <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
             <span>LEGEND (現在のステップ)</span>
             <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
           </summary>
-          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:10px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
         </details>
       </div>
       <div style="flex:1;min-width:300px;">
         <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
         <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
         <div class="sv-tarea sv-animate"></div>
-        <div class="sv-rowcount" style="font-size:11px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+        <div class="sv-rowcount" style="font-size:12px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
       </div>
     </div>
   `;
@@ -491,16 +493,17 @@ const QS = [
 <span class="cmt">/*
   実行順序:
   1. FROM employee_salaries → 4行取得
-  2. Window関数が dept ごとに評価
-     営業グループ: MAX(30万, 25万) = 30万 を各行に付与
-     開発グループ: MAX(40万, 38万) = 40万 を各行に付与
-  3. SELECT 出力 (引き算を実行)
+  2. PARTITION BY dept で営業・開発の2グループに分割
+  3. 各グループ内で MAX(salary) を計算し全行に付与
+     営業グループ: MAX(30万, 25万) = 30万
+     開発グループ: MAX(40万, 38万) = 40万
+  4. SELECT 出力 (dept_max - salary で差額を計算)
 */</span></pre>`,
   viz: {
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM employee_salaries",
-        desc: "テーブル全体を読み込みます。",
+        desc: "テーブル全体を読み込みます。4名のデータがあり、部署は「営業」と「開発」の2種類です。",
         type: "base",
         cols: ["emp_name","dept","salary"],
         ch:   ["col-base","col-base","col-base"],
@@ -508,9 +511,21 @@ const QS = [
           { v: ["Aさん","営業",300000] }, { v: ["Bさん","営業",250000] },
           { v: ["Cさん","開発",400000] }, { v: ["Dさん","開発",380000] }
         ], cnt: "全 4行 読込" },
-      { id: "window", badge: "② PARTITION BY dept", bc: "badge-orange",
-        label: "MAX(salary) OVER(PARTITION BY dept)",
-        desc: "部署ごとにグループ化し、それぞれのグループ内での最大値（MAX）を計算し、グループ内のすべての行に同じ値を付与します。",
+      { id: "partition", badge: "② PARTITION BY dept", bc: "badge-orange",
+        label: "部署ごとにパーティションを分割",
+        desc: "OVER(PARTITION BY dept) により、テーブルが「営業」グループと「開発」グループの2つに分割されます。以後の MAX() 計算は、それぞれのグループ内だけで独立して行われます。行数は変わりません。",
+        type: "group",
+        cols: ["emp_name","dept","salary"],
+        ch:   ["","col-eval",""],
+        rows: [
+          { c: "row-grp-1", v: ["Aさん","営業",300000] },
+          { c: "row-grp-1", v: ["Bさん","営業",250000] },
+          { c: "row-grp-2", v: ["Cさん","開発",400000] },
+          { c: "row-grp-2", v: ["Dさん","開発",380000] }
+        ], cnt: "2パーティションに分割" },
+      { id: "window", badge: "③ MAX(salary) の評価", bc: "badge-orange",
+        label: "各パーティション内の最大値を全行に付与",
+        desc: "「営業」グループ: MAX(300000, 250000) = 300000。「開発」グループ: MAX(400000, 380000) = 400000。この値がグループ内のすべての行に dept_max として横付けされます。行を集約せず、行数は変わらない点がポイントです。",
         type: "group",
         cols: ["emp_name","dept","salary","dept_max"],
         ch:   ["","col-eval","","col-eval"],
@@ -519,10 +534,10 @@ const QS = [
           { c: "row-grp-1", v: ["Bさん","営業",250000,"300,000"], cc: ["","","","val-hl"] },
           { c: "row-grp-2", v: ["Cさん","開発",400000,"400,000"], cc: ["","","","val-hl"] },
           { c: "row-grp-2", v: ["Dさん","開発",380000,"400,000"], cc: ["","","","val-hl"] }
-        ], cnt: "部署ごとの最高額を算出・付与" },
-      { id: "select", badge: "③ SELECT (差額の計算)", bc: "badge-green",
-        label: "MAX() - salary",
-        desc: "ステップ②で取得した dept_max から自身の salary を引き、差額（diff_from_max）を計算して最終的な結果を出力します。",
+        ], cnt: "最高給与を各行に付与" },
+      { id: "select", badge: "④ SELECT (差額を計算)", bc: "badge-green",
+        label: "dept_max − salary = diff_from_max",
+        desc: "ステップ③で付与した dept_max から各行の salary を引き、差額 diff_from_max を計算して最終結果を出力します。最高給与者（AさんとCさん）は差額が 0 になります。",
         type: "select",
         cols: ["emp_name","dept","salary","dept_max","diff_from_max"],
         ch:   ["col-select","col-select","col-select","col-select","col-select"],
@@ -535,8 +550,14 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  emp_name, dept, salary,\n", k: "", h: "select" },
-      { t: "  MAX(salary) ", k: "", h: "window select" }, { t: "OVER(PARTITION BY dept) AS dept_max,\n", k: "sql-kw", h: "window select" },
-      { t: "  MAX(salary) ", k: "", h: "window select" }, { t: "OVER(PARTITION BY dept) - salary AS diff_from_max\n", k: "sql-kw", h: "window select" },
+      { t: "  MAX(salary) ", k: "", h: "window select" },
+      { t: "OVER(", k: "sql-kw", h: "partition window select" },
+      { t: "PARTITION BY", k: "sql-kw", h: "partition window select" },
+      { t: " dept", k: "", h: "partition window select" },
+      { t: ") AS dept_max,\n", k: "", h: "window select" },
+      { t: "  MAX(salary) ", k: "", h: "window select" },
+      { t: "OVER(PARTITION BY dept)", k: "sql-kw", h: "partition window select" },
+      { t: " - salary AS diff_from_max\n", k: "", h: "window select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "employee_salaries\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "dept, diff_from_max;", k: "", h: "select" }
     ]
@@ -545,6 +566,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>相対的な比較が容易に：</strong>「一番高い人と比べて自分はどれくらい差があるか」「全体の平均からどれくらい離れているか」といった相対評価は、ウィンドウ関数の得意領域です。GROUP BY と自己結合を組み合わせる従来の方法に比べ、圧倒的にシンプルかつ高速に書けます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>従来の書き方と比較：</strong>ウィンドウ関数なしで同じ結果を得るには <code>SELECT e.*, m.dept_max FROM employee_salaries e JOIN (SELECT dept, MAX(salary) AS dept_max FROM employee_salaries GROUP BY dept) m ON e.dept = m.dept</code> のようにサブクエリと JOIN が必要でした。ウィンドウ関数を使うことでこれが1クエリに収まります。</div></div>
 </div>`
 },
 
@@ -600,27 +622,41 @@ const QS = [
 <span class="cmt">/*
   実行順序:
   1. FROM orders → 5行取得
-  2. Window関数が user_id ごとに評価
+  2. PARTITION BY user_id でユーザーごとに3グループに分割
+  3. 各グループで COUNT(*) と SUM(amount) を同時に計算し付与
      U1: 行数は3、金額合計は 1000+2000+500 = 3500
      U2: 行数は1、金額合計は 1500
      U3: 行数は1、金額合計は 3000
-  3. SELECT 出力
+  4. SELECT 出力 (ORDER BY user_id, order_id でソート)
 */</span></pre>`,
   viz: {
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM orders",
-        desc: "テーブルを読み込みます。",
+        desc: "テーブルを読み込みます。5行が格納されており、U1の注文が3件、U2が1件、U3が1件あります。この時点ではまだグループ分けされていません。",
         type: "base",
         cols: ["order_id","user_id","amount"],
         ch:   ["col-base","col-base","col-base"],
         rows: [
           { v: [1,"U1",1000] }, { v: [2,"U1",2000] }, { v: [3,"U2",1500] },
           { v: [4,"U3",3000] }, { v: [5,"U1",500] }
-        ], cnt: "全 5行 読込" },
-      { id: "window", badge: "② PARTITION BY user_id", bc: "badge-orange",
-        label: "COUNT(*) OVER, SUM(amount) OVER",
-        desc: "ユーザーごとにグループ化し、それぞれのグループ内での「行数(COUNT)」と「合計金額(SUM)」を同時に計算し、各明細行に付与します。",
+        ], cnt: "全 5行 読込（挿入順）" },
+      { id: "partition", badge: "② PARTITION BY user_id", bc: "badge-orange",
+        label: "ユーザーごとにパーティションを分割",
+        desc: "OVER(PARTITION BY user_id) により、5行が U1（3行）・U2（1行）・U3（1行）の3グループに分割されます。ORDER BY user_id, order_id の指定により、U1の注文はまとまって扱われます。行数は変わらず5行のままです。",
+        type: "group",
+        cols: ["order_id","user_id","amount"],
+        ch:   ["","col-eval",""],
+        rows: [
+          { c: "row-grp-1", v: [1,"U1",1000] },
+          { c: "row-grp-1", v: [2,"U1",2000] },
+          { c: "row-grp-1", v: [5,"U1",500] },
+          { c: "row-grp-2", v: [3,"U2",1500] },
+          { c: "row-grp-3", v: [4,"U3",3000] }
+        ], cnt: "3パーティションに分割" },
+      { id: "window", badge: "③ COUNT(*) と SUM(amount) の評価", bc: "badge-orange",
+        label: "各パーティション内で件数と合計を同時に計算",
+        desc: "グループ内の行数（COUNT）と金額合計（SUM）を同時に計算し、グループ内のすべての行に同じ値を横付けします。U1の全注文行には order_count=3、total_amount=3500 が付与されます。",
         type: "group",
         cols: ["order_id","user_id","amount","order_count","total_amount"],
         ch:   ["","col-eval","","col-eval","col-eval"],
@@ -631,9 +667,9 @@ const QS = [
           { c: "row-grp-2", v: [3,"U2",1500,1,"1,500"], cc: ["","","","val-hl","val-hl"] },
           { c: "row-grp-3", v: [4,"U3",3000,1,"3,000"], cc: ["","","","val-hl","val-hl"] }
         ], cnt: "ユーザーごとの集計値を付与" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
+      { id: "select", badge: "④ SELECT", bc: "badge-green",
         label: "最終出力",
-        desc: "計算結果をまとめて出力します。",
+        desc: "計算結果をまとめて出力します。ORDER BY user_id, order_id により並び替えられます。",
         type: "select",
         cols: ["order_id","user_id","amount","order_count","total_amount"],
         ch:   ["col-select","col-select","col-select","col-select","col-select"],
@@ -647,8 +683,13 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  order_id, user_id, amount,\n", k: "", h: "select" },
-      { t: "  COUNT(*) ", k: "", h: "window select" }, { t: "OVER(PARTITION BY user_id) AS order_count,\n", k: "sql-kw", h: "window select" },
-      { t: "  SUM(amount) ", k: "", h: "window select" }, { t: "OVER(PARTITION BY user_id) AS total_amount\n", k: "sql-kw", h: "window select" },
+      { t: "  COUNT(*) ", k: "", h: "window select" },
+      { t: "OVER(", k: "sql-kw", h: "partition window select" },
+      { t: "PARTITION BY", k: "sql-kw", h: "partition window select" },
+      { t: " user_id", k: "", h: "partition window select" },
+      { t: ") AS order_count,\n", k: "", h: "window select" },
+      { t: "  SUM(amount) ", k: "", h: "window select" },
+      { t: "OVER(PARTITION BY user_id) AS total_amount\n", k: "sql-kw", h: "partition window select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "orders\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "user_id, order_id;", k: "", h: "select" }
     ]
@@ -714,15 +755,16 @@ const QS = [
 <span class="cmt">/*
   実行順序:
   1. FROM user_events
-  2. user_id ごとにグループ化し、event_date の昇順でソート
-  3. FIRST_VALUE() により、U1グループの先頭行の「登録」が U1 の全行に付与される
-  4. SELECT 出力
+  2. PARTITION BY user_id でグループ分割
+  3. ORDER BY event_date ASC で各グループ内を日付昇順にソート
+  4. FIRST_VALUE() により、U1グループの先頭行（04-01）の「登録」が U1 の全行に付与
+  5. SELECT 出力
 */</span></pre>`,
   viz: {
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM user_events",
-        desc: "テーブルを読み込みます。",
+        desc: "テーブルを読み込みます。U1 のイベントが3件、U2 が1件あります。",
         type: "base",
         cols: ["user_id","event_date","event_name"],
         ch:   ["col-base","col-base","col-base"],
@@ -730,19 +772,31 @@ const QS = [
           { v: ["U1","04-01","登録"] }, { v: ["U1","04-02","閲覧"] },
           { v: ["U1","04-05","購入"] }, { v: ["U2","04-03","登録"] }
         ], cnt: "全 4行 読込" },
-      { id: "window", badge: "② FIRST_VALUE() の評価", bc: "badge-orange",
-        label: "PARTITION BY user_id ORDER BY event_date",
-        desc: "ユーザーごとに日付順で並べ、そのグループの先頭行の値（U1なら「登録」）を、グループ内のすべての行にコピーして付与します。",
+      { id: "partition", badge: "② PARTITION BY user_id  ORDER BY event_date ASC", bc: "badge-orange",
+        label: "グループ分割 → 日付昇順でソート",
+        desc: "まず PARTITION BY user_id でU1グループとU2グループに分割します。次に ORDER BY event_date ASC で各グループ内を日付の昇順に並べます。この並び順が FIRST_VALUE() が「先頭」として参照するものになります。",
         type: "group",
-        cols: ["user_id","event_date","event_name","先頭行の判定","first_event"],
-        ch:   ["col-eval","col-eval","","","col-eval"],
+        cols: ["user_id","event_date","event_name","先頭行？"],
+        ch:   ["col-eval","col-eval","",""],
         rows: [
-          { c: "row-grp-1", v: ["U1","04-01","登録","← 先頭","登録"], cc: ["","","","val-hl","val-pass"] },
-          { c: "row-grp-1", v: ["U1","04-02","閲覧","","登録"], cc: ["","","","","val-pass"] },
-          { c: "row-grp-1", v: ["U1","04-05","購入","","登録"], cc: ["","","","","val-pass"] },
-          { c: "row-grp-2", v: ["U2","04-03","登録","← 先頭","登録"], cc: ["","","","val-hl","val-pass"] }
+          { c: "row-grp-1", v: ["U1","04-01","登録","← 先頭（最古）"], cc: ["","","","val-hl"] },
+          { c: "row-grp-1", v: ["U1","04-02","閲覧",""] },
+          { c: "row-grp-1", v: ["U1","04-05","購入",""] },
+          { c: "row-grp-2", v: ["U2","04-03","登録","← 先頭（最古）"], cc: ["","","","val-hl"] }
+        ], cnt: "日付昇順でソート済み" },
+      { id: "window", badge: "③ FIRST_VALUE() の評価", bc: "badge-orange",
+        label: "先頭行の値をグループ全体に伝播",
+        desc: "U1グループの先頭行（04-01）の event_name「登録」が、グループ内のすべての行に first_event として付与されます。U2も同様に先頭行「登録」が付与されます。",
+        type: "group",
+        cols: ["user_id","event_date","event_name","first_event"],
+        ch:   ["col-eval","col-eval","","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U1","04-01","登録","登録"], cc: ["","","","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-02","閲覧","登録"], cc: ["","","","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-05","購入","登録"], cc: ["","","","val-pass"] },
+          { c: "row-grp-2", v: ["U2","04-03","登録","登録"], cc: ["","","","val-pass"] }
         ], cnt: "先頭の値をグループ全体に伝播" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
+      { id: "select", badge: "④ SELECT", bc: "badge-green",
         label: "最終出力",
         desc: "計算結果を出力します。",
         type: "select",
@@ -757,9 +811,12 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  user_id, event_date, event_name,\n", k: "", h: "select" },
-      { t: "  FIRST_VALUE(event_name) ", k: "sql-kw", h: "window select" }, { t: "OVER(\n", k: "", h: "window select" },
-      { t: "    PARTITION BY", k: "sql-kw", h: "window select" }, { t: " user_id\n", k: "", h: "window select" },
-      { t: "    ORDER BY", k: "sql-kw", h: "window select" }, { t: " event_date ASC\n  ) AS first_event\n", k: "", h: "window select" },
+      { t: "  FIRST_VALUE(event_name) ", k: "sql-kw", h: "window select" },
+      { t: "OVER(\n", k: "", h: "window select" },
+      { t: "    PARTITION BY", k: "sql-kw", h: "partition window select" },
+      { t: " user_id\n", k: "", h: "partition window select" },
+      { t: "    ORDER BY", k: "sql-kw", h: "partition window select" },
+      { t: " event_date ASC\n  ) AS first_event\n", k: "", h: "partition window select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "user_events\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "user_id, event_date;", k: "", h: "select" }
     ]
@@ -818,15 +875,19 @@ const QS = [
 <span class="cmt">/*
   実行順序:
   1. FROM website_visits
-  2. user_id ごとにグループ化し、visit_date の昇順でソート
-  3. U1の04-01行は、次の行である04-05を取得。最後の04-10行は次がないためNULL。
-  4. SELECT 出力
+  2. PARTITION BY user_id でグループ分割
+  3. ORDER BY visit_date ASC で各グループ内を日付昇順にソート
+  4. LEAD() が各行から「1つ下の行の visit_date」を取得
+     U1/04-01 → 次行の 04-05 を返す
+     U1/04-10 → 次行なし → NULL
+     U2/04-02 → U2グループ内に次行なし → NULL（U1の行は参照しない！）
+  5. SELECT 出力
 */</span></pre>`,
   viz: {
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM website_visits",
-        desc: "テーブルを読み込みます。",
+        desc: "テーブルを読み込みます。U1 の訪問が3件、U2 が1件あります。",
         type: "base",
         cols: ["user_id","visit_date"],
         ch:   ["col-base","col-base"],
@@ -834,19 +895,31 @@ const QS = [
           { v: ["U1","04-01"] }, { v: ["U1","04-05"] },
           { v: ["U1","04-10"] }, { v: ["U2","04-02"] }
         ], cnt: "全 4行 読込" },
-      { id: "window", badge: "② LEAD() による次行参照", bc: "badge-orange",
-        label: "LEAD(visit_date) OVER(PARTITION BY user_id ...)",
-        desc: "各グループ内で、現在の行から見て「1つ下の行」の値を引っ張ってきます。次行が存在しない場合は NULL になります。",
+      { id: "partition", badge: "② PARTITION BY user_id  ORDER BY visit_date ASC", bc: "badge-orange",
+        label: "グループ分割 → 日付昇順でソート",
+        desc: "PARTITION BY user_id でU1グループとU2グループに分割し、ORDER BY visit_date ASC で各グループ内を日付昇順に並べます。LEAD() はこの順序に従って「1つ下の行」を参照します。パーティションをまたいだ参照は行われません（U2の最後行はU1の行を参照しない）。",
         type: "group",
-        cols: ["user_id","visit_date","参照先 (次行)","next_visit (LEAD)"],
+        cols: ["user_id","visit_date"],
+        ch:   ["col-eval","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U1","04-01"] },
+          { c: "row-grp-1", v: ["U1","04-05"] },
+          { c: "row-grp-1", v: ["U1","04-10"] },
+          { c: "row-grp-2", v: ["U2","04-02"] }
+        ], cnt: "2パーティション・日付昇順" },
+      { id: "window", badge: "③ LEAD() による次行参照", bc: "badge-orange",
+        label: "各行から「1つ下の行」の値を取得",
+        desc: "各行から見て「1つ下の行の visit_date」を next_visit として付与します。パーティション内に次の行が存在しない最後の行（U1/04-10、U2/04-02）は NULL になります。",
+        type: "group",
+        cols: ["user_id","visit_date","参照先 (次行)","next_visit"],
         ch:   ["col-eval","","","col-eval"],
         rows: [
           { c: "row-grp-1", v: ["U1","04-01","↓ (04-05)","04-05"], cc: ["","","","val-pass"] },
           { c: "row-grp-1", v: ["U1","04-05","↓ (04-10)","04-10"], cc: ["","","","val-pass"] },
-          { c: "row-grp-1", v: ["U1","04-10","なし","NULL"], cc: ["","","","val-fail"] },
-          { c: "row-grp-2", v: ["U2","04-02","なし","NULL"], cc: ["","","","val-fail"] }
+          { c: "row-grp-1", v: ["U1","04-10","次行なし","NULL"], cc: ["","","","val-hl"] },
+          { c: "row-grp-2", v: ["U2","04-02","次行なし","NULL"], cc: ["","","","val-hl"] }
         ], cnt: "次行の値を横に付与" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
+      { id: "select", badge: "④ SELECT", bc: "badge-green",
         label: "最終出力",
         desc: "結果を出力します。",
         type: "select",
@@ -861,9 +934,12 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  user_id, visit_date,\n", k: "", h: "select" },
-      { t: "  LEAD(visit_date) ", k: "sql-kw", h: "window select" }, { t: "OVER(\n", k: "", h: "window select" },
-      { t: "    PARTITION BY", k: "sql-kw", h: "window select" }, { t: " user_id\n", k: "", h: "window select" },
-      { t: "    ORDER BY", k: "sql-kw", h: "window select" }, { t: " visit_date ASC\n  ) AS next_visit\n", k: "", h: "window select" },
+      { t: "  LEAD(visit_date) ", k: "sql-kw", h: "window select" },
+      { t: "OVER(\n", k: "", h: "window select" },
+      { t: "    PARTITION BY", k: "sql-kw", h: "partition window select" },
+      { t: " user_id\n", k: "", h: "partition window select" },
+      { t: "    ORDER BY", k: "sql-kw", h: "partition window select" },
+      { t: " visit_date ASC\n  ) AS next_visit\n", k: "", h: "partition window select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "website_visits\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "user_id, visit_date;", k: "", h: "select" }
     ]
@@ -872,6 +948,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での活用例（DATEDIFF）：</strong><code>DATEDIFF(LEAD(visit_date) OVER(...), visit_date)</code> のように日付の差分関数と組み合わせることで、「ユーザーが平均して何日おきにサイトを訪れるか（再訪間隔）」を1クエリで簡単に分析できます。マーケティング分析における超重要テクニックです。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULL が意味を持つ：</strong>next_visit が NULL の行は「その後二度と来なかったユーザーの最終訪問」を意味します。<code>WHERE next_visit IS NULL</code> で絞り込めば離脱ユーザーの最終行動を一覧できます。NULL は「欠損」ではなく「そのユーザーの終点」という情報です。</div></div>
 </div>`
 },
 
@@ -921,34 +998,47 @@ const QS = [
 <span class="cmt">/*
   実行順序:
   1. FROM daily_metrics
-  2. Window関数が date 順に評価
+  2. ORDER BY date で行順を日付昇順に確定
+  3. LAG(users, 1, 0) が各行で評価
      04-01: 前の行がないため、第3引数で指定した 0 が返る
-     04-02: 1つ前の 100 が返る
-  3. SELECT 出力
+     04-02: 1つ前の行の users = 100 が返る
+     04-03: 1つ前の行の users = 120 が返る
+  4. SELECT 出力
 */</span></pre>`,
   viz: {
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM daily_metrics",
-        desc: "テーブルを読み込みます。",
+        desc: "テーブルを読み込みます。3日分のデータがあります。LAG() が「前の行」を参照するには行の順序が重要です。次のステップで ORDER BY によって順序を確定させます。",
         type: "base",
         cols: ["date","users"],
         ch:   ["col-base","col-base"],
         rows: [
           { v: ["04-01",100] }, { v: ["04-02",120] }, { v: ["04-03",150] }
         ], cnt: "全 3行 読込" },
-      { id: "window", badge: "② LAG(..., 1, 0)", bc: "badge-orange",
-        label: "LAG(users, 1, 0) OVER(...)",
-        desc: "1つ前の行を取得します。先頭行（04-01）は前行が存在しないため、指定されたデフォルト値の 0 が適用されます。",
+      { id: "sort", badge: "② ORDER BY date", bc: "badge-orange",
+        label: "日付昇順で行順を確定",
+        desc: "ORDER BY date により行の順序が日付昇順に確定します。LAG() はこの物理的な行の並び順を前提に「1行前」を参照します。このソートが正しくないと、「前日」ではなく「無関係な行の前」を参照してしまいます。",
+        type: "eval",
+        cols: ["date","users","行の位置"],
+        ch:   ["col-eval","",""],
+        rows: [
+          { v: ["04-01",100,"1行目（先頭）"] },
+          { v: ["04-02",120,"2行目"] },
+          { v: ["04-03",150,"3行目"] }
+        ], cnt: "日付昇順に確定" },
+      { id: "window", badge: "③ LAG(users, 1, 0) の評価", bc: "badge-orange",
+        label: "1行前の値を取得（先頭行はデフォルト値 0）",
+        desc: "各行から「1行前の users」を取得します。先頭行（04-01）は前の行が存在しないため、第3引数で指定したデフォルト値 0 が適用されます。",
         type: "eval",
         cols: ["date","users","参照元","prev_users (LAG)"],
         ch:   ["","","","col-eval"],
         rows: [
-          { v: ["04-01",100,"なし → デフォルト","0"], cc: ["","","","val-hl"] },
+          { v: ["04-01",100,"前行なし → デフォルト 0","0"], cc: ["","","","val-hl"] },
           { v: ["04-02",120,"↑ (100)","100"], cc: ["","","","val-pass"] },
           { v: ["04-03",150,"↑ (120)","120"], cc: ["","","","val-pass"] }
-        ], cnt: "NULL回避で値を取得" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
+        ], cnt: "NULL回避でデフォルト値を取得" },
+      { id: "select", badge: "④ SELECT", bc: "badge-green",
         label: "最終出力",
         desc: "結果を出力します。",
         type: "select",
@@ -962,7 +1052,11 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  date, users,\n", k: "", h: "select" },
-      { t: "  LAG(users, 1, 0) ", k: "sql-kw", h: "window select" }, { t: "OVER(ORDER BY date) AS prev_users\n", k: "", h: "window select" },
+      { t: "  LAG(users, 1, 0) ", k: "sql-kw", h: "window select" },
+      { t: "OVER(", k: "", h: "window select" },
+      { t: "ORDER BY", k: "sql-kw", h: "sort window select" },
+      { t: " date", k: "", h: "sort window select" },
+      { t: ") AS prev_users\n", k: "", h: "window select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "daily_metrics\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "date;", k: "", h: "select" }
     ]
@@ -1021,17 +1115,18 @@ const QS = [
 <span class="cmt">/*
   実行順序:
   1. FROM customer_sales (全5行)
-  2. Window関数が total_amount 降順で評価
-     5行を3分割 → 5 ÷ 3 = 1 余り 2。
-     余りはグループ1から順に1つずつ追加されるため、
-     グループ1: 2件, グループ2: 2件, グループ3: 1件 となる。
-  3. SELECT 出力
+  2. ORDER BY total_amount DESC で売上降順にソート
+  3. NTILE(3) が行を3バケットに分割
+     5行を3分割 → 5 ÷ 3 = 1 余り 2
+     余りはバケット1から順に1行ずつ追加
+     バケット1: 2件, バケット2: 2件, バケット3: 1件
+  4. SELECT 出力
 */</span></pre>`,
   viz: {
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM customer_sales",
-        desc: "テーブルを読み込みます。",
+        desc: "テーブルを読み込みます。5名の顧客データがあります。NTILE() は「順序」に基づいてバケットを割り振るため、次のステップで ORDER BY によるソートが必要です。",
         type: "base",
         cols: ["customer_id","total_amount"],
         ch:   ["col-base","col-base"],
@@ -1039,20 +1134,33 @@ const QS = [
           { v: ["C1",50000] }, { v: ["C2",40000] }, { v: ["C3",30000] },
           { v: ["C4",20000] }, { v: ["C5",10000] }
         ], cnt: "全 5行 読込" },
-      { id: "window", badge: "② NTILE(3) による分割", bc: "badge-orange",
-        label: "NTILE(3) OVER(ORDER BY total_amount DESC)",
-        desc: "売上順に並べた5行を3つのバケットに分割します。均等に割れない場合は、若い番号のバケットから順に1行ずつ多く割り振られます。",
+      { id: "sort", badge: "② ORDER BY total_amount DESC", bc: "badge-orange",
+        label: "売上高い順にソート（バケット割り振り前の基準作り）",
+        desc: "OVER(ORDER BY total_amount DESC) により、NTILE() が行を評価する順序が決まります。この順序で上から数えて「何番目のバケットに入るか」が決定されます。",
         type: "eval",
-        cols: ["customer_id","total_amount","分割ロジック","tier (NTILE)"],
+        cols: ["customer_id","total_amount","ソート順"],
+        ch:   ["","col-eval",""],
+        rows: [
+          { v: ["C1",50000,"1位（最大）"] },
+          { v: ["C2",40000,"2位"] },
+          { v: ["C3",30000,"3位"] },
+          { v: ["C4",20000,"4位"] },
+          { v: ["C5",10000,"5位（最小）"] }
+        ], cnt: "売上降順にソート済み" },
+      { id: "window", badge: "③ NTILE(3) による分割", bc: "badge-orange",
+        label: "5行を3バケットに割り振る（5÷3=1余り2）",
+        desc: "5行を3バケットに均等に分割します。5÷3=1余り2のため、バケット1と2には1行ずつ多く割り振られます（バケット1: 2行、バケット2: 2行、バケット3: 1行）。",
+        type: "eval",
+        cols: ["customer_id","total_amount","バケットの区切り","tier (NTILE)"],
         ch:   ["","","","col-eval"],
         rows: [
-          { v: ["C1",50000,"上位層 (2件)","1"], cc: ["","","","val-hl"] },
-          { v: ["C2",40000,"上位層 (2件)","1"], cc: ["","","","val-hl"] },
-          { v: ["C3",30000,"中位層 (2件)","2"], cc: ["","","","val-hl"] },
-          { v: ["C4",20000,"中位層 (2件)","2"], cc: ["","","","val-hl"] },
-          { v: ["C5",10000,"下位層 (1件)","3"], cc: ["","","","val-hl"] }
+          { v: ["C1",50000,"バケット1 (2件)","1"], cc: ["","","","val-hl"] },
+          { v: ["C2",40000,"バケット1 (2件)","1"], cc: ["","","","val-hl"] },
+          { v: ["C3",30000,"バケット2 (2件)","2"], cc: ["","","","val-hl"] },
+          { v: ["C4",20000,"バケット2 (2件)","2"], cc: ["","","","val-hl"] },
+          { v: ["C5",10000,"バケット3 (1件)","3"], cc: ["","","","val-hl"] }
         ], cnt: "3グループに分割" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
+      { id: "select", badge: "④ SELECT", bc: "badge-green",
         label: "最終出力",
         desc: "結果を出力します。",
         type: "select",
@@ -1068,7 +1176,11 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  customer_id, total_amount,\n", k: "", h: "select" },
-      { t: "  NTILE(3) ", k: "sql-kw", h: "window select" }, { t: "OVER(ORDER BY total_amount DESC) AS tier\n", k: "", h: "window select" },
+      { t: "  NTILE(3) ", k: "sql-kw", h: "window select" },
+      { t: "OVER(", k: "", h: "window select" },
+      { t: "ORDER BY", k: "sql-kw", h: "sort window select" },
+      { t: " total_amount DESC", k: "", h: "sort window select" },
+      { t: ") AS tier\n", k: "", h: "window select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "customer_sales\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "total_amount DESC;", k: "", h: "select" }
     ]
@@ -1127,18 +1239,19 @@ const QS = [
 <span class="cmt">/*
   実行順序:
   1. FROM exam_scores (全4行)
-  2. Window関数が score 降順で評価
-     S1 (1位): (1 - 1) / (4 - 1) = 0 / 3 = 0
-     S2 (2位): (2 - 1) / (4 - 1) = 1 / 3 = 0.333...
-     S3 (3位): (3 - 1) / (4 - 1) = 2 / 3 = 0.666...
-     S4 (4位): (4 - 1) / (4 - 1) = 3 / 3 = 1
-  3. SELECT 出力
+  2. ORDER BY score DESC で降順ソート → 順位を確定
+  3. PERCENT_RANK() が (RANK - 1) / (4 - 1) を各行で計算
+     S1 (1位): (1 - 1) / 3 = 0
+     S2 (2位): (2 - 1) / 3 = 0.333...
+     S3 (3位): (3 - 1) / 3 = 0.666...
+     S4 (4位): (4 - 1) / 3 = 1
+  4. SELECT 出力
 */</span></pre>`,
   viz: {
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM exam_scores",
-        desc: "テーブルを読み込みます。",
+        desc: "テーブルを読み込みます。4名の点数データがあります。",
         type: "base",
         cols: ["student_id","score"],
         ch:   ["col-base","col-base"],
@@ -1146,19 +1259,31 @@ const QS = [
           { v: ["S1",95] }, { v: ["S2",88] },
           { v: ["S3",75] }, { v: ["S4",60] }
         ], cnt: "全 4行 読込" },
-      { id: "window", badge: "② PERCENT_RANK() 評価", bc: "badge-orange",
-        label: "PERCENT_RANK() OVER(ORDER BY score DESC)",
-        desc: "降順での RANK に基づき、(RANK - 1) / (全体の行数 - 1) を計算します。1位が0、最下位が1になります。",
+      { id: "sort", badge: "② ORDER BY score DESC → 順位の確定", bc: "badge-orange",
+        label: "降順ソートで各行の「順位（RANK）」を決定",
+        desc: "OVER(ORDER BY score DESC) によって点数の高い順に並べ、各行の順位（RANK）が決まります。この RANK が PERCENT_RANK の計算式 (RANK−1)/(N−1) の基になります。",
         type: "eval",
-        cols: ["student_id","score","RANK","pct_rank"],
-        ch:   ["","","","col-eval"],
+        cols: ["student_id","score","順位 (内部RANK)"],
+        ch:   ["","col-eval","col-eval"],
         rows: [
-          { v: ["S1",95,"1位","0"], cc: ["","","","val-hl"] },
-          { v: ["S2",88,"2位","0.333..."], cc: ["","","","val-hl"] },
-          { v: ["S3",75,"3位","0.666..."], cc: ["","","","val-hl"] },
-          { v: ["S4",60,"4位","1"], cc: ["","","","val-hl"] }
+          { v: ["S1",95,"1位"], cc: ["","","val-hl"] },
+          { v: ["S2",88,"2位"], cc: ["","","val-hl"] },
+          { v: ["S3",75,"3位"], cc: ["","","val-hl"] },
+          { v: ["S4",60,"4位"], cc: ["","","val-hl"] }
+        ], cnt: "降順ソート・順位確定" },
+      { id: "window", badge: "③ PERCENT_RANK の計算", bc: "badge-orange",
+        label: "(RANK − 1) / (全体の行数 − 1) を各行で適用",
+        desc: "計算式: (自身のRANK − 1) / (全体行数 − 1) = (RANK − 1) / 3。1位は (1−1)/3 = 0（トップ）、最下位は (4−1)/3 = 1（最後尾）になります。",
+        type: "eval",
+        cols: ["student_id","score","順位","計算式","pct_rank"],
+        ch:   ["","","","","col-eval"],
+        rows: [
+          { v: ["S1",95,"1位","(1-1)/3","0"], cc: ["","","","","val-hl"] },
+          { v: ["S2",88,"2位","(2-1)/3","0.333..."], cc: ["","","","","val-hl"] },
+          { v: ["S3",75,"3位","(3-1)/3","0.666..."], cc: ["","","","","val-hl"] },
+          { v: ["S4",60,"4位","(4-1)/3","1"], cc: ["","","","","val-hl"] }
         ], cnt: "相対位置を計算" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
+      { id: "select", badge: "④ SELECT", bc: "badge-green",
         label: "最終出力",
         desc: "結果を出力します。",
         type: "select",
@@ -1173,7 +1298,11 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  student_id, score,\n", k: "", h: "select" },
-      { t: "  PERCENT_RANK() ", k: "sql-kw", h: "window select" }, { t: "OVER(ORDER BY score DESC) AS pct_rank\n", k: "", h: "window select" },
+      { t: "  PERCENT_RANK() ", k: "sql-kw", h: "window select" },
+      { t: "OVER(", k: "", h: "window select" },
+      { t: "ORDER BY", k: "sql-kw", h: "sort window select" },
+      { t: " score DESC", k: "", h: "sort window select" },
+      { t: ") AS pct_rank\n", k: "", h: "window select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "exam_scores\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "score DESC;", k: "", h: "select" }
     ]
@@ -1235,9 +1364,9 @@ const QS = [
 <span class="kw">ORDER BY</span> month;
 
 <span class="cmt">/*
-  実行順序:
-  2026-01: 対象フレームなし → NULL
-  2026-02: [2026-01] の合計 → 10
+  フレームの評価:
+  2026-01: 「1つ前」が存在しないため対象範囲なし → NULL
+  2026-02: [2026-01 のみ] の合計 → 10
   2026-03: [2026-01, 2026-02] の合計 → 10 + 20 = 30
   2026-04: [2026-01, 2026-02, 2026-03] の合計 → 10 + 20 + 30 = 60
 */</span></pre>`,
@@ -1245,7 +1374,7 @@ const QS = [
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM monthly_targets",
-        desc: "テーブルを読み込みます。",
+        desc: "テーブルを読み込みます。4ヶ月分の売上データがあります。",
         type: "base",
         cols: ["month","sales"],
         ch:   ["col-base","col-base"],
@@ -1253,19 +1382,31 @@ const QS = [
           { v: ["2026-01",10] }, { v: ["2026-02",20] },
           { v: ["2026-03",30] }, { v: ["2026-04",40] }
         ], cnt: "全 4行 読込" },
-      { id: "window", badge: "② フレームの評価", bc: "badge-orange",
-        label: "ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING",
-        desc: "「一番最初」から「現在の行の1つ前」までの範囲（フレーム）を足し合わせます。現在の行の値自身は足されません。",
+      { id: "sort", badge: "② デフォルト累計（CURRENT ROW まで）との比較", bc: "badge-orange",
+        label: "通常の累計は「現在行を含む」= フレームが 1行分先まで伸びている",
+        desc: "通常の SUM OVER(ORDER BY month) はフレームが「先頭〜現在行」です。各行が自身の売上も含んで累計されます（2026-03行なら 10+20+30=60）。今回は「現在行を含まない」ために、フレームの終端を 1 PRECEDING（1行前）にずらします。",
         type: "eval",
-        cols: ["month","sales","集計フレーム","prev_running_total"],
+        cols: ["month","sales","デフォルトのフレーム範囲","通常累計 (参考)"],
         ch:   ["","","col-eval","col-eval"],
         rows: [
-          { v: ["2026-01",10,"(範囲なし)","NULL"], cc: ["","","","val-hl"] },
-          { v: ["2026-02",20,"[10]","10"], cc: ["","","","val-hl"] },
-          { v: ["2026-03",30,"[10, 20]","30"], cc: ["","","","val-hl"] },
-          { v: ["2026-04",40,"[10, 20, 30]","60"], cc: ["","","","val-hl"] }
-        ], cnt: "過去の累計を計算" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
+          { v: ["2026-01",10,"[01] ← 自身を含む","10"], cc: ["","","","val-pass"] },
+          { v: ["2026-02",20,"[01, 02] ← 自身を含む","30"], cc: ["","","","val-pass"] },
+          { v: ["2026-03",30,"[01, 02, 03] ← 自身を含む","60"], cc: ["","","","val-pass"] },
+          { v: ["2026-04",40,"[01, 02, 03, 04] ← 自身を含む","100"], cc: ["","","","val-pass"] }
+        ], cnt: "デフォルト：現在行まで" },
+      { id: "window", badge: "③ 今回のフレーム（1 PRECEDING まで）", bc: "badge-orange",
+        label: "フレームの終端を「1行前」にずらす → 現在行を含まない累計",
+        desc: "ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING でフレームの終端を「1行前」にずらします。各行の「自身の売上」は含まれず、前月までの累計になります。最初の行は「1行前」が存在しないためフレームが空 → NULL になります。",
+        type: "eval",
+        cols: ["month","sales","このクエリのフレーム範囲","prev_running_total"],
+        ch:   ["","","col-eval","col-eval"],
+        rows: [
+          { v: ["2026-01",10,"(範囲なし) ← 前行なし","NULL"], cc: ["","","","val-hl"] },
+          { v: ["2026-02",20,"[01] ← 1行前まで","10"], cc: ["","","","val-hl"] },
+          { v: ["2026-03",30,"[01, 02] ← 1行前まで","30"], cc: ["","","","val-hl"] },
+          { v: ["2026-04",40,"[01, 02, 03] ← 1行前まで","60"], cc: ["","","","val-hl"] }
+        ], cnt: "現在行を含まない累計" },
+      { id: "select", badge: "④ SELECT", bc: "badge-green",
         label: "最終出力",
         desc: "計算結果を出力します。",
         type: "select",
@@ -1280,9 +1421,14 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  month, sales,\n", k: "", h: "select" },
-      { t: "  SUM(sales) ", k: "sql-kw", h: "window select" }, { t: "OVER(\n", k: "", h: "window select" },
-      { t: "    ORDER BY", k: "sql-kw", h: "window select" }, { t: " month\n", k: "", h: "window select" },
-      { t: "    ROWS BETWEEN", k: "sql-kw", h: "window select" }, { t: " UNBOUNDED PRECEDING ", k: "", h: "window select" }, { t: "AND", k: "sql-kw", h: "window select" }, { t: " 1 PRECEDING\n  ) AS prev_running_total\n", k: "", h: "window select" },
+      { t: "  SUM(sales) ", k: "sql-kw", h: "window select" },
+      { t: "OVER(\n", k: "", h: "window select" },
+      { t: "    ORDER BY", k: "sql-kw", h: "sort window select" },
+      { t: " month\n", k: "", h: "sort window select" },
+      { t: "    ROWS BETWEEN", k: "sql-kw", h: "window select" },
+      { t: " UNBOUNDED PRECEDING ", k: "", h: "window select" },
+      { t: "AND", k: "sql-kw", h: "window select" },
+      { t: " 1 PRECEDING\n  ) AS prev_running_total\n", k: "", h: "window select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "monthly_targets\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "month;", k: "", h: "select" }
     ]
@@ -1291,6 +1437,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務でのユースケース：</strong>「当月の目標達成率」を出す際、当月の売上に加えて「前月までの未達分（負債）」を足し合わせて目標を再計算するような、複雑な予実管理ダッシュボードでこのフレーム指定が活躍します。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>フレームのずらし方まとめ：</strong>終端を <code>CURRENT ROW</code>（デフォルト）→ 現在行を含む累計。<code>1 PRECEDING</code> → 現在行を除いた「前まで」の累計。<code>1 FOLLOWING</code> → 現在行の「次の行まで」を含む累計。このように終端・始端を自由に動かせるのがフレーム指定の真価です。</div></div>
 </div>`
 },
 
@@ -1327,7 +1474,7 @@ const QS = [
 <tr class="tr-hi"><td>04-02</td><td>30</td><td class="tc-y">60</td><td class="tc-p">60</td></tr>
 <tr><td>04-03</td><td>40</td><td class="tc-y">100</td><td class="tc-p">100</td></tr>
 </table></div>
-<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ RANGE(省略時)は、同日(04-02)の 20 と 30 をまとめて合算し、両方の行に 60 を付与します。ROWS は行ごとに 10+20=30、30+30=60 と個別に足します。</p>`,
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ RANGE(省略時)は、同日(04-02)の 20 と 30 をまとめて合算し、両方の行に 60 を付与します。ROWS は行ごとに 10+20=30、10+20+30=60 と個別に足します。</p>`,
   answer: `<pre><span class="kw">SELECT</span>
   sale_date,
   amount,
@@ -1347,10 +1494,10 @@ const QS = [
 <span class="kw">ORDER BY</span> sale_date, amount;
 
 <span class="cmt">/*
-  実行順序と評価の違い:
   【RANGEの場合】"値" で判断する。
   04-02の行が来た時、「04-02以下のすべての行」をまとめて足す。
-  (10 + 20 + 30 = 60) となり、04-02の2行には同じ 60 が入る。
+  04-02の2行は「ピアグループ」として扱われ、
+  (10 + 20 + 30 = 60) が両方の行に付与される。
 
   【ROWSの場合】"行" で判断する。
   04-02(20)の行: [10, 20] = 30
@@ -1360,29 +1507,41 @@ const QS = [
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM sales_records",
-        desc: "テーブルを読み込みます。04-02 のデータが2行あることに注目してください。",
+        desc: "テーブルを読み込みます。04-02 のデータが2行あることに注目してください。この「同じ値が複数行」という状況が RANGE と ROWS の挙動を分けるポイントです。",
         type: "base",
         cols: ["sale_date","amount"],
         ch:   ["col-base","col-base"],
         rows: [
           { v: ["04-01",10] }, { v: ["04-02",20] },
           { v: ["04-02",30] }, { v: ["04-03",40] }
-        ], cnt: "全 4行 読込" },
-      { id: "window", badge: "② RANGE vs ROWS", bc: "badge-orange",
-        label: "フレーム評価の違い",
-        desc: "RANGE（デフォルト）は同じ日付のデータを一つのブロックとみなし、合計値を共有します。ROWS は純粋に上の行から1行ずつ順番に足していきます。",
+        ], cnt: "全 4行 読込（04-02 が2行）" },
+      { id: "window", badge: "② RANGE の挙動（デフォルト）", bc: "badge-orange",
+        label: "RANGE：同じ日付の行を「ピアグループ」としてまとめて処理",
+        desc: "RANGE は「値」単位でフレームを決めます。04-02 の2行は同じ日付のため「ピアグループ」として扱われます。どちらの行が評価されても「04-02以下のすべて（10+20+30=60）」が合算されるため、両方の行に同じ値 60 が入ります。",
         type: "eval",
-        cols: ["sale_date","amount","RANGE (値で評価)","ROWS (行で評価)"],
+        cols: ["sale_date","amount","RANGE の集計対象（ピアグループ込み）","range_total"],
         ch:   ["","","col-eval","col-eval"],
         rows: [
-          { v: ["04-01",10,"10","10"], cc: ["","","val-pass","val-pass"] },
-          { v: ["04-02",20,"60 (20と30を合算)","30 (10+20)"], cc: ["","","val-hl","val-hl"] },
-          { v: ["04-02",30,"60 (20と30を合算)","60 (30+30)"], cc: ["","","val-hl","val-hl"] },
-          { v: ["04-03",40,"100","100"], cc: ["","","val-pass","val-pass"] }
-        ], cnt: "同順位の計算方法の違い" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
+          { v: ["04-01",10,"[04-01: 10]","10"], cc: ["","","","val-pass"] },
+          { v: ["04-02",20,"[04-01: 10, 04-02: 20, 04-02: 30 ← 同日まとめ]","60"], cc: ["","","","val-hl"] },
+          { v: ["04-02",30,"[04-01: 10, 04-02: 20, 04-02: 30 ← 同日まとめ]","60"], cc: ["","","","val-hl"] },
+          { v: ["04-03",40,"[04-01: 10, 04-02: 20, 04-02: 30, 04-03: 40]","100"], cc: ["","","","val-pass"] }
+        ], cnt: "同日行は同じ値（ピアグループ）" },
+      { id: "window", badge: "③ ROWS の挙動（明示的指定）", bc: "badge-orange",
+        label: "ROWS：各行を独立した「1行」として順番に処理",
+        desc: "ROWS は「行」単位でフレームを決めます。04-02 の2行はそれぞれ別の行として独立して処理されます。1行目（amount=20）のフレームは[10, 20]なので30、2行目（amount=30）のフレームは[10, 20, 30]なので60と、行ごとに異なる値が付きます。",
+        type: "eval",
+        cols: ["sale_date","amount","ROWS の集計対象（行ごとに個別）","rows_total"],
+        ch:   ["","","col-eval","col-eval"],
+        rows: [
+          { v: ["04-01",10,"[04-01: 10]","10"], cc: ["","","","val-pass"] },
+          { v: ["04-02",20,"[04-01: 10, この行: 20]","30"], cc: ["","","","val-hl"] },
+          { v: ["04-02",30,"[04-01: 10, 04-02: 20, この行: 30]","60"], cc: ["","","","val-hl"] },
+          { v: ["04-03",40,"[04-01: 10, 04-02: 20, 04-02: 30, この行: 40]","100"], cc: ["","","","val-pass"] }
+        ], cnt: "各行を個別にカウント" },
+      { id: "select", badge: "④ SELECT（2つを並べて比較）", bc: "badge-green",
         label: "最終出力",
-        desc: "それぞれの計算結果を出力します。",
+        desc: "両方の結果を並べて出力します。04-01 と 04-03 は一致しますが、04-02 の2行でのみ差異が生じます。",
         type: "select",
         cols: ["sale_date","amount","range_total","rows_total"],
         ch:   ["col-select","col-select","col-select","col-select"],
@@ -1395,8 +1554,10 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  sale_date, amount,\n", k: "", h: "select" },
-      { t: "  SUM(amount) ", k: "", h: "window select" }, { t: "OVER(ORDER BY sale_date) AS range_total,\n", k: "sql-kw", h: "window select" },
-      { t: "  SUM(amount) ", k: "", h: "window select" }, { t: "OVER(ORDER BY sale_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rows_total\n", k: "sql-kw", h: "window select" },
+      { t: "  SUM(amount) ", k: "", h: "window select" },
+      { t: "OVER(ORDER BY sale_date) AS range_total,\n", k: "sql-kw", h: "window select" },
+      { t: "  SUM(amount) ", k: "", h: "window select" },
+      { t: "OVER(ORDER BY sale_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rows_total\n", k: "sql-kw", h: "window select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "sales_records\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "sale_date, amount;", k: "", h: "select" }
     ]
@@ -1466,39 +1627,79 @@ const QS = [
 
 <span class="cmt">/*
   実行順序:
-  1. FROM order_history
-  2. SELECT句内の3つのWindow関数が、すべて「ユーザーごとの日付順」で同時に評価される
-     - U1 の 04-05行目: 連番は2、累計は 1000+2000=3000、前日は 04-01 となる。
-  3. ORDER BY 出力
-  ★ 1回のスキャンで「回数」「累計金額」「前回からの間隔」を計算できる最強のパターンです。
+  1. FROM order_history (U1とU2のデータが混在)
+  2. PARTITION BY user_id でU1・U2グループに分割し
+     ORDER BY order_date で各グループ内を日付昇順にソート
+  3. 3つのWindow関数が、同じパーティション・順序で同時に評価される
+     - ROW_NUMBER: U1の3行に 1/2/3、U2の1行に 1
+     - SUM: U1の04-05行は 1000+2000=3000（累計）
+     - LAG: U1の04-05行は前の行の 04-01 を返す
+  4. ORDER BY user_id, order_date で最終ソート出力
+  ★ 1回のスキャンで「回数」「累計金額」「前回日付」を計算できる最強のパターンです。
 */</span></pre>`,
   viz: {
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM order_history",
-        desc: "テーブルを読み込みます。",
+        desc: "テーブルを読み込みます。4行がありますが、U1とU2のデータが入り混じった状態です（挿入順）。この時点ではまだグループも順序も確定していません。",
         type: "base",
         cols: ["user_id","order_date","amount"],
         ch:   ["col-base","col-base","col-base"],
         rows: [
           { v: ["U1","04-01",1000] }, { v: ["U2","04-02",1500] },
           { v: ["U1","04-05",2000] }, { v: ["U1","04-10",3000] }
-        ], cnt: "全 4行 読込" },
-      { id: "window", badge: "② 複合ウィンドウ演算", bc: "badge-orange",
-        label: "ROW_NUMBER, SUM, LAG の同時評価",
-        desc: "ユーザーごとに日付順で並べた上で、連番（回数）、累計金額、前回の購入日を同時に計算し、各明細行に付与します。",
+        ], cnt: "全 4行 読込（挿入順・混在）" },
+      { id: "sort", badge: "② PARTITION BY user_id  ORDER BY order_date", bc: "badge-orange",
+        label: "ユーザーごとにグループ分割 → 日付昇順でソート",
+        desc: "3つのWindow関数はすべて同じ PARTITION BY user_id ORDER BY order_date を共有します。この処理でデータがU1グループ（3行）とU2グループ（1行）に分割され、それぞれが日付昇順に並びます。以後のすべての演算はこの順序を前提に行われます。",
         type: "group",
-        cols: ["user_id","order_date","amount","num (連番)","running (累計)","prev (LAG)"],
-        ch:   ["col-eval","col-eval","","col-eval","col-eval","col-eval"],
+        cols: ["user_id","order_date","amount"],
+        ch:   ["col-eval","col-eval",""],
         rows: [
-          { c: "row-grp-1", v: ["U1","04-01",1000,1,1000,"NULL"], cc: ["","","","val-hl","val-hl","val-hl"] },
-          { c: "row-grp-1", v: ["U1","04-05",2000,2,3000,"04-01"], cc: ["","","","val-hl","val-hl","val-hl"] },
-          { c: "row-grp-1", v: ["U1","04-10",3000,3,6000,"04-05"], cc: ["","","","val-hl","val-hl","val-hl"] },
-          { c: "row-grp-2", v: ["U2","04-02",1500,1,1500,"NULL"], cc: ["","","","val-hl","val-hl","val-hl"] }
-        ], cnt: "顧客のステータスを付与" },
-      { id: "select", badge: "③ 最終出力", bc: "badge-green",
-        label: "SELECT ...",
-        desc: "完成したデータを出力します。このデータマートがあれば、機械学習の予測モデルの特徴量などにもそのまま使えます。",
+          { c: "row-grp-1", v: ["U1","04-01",1000] },
+          { c: "row-grp-1", v: ["U1","04-05",2000] },
+          { c: "row-grp-1", v: ["U1","04-10",3000] },
+          { c: "row-grp-2", v: ["U2","04-02",1500] }
+        ], cnt: "2パーティション・日付昇順に整列" },
+      { id: "rownum", badge: "③ ROW_NUMBER() — 何回目の注文か", bc: "badge-orange",
+        label: "パーティション内で 1 から始まる連番を付与",
+        desc: "ROW_NUMBER() がパーティション内で1から始まる連番を付与します。U1の3行には 1, 2, 3 が、U2の1行には 1 が振られます。ユーザーごとに独立して採番されます。",
+        type: "group",
+        cols: ["user_id","order_date","amount","order_num"],
+        ch:   ["col-eval","col-eval","","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U1","04-01",1000,1], cc: ["","","","val-hl"] },
+          { c: "row-grp-1", v: ["U1","04-05",2000,2], cc: ["","","","val-hl"] },
+          { c: "row-grp-1", v: ["U1","04-10",3000,3], cc: ["","","","val-hl"] },
+          { c: "row-grp-2", v: ["U2","04-02",1500,1], cc: ["","","","val-hl"] }
+        ], cnt: "注文回数を付与" },
+      { id: "running", badge: "④ SUM(amount) — 累計購入金額", bc: "badge-orange",
+        label: "先頭行から現在行まで（累計）を計算",
+        desc: "SUM(amount) OVER(... ORDER BY order_date) が、パーティション内で先頭から現在の行までの累計金額を計算します。U1の04-05行では 1000+2000=3000、04-10行では 1000+2000+3000=6000 となります。",
+        type: "group",
+        cols: ["user_id","order_date","amount","order_num","running_amt"],
+        ch:   ["col-eval","col-eval","","","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U1","04-01",1000,1,1000], cc: ["","","","","val-hl"] },
+          { c: "row-grp-1", v: ["U1","04-05",2000,2,3000], cc: ["","","","","val-hl"] },
+          { c: "row-grp-1", v: ["U1","04-10",3000,3,6000], cc: ["","","","","val-hl"] },
+          { c: "row-grp-2", v: ["U2","04-02",1500,1,1500], cc: ["","","","","val-hl"] }
+        ], cnt: "累計購入金額を付与" },
+      { id: "lag", badge: "⑤ LAG(order_date) — 前回購入日", bc: "badge-orange",
+        label: "パーティション内で「1行前の日付」を取得",
+        desc: "LAG(order_date) がパーティション内で1行前の order_date を取得します。パーティションの先頭行（初回注文）は前の行が存在しないため NULL になります。U1/04-05行は「1行前の04-01」を prev_date として返します。",
+        type: "group",
+        cols: ["user_id","order_date","amount","order_num","running_amt","prev_date (LAG)"],
+        ch:   ["col-eval","col-eval","","","","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U1","04-01",1000,1,1000,"NULL"], cc: ["","","","","","val-hl"] },
+          { c: "row-grp-1", v: ["U1","04-05",2000,2,3000,"04-01"], cc: ["","","","","","val-pass"] },
+          { c: "row-grp-1", v: ["U1","04-10",3000,3,6000,"04-05"], cc: ["","","","","","val-pass"] },
+          { c: "row-grp-2", v: ["U2","04-02",1500,1,1500,"NULL"], cc: ["","","","","","val-hl"] }
+        ], cnt: "前回購入日を付与" },
+      { id: "select", badge: "⑥ SELECT — 最終出力", bc: "badge-green",
+        label: "3つの指標が揃ったデータマートの完成",
+        desc: "完成したデータを出力します。1行のイベントデータに「何回目か・累計金額・前回日付」が横付けされたデータマートの完成形です。このデータがあれば、機械学習の予測モデルの特徴量としても使えます。",
         type: "select",
         cols: ["user_id","order_date","amount","order_num","running_amt","prev_date"],
         ch:   ["col-select","col-select","col-select","col-select","col-select","col-select"],
@@ -1511,9 +1712,17 @@ const QS = [
     ],
     sql: [
       { t: "SELECT\n  user_id, order_date, amount,\n", k: "", h: "select" },
-      { t: "  ROW_NUMBER() ", k: "sql-kw", h: "window select" }, { t: "OVER(PARTITION BY user_id ORDER BY order_date) AS order_num,\n", k: "", h: "window select" },
-      { t: "  SUM(amount) ", k: "sql-kw", h: "window select" }, { t: "OVER(PARTITION BY user_id ORDER BY order_date) AS running_amt,\n", k: "", h: "window select" },
-      { t: "  LAG(order_date) ", k: "sql-kw", h: "window select" }, { t: "OVER(PARTITION BY user_id ORDER BY order_date) AS prev_date\n", k: "", h: "window select" },
+      { t: "  ROW_NUMBER() ", k: "sql-kw", h: "rownum select" },
+      { t: "OVER(", k: "", h: "rownum running lag sort select" },
+      { t: "PARTITION BY", k: "sql-kw", h: "rownum running lag sort select" },
+      { t: " user_id ", k: "", h: "rownum running lag sort select" },
+      { t: "ORDER BY", k: "sql-kw", h: "rownum running lag sort select" },
+      { t: " order_date", k: "", h: "rownum running lag sort select" },
+      { t: ") AS order_num,\n", k: "", h: "rownum select" },
+      { t: "  SUM(amount) ", k: "sql-kw", h: "running select" },
+      { t: "OVER(PARTITION BY user_id ORDER BY order_date) AS running_amt,\n", k: "", h: "running sort select" },
+      { t: "  LAG(order_date) ", k: "sql-kw", h: "lag select" },
+      { t: "OVER(PARTITION BY user_id ORDER BY order_date) AS prev_date\n", k: "", h: "lag sort select" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "order_history\n", k: "", h: "from" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "user_id, order_date;", k: "", h: "select" }
     ]
