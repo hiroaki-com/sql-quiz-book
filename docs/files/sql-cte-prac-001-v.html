@@ -127,17 +127,6 @@
   .data-tbl-wrap { flex: 1; min-width: 220px; }
   .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
 
-  .viz-flow { margin: 6px 0 14px; }
-  .step-block { margin-bottom: 8px; }
-  .step-label { display: flex; align-items: center; gap: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; margin-bottom: 5px; }
-  .step-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
-  .sn1 { background: #1a2744; color: var(--accent); }
-  .sn2 { background: #1a2e1a; color: var(--green); }
-  .sn3 { background: #2e1a2e; color: var(--purple); }
-  .sn4 { background: #2e1a0a; color: var(--orange); }
-  .step-desc { color: var(--dim); }
-  .step-desc strong { color: var(--text); }
-
   .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
   table.vtbl {
     border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
@@ -147,21 +136,6 @@
   table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
   table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
   table.vtbl tr:nth-child(even) td { background: #080c12; }
-  .tr-hi  td { background: #0e1e33 !important; }
-  .tr-hi2 td { background: #0e1e0e !important; }
-  .tr-hi3 td { background: #1e1433 !important; }
-  .tr-hi4 td { background: #1e1a0a !important; }
-  .tr-dim td { opacity: 0.4; }
-  .tc-hi { color: var(--accent) !important; font-weight: 700; }
-  .tc-g  { color: var(--green)  !important; font-weight: 700; }
-  .tc-p  { color: var(--purple) !important; font-weight: 700; }
-  .tc-y  { color: var(--yellow) !important; font-weight: 700; }
-  .tc-o  { color: var(--orange) !important; font-weight: 700; }
-  .tc-r  { color: var(--red)    !important; font-weight: 700; }
-  .null  { color: var(--dim)    !important; font-style: italic; }
-
-  .arrow { text-align: center; padding: 4px 0; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
-  .arrow-text { color: var(--dim); font-size: 11px; }
 
   .insight-box {
     background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
@@ -214,6 +188,92 @@
     main { padding: 16px 10px 60px; }
     .data-tables { flex-direction: column; }
   }
+
+  .sql-viz-wrapper {
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    --font-sans: system-ui, -apple-system, sans-serif;
+    --color-bg-base:    #0d1117;
+    --color-bg-panel:   #161b22;
+    --color-border-main:#30363d;
+    --color-border-sub: #21262d;
+    --color-txt-main:   #e6edf3;
+    --color-txt-sub:    #8b949e;
+    --color-txt-muted:  #6e7681;
+    --sql-blue-bg:    rgba(88, 166, 255, 0.15);  --sql-blue-txt:   #58a6ff;  --sql-blue-bd:    #1f6feb;
+    --sql-orange-bg:  rgba(227, 137, 59, 0.15);  --sql-orange-txt: #e3893b;  --sql-orange-bd:  #7d4e00;
+    --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
+    --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
+    --sql-grp1-bg: rgba(88, 166, 255, 0.03);
+    --sql-grp2-bg: rgba(88, 166, 255, 0.08);
+    --sql-grp3-bg: rgba(88, 166, 255, 0.14);
+    --border-radius: 6px;
+    background: var(--color-bg-base);
+    color: var(--color-txt-main);
+    font-family: var(--font-sans);
+    min-height: auto;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 4px;
+  }
+
+  .sv-nav-btn:focus-visible, .sv-dot:focus-visible { outline: 2px solid var(--sql-blue-txt); outline-offset: 2px; }
+
+  .sv-nav-btn { padding: 6px 16px; border: 1px solid var(--color-border-sub); border-radius: var(--border-radius); font-size: 11px; background: var(--color-bg-panel); color: var(--color-txt-main); cursor: pointer; transition: all 0.2s; }
+  .sv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sv-nav-btn:not(:disabled):hover { border-color: var(--color-border-main); background: #1f2a38; }
+
+  .sv-dot { height: 6px; border: none; background: var(--color-border-sub); border-radius: 3px; cursor: pointer; padding: 0; transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s; flex-shrink: 0; width: 8px; }
+  .sv-dot.done { background: var(--color-border-main); }
+  .sv-dot.active { background: var(--sql-blue-txt); width: 24px; }
+
+  .sv-table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 10px; }
+  .sv-table th { padding: 6px 12px; font-size: 9px; font-weight: 600; border: 1px solid var(--color-border-sub); text-align: left; transition: all 0.3s ease; white-space: nowrap; }
+  .sv-table td { padding: 6px 12px; border: 1px solid var(--color-border-sub); white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main); transition: background 0.3s ease, opacity 0.3s ease; }
+
+  .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
+  .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
+  .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+
+  .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
+  .sv-table tr.row-grp-1 td { background: var(--sql-grp1-bg); }
+  .sv-table tr.row-grp-2 td { background: var(--sql-grp2-bg); }
+  .sv-table tr.row-grp-3 td { background: var(--sql-grp3-bg); }
+
+  .sv-table td.val-pass   { background: var(--sql-green-bg) !important; border-left: 2px solid var(--sql-green-txt); color: var(--sql-green-txt); font-weight: 600; }
+  .sv-table td.val-fail   { background: var(--sql-red-bg) !important; border-left: 2px solid var(--sql-red-txt); color: var(--sql-red-txt); text-decoration: line-through; opacity: 0.7; }
+  .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
+
+  .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
+  .sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-group, .sql-hl-having,
+  .sql-hl-agg, .sql-hl-select, .sql-hl-sub {
+    border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
+  }
+  .sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); color: var(--sql-blue-txt); }
+  .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-sub { background: var(--sql-orange-bg); }
+  .sql-hl-select { background: var(--sql-green-bg); color: var(--sql-green-txt); }
+
+  .sv-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: 600; letter-spacing: 0.02em; }
+  .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
+  .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
+  .badge-green  { background: var(--sql-green-bg);  color: var(--sql-green-txt);  border: 1px solid var(--sql-green-bd); }
+
+  @keyframes sv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sv-animate { animation: sv-fade-in 0.3s ease forwards; }
+
+  .tbl-label { font-size: 9px; font-weight: 500; color: var(--color-txt-sub); margin-bottom: 6px; }
+
+  .sv-mobile-collapse summary::-webkit-details-marker { display: none; }
+  .sv-mobile-collapse summary { list-style: none; }
+  .sv-collapse-icon { transition: transform 0.2s ease; display: inline-block; }
+  .sv-mobile-collapse[open] .sv-collapse-icon { transform: rotate(180deg); }
+
+  @media (min-width: 641px) {
+    .sv-mobile-collapse > summary { pointer-events: none; }
+    .sv-collapse-icon { display: none !important; }
+  }
+  @media (max-width: 640px) {
+    .sv-sidebar { flex: 1 1 100% !important; min-width: 100% !important; }
+  }
 </style>
 </head>
 <body>
@@ -243,6 +303,138 @@
 <main id="mainContent"></main>
 
 <script>
+function initVisualizer(root, data) {
+  if (!root || !data) return;
+  let currentStepIndex = 0;
+
+  root.innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="sv-sidebar" style="flex:0 0 300px;min-width:240px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+        <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+        <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+          <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+            <span>LEGEND (現在のステップ)</span>
+            <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+          </summary>
+          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+        </details>
+      </div>
+      <div style="flex:1;min-width:300px;">
+        <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+        <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+        <div class="sv-tarea sv-animate"></div>
+        <div class="sv-rowcount" style="font-size:12px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+      </div>
+    </div>`;
+
+  function getLegendHTML(type) {
+    const mkLegend = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dimLegend =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const passFail =
+      `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:9px;">✓ 通過</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:9px;">✗ 除外</span></div>
+      </div>`;
+    if (type === 'base')   return mkLegend('blue',   'データ取得・結合対象') + dimLegend;
+    if (type === 'eval')   return mkLegend('orange', '評価対象の列・キー') + dimLegend + passFail;
+    if (type === 'group')  return mkLegend('orange', 'グループ化キー・集計対象') +
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === 'select') return mkLegend('green',  '出力対象の列') + dimLegend;
+    return '';
+  }
+
+  function renderSQL(step) {
+    return data.sql.map(t => {
+      const isMatch = t.h && t.h.split(' ').includes(step.id);
+      const cls = `${t.k || ''} ${isMatch ? `sql-hl-${step.id}` : ''}`.trim();
+      return cls ? `<span class="${cls}">${t.t}</span>` : t.t;
+    }).join('');
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:10px 14px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:10px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:9px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:11px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>`;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ''}">${col}</th>`).join('');
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ''}">${val}</td>`).join('');
+      return `<tr class="${r.c || ''}">${tds}</tr>`;
+    }).join('');
+    const labelHtml = label ? `<div class="tbl-label">▸ ${label}</div>` : '';
+    return `<div style="flex:1;min-width:260px;">${labelHtml}<div style="overflow-x:auto;"><table class="sv-table">${thead ? `<thead><tr>${thead}</tr></thead>` : ''}<tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+          ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
+          <div style="display:flex;align-items:center;font-size:20px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+          ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+        </div>`;
+    }
+    return buildTable('', step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? 'active' : (i < currentStepIndex ? 'done' : '');
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}"></button>`;
+    }).join('');
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:10px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? 'disabled' : ''}>← Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? 'disabled' : ''}>Next →</button>
+      </div>`;
+  }
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML = renderSQL(step);
+    root.querySelector('.sv-legend').innerHTML = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => { el.open = window.innerWidth > 640; });
+  }
+
+  root.__viz = {
+    next: () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev: () => { if (currentStepIndex > 0) { currentStepIndex--; renderAll(); } },
+    goTo: i => { if (i >= 0 && i < data.steps.length) { currentStepIndex = i; renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'prev') root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+}
+
 const QS = [
 
 /* ══════════════════════════════════════════════════
@@ -326,33 +518,6 @@ const QS = [
     （同一 SELECT 内では HAVING が必要だが CTE 経由なら WHERE でよい）
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE内部の処理</strong> — FROM で取得したデータを GROUP BY で月ごとに集計</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>order_month</th><th class="tc-g">total_sales</th><th class="tc-hi">order_count</th><th class="tc-y">avg_order</th></tr>
-<tr><td>2024-01</td><td class="tc-g">95000</td><td class="tc-hi">3</td><td class="tc-y">31667</td></tr>
-<tr class="tr-hi"><td>2024-02</td><td class="tc-g">115000</td><td class="tc-hi">2</td><td class="tc-y">57500 ✅</td></tr>
-<tr><td>2024-03</td><td class="tc-g">120000</td><td class="tc-hi">3</td><td class="tc-y">40000</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">外側の WHERE avg_order &gt; 40000 でフィルタ（= 40000 は「超」ではないため除外）</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>最終出力</strong> — avg_order が 40,000 超の月のみ</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>order_month</th><th class="tc-g">total_sales</th><th class="tc-hi">order_count</th><th class="tc-y">avg_order</th></tr>
-<tr class="tr-hi"><td>2024-02</td><td class="tc-g">115000</td><td class="tc-hi">2</td><td class="tc-y">57500</td></tr>
-</table></div>
-</div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>CTE vs サブクエリ</strong> — 可読性の比較</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>書き方</th><th>構造</th><th>読みやすさ</th></tr>
-<tr class="tr-hi2"><td class="tc-g">CTE版（今回）</td><td>WITH → SELECT（上から下へ読む）</td><td class="tc-g">◎ 宣言的</td></tr>
-<tr><td class="tc-o">サブクエリ版</td><td>SELECT ... FROM (SELECT ...) WHERE ...</td><td class="tc-o">△ 内から外へ読む</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CTEは「使い捨ての名前付きクエリ」：</strong>定義したクエリの中でのみ有効で、クエリが終わると消えます。永続化するにはビュー（VIEW）かテーブル（CREATE TABLE AS）を使います。</div></div>
@@ -365,7 +530,89 @@ const QS = [
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>ダッシュボードでの集計処理：</strong>月次売上サマリAPIは、管理画面で最も頻繁に叩かれるエンドポイントの1つです。WITH句での集計対象（今回はorders全件）が数千万件など膨大になる場合、毎回リアルタイムで計算するとAPIが重くなります。実務では、このCTEにあたる集計処理を夜間バッチ等で「サマリーテーブル（データマート）」として事前に作成しておくアーキテクチャがよく採用されます。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'from', badge: '① FROM', bc: 'badge-blue',
+        label: 'FROM orders',
+        desc: 'orders テーブル全 8行を読み込みます。これが CTE monthly_summary の入力データです。',
+        type: 'base',
+        cols: ['order_id', 'order_month', 'amount'],
+        ch: ['col-base', 'col-base', 'col-base'],
+        rows: [
+          { v: [1, '2024-01', '30,000'] },
+          { v: [2, '2024-01', '45,000'] },
+          { v: [3, '2024-01', '20,000'] },
+          { v: [4, '2024-02', '55,000'] },
+          { v: [5, '2024-02', '60,000'] },
+          { v: [6, '2024-03', '80,000'] },
+          { v: [7, '2024-03', '15,000'] },
+          { v: [8, '2024-03', '25,000'] }
+        ],
+        cnt: '全 8行 読込' },
+
+      { id: 'group', badge: '② GROUP BY', bc: 'badge-orange',
+        label: 'GROUP BY order_month',
+        desc: 'order_month の値でグループ分けします。同色の行が同じグループです。次のステップでグループごとに SUM・COUNT・AVG を計算します。',
+        type: 'group',
+        cols: ['order_id', 'order_month', 'amount'],
+        ch: ['', 'col-eval', ''],
+        rows: [
+          { c: 'row-grp-1', v: [1, '2024-01', '30,000'] },
+          { c: 'row-grp-1', v: [2, '2024-01', '45,000'] },
+          { c: 'row-grp-1', v: [3, '2024-01', '20,000'] },
+          { c: 'row-grp-2', v: [4, '2024-02', '55,000'] },
+          { c: 'row-grp-2', v: [5, '2024-02', '60,000'] },
+          { c: 'row-grp-3', v: [6, '2024-03', '80,000'] },
+          { c: 'row-grp-3', v: [7, '2024-03', '15,000'] },
+          { c: 'row-grp-3', v: [8, '2024-03', '25,000'] }
+        ],
+        cnt: '3グループに分類' },
+
+      { id: 'agg', badge: '③ 集計 + WHERE', bc: 'badge-orange',
+        label: 'SUM / COUNT / AVG → WHERE avg_order > 40000',
+        desc: '各グループを1行に集約（SUM・COUNT・AVG）したあと、外側の WHERE avg_order > 40000 でフィルタします。2024-03 は avg = 40,000 ちょうどで「超」ではないため除外されます。',
+        type: 'eval',
+        cols: ['order_month', 'total_sales', 'order_count', 'avg_order'],
+        ch: ['', '', '', 'col-eval'],
+        rows: [
+          { c: 'row-dimmed', v: ['2024-01', '95,000', 3, '31,667'], cc: ['', '', '', 'val-fail'] },
+          { v: ['2024-02', '115,000', 2, '57,500'], cc: ['', '', '', 'val-pass'] },
+          { c: 'row-dimmed', v: ['2024-03', '120,000', 3, '40,000'], cc: ['', '', '', 'val-fail'] }
+        ],
+        cnt: '3行 → 1行' },
+
+      { id: 'select', badge: '④ SELECT', bc: 'badge-green',
+        label: 'SELECT order_month, total_sales, order_count, avg_order',
+        desc: 'WHERE を通過した 2024-02 の1行を最終出力します。ROUND(avg_order, 0) で整数に丸めています。',
+        type: 'select',
+        cols: ['order_month', 'total_sales', 'order_count', 'avg_order'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { v: ['2024-02', '115,000', 2, '57,500'] }
+        ],
+        cnt: '結果: 1行 × 4列' }
+    ],
+    sql: [
+      { t: 'WITH ', k: 'sql-kw', h: '' }, { t: 'monthly_summary', k: '', h: 'from agg' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT\n', k: 'sql-kw', h: 'agg select' },
+      { t: '    order_month,\n', k: '', h: 'group' },
+      { t: '    SUM(amount)   AS total_sales,\n', k: '', h: 'agg' },
+      { t: '    COUNT(*)      AS order_count,\n', k: '', h: 'agg' },
+      { t: '    AVG(amount)   AS avg_order\n', k: '', h: 'agg' },
+      { t: '  FROM ', k: 'sql-kw', h: 'from' }, { t: 'orders\n', k: '', h: 'from' },
+      { t: '  GROUP BY ', k: 'sql-kw', h: 'group' }, { t: 'order_month\n', k: '', h: 'group' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  order_month,\n', k: '', h: 'select' },
+      { t: '  total_sales,\n', k: '', h: 'select' },
+      { t: '  order_count,\n', k: '', h: 'select' },
+      { t: '  ROUND(avg_order, 0) AS avg_order\n', k: '', h: 'select' },
+      { t: 'FROM   ', k: 'sql-kw', h: 'from agg select' }, { t: 'monthly_summary\n', k: '', h: 'from agg select' },
+      { t: 'WHERE  ', k: 'sql-kw', h: 'agg' }, { t: 'avg_order > 40000\n', k: '', h: 'agg' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'order_month;', k: '', h: 'select' }
+    ]
+  }
 },
 
 /* ══════════════════════════════════════════════════
@@ -481,52 +728,6 @@ const QS = [
   ★ NTILE(4)は8行なら各バケット2行ずつ均等に振り分ける
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE① user_totals</strong> — orders を GROUP BY で集計（8ユーザー分）</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th class="tc-g">total_amount（降順）</th></tr>
-<tr><td>U03</td><td class="tc-g">200000</td></tr>
-<tr><td>U01</td><td class="tc-g">170000</td></tr>
-<tr><td>U08</td><td class="tc-g">160000</td></tr>
-<tr><td>U06</td><td class="tc-g">115000</td></tr>
-<tr><td>U04</td><td class="tc-g">75000</td></tr>
-<tr><td>U07</td><td class="tc-g">40000</td></tr>
-<tr><td>U02</td><td class="tc-g">30000</td></tr>
-<tr><td>U05</td><td class="tc-g">10000</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">NTILE(4) OVER(ORDER BY total_amount DESC) で8行を4等分（各2行ずつ）</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>CTE② user_ranked</strong> — バケット番号（quartile）が付与される</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th class="tc-g">total_amount</th><th class="tc-hi">quartile</th><th>位置</th></tr>
-<tr class="tr-hi"><td>U03</td><td class="tc-g">200000</td><td class="tc-hi">1</td><td>1位</td></tr>
-<tr class="tr-hi"><td>U01</td><td class="tc-g">170000</td><td class="tc-hi">1</td><td>2位</td></tr>
-<tr class="tr-hi2"><td>U08</td><td class="tc-g">160000</td><td class="tc-hi">2</td><td>3位</td></tr>
-<tr class="tr-hi2"><td>U06</td><td class="tc-g">115000</td><td class="tc-hi">2</td><td>4位</td></tr>
-<tr class="tr-hi3"><td>U04</td><td class="tc-g">75000</td><td class="tc-hi">3</td><td>5位</td></tr>
-<tr class="tr-hi3"><td>U07</td><td class="tc-g">40000</td><td class="tc-hi">3</td><td>6位</td></tr>
-<tr class="tr-hi4"><td>U02</td><td class="tc-g">30000</td><td class="tc-hi">4</td><td>7位</td></tr>
-<tr class="tr-hi4"><td>U05</td><td class="tc-g">10000</td><td class="tc-hi">4</td><td>8位</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">INNER JOIN users u ON r.user_id = u.user_id で名前を付加し整列</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — usersと結合し名前を付加、quartile順にソート</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th>user_name</th><th class="tc-g">total_amount</th><th class="tc-hi">quartile</th></tr>
-<tr class="tr-hi"><td>U03</td><td>Carol</td><td class="tc-g">200000</td><td class="tc-hi">1</td></tr>
-<tr class="tr-hi"><td>U01</td><td>Alice</td><td class="tc-g">170000</td><td class="tc-hi">1</td></tr>
-<tr class="tr-hi2"><td>U08</td><td>Hank</td><td class="tc-g">160000</td><td class="tc-hi">2</td></tr>
-<tr class="tr-hi2"><td>U06</td><td>Frank</td><td class="tc-g">115000</td><td class="tc-hi">2</td></tr>
-<tr class="tr-hi3"><td>U04</td><td>Dave</td><td class="tc-g">75000</td><td class="tc-hi">3</td></tr>
-<tr class="tr-hi3"><td>U07</td><td>Grace</td><td class="tc-g">40000</td><td class="tc-hi">3</td></tr>
-<tr class="tr-hi4"><td>U02</td><td>Bob</td><td class="tc-g">30000</td><td class="tc-hi">4</td></tr>
-<tr class="tr-hi4"><td>U05</td><td>Eve</td><td class="tc-g">10000</td><td class="tc-hi">4</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CTEパイプラインの実務価値：</strong>「集計→ランク付け→結合」の3ステップを宣言的に分離できます。NTILEを5分位に変えたいなら <code>user_ranked</code> のCTEだけ修正すればOKです。</div></div>
@@ -539,7 +740,87 @@ const QS = [
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>CRMのセグメント配信：</strong>NTILEを使ったランク付けは、メルマガやPush通知のセグメント分け（上位25%には限定VIPオファー、下位25%には再訪を促すクーポンなど）でそのまま活用できます。実務では、計算リソースを節約するため、全期間の購入ではなく「直近1年間」のようにWHERE句で事前にデータを絞ってからNTILEにかけるのが一般的です。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'group', badge: '① CTE① GROUP BY', bc: 'badge-orange',
+        label: 'user_totals: GROUP BY user_id → SUM(amount)',
+        desc: 'orders テーブルを user_id でグループ化し、SUM(amount) でユーザーごとの合計購入額を集計します。U01 は2件（120,000 + 50,000）、U06 も2件（95,000 + 20,000）あります。',
+        type: 'group',
+        cols: ['user_id', 'total_amount'],
+        ch: ['col-eval', 'col-eval'],
+        rows: [
+          { c: 'row-grp-1', v: ['U03', '200,000'] },
+          { c: 'row-grp-2', v: ['U01', '170,000'] },
+          { c: 'row-grp-3', v: ['U08', '160,000'] },
+          { v: ['U06', '115,000'] },
+          { v: ['U04', '75,000'] },
+          { v: ['U07', '40,000'] },
+          { v: ['U02', '30,000'] },
+          { v: ['U05', '10,000'] }
+        ],
+        cnt: '10行 → 8ユーザー分に集約' },
+
+      { id: 'agg', badge: '② CTE② NTILE(4)', bc: 'badge-orange',
+        label: 'user_ranked: NTILE(4) OVER (ORDER BY total_amount DESC)',
+        desc: '8行を購入額降順で NTILE(4) により4等分し、バケット番号（quartile 1〜4）を付与します。8行 ÷ 4 = 各バケット2行ずつ均等に割り当てられます。',
+        type: 'group',
+        cols: ['user_id', 'total_amount', 'quartile'],
+        ch: ['', 'col-eval', 'col-eval'],
+        rows: [
+          { c: 'row-grp-1', v: ['U03', '200,000', 1] },
+          { c: 'row-grp-1', v: ['U01', '170,000', 1] },
+          { c: 'row-grp-2', v: ['U08', '160,000', 2] },
+          { c: 'row-grp-2', v: ['U06', '115,000', 2] },
+          { c: 'row-grp-3', v: ['U04', '75,000', 3] },
+          { c: 'row-grp-3', v: ['U07', '40,000', 3] },
+          { v: ['U02', '30,000', 4] },
+          { v: ['U05', '10,000', 4] }
+        ],
+        cnt: '4グループ × 2行ずつ' },
+
+      { id: 'select', badge: '③ JOIN + SELECT', bc: 'badge-green',
+        label: 'INNER JOIN users ON user_id → SELECT',
+        desc: 'user_ranked と users テーブルを user_id で結合し、ユーザー名を付加します。ORDER BY quartile, total_amount DESC で最終出力します。',
+        type: 'select',
+        cols: ['user_id', 'user_name', 'total_amount', 'quartile'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { c: 'row-grp-1', v: ['U03', 'Carol', '200,000', 1] },
+          { c: 'row-grp-1', v: ['U01', 'Alice', '170,000', 1] },
+          { c: 'row-grp-2', v: ['U08', 'Hank', '160,000', 2] },
+          { c: 'row-grp-2', v: ['U06', 'Frank', '115,000', 2] },
+          { c: 'row-grp-3', v: ['U04', 'Dave', '75,000', 3] },
+          { c: 'row-grp-3', v: ['U07', 'Grace', '40,000', 3] },
+          { v: ['U02', 'Bob', '30,000', 4] },
+          { v: ['U05', 'Eve', '10,000', 4] }
+        ],
+        cnt: '結果: 8行 × 4列' }
+    ],
+    sql: [
+      { t: 'WITH\n', k: 'sql-kw', h: '' },
+      { t: 'user_totals', k: '', h: 'group' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT ', k: 'sql-kw', h: 'group' }, { t: 'user_id,\n', k: '', h: 'group' },
+      { t: '    SUM(amount) AS total_amount\n', k: '', h: 'group' },
+      { t: '  FROM ', k: 'sql-kw', h: 'group' }, { t: 'orders\n', k: '', h: 'group' },
+      { t: '  GROUP BY ', k: 'sql-kw', h: 'group' }, { t: 'user_id\n', k: '', h: 'group' },
+      { t: '),\n', k: '', h: '' },
+      { t: 'user_ranked', k: '', h: 'agg' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT ', k: 'sql-kw', h: 'agg' }, { t: 'user_id, total_amount,\n', k: '', h: 'agg' },
+      { t: '    NTILE(4) OVER (\n', k: '', h: 'agg' },
+      { t: '      ORDER BY ', k: 'sql-kw', h: 'agg' }, { t: 'total_amount DESC\n', k: '', h: 'agg' },
+      { t: '    ) AS quartile\n', k: '', h: 'agg' },
+      { t: '  FROM ', k: 'sql-kw', h: 'agg' }, { t: 'user_totals\n', k: '', h: 'agg' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  r.user_id, u.user_name,\n', k: '', h: 'select' },
+      { t: '  r.total_amount, r.quartile\n', k: '', h: 'select' },
+      { t: 'FROM ', k: 'sql-kw', h: 'select' }, { t: 'user_ranked r\n', k: '', h: 'select' },
+      { t: 'INNER JOIN ', k: 'sql-kw', h: 'select' }, { t: 'users u\n', k: '', h: 'select' },
+      { t: '  ON ', k: 'sql-kw', h: 'select' }, { t: 'r.user_id = u.user_id\n', k: '', h: 'select' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'r.quartile, r.total_amount DESC;', k: '', h: 'select' }
+    ]
+  }
 },
 
 /* ══════════════════════════════════════════════════
@@ -630,33 +911,6 @@ const QS = [
     （ウィンドウ関数はSELECT相当のタイミング = WHEREより後に評価される）
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE内処理</strong> — PARTITION BY category でカテゴリごとに番号リセット</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>category</th><th>product_name</th><th>sales</th><th class="tc-hi">rn</th></tr>
-<tr class="tr-hi"><td>Drink</td><td>緑茶</td><td>95000</td><td class="tc-hi">1 ✅</td></tr>
-<tr class="tr-hi"><td>Drink</td><td>コーヒー</td><td>78000</td><td class="tc-hi">2 ✅</td></tr>
-<tr><td>Drink</td><td>ジュース</td><td>78000</td><td class="tc-r">3 ✗除外</td></tr>
-<tr><td>Drink</td><td>水</td><td>55000</td><td class="tc-r">4 ✗除外</td></tr>
-<tr class="tr-hi2"><td>Food</td><td>りんご</td><td>85000</td><td class="tc-hi">1 ✅（Foodでリセット）</td></tr>
-<tr class="tr-hi2"><td>Food</td><td>バナナ</td><td>62000</td><td class="tc-hi">2 ✅</td></tr>
-<tr><td>Food</td><td>みかん</td><td>62000</td><td class="tc-r">3 ✗除外（同率でも強制分離）</td></tr>
-<tr><td>Food</td><td>ぶどう</td><td>41000</td><td class="tc-r">4 ✗除外</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">WHERE rn &lt;= 2 で上位2件だけ残す</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>ROW_NUMBER vs RANK vs DENSE_RANK</strong> — 同率78000の扱い比較（Drinkカテゴリ）</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>商品</th><th>sales</th><th class="tc-hi">ROW_NUMBER</th><th class="tc-g">RANK</th><th class="tc-p">DENSE_RANK</th></tr>
-<tr><td>緑茶</td><td>95000</td><td class="tc-hi">1</td><td class="tc-g">1</td><td class="tc-p">1</td></tr>
-<tr><td>コーヒー</td><td>78000</td><td class="tc-hi">2（強制連番）</td><td class="tc-g">2（同率）</td><td class="tc-p">2（同率）</td></tr>
-<tr><td>ジュース</td><td>78000</td><td class="tc-hi">3（強制連番）</td><td class="tc-g">2（同率）</td><td class="tc-p">2（飛ばさず）</td></tr>
-<tr><td>水</td><td>55000</td><td class="tc-hi">4</td><td class="tc-g">4（3を飛ばす）</td><td class="tc-p">3</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>「上位N件API」の基本形：</strong>ECの「カテゴリ別人気商品ランキング」「地域別売上トップ3店舗」など、カテゴリ×トップN の取得はどのシステムでも現れるパターンです。CTE+ROW_NUMBERの型を覚えると汎用的に使えます。</div></div>
@@ -669,7 +923,94 @@ const QS = [
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>「各ジャンルの人気ランキング」API：</strong>トップN抽出は、ECサイトのトップページ等で「カテゴリ別おすすめ商品」を表示する際によく使われます。ユーザーからのリクエストのたびに全商品のROW_NUMBERを計算するのは非効率なため、実売上ではなく「直近1週間の売上」に絞ってCTE内で対象データを減らしておくなど、パフォーマンスチューニングが腕の見せ所になります。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'from', badge: '① FROM', bc: 'badge-blue',
+        label: 'FROM product_sales',
+        desc: 'product_sales テーブル全 8行を読み込みます。CTE ranked_products の入力データです。',
+        type: 'base',
+        cols: ['product_id', 'category', 'product_name', 'sales'],
+        ch: ['col-base', 'col-base', 'col-base', 'col-base'],
+        rows: [
+          { v: ['P01', 'Food', 'りんご', '85,000'] },
+          { v: ['P02', 'Food', 'バナナ', '62,000'] },
+          { v: ['P03', 'Food', 'みかん', '62,000'] },
+          { v: ['P04', 'Food', 'ぶどう', '41,000'] },
+          { v: ['P05', 'Drink', '緑茶', '95,000'] },
+          { v: ['P06', 'Drink', 'コーヒー', '78,000'] },
+          { v: ['P07', 'Drink', 'ジュース', '78,000'] },
+          { v: ['P08', 'Drink', '水', '55,000'] }
+        ],
+        cnt: '全 8行 読込' },
+
+      { id: 'group', badge: '② PARTITION BY + ROW_NUMBER', bc: 'badge-orange',
+        label: 'ROW_NUMBER() OVER (PARTITION BY category ORDER BY sales DESC)',
+        desc: 'category でパーティション分割し、各カテゴリ内で sales 降順に ROW_NUMBER を振ります。同率（62,000 / 78,000）でも強制的に連番になります。カテゴリが変わると番号は 1 からリセットされます。',
+        type: 'group',
+        cols: ['product_id', 'category', 'product_name', 'sales', 'rn'],
+        ch: ['', 'col-eval', '', '', 'col-eval'],
+        rows: [
+          { c: 'row-grp-1', v: ['P05', 'Drink', '緑茶', '95,000', 1] },
+          { c: 'row-grp-1', v: ['P06', 'Drink', 'コーヒー', '78,000', 2] },
+          { c: 'row-grp-1', v: ['P07', 'Drink', 'ジュース', '78,000', 3] },
+          { c: 'row-grp-1', v: ['P08', 'Drink', '水', '55,000', 4] },
+          { c: 'row-grp-2', v: ['P01', 'Food', 'りんご', '85,000', 1] },
+          { c: 'row-grp-2', v: ['P02', 'Food', 'バナナ', '62,000', 2] },
+          { c: 'row-grp-2', v: ['P03', 'Food', 'みかん', '62,000', 3] },
+          { c: 'row-grp-2', v: ['P04', 'Food', 'ぶどう', '41,000', 4] }
+        ],
+        cnt: 'カテゴリ別に連番付与（各4行）' },
+
+      { id: 'where', badge: '③ WHERE rn ≤ 2', bc: 'badge-orange',
+        label: 'WHERE rn <= 2 — 各カテゴリの上位2件のみ残す',
+        desc: 'rn が 2 以下の行だけを残します。同率だった ジュース・みかん は ROW_NUMBER で強制分離されるため rn=3 となり除外されます。',
+        type: 'eval',
+        cols: ['product_id', 'category', 'product_name', 'sales', 'rn'],
+        ch: ['', '', '', '', 'col-eval'],
+        rows: [
+          { v: ['P05', 'Drink', '緑茶', '95,000', 1], cc: ['', '', '', '', 'val-pass'] },
+          { v: ['P06', 'Drink', 'コーヒー', '78,000', 2], cc: ['', '', '', '', 'val-pass'] },
+          { c: 'row-dimmed', v: ['P07', 'Drink', 'ジュース', '78,000', 3], cc: ['', '', '', '', 'val-fail'] },
+          { c: 'row-dimmed', v: ['P08', 'Drink', '水', '55,000', 4], cc: ['', '', '', '', 'val-fail'] },
+          { v: ['P01', 'Food', 'りんご', '85,000', 1], cc: ['', '', '', '', 'val-pass'] },
+          { v: ['P02', 'Food', 'バナナ', '62,000', 2], cc: ['', '', '', '', 'val-pass'] },
+          { c: 'row-dimmed', v: ['P03', 'Food', 'みかん', '62,000', 3], cc: ['', '', '', '', 'val-fail'] },
+          { c: 'row-dimmed', v: ['P04', 'Food', 'ぶどう', '41,000', 4], cc: ['', '', '', '', 'val-fail'] }
+        ],
+        cnt: '8行 → 4行' },
+
+      { id: 'select', badge: '④ SELECT + ORDER BY', bc: 'badge-green',
+        label: 'SELECT category, product_name, sales, rn',
+        desc: 'フィルタを通過した4行を ORDER BY category, rn で整列して最終出力します。',
+        type: 'select',
+        cols: ['category', 'product_name', 'sales', 'rn'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { v: ['Drink', '緑茶', '95,000', 1] },
+          { v: ['Drink', 'コーヒー', '78,000', 2] },
+          { v: ['Food', 'りんご', '85,000', 1] },
+          { v: ['Food', 'バナナ', '62,000', 2] }
+        ],
+        cnt: '結果: 4行 × 4列' }
+    ],
+    sql: [
+      { t: 'WITH ', k: 'sql-kw', h: '' }, { t: 'ranked_products', k: '', h: 'group where select' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT\n', k: 'sql-kw', h: 'group' },
+      { t: '    category, product_name, sales,\n', k: '', h: 'group' },
+      { t: '    ROW_NUMBER() OVER (\n', k: '', h: 'group' },
+      { t: '      PARTITION BY ', k: 'sql-kw', h: 'group' }, { t: 'category\n', k: '', h: 'group' },
+      { t: '      ORDER BY ', k: 'sql-kw', h: 'group' }, { t: 'sales DESC\n', k: '', h: 'group' },
+      { t: '    ) AS rn\n', k: '', h: 'group' },
+      { t: '  FROM ', k: 'sql-kw', h: 'from' }, { t: 'product_sales\n', k: '', h: 'from' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  category, product_name, sales, rn\n', k: '', h: 'select' },
+      { t: 'FROM   ', k: 'sql-kw', h: 'group where select' }, { t: 'ranked_products\n', k: '', h: 'group where select' },
+      { t: 'WHERE  ', k: 'sql-kw', h: 'where' }, { t: 'rn <= 2\n', k: '', h: 'where' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'category, rn;', k: '', h: 'select' }
+    ]
+  }
 },
 
 /* ══════════════════════════════════════════════════
@@ -754,30 +1095,6 @@ const QS = [
     （同じSELECT内で LAG結果の別名を使って計算はできない）
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE内: LAG の動作</strong> — 各行に「1行前の sales」が追加される</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>order_month</th><th class="tc-g">sales</th><th class="tc-hi">prev_sales（LAG結果）</th><th>説明</th></tr>
-<tr><td>2024-01</td><td class="tc-g">100000</td><td class="null">NULL</td><td>前の行がないためNULL</td></tr>
-<tr><td>2024-02</td><td class="tc-g">120000</td><td class="tc-hi">100000</td><td>1行前（2024-01）の値</td></tr>
-<tr><td>2024-03</td><td class="tc-g">108000</td><td class="tc-hi">120000</td><td>1行前（2024-02）の値</td></tr>
-<tr><td>2024-04</td><td class="tc-g">135000</td><td class="tc-hi">108000</td><td>1行前（2024-03）の値</td></tr>
-<tr><td>2024-05</td><td class="tc-g">135000</td><td class="tc-hi">135000</td><td>1行前（2024-04）の値</td></tr>
-<tr><td>2024-06</td><td class="tc-g">150000</td><td class="tc-hi">135000</td><td>1行前（2024-05）の値</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">(sales - prev_sales) * 100.0 / NULLIF(prev_sales, 0) で成長率計算</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>NULLの伝播</strong> — 計算式にNULLが含まれると結果もNULL</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>order_month</th><th>計算式</th><th class="tc-y">mom_rate</th></tr>
-<tr><td>2024-01</td><td>(100000 - NULL) * 100.0 / NULLIF(NULL,0)</td><td class="null">NULL（NULL伝播）</td></tr>
-<tr><td>2024-02</td><td>(120000 - 100000) * 100.0 / 100000</td><td class="tc-y">20.0</td></tr>
-<tr><td>2024-03</td><td>(108000 - 120000) * 100.0 / 120000</td><td class="tc-r">-10.0</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAGの実務用途：</strong>売上の前月比、ユーザー数の前週比、株価の前日比など時系列分析で必須。ダッシュボードAPIで「矢印↑↓」を表示するデータを返す際に使います。</div></div>
@@ -791,7 +1108,76 @@ const QS = [
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>時系列推移と前月比の可視化：</strong>MoM（月次成長率）やYoY（年次成長率）の計算は、BIツールやダッシュボードAPIの裏側で常に動いています。フロントエンドのグラフで「前月比↑15%」といった表示をするための必須データです。実務では、「前月が売上0だった場合（ゼロ除算）」や「前月が存在しない場合（NULL）」のエッジケースをいかに安全にハンドリングするかが品質を左右します。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'from', badge: '① FROM', bc: 'badge-blue',
+        label: 'FROM monthly_sales',
+        desc: 'monthly_sales テーブル全 6行を読み込みます。CTE sales_with_lag の入力データです。',
+        type: 'base',
+        cols: ['order_month', 'sales'],
+        ch: ['col-base', 'col-base'],
+        rows: [
+          { v: ['2024-01', '100,000'] },
+          { v: ['2024-02', '120,000'] },
+          { v: ['2024-03', '108,000'] },
+          { v: ['2024-04', '135,000'] },
+          { v: ['2024-05', '135,000'] },
+          { v: ['2024-06', '150,000'] }
+        ],
+        cnt: '全 6行 読込' },
+
+      { id: 'agg', badge: '② CTE: LAG(sales, 1)', bc: 'badge-orange',
+        label: 'LAG(sales, 1) OVER (ORDER BY order_month) AS prev_sales',
+        desc: 'order_month 昇順に並べたとき、各行の1行前の sales を prev_sales として追加します。最初の行（2024-01）は前の行がないため NULL になります（NULL伝播：NULL を含む演算は結果も NULL）。',
+        type: 'eval',
+        cols: ['order_month', 'sales', 'prev_sales'],
+        ch: ['', 'col-eval', 'col-eval'],
+        rows: [
+          { v: ['2024-01', '100,000', 'NULL'], cc: ['', '', 'val-dimmed'] },
+          { v: ['2024-02', '120,000', '100,000'] },
+          { v: ['2024-03', '108,000', '120,000'] },
+          { v: ['2024-04', '135,000', '108,000'] },
+          { v: ['2024-05', '135,000', '135,000'] },
+          { v: ['2024-06', '150,000', '135,000'] }
+        ],
+        cnt: '全 6行（先頭の prev_sales は NULL）' },
+
+      { id: 'select', badge: '③ SELECT + mom_rate', bc: 'badge-green',
+        label: 'ROUND((sales - prev_sales) * 100.0 / NULLIF(prev_sales, 0), 1)',
+        desc: 'CTE の prev_sales を使って前月比（mom_rate）を計算します。NULL を含む演算は全体も NULL になります。NULLIF(prev_sales, 0) はゼロ除算を防ぐための記述です。',
+        type: 'select',
+        cols: ['order_month', 'sales', 'prev_sales', 'mom_rate'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { v: ['2024-01', '100,000', 'NULL', 'NULL'] },
+          { v: ['2024-02', '120,000', '100,000', '+20.0'] },
+          { v: ['2024-03', '108,000', '120,000', '-10.0'] },
+          { v: ['2024-04', '135,000', '108,000', '+25.0'] },
+          { v: ['2024-05', '135,000', '135,000', '0.0'] },
+          { v: ['2024-06', '150,000', '135,000', '+11.1'] }
+        ],
+        cnt: '結果: 6行 × 4列' }
+    ],
+    sql: [
+      { t: 'WITH ', k: 'sql-kw', h: '' }, { t: 'sales_with_lag', k: '', h: 'agg' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT\n', k: 'sql-kw', h: 'agg' },
+      { t: '    order_month, sales,\n', k: '', h: 'agg' },
+      { t: '    LAG(sales, 1) OVER (\n', k: '', h: 'agg' },
+      { t: '      ORDER BY ', k: 'sql-kw', h: 'agg' }, { t: 'order_month\n', k: '', h: 'agg' },
+      { t: '    ) AS prev_sales\n', k: '', h: 'agg' },
+      { t: '  FROM ', k: 'sql-kw', h: 'from' }, { t: 'monthly_sales\n', k: '', h: 'from' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  order_month, sales, prev_sales,\n', k: '', h: 'select' },
+      { t: '  ROUND(\n', k: '', h: 'select' },
+      { t: '    (sales - prev_sales) * 100.0\n', k: '', h: 'select' },
+      { t: '    / NULLIF(prev_sales, 0)\n', k: '', h: 'select' },
+      { t: '  , 1) AS mom_rate\n', k: '', h: 'select' },
+      { t: 'FROM     ', k: 'sql-kw', h: 'agg select' }, { t: 'sales_with_lag\n', k: '', h: 'agg select' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'order_month;', k: '', h: 'select' }
+    ]
+  }
 },
 
 /* ══════════════════════════════════════════════════
@@ -895,27 +1281,6 @@ const QS = [
   ★ || は PostgreSQL の文字列連結（MySQL は CONCAT()、BigQuery は || も可）
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>アンカー（Iter 0）</strong> — manager_id IS NULL = 田中社長を起点に</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>emp_id</th><th>name</th><th class="tc-hi">depth</th><th class="tc-g">path</th></tr>
-<tr class="tr-hi"><td>1</td><td>田中（社長）</td><td class="tc-hi">0</td><td class="tc-g">田中（社長）</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">employees e JOIN org_tree t ON e.manager_id = t.emp_id（t = 上記の1行）</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>再帰の反復</strong> — UNION ALL で縦積みされていく</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>反復</th><th>追加される行</th><th class="tc-hi">depth</th></tr>
-<tr><td>Iter 0</td><td>田中（社長）</td><td class="tc-hi">0</td></tr>
-<tr><td>Iter 1</td><td>鈴木（営業部長）、佐藤（技術部長）</td><td class="tc-hi">1</td></tr>
-<tr><td>Iter 2</td><td>山田（営業係長）、渡辺（技術リード）</td><td class="tc-hi">2</td></tr>
-<tr><td>Iter 3</td><td>伊藤（営業担当）</td><td class="tc-hi">3</td></tr>
-<tr><td>Iter 4</td><td>（JOIN 0行 → 再帰終了）</td><td class="null">—</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>再帰CTEの実務用途：</strong>組織階層API・ECサイトのカテゴリツリーAPI・フォルダ構造・製品BOM（部品表）展開など、階層構造を扱うシステムで必須です。通常のJOINでは「何段階あるか分からない」ケースに対応できません。</div></div>
@@ -928,7 +1293,74 @@ const QS = [
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>階層データのツリー構造化：</strong>再帰CTEは組織図だけでなく、スレッド式のコメント機能（親コメントに対する返信のツリー）や、ファイルシステムのディレクトリ構造を取得するAPIなどで大活躍します。注意点として、実データの入力ミス等により「Aさんの上司がBさん、Bさんの上司がAさん」という循環参照が起こると無限ループに陥りDBのリソースを枯渇させます。そのため、<code>WHERE depth < 10</code> のような深さのフェールセーフ（安全装置）を必ず入れるのがプロの鉄則です。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'from', badge: '① アンカー (Iter 0)', bc: 'badge-blue',
+        label: 'WHERE manager_id IS NULL — 起点の1行を選ぶ',
+        desc: 'WITH RECURSIVE の最初のSELECT（アンカーメンバー）が実行されます。manager_id IS NULL の行、つまり最上位の田中（社長）だけが再帰の種になります。depth=0、path はそのまま自分の名前です。',
+        type: 'base',
+        cols: ['emp_id', 'name', 'manager_id', 'depth', 'path'],
+        ch: ['col-base', 'col-base', 'col-base', 'col-base', 'col-base'],
+        rows: [
+          { v: [1, '田中（社長）', 'NULL', 0, '田中（社長）'] }
+        ],
+        cnt: 'アンカー: 1行' },
+
+      { id: 'sub', badge: '② 再帰メンバー (Iter 1〜3)', bc: 'badge-orange',
+        label: 'JOIN employees ON e.manager_id = t.emp_id — 部下を追加',
+        desc: '前のイテレーションで確定した行の emp_id を使い、その部下（e.manager_id = t.emp_id）を JOIN し続けます。各反復で depth に +1 し、path は "→" で連結します。JOIN 結果が 0行になった時点で再帰が終了します。',
+        type: 'eval',
+        cols: ['反復', 'emp_id', 'name', 'depth'],
+        ch: ['col-eval', '', 'col-eval', 'col-eval'],
+        rows: [
+          { c: 'row-grp-1', v: ['Iter 1', 2, '鈴木（営業部長）', 1], cc: ['val-pass'] },
+          { c: 'row-grp-1', v: ['Iter 1', 3, '佐藤（技術部長）', 1], cc: ['val-pass'] },
+          { c: 'row-grp-2', v: ['Iter 2', 4, '山田（営業係長）', 2], cc: ['val-pass'] },
+          { c: 'row-grp-2', v: ['Iter 2', 6, '渡辺（技術リード）', 2], cc: ['val-pass'] },
+          { c: 'row-grp-3', v: ['Iter 3', 5, '伊藤（営業担当）', 3], cc: ['val-pass'] },
+          { c: 'row-dimmed', v: ['Iter 4', '—', 'JOIN 0行 → 終了', '—'] }
+        ],
+        cnt: '3回の反復で計5行追加' },
+
+      { id: 'select', badge: '③ UNION ALL + ORDER BY', bc: 'badge-green',
+        label: '全イテレーション UNION ALL → ORDER BY depth, emp_id',
+        desc: 'アンカー（1行）と3回の再帰結果を UNION ALL で縦積みした全 6行を、ORDER BY depth, emp_id で整列して最終出力します。',
+        type: 'select',
+        cols: ['emp_id', 'name', 'manager_id', 'depth', 'path（短縮）'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { v: [1, '田中（社長）', 'NULL', 0, '田中（社長）'] },
+          { v: [2, '鈴木（営業部長）', 1, 1, '田中…→鈴木…'] },
+          { v: [3, '佐藤（技術部長）', 1, 1, '田中…→佐藤…'] },
+          { v: [4, '山田（営業係長）', 2, 2, '田中…→鈴木…→山田…'] },
+          { v: [6, '渡辺（技術リード）', 3, 2, '田中…→佐藤…→渡辺…'] },
+          { v: [5, '伊藤（営業担当）', 4, 3, '田中…→鈴木…→山田…→伊藤…'] }
+        ],
+        cnt: '結果: 6行 × 5列' }
+    ],
+    sql: [
+      { t: 'WITH RECURSIVE ', k: 'sql-kw', h: '' }, { t: 'org_tree', k: '', h: 'from sub select' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT\n', k: 'sql-kw', h: 'from' },
+      { t: '    emp_id, name, manager_id,\n', k: '', h: 'from' },
+      { t: '    0 AS depth, name AS path\n', k: '', h: 'from' },
+      { t: '  FROM ', k: 'sql-kw', h: 'from' }, { t: 'employees\n', k: '', h: 'from' },
+      { t: '  WHERE ', k: 'sql-kw', h: 'from' }, { t: 'manager_id IS NULL\n', k: '', h: 'from' },
+      { t: '  UNION ALL\n', k: 'sql-kw', h: 'sub' },
+      { t: '  SELECT\n', k: 'sql-kw', h: 'sub' },
+      { t: '    e.emp_id, e.name, e.manager_id,\n', k: '', h: 'sub' },
+      { t: "    t.depth + 1, t.path || '→' || e.name\n", k: '', h: 'sub' },
+      { t: '  FROM ', k: 'sql-kw', h: 'sub' }, { t: 'employees e\n', k: '', h: 'sub' },
+      { t: '  INNER JOIN ', k: 'sql-kw', h: 'sub' }, { t: 'org_tree t\n', k: '', h: 'sub' },
+      { t: '    ON ', k: 'sql-kw', h: 'sub' }, { t: 'e.manager_id = t.emp_id\n', k: '', h: 'sub' },
+      { t: '  WHERE ', k: 'sql-kw', h: 'sub' }, { t: 't.depth < 10\n', k: '', h: 'sub' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  emp_id, name, manager_id, depth, path\n', k: '', h: 'select' },
+      { t: 'FROM     ', k: 'sql-kw', h: 'select' }, { t: 'org_tree\n', k: '', h: 'select' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'depth, emp_id;', k: '', h: 'select' }
+    ]
+  }
 },
 
 /* ══════════════════════════════════════════════════
@@ -1041,29 +1473,6 @@ const QS = [
   ★ COALESCE(val, 0) はNULLを0に変換する最頻出パターン
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CROSS JOIN で全組み合わせ生成</strong> — 3月 × 3商品 = 9行</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>sale_month</th><th>product_id</th><th>（実績あり?）</th></tr>
-<tr><td>2024-01</td><td>P01</td><td class="tc-g">✅ 30000</td></tr>
-<tr><td>2024-01</td><td>P02</td><td class="tc-g">✅ 45000</td></tr>
-<tr class="tr-hi4"><td>2024-01</td><td>P03</td><td class="tc-r">❌ なし → NULL</td></tr>
-<tr><td>2024-02</td><td>P01</td><td class="tc-g">✅ 50000</td></tr>
-<tr class="tr-hi4"><td>2024-02</td><td>P02</td><td class="tc-r">❌ なし → NULL</td></tr>
-<tr class="tr-hi4"><td>2024-02</td><td>P03</td><td class="tc-r">❌ なし → NULL</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">LEFT JOIN → NULL を COALESCE(total_sales, 0) で 0 に変換</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>INNER JOIN vs LEFT JOIN の違い</strong> — 欠損行の有無</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>JOIN種類</th><th>2024-01/P03（実績なし）の扱い</th><th>出力行数</th></tr>
-<tr class="tr-hi2"><td class="tc-g">LEFT JOIN（正解）</td><td class="tc-g">残す（NULL→0）</td><td class="tc-g">9行</td></tr>
-<tr><td class="tc-r">INNER JOIN（NG）</td><td class="tc-r">消える（欠損が発生）</td><td class="tc-r">5行のみ</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>0埋めパターンの実務価値：</strong>折れ線グラフAPIで「データがない月は0」で返さないとフロントエンドのグラフが途切れます。CTE+CROSS JOIN+LEFT JOIN+COALESCEの組み合わせは「完全マトリックス生成」の王道パターンです。</div></div>
@@ -1076,7 +1485,120 @@ const QS = [
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>フロントエンド向けデータの「欠損埋め」：</strong>完全マトリックスを作成して0で埋める処理は、フロントエンドエンジニアから最も感謝される配慮の一つです。APIが「売上があった月・商品」のデータしか返さないと、グラフ描画ライブラリ（Chart.jsなど）でX軸の日付が飛んだりズレたりするバグの温床になります。サーバー側で欠損を0埋めした完全な時系列データを返すのが、堅牢なAPI設計の基本です。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'from', badge: '① FROM (入力テーブル)', bc: 'badge-blue',
+        label: 'months (3行) × products (3行)',
+        desc: 'months CTE は固定の月リスト（3行）を生成します。products テーブルは3商品（3行）です。次のステップで CROSS JOIN によりこれら全組み合わせ（3×3=9行）を作ります。',
+        type: 'base', join: true,
+        left: {
+          label: 'CTE months',
+          cols: ['sale_month'],
+          ch: ['col-base'],
+          rows: [
+            { v: ['2024-01'] },
+            { v: ['2024-02'] },
+            { v: ['2024-03'] }
+          ]
+        },
+        right: {
+          label: 'products',
+          cols: ['product_id', 'product_name'],
+          ch: ['col-base', 'col-base'],
+          rows: [
+            { v: ['P01', 'りんご'] },
+            { v: ['P02', 'バナナ'] },
+            { v: ['P03', 'みかん'] }
+          ]
+        },
+        cnt: '左: 3行 / 右: 3行' },
+
+      { id: 'join', badge: '② CROSS JOIN', bc: 'badge-blue',
+        label: 'all_combinations: months CROSS JOIN products → 3×3=9行',
+        desc: '結合条件なしで全行の組み合わせ（直積）を生成します。3月 × 3商品 = 9行の「全組み合わせ」テーブルが完成します。実績がない月・商品の組み合わせも必ず含まれます。',
+        type: 'base',
+        cols: ['sale_month', 'product_id', 'product_name'],
+        ch: ['col-base', 'col-base', 'col-base'],
+        rows: [
+          { v: ['2024-01', 'P01', 'りんご'] },
+          { v: ['2024-01', 'P02', 'バナナ'] },
+          { v: ['2024-01', 'P03', 'みかん'] },
+          { v: ['2024-02', 'P01', 'りんご'] },
+          { v: ['2024-02', 'P02', 'バナナ'] },
+          { v: ['2024-02', 'P03', 'みかん'] },
+          { v: ['2024-03', 'P01', 'りんご'] },
+          { v: ['2024-03', 'P02', 'バナナ'] },
+          { v: ['2024-03', 'P03', 'みかん'] }
+        ],
+        cnt: '全 9行（3×3の直積）' },
+
+      { id: 'agg', badge: '③ LEFT JOIN sales_agg', bc: 'badge-orange',
+        label: 'all_combinations LEFT JOIN sales_agg ON 月 AND 商品',
+        desc: '全組み合わせを左テーブルとして sales_agg を LEFT JOIN します。実績がない組み合わせは total_sales が NULL になります。INNER JOIN では実績なし行が消えてしまうため LEFT JOIN が必須です。',
+        type: 'eval',
+        cols: ['sale_month', 'product_id', 'product_name', 'total_sales(結合後)'],
+        ch: ['', '', '', 'col-eval'],
+        rows: [
+          { v: ['2024-01', 'P01', 'りんご', '30,000'], cc: ['', '', '', 'val-pass'] },
+          { v: ['2024-01', 'P02', 'バナナ', '45,000'], cc: ['', '', '', 'val-pass'] },
+          { v: ['2024-01', 'P03', 'みかん', 'NULL'],   cc: ['', '', '', 'val-dimmed'] },
+          { v: ['2024-02', 'P01', 'りんご', '50,000'], cc: ['', '', '', 'val-pass'] },
+          { v: ['2024-02', 'P02', 'バナナ', 'NULL'],   cc: ['', '', '', 'val-dimmed'] },
+          { v: ['2024-02', 'P03', 'みかん', 'NULL'],   cc: ['', '', '', 'val-dimmed'] },
+          { v: ['2024-03', 'P01', 'りんご', 'NULL'],   cc: ['', '', '', 'val-dimmed'] },
+          { v: ['2024-03', 'P02', 'バナナ', '20,000'], cc: ['', '', '', 'val-pass'] },
+          { v: ['2024-03', 'P03', 'みかん', '35,000'], cc: ['', '', '', 'val-pass'] }
+        ],
+        cnt: '実績あり 5行 / NULL 4行' },
+
+      { id: 'select', badge: '④ COALESCE + SELECT', bc: 'badge-green',
+        label: 'COALESCE(s.total_sales, 0) AS total_sales',
+        desc: 'COALESCE(値, 代替値) は値が NULL なら代替値を返します。4行の NULL が 0 に変換され、欠損のない完全な9行のマトリックスが完成します。',
+        type: 'select',
+        cols: ['sale_month', 'product_id', 'product_name', 'total_sales'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { v: ['2024-01', 'P01', 'りんご', '30,000'] },
+          { v: ['2024-01', 'P02', 'バナナ', '45,000'] },
+          { v: ['2024-01', 'P03', 'みかん', '0'] },
+          { v: ['2024-02', 'P01', 'りんご', '50,000'] },
+          { v: ['2024-02', 'P02', 'バナナ', '0'] },
+          { v: ['2024-02', 'P03', 'みかん', '0'] },
+          { v: ['2024-03', 'P01', 'りんご', '0'] },
+          { v: ['2024-03', 'P02', 'バナナ', '20,000'] },
+          { v: ['2024-03', 'P03', 'みかん', '35,000'] }
+        ],
+        cnt: '結果: 9行 × 4列（欠損なし）' }
+    ],
+    sql: [
+      { t: 'WITH\n', k: 'sql-kw', h: '' },
+      { t: 'months', k: '', h: 'from' }, { t: ' AS (\n', k: '', h: '' },
+      { t: "  SELECT '2024-01' AS sale_month\n", k: '', h: 'from' },
+      { t: "  UNION ALL SELECT '2024-02'\n", k: 'sql-kw', h: 'from' },
+      { t: "  UNION ALL SELECT '2024-03'\n", k: 'sql-kw', h: 'from' },
+      { t: '),\n', k: '', h: '' },
+      { t: 'all_combinations', k: '', h: 'join' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT ', k: 'sql-kw', h: 'join' }, { t: 'm.sale_month, p.product_id, p.product_name\n', k: '', h: 'join' },
+      { t: '  FROM ', k: 'sql-kw', h: 'from join' }, { t: 'months m\n', k: '', h: 'from join' },
+      { t: '  CROSS JOIN ', k: 'sql-kw', h: 'join' }, { t: 'products p\n', k: '', h: 'join' },
+      { t: '),\n', k: '', h: '' },
+      { t: 'sales_agg', k: '', h: 'agg' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT ', k: 'sql-kw', h: 'agg' }, { t: 'sale_month, product_id,\n', k: '', h: 'agg' },
+      { t: '    SUM(amount) AS total_sales\n', k: '', h: 'agg' },
+      { t: '  FROM ', k: 'sql-kw', h: 'agg' }, { t: 'sales\n', k: '', h: 'agg' },
+      { t: '  GROUP BY ', k: 'sql-kw', h: 'agg' }, { t: 'sale_month, product_id\n', k: '', h: 'agg' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  c.sale_month, c.product_id, c.product_name,\n', k: '', h: 'select' },
+      { t: '  COALESCE(s.total_sales, 0) AS total_sales\n', k: '', h: 'select' },
+      { t: 'FROM ', k: 'sql-kw', h: 'join agg select' }, { t: 'all_combinations c\n', k: '', h: 'join agg select' },
+      { t: 'LEFT JOIN ', k: 'sql-kw', h: 'agg' }, { t: 'sales_agg s\n', k: '', h: 'agg' },
+      { t: '  ON ', k: 'sql-kw', h: 'agg' }, { t: 'c.sale_month = s.sale_month\n', k: '', h: 'agg' },
+      { t: ' AND ', k: 'sql-kw', h: 'agg' }, { t: 'c.product_id = s.product_id\n', k: '', h: 'agg' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'c.sale_month, c.product_id;', k: '', h: 'select' }
+    ]
+  }
 },
 
 /* ══════════════════════════════════════════════════
@@ -1173,40 +1695,6 @@ const QS = [
   ★ MAX(order_date) は日付型の最大値 = 最新日付を取得できる
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE① user_stats</strong> — GROUP BY でユーザー統計を集計（全5ユーザー）</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th class="tc-hi">order_count</th><th class="tc-g">total_amount</th><th class="tc-y">last_order_date</th></tr>
-<tr><td>U01</td><td class="tc-hi">2</td><td class="tc-g">55000</td><td class="tc-y">2024-03-10</td></tr>
-<tr><td>U02</td><td class="tc-r">1 ✗</td><td class="tc-g">60000</td><td class="tc-r">2024-02-20 ✗</td></tr>
-<tr><td>U03</td><td class="tc-hi">2</td><td class="tc-r">40000 ✗</td><td class="tc-y">2024-03-22</td></tr>
-<tr><td>U04</td><td class="tc-hi">2</td><td class="tc-g">90000</td><td class="tc-y">2024-04-05</td></tr>
-<tr><td>U05</td><td class="tc-r">1 ✗</td><td class="tc-r">12000 ✗</td><td class="tc-r">2024-02-14 ✗</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">qualified_users: WHERE order_count >= 2 AND total_amount >= 50000 AND last_order_date >= '2024-03-01'</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>各ユーザーの条件チェック</strong> — 落ちた条件が一目瞭然</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th class="tc-hi">①回数≥2</th><th class="tc-g">②金額≥5万</th><th class="tc-y">③日付≥3/1</th><th>合否</th></tr>
-<tr class="tr-hi2"><td>U01</td><td class="tc-g">✓ 2回</td><td class="tc-g">✓ 55000</td><td class="tc-g">✓ 3/10</td><td class="tc-g">✅合格</td></tr>
-<tr><td>U02</td><td class="tc-r">✗ 1回</td><td class="tc-g">✓ 60000</td><td class="tc-r">✗ 2/20</td><td class="tc-r">❌①③NG</td></tr>
-<tr><td>U03</td><td class="tc-g">✓ 2回</td><td class="tc-r">✗ 40000</td><td class="tc-g">✓ 3/22</td><td class="tc-r">❌②NG</td></tr>
-<tr class="tr-hi2"><td>U04</td><td class="tc-g">✓ 2回</td><td class="tc-g">✓ 90000</td><td class="tc-g">✓ 4/05</td><td class="tc-g">✅合格</td></tr>
-<tr><td>U05</td><td class="tc-r">✗ 1回</td><td class="tc-r">✗ 12000</td><td class="tc-r">✗ 2/14</td><td class="tc-r">❌全条件NG</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">INNER JOIN users u ON q.user_id = u.user_id で名前を付加し整列</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終出力</strong> — 条件を満たしたユーザーに名前を付加</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th>user_name</th><th class="tc-hi">order_count</th><th class="tc-g">total_amount</th><th class="tc-y">last_order_date</th></tr>
-<tr class="tr-hi"><td>U01</td><td>Alice</td><td class="tc-hi">2</td><td class="tc-g">55000</td><td class="tc-y">2024-03-10</td></tr>
-<tr class="tr-hi2"><td>U04</td><td>Dave</td><td class="tc-hi">2</td><td class="tc-g">90000</td><td class="tc-y">2024-04-05</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CTEのデバッグ手法：</strong>CTEを個別に <code>SELECT * FROM user_stats</code> として実行することで中間結果を確認できます。「なぜこのユーザーが最終結果に入らないか」をステップごとに検証できます。</div></div>
@@ -1219,7 +1707,79 @@ const QS = [
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>CRMの高度なセグメント検索API：</strong>マーケティング部門から「X回以上購入し、Y円以上使い、かつ直近1ヶ月以内にアクセスしたユーザーリストを出して」というような複合条件の要求は日常茶飯事です。条件ごとにCTEを分ける、または集計CTEを1つ作って外側でWHERE条件を並べる設計にしておくと、将来「平均購入単価がZ円以上」という新しい条件が追加された際のコード改修が劇的に簡単になり、保守性が高まります。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'group', badge: '① CTE① GROUP BY', bc: 'badge-orange',
+        label: 'user_stats: GROUP BY user_id → COUNT / SUM / MAX',
+        desc: 'orders を user_id でグループ化し、購入回数（COUNT）・合計額（SUM）・最終購入日（MAX）を集計します。次のステップで3条件すべてを WHERE で評価できます。',
+        type: 'group',
+        cols: ['user_id', 'order_count', 'total_amount', 'last_order_date'],
+        ch: ['col-eval', 'col-eval', 'col-eval', 'col-eval'],
+        rows: [
+          { v: ['U01', 2, '55,000', '2024-03-10'] },
+          { v: ['U02', 1, '60,000', '2024-02-20'] },
+          { v: ['U03', 2, '40,000', '2024-03-22'] },
+          { v: ['U04', 2, '90,000', '2024-04-05'] },
+          { v: ['U05', 1, '12,000', '2024-02-14'] }
+        ],
+        cnt: '8行 → 5ユーザー分に集約' },
+
+      { id: 'where', badge: '② CTE② WHERE 3条件', bc: 'badge-orange',
+        label: 'qualified_users: WHERE order_count≥2 AND total≥50000 AND last_date≥2024-03-01',
+        desc: '3条件をすべて AND で結合してフィルタします。1つでも不合格なら除外されます。U02は条件①と③でNG、U03は条件②でNG、U05は全条件NGです。',
+        type: 'eval',
+        cols: ['user_id', '①回数≥2', '②金額≥50000', '③日付≥3/1', '結果'],
+        ch: ['', 'col-eval', 'col-eval', 'col-eval', 'col-eval'],
+        rows: [
+          { v: ['U01', '✓ 2回', '✓ 55,000', '✓ 3/10', '合格'], cc: ['', 'val-pass', 'val-pass', 'val-pass', 'val-pass'] },
+          { c: 'row-dimmed', v: ['U02', '✗ 1回', '✓ 60,000', '✗ 2/20', 'NG'], cc: ['', 'val-fail', '', 'val-fail', 'val-fail'] },
+          { c: 'row-dimmed', v: ['U03', '✓ 2回', '✗ 40,000', '✓ 3/22', 'NG'], cc: ['', '', 'val-fail', '', 'val-fail'] },
+          { v: ['U04', '✓ 2回', '✓ 90,000', '✓ 4/05', '合格'], cc: ['', 'val-pass', 'val-pass', 'val-pass', 'val-pass'] },
+          { c: 'row-dimmed', v: ['U05', '✗ 1回', '✗ 12,000', '✗ 2/14', 'NG'], cc: ['', 'val-fail', 'val-fail', 'val-fail', 'val-fail'] }
+        ],
+        cnt: '5行 → 2行' },
+
+      { id: 'select', badge: '③ JOIN + SELECT', bc: 'badge-green',
+        label: 'INNER JOIN users ON user_id → ORDER BY total_amount DESC',
+        desc: '条件を満たした2ユーザーに INNER JOIN で users テーブルから名前を付加し、合計購入額の降順で最終出力します。',
+        type: 'select',
+        cols: ['user_id', 'user_name', 'order_count', 'total_amount', 'last_order_date'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { v: ['U04', 'Dave', 2, '90,000', '2024-04-05'] },
+          { v: ['U01', 'Alice', 2, '55,000', '2024-03-10'] }
+        ],
+        cnt: '結果: 2行 × 5列' }
+    ],
+    sql: [
+      { t: 'WITH\n', k: 'sql-kw', h: '' },
+      { t: 'user_stats', k: '', h: 'group' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT\n', k: 'sql-kw', h: 'group' },
+      { t: '    user_id,\n', k: '', h: 'group' },
+      { t: '    COUNT(*) AS order_count,\n', k: '', h: 'group' },
+      { t: '    SUM(amount) AS total_amount,\n', k: '', h: 'group' },
+      { t: '    MAX(order_date) AS last_order_date\n', k: '', h: 'group' },
+      { t: '  FROM ', k: 'sql-kw', h: 'group' }, { t: 'orders\n', k: '', h: 'group' },
+      { t: '  GROUP BY ', k: 'sql-kw', h: 'group' }, { t: 'user_id\n', k: '', h: 'group' },
+      { t: '),\n', k: '', h: '' },
+      { t: 'qualified_users', k: '', h: 'where' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT ', k: 'sql-kw', h: 'where' }, { t: '*\n', k: '', h: 'where' },
+      { t: '  FROM ', k: 'sql-kw', h: 'where' }, { t: 'user_stats\n', k: '', h: 'where' },
+      { t: '  WHERE\n', k: 'sql-kw', h: 'where' },
+      { t: '    order_count     >= 2\n', k: '', h: 'where' },
+      { t: '    AND ', k: 'sql-kw', h: 'where' }, { t: 'total_amount    >= 50000\n', k: '', h: 'where' },
+      { t: "    AND ", k: 'sql-kw', h: 'where' }, { t: "last_order_date >= '2024-03-01'\n", k: '', h: 'where' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  q.user_id, u.user_name,\n', k: '', h: 'select' },
+      { t: '  q.order_count, q.total_amount, q.last_order_date\n', k: '', h: 'select' },
+      { t: 'FROM ', k: 'sql-kw', h: 'select' }, { t: 'qualified_users q\n', k: '', h: 'select' },
+      { t: 'INNER JOIN ', k: 'sql-kw', h: 'select' }, { t: 'users u\n', k: '', h: 'select' },
+      { t: '  ON ', k: 'sql-kw', h: 'select' }, { t: 'q.user_id = u.user_id\n', k: '', h: 'select' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'q.total_amount DESC;', k: '', h: 'select' }
+    ]
+  }
 },
 
 /* ══════════════════════════════════════════════════
@@ -1314,38 +1874,6 @@ const QS = [
     「ORDER BYで並べた先頭行から現在行までを合計範囲にする」というフレーム指定
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>SUM OVER の動作</strong> — 行ごとに「先頭〜現在行」の合計が付く</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>order_month</th><th class="tc-g">monthly_sales</th><th class="tc-hi">累計の計算過程</th><th class="tc-hi">cumulative_sales</th></tr>
-<tr><td>2024-01</td><td class="tc-g">95000</td><td>95000</td><td class="tc-hi">95000</td></tr>
-<tr><td>2024-02</td><td class="tc-g">120000</td><td>95000 + 120000</td><td class="tc-hi">215000</td></tr>
-<tr><td>2024-03</td><td class="tc-g">108000</td><td>215000 + 108000</td><td class="tc-hi">323000</td></tr>
-<tr><td>2024-04</td><td class="tc-g">145000</td><td>323000 + 145000</td><td class="tc-hi">468000</td></tr>
-<tr><td>2024-05</td><td class="tc-g">132000</td><td>468000 + 132000</td><td class="tc-hi">600000</td></tr>
-<tr><td>2024-06</td><td class="tc-g">160000</td><td>600000 + 160000</td><td class="tc-hi">760000</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">累計 * 100.0 / 800000 で達成率に変換</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>GROUP BY の SUM vs ウィンドウSUM の違い</strong> — 行数が変わるかどうか</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>関数</th><th>挙動</th><th>出力行数</th><th>用途</th></tr>
-<tr class="tr-hi2"><td class="tc-g">SUM() OVER(ORDER BY...)</td><td class="tc-g">行ごとに累計を付加（行を圧縮しない）</td><td class="tc-g">変わらず</td><td class="tc-g">累計・ランニングトータル</td></tr>
-<tr><td class="tc-o">GROUP BY + SUM()</td><td class="tc-o">グループごとに1行に圧縮して合計</td><td class="tc-o">グループ数に減少</td><td class="tc-o">月次・カテゴリ別合計</td></tr>
-</table></div>
-</div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>ROWS BETWEEN のフレーム指定の種類</strong></span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>指定</th><th>意味</th><th>用途</th></tr>
-<tr class="tr-hi"><td class="tc-hi">UNBOUNDED PRECEDING AND CURRENT ROW</td><td>先頭〜現在行</td><td class="tc-hi">累計（ランニングトータル）</td></tr>
-<tr><td class="tc-g">1 PRECEDING AND 1 FOLLOWING</td><td>前後1行ずつ含む3行</td><td class="tc-g">移動平均</td></tr>
-<tr><td class="tc-p">CURRENT ROW AND UNBOUNDED FOLLOWING</td><td>現在行〜末尾</td><td class="tc-p">残り合計</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>累計の実務用途：</strong>「今月末時点での年間売上進捗ダッシュボード」「ユーザーの生涯購入額（LTV）の累積推移」「キャンペーン期間中の累積申込数」など、時系列の進捗を見せるAPIに必須です。</div></div>
@@ -1358,7 +1886,82 @@ const QS = [
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>KPI目標のバーンアップチャート：</strong>ランニングトータルの計算は「月間目標達成率」や「売上の進捗ゲージ」を表示するダッシュボードAPIで必須の処理です。月末にかけて数字がどう積み上がったかを可視化するのに役立ちます。また、ECサイトでは「ユーザーの生涯購入額（LTV）が特定の閾値（例: 累計10万円）を超えた瞬間にVIP会員に昇格させる」といったバッチ処理の判定ロジックとしても多用されます。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'from', badge: '① FROM (CTE入力)', bc: 'badge-blue',
+        label: 'FROM monthly_sales → monthly_agg: GROUP BY order_month',
+        desc: 'monthly_sales テーブルを月でグループ化し SUM(sales) を集計します。このデータでは1月1行のためデータは変わりませんが、複数行ある月を正しく集計するために CTE での GROUP BY が必要です。',
+        type: 'base',
+        cols: ['order_month', 'monthly_sales'],
+        ch: ['col-base', 'col-base'],
+        rows: [
+          { v: ['2024-01', '95,000'] },
+          { v: ['2024-02', '120,000'] },
+          { v: ['2024-03', '108,000'] },
+          { v: ['2024-04', '145,000'] },
+          { v: ['2024-05', '132,000'] },
+          { v: ['2024-06', '160,000'] }
+        ],
+        cnt: '全 6行（月次集計済み）' },
+
+      { id: 'agg', badge: '② SUM() OVER 累計', bc: 'badge-orange',
+        label: 'SUM(monthly_sales) OVER (ORDER BY order_month ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)',
+        desc: '各行で「先頭行から現在行まで」を合計します。GROUP BY と違い行は圧縮されず、各行に累計値が追加されます。ORDER BY で月順に並べることで前月までの合計に当月分が加算されます。',
+        type: 'eval',
+        cols: ['order_month', 'monthly_sales', '累計の計算', 'cumulative_sales'],
+        ch: ['', 'col-eval', 'col-eval', 'col-eval'],
+        rows: [
+          { v: ['2024-01', '95,000',  '95,000',              '95,000'] },
+          { v: ['2024-02', '120,000', '95,000 + 120,000',    '215,000'] },
+          { v: ['2024-03', '108,000', '215,000 + 108,000',   '323,000'] },
+          { v: ['2024-04', '145,000', '323,000 + 145,000',   '468,000'] },
+          { v: ['2024-05', '132,000', '468,000 + 132,000',   '600,000'] },
+          { v: ['2024-06', '160,000', '600,000 + 160,000',   '760,000'] }
+        ],
+        cnt: '全 6行（各行に累計値付加）' },
+
+      { id: 'select', badge: '③ SELECT + 達成率', bc: 'badge-green',
+        label: 'ROUND(cumulative_sales * 100.0 / 800000, 1) AS achievement_rate',
+        desc: '累計売上を年間目標（800,000円）で割り 100 を掛けて達成率（%）を計算します。ROUND で小数第1位に丸めて最終出力します。',
+        type: 'select',
+        cols: ['order_month', 'monthly_sales', 'cumulative_sales', 'achievement_rate'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { v: ['2024-01', '95,000',  '95,000',  '11.9%'] },
+          { v: ['2024-02', '120,000', '215,000', '26.9%'] },
+          { v: ['2024-03', '108,000', '323,000', '40.4%'] },
+          { v: ['2024-04', '145,000', '468,000', '58.5%'] },
+          { v: ['2024-05', '132,000', '600,000', '75.0%'] },
+          { v: ['2024-06', '160,000', '760,000', '95.0%'] }
+        ],
+        cnt: '結果: 6行 × 4列' }
+    ],
+    sql: [
+      { t: 'WITH ', k: 'sql-kw', h: '' }, { t: 'monthly_agg', k: '', h: 'from' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT\n', k: 'sql-kw', h: 'from' },
+      { t: '    order_month,\n', k: '', h: 'from' },
+      { t: '    SUM(sales) AS monthly_sales\n', k: '', h: 'from' },
+      { t: '  FROM ', k: 'sql-kw', h: 'from' }, { t: 'monthly_sales\n', k: '', h: 'from' },
+      { t: '  GROUP BY ', k: 'sql-kw', h: 'from' }, { t: 'order_month\n', k: '', h: 'from' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  order_month, monthly_sales,\n', k: '', h: 'select' },
+      { t: '  SUM(monthly_sales) OVER (\n', k: '', h: 'agg' },
+      { t: '    ORDER BY ', k: 'sql-kw', h: 'agg' }, { t: 'order_month\n', k: '', h: 'agg' },
+      { t: '    ROWS BETWEEN ', k: 'sql-kw', h: 'agg' }, { t: 'UNBOUNDED PRECEDING\n', k: 'sql-kw', h: 'agg' },
+      { t: '      AND ', k: 'sql-kw', h: 'agg' }, { t: 'CURRENT ROW\n', k: 'sql-kw', h: 'agg' },
+      { t: '  ) AS cumulative_sales,\n', k: '', h: 'agg select' },
+      { t: '  ROUND(\n', k: '', h: 'select' },
+      { t: '    SUM(monthly_sales) OVER (\n', k: '', h: 'agg select' },
+      { t: '      ORDER BY ', k: 'sql-kw', h: 'agg select' }, { t: 'order_month\n', k: '', h: 'agg select' },
+      { t: '      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW\n', k: 'sql-kw', h: 'agg select' },
+      { t: '    ) * 100.0 / 800000\n', k: '', h: 'agg select' },
+      { t: '  , 1) AS achievement_rate\n', k: '', h: 'select' },
+      { t: 'FROM     ', k: 'sql-kw', h: 'from agg select' }, { t: 'monthly_agg\n', k: '', h: 'from agg select' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'order_month;', k: '', h: 'select' }
+    ]
+  }
 },
 
 /* ══════════════════════════════════════════════════
@@ -1443,37 +2046,6 @@ const QS = [
   ★ BigQuery では date型の差分に DATE_DIFF(next_date, order_date, DAY) を使う
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE内: LEAD の動作</strong> — PARTITION BY user_id でユーザーごとに独立</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th>order_date</th><th class="tc-hi">next_date（LEAD結果）</th><th>説明</th></tr>
-<tr><td>U01</td><td>2024-01-10</td><td class="tc-hi">2024-02-15</td><td>1行後（U01の2番目）</td></tr>
-<tr><td>U01</td><td>2024-02-15</td><td class="tc-hi">2024-04-01</td><td>1行後（U01の3番目）</td></tr>
-<tr><td>U01</td><td>2024-04-01</td><td class="null">NULL</td><td>U01の最後 → NULL</td></tr>
-<tr><td>U02</td><td>2024-01-20</td><td class="tc-hi">2024-03-05</td><td>1行後（U02の2番目）</td></tr>
-<tr><td>U02</td><td>2024-03-05</td><td class="null">NULL</td><td>U02の最後 → NULL</td></tr>
-<tr><td>U03</td><td>2024-02-28</td><td class="null">NULL</td><td>U03の購入は1回のみ → NULL</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">next_date - order_date で間隔日数を計算</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>PARTITION BY あり vs なし</strong> — ユーザーをまたぐバグを防ぐ</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>設定</th><th>U01の最後の行（2024-04-01）のLEAD結果</th><th>正しいか</th></tr>
-<tr class="tr-hi2"><td class="tc-g">PARTITION BY user_id あり（正解）</td><td class="null">NULL（U01の次はない）</td><td class="tc-g">✅ 正しい</td></tr>
-<tr><td class="tc-r">PARTITION BY なし（NG）</td><td class="tc-r">2024-01-20（U02の1件目を参照！）</td><td class="tc-r">❌ バグ</td></tr>
-</table></div>
-</div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>LAG vs LEAD の使い分け</strong></span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>関数</th><th>参照方向</th><th>用途例</th></tr>
-<tr class="tr-hi"><td class="tc-hi">LAG(col, 1)</td><td>← 過去（前の行）</td><td>前月比、前回購入日</td></tr>
-<tr class="tr-hi2"><td class="tc-g">LEAD(col, 1)</td><td>→ 未来（次の行）</td><td>次回購入日、次の訪問日</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>購入間隔の実務用途：</strong>「平均購入間隔を超えてもまだ購入がないユーザー = チャーンリスク」という分析に使います。購入間隔の平均・最大を別途CTEで集計し、「最後の購入日 + 平均間隔 &lt; 今日」なら警告を出すAPIが構築できます。</div></div>
@@ -1486,7 +2058,74 @@ const QS = [
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>チャーン（離脱）予測とLTV分析：</strong>LEADを使って「次回購入日」を算出し「購入間隔日数」を出す処理は、顧客分析の第一歩です。実務では、このクエリをさらに発展させ、「各ユーザーの平均購入間隔」を計算し、「最後の購入日から今日までの日数が、平均購入間隔の2倍以上空いているユーザー」をチャーン（離脱）の危険性が高いと判定して、自動で休眠復帰メールを送るシステムなどに組み込まれます。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'from', badge: '① FROM (入力)', bc: 'badge-blue',
+        label: 'FROM purchase_log — PARTITION BY user_id でグループを確認',
+        desc: 'purchase_log の全6行をユーザー別にグループ確認します。LEAD は PARTITION BY user_id で各ユーザー内に閉じた処理になります。ユーザーをまたいで「次の行」を参照するバグを防ぐ鍵です。',
+        type: 'base',
+        cols: ['user_id', 'log_id', 'order_date'],
+        ch: ['col-base', 'col-base', 'col-base'],
+        rows: [
+          { c: 'row-grp-1', v: ['U01', 1, '2024-01-10'] },
+          { c: 'row-grp-1', v: ['U01', 2, '2024-02-15'] },
+          { c: 'row-grp-1', v: ['U01', 3, '2024-04-01'] },
+          { c: 'row-grp-2', v: ['U02', 4, '2024-01-20'] },
+          { c: 'row-grp-2', v: ['U02', 5, '2024-03-05'] },
+          { c: 'row-grp-3', v: ['U03', 6, '2024-02-28'] }
+        ],
+        cnt: '全 6行 読込' },
+
+      { id: 'agg', badge: '② CTE: LEAD(order_date, 1)', bc: 'badge-orange',
+        label: 'LEAD(order_date, 1) OVER (PARTITION BY user_id ORDER BY order_date)',
+        desc: 'ユーザーごとに日付昇順で並べ、各行の「1行後の order_date」を next_date として追加します。各ユーザーの最後の購入行には次の行がないため NULL になります。U03 は1件のみなので即 NULL です。',
+        type: 'eval',
+        cols: ['user_id', 'order_date', 'next_date'],
+        ch: ['col-eval', 'col-eval', 'col-eval'],
+        rows: [
+          { c: 'row-grp-1', v: ['U01', '2024-01-10', '2024-02-15'] },
+          { c: 'row-grp-1', v: ['U01', '2024-02-15', '2024-04-01'] },
+          { c: 'row-grp-1', v: ['U01', '2024-04-01', 'NULL'], cc: ['', '', 'val-dimmed'] },
+          { c: 'row-grp-2', v: ['U02', '2024-01-20', '2024-03-05'] },
+          { c: 'row-grp-2', v: ['U02', '2024-03-05', 'NULL'], cc: ['', '', 'val-dimmed'] },
+          { c: 'row-grp-3', v: ['U03', '2024-02-28', 'NULL'], cc: ['', '', 'val-dimmed'] }
+        ],
+        cnt: '全 6行（最後の購入行は NULL）' },
+
+      { id: 'select', badge: '③ SELECT + days_to_next', bc: 'badge-green',
+        label: 'next_date - order_date AS days_to_next',
+        desc: '日付型の引き算で購入間隔（日数）を計算します。next_date が NULL の行は演算結果も NULL になります（NULL伝播）。ORDER BY user_id, order_date で整列して最終出力します。',
+        type: 'select',
+        cols: ['user_id', 'order_date', 'next_date', 'days_to_next'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { v: ['U01', '2024-01-10', '2024-02-15', 36] },
+          { v: ['U01', '2024-02-15', '2024-04-01', 46] },
+          { v: ['U01', '2024-04-01', 'NULL', 'NULL'] },
+          { v: ['U02', '2024-01-20', '2024-03-05', 45] },
+          { v: ['U02', '2024-03-05', 'NULL', 'NULL'] },
+          { v: ['U03', '2024-02-28', 'NULL', 'NULL'] }
+        ],
+        cnt: '結果: 6行 × 4列' }
+    ],
+    sql: [
+      { t: 'WITH ', k: 'sql-kw', h: '' }, { t: 'purchase_with_next', k: '', h: 'agg' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT\n', k: 'sql-kw', h: 'agg' },
+      { t: '    user_id, order_date,\n', k: '', h: 'agg' },
+      { t: '    LEAD(order_date, 1) OVER (\n', k: '', h: 'agg' },
+      { t: '      PARTITION BY ', k: 'sql-kw', h: 'from agg' }, { t: 'user_id\n', k: '', h: 'from agg' },
+      { t: '      ORDER BY ', k: 'sql-kw', h: 'agg' }, { t: 'order_date\n', k: '', h: 'agg' },
+      { t: '    ) AS next_date\n', k: '', h: 'agg' },
+      { t: '  FROM ', k: 'sql-kw', h: 'from' }, { t: 'purchase_log\n', k: '', h: 'from' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  user_id, order_date, next_date,\n', k: '', h: 'select' },
+      { t: '  next_date - order_date AS days_to_next\n', k: '', h: 'select' },
+      { t: 'FROM     ', k: 'sql-kw', h: 'agg select' }, { t: 'purchase_with_next\n', k: '', h: 'agg select' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'user_id, order_date;', k: '', h: 'select' }
+    ]
+  }
 },
 
 /* ══════════════════════════════════════════════════
@@ -1628,50 +2267,6 @@ M（Monetary）: ≥100000=3, ≥50000=2, それ以外=1<br>
   ★ '2024-04-01'::date は文字列をDATE型にキャスト（BigQueryでは DATE '2024-04-01'）
 */</span></pre>`,
   explain: `
-<div class="viz-flow">
-<div class="step-block">
-<div class="step-label"><span class="step-num sn1">1</span><span class="step-desc"><strong>CTE① rfm_raw</strong> — GROUP BY で各ユーザーのRFM生データを集計</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th class="tc-hi">recency_days</th><th class="tc-g">frequency</th><th class="tc-y">monetary</th></tr>
-<tr><td>U01</td><td class="tc-hi">7日</td><td class="tc-g">3回</td><td class="tc-y">120000</td></tr>
-<tr><td>U02</td><td class="tc-hi">4日</td><td class="tc-g">2回</td><td class="tc-y">140000</td></tr>
-<tr><td>U03</td><td class="tc-hi">122日</td><td class="tc-g">1回</td><td class="tc-y">120000</td></tr>
-<tr><td>U04</td><td class="tc-hi">0日</td><td class="tc-g">3回</td><td class="tc-y">53000</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">CTE② rfm_scored: CASE WHEN で各軸を1〜3点にスコア変換</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn2">2</span><span class="step-desc"><strong>CTE② rfm_scored</strong> — スコアの判定基準と変換結果</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th class="tc-hi">R_score（基準日-購入日）</th><th class="tc-g">F_score（購入回数）</th><th class="tc-y">M_score（購入額）</th></tr>
-<tr><td>U01</td><td class="tc-hi">3（7日 &lt; 30日）</td><td class="tc-g">3（3回 ≥ 3回）</td><td class="tc-y">3（120000 ≥ 100000）</td></tr>
-<tr><td>U02</td><td class="tc-hi">3（4日 &lt; 30日）</td><td class="tc-g">2（2回 ≥ 2回）</td><td class="tc-y">3（140000 ≥ 100000）</td></tr>
-<tr><td>U03</td><td class="tc-r">1（122日 ≥ 90日）</td><td class="tc-r">1（1回 &lt; 2回）</td><td class="tc-y">3（120000 ≥ 100000）</td></tr>
-<tr><td>U04</td><td class="tc-hi">3（0日 &lt; 30日）</td><td class="tc-g">3（3回 ≥ 3回）</td><td class="tc-g">2（53000 ≥ 50000）</td></tr>
-</table></div>
-</div>
-<div class="arrow">↓ <span class="arrow-text">CTE③ rfm_total: R+F+M → 本体: CASE WHEN でセグメント判定</span></div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn3">3</span><span class="step-desc"><strong>最終セグメント判定</strong> — 合計スコアで分類</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>user_id</th><th class="tc-hi">R</th><th class="tc-g">F</th><th class="tc-y">M</th><th class="tc-o">合計</th><th class="tc-p">segment</th></tr>
-<tr class="tr-hi"><td>U01</td><td class="tc-hi">3</td><td class="tc-g">3</td><td class="tc-y">3</td><td class="tc-o">9</td><td class="tc-p">VIP（≥8）</td></tr>
-<tr class="tr-hi"><td>U02</td><td class="tc-hi">3</td><td class="tc-g">2</td><td class="tc-y">3</td><td class="tc-o">8</td><td class="tc-p">VIP（≥8）</td></tr>
-<tr class="tr-hi"><td>U04</td><td class="tc-hi">3</td><td class="tc-g">3</td><td class="tc-y">2</td><td class="tc-o">8</td><td class="tc-p">VIP（≥8）</td></tr>
-<tr class="tr-hi2"><td>U03</td><td class="tc-r">1</td><td class="tc-r">1</td><td class="tc-y">3</td><td class="tc-o">5</td><td class="tc-p">一般（≥5）</td></tr>
-</table></div>
-</div>
-<div class="step-block">
-<div class="step-label"><span class="step-num sn4">4</span><span class="step-desc"><strong>4段のCTEパイプライン</strong> — 各ステップの役割</span></div>
-<div class="tbl-wrap"><table class="vtbl">
-<tr><th>CTE / 本体</th><th>処理内容</th><th>列変化</th></tr>
-<tr><td class="tc-hi">rfm_raw</td><td>GROUP BY → 集計値（日数・回数・金額）</td><td>3列の数値データ</td></tr>
-<tr><td class="tc-g">rfm_scored</td><td>CASE WHEN → スコア変換（1〜3点）</td><td>+ R/F/M 各スコア列</td></tr>
-<tr><td class="tc-y">rfm_total</td><td>r_score+f_score+m_score → 合計</td><td>+ total_score列</td></tr>
-<tr><td class="tc-p">本体SELECT</td><td>CASE WHEN → セグメント名に変換</td><td>+ segment列</td></tr>
-</table></div>
-</div>
-</div>
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>RFM分析の実務価値：</strong>「VIPユーザーに向けた特別キャンペーンAPI」「休眠ユーザーへの再購入促進メール配信リスト取得」など、マーケティング施策のターゲティングに直結します。スコアリング基準は事業ドメインに応じて変えられます。</div></div>
@@ -1686,7 +2281,102 @@ M（Monetary）: ≥100000=3, ≥50000=2, それ以外=1<br>
 <div class="column-box">
 <div class="column-title">🏢 実務でのユースケース</div>
 <div class="column-row"><span class="column-icon">💼</span><div class="column-body"><strong>顧客ターゲティングの自動化：</strong>RFM分析の結果を返すAPIは、マーケティングオートメーション（MA）ツールの根幹を担います。セグメントごとに異なる施策（VIPには限定イベント招待、休眠にはポイントプレゼントなど）を打ち出すためのリスト抽出に使われます。スコアリングの閾値（30日、90日、10万円など）は事業の成長フェーズによって見直されるため、実務ではCTEの中に数値を直書きするのではなく、パラメータとして外部から受け取る設計にするのがベストプラクティスです。</div></div>
-</div>`
+</div>`,
+  viz: {
+    steps: [
+      { id: 'group', badge: '① CTE① rfm_raw', bc: 'badge-orange',
+        label: 'GROUP BY user_id → MAX(date) / COUNT(*) / SUM(amount)',
+        desc: 'orders を user_id でグループ化し、RFMの生データを集計します。Recency は基準日（2024-04-01）から最終購入日を引いた経過日数、Frequency は購入回数、Monetary は合計購入額です。',
+        type: 'group',
+        cols: ['user_id', 'recency_days', 'frequency', 'monetary'],
+        ch: ['col-eval', 'col-eval', 'col-eval', 'col-eval'],
+        rows: [
+          { v: ['U01', '7日',   '3回', '120,000'] },
+          { v: ['U02', '4日',   '2回', '140,000'] },
+          { v: ['U03', '122日', '1回', '120,000'] },
+          { v: ['U04', '0日',   '3回', '53,000'] }
+        ],
+        cnt: '9行 → 4ユーザー分に集約' },
+
+      { id: 'agg', badge: '② CTE② rfm_scored', bc: 'badge-orange',
+        label: 'CASE WHEN → r_score / f_score / m_score (各1〜3点)',
+        desc: 'CASE WHEN で各指標を1〜3点に変換します。上から順に評価され最初にマッチした値を返します。U03 は recency 122日（≥90日）なので R=1、frequency 1回（<2回）なので F=1 になります。',
+        type: 'eval',
+        cols: ['user_id', 'recency_days', 'r_score', 'frequency', 'f_score', 'monetary', 'm_score'],
+        ch: ['', 'col-eval', 'col-eval', 'col-eval', 'col-eval', 'col-eval', 'col-eval'],
+        rows: [
+          { v: ['U01', '7日',   3, '3回', 3, '120,000', 3], cc: ['', '', 'val-pass', '', 'val-pass', '', 'val-pass'] },
+          { v: ['U02', '4日',   3, '2回', 2, '140,000', 3], cc: ['', '', 'val-pass', '', '',         '', 'val-pass'] },
+          { v: ['U03', '122日', 1, '1回', 1, '120,000', 3], cc: ['', '', 'val-fail', '', 'val-fail', '', 'val-pass'] },
+          { v: ['U04', '0日',   3, '3回', 3, '53,000',  2], cc: ['', '', 'val-pass', '', 'val-pass', '', ''] }
+        ],
+        cnt: '全 4行（スコア変換完了）' },
+
+      { id: 'where', badge: '③ CTE③ rfm_total', bc: 'badge-orange',
+        label: 'r_score + f_score + m_score AS total_score',
+        desc: 'rfm_scored の3スコアを合算して total_score を計算します。単純な加算で各ユーザーの総合評価が出ます。次のステップでこの合計値に応じてセグメントを判定します。',
+        type: 'group',
+        cols: ['user_id', 'r_score', 'f_score', 'm_score', 'total_score'],
+        ch: ['', 'col-eval', 'col-eval', 'col-eval', 'col-eval'],
+        rows: [
+          { v: ['U01', 3, 3, 3, 9] },
+          { v: ['U02', 3, 2, 3, 8] },
+          { v: ['U03', 1, 1, 3, 5] },
+          { v: ['U04', 3, 3, 2, 8] }
+        ],
+        cnt: '全 4行（合計スコア算出）' },
+
+      { id: 'select', badge: '④ SELECT + segment', bc: 'badge-green',
+        label: 'CASE WHEN total_score>=8 THEN VIP … → ORDER BY total_score DESC',
+        desc: 'total_score に基づき CASE WHEN でセグメント名を決定します。≥8=VIP（3名）、≥5=一般（1名）。ORDER BY total_score DESC, user_id で降順整列して最終出力します。',
+        type: 'select',
+        cols: ['user_id', 'r_score', 'f_score', 'm_score', 'total_score', 'segment'],
+        ch: ['col-select', 'col-select', 'col-select', 'col-select', 'col-select', 'col-select'],
+        rows: [
+          { v: ['U01', 3, 3, 3, 9, 'VIP'] },
+          { v: ['U02', 3, 2, 3, 8, 'VIP'] },
+          { v: ['U04', 3, 3, 2, 8, 'VIP'] },
+          { v: ['U03', 1, 1, 3, 5, '一般'] }
+        ],
+        cnt: '結果: 4行 × 6列' }
+    ],
+    sql: [
+      { t: 'WITH\n', k: 'sql-kw', h: '' },
+      { t: 'rfm_raw', k: '', h: 'group' }, { t: ' AS (\n', k: '', h: '' },
+      { t: "  SELECT user_id,\n", k: 'sql-kw', h: 'group' },
+      { t: "    '2024-04-01'::date - MAX(order_date) AS recency_days,\n", k: '', h: 'group' },
+      { t: '    COUNT(*) AS frequency,\n', k: '', h: 'group' },
+      { t: '    SUM(amount) AS monetary\n', k: '', h: 'group' },
+      { t: '  FROM ', k: 'sql-kw', h: 'group' }, { t: 'orders\n', k: '', h: 'group' },
+      { t: '  GROUP BY ', k: 'sql-kw', h: 'group' }, { t: 'user_id\n', k: '', h: 'group' },
+      { t: '),\n', k: '', h: '' },
+      { t: 'rfm_scored', k: '', h: 'agg' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT *, CASE\n', k: 'sql-kw', h: 'agg' },
+      { t: '    WHEN recency_days < 30 THEN 3\n', k: '', h: 'agg' },
+      { t: '    WHEN recency_days < 90 THEN 2\n', k: '', h: 'agg' },
+      { t: '    ELSE 1 END AS r_score,\n', k: '', h: 'agg' },
+      { t: '    CASE WHEN frequency >= 3 THEN 3\n', k: '', h: 'agg' },
+      { t: '    WHEN frequency >= 2 THEN 2\n', k: '', h: 'agg' },
+      { t: '    ELSE 1 END AS f_score,\n', k: '', h: 'agg' },
+      { t: '    CASE WHEN monetary >= 100000 THEN 3\n', k: '', h: 'agg' },
+      { t: '    WHEN monetary >= 50000 THEN 2\n', k: '', h: 'agg' },
+      { t: '    ELSE 1 END AS m_score\n', k: '', h: 'agg' },
+      { t: '  FROM ', k: 'sql-kw', h: 'agg' }, { t: 'rfm_raw\n', k: '', h: 'agg' },
+      { t: '),\n', k: '', h: '' },
+      { t: 'rfm_total', k: '', h: 'where' }, { t: ' AS (\n', k: '', h: '' },
+      { t: '  SELECT *, r_score + f_score + m_score AS total_score\n', k: '', h: 'where' },
+      { t: '  FROM ', k: 'sql-kw', h: 'where' }, { t: 'rfm_scored\n', k: '', h: 'where' },
+      { t: ')\n', k: '', h: '' },
+      { t: 'SELECT\n', k: 'sql-kw', h: 'select' },
+      { t: '  user_id, r_score, f_score, m_score, total_score,\n', k: '', h: 'select' },
+      { t: '  CASE\n', k: 'sql-kw', h: 'select' },
+      { t: "    WHEN total_score >= 8 THEN 'VIP'\n", k: '', h: 'select' },
+      { t: "    WHEN total_score >= 5 THEN '一般'\n", k: '', h: 'select' },
+      { t: "    ELSE '休眠' END AS segment\n", k: '', h: 'select' },
+      { t: 'FROM     ', k: 'sql-kw', h: 'select' }, { t: 'rfm_total\n', k: '', h: 'select' },
+      { t: 'ORDER BY ', k: 'sql-kw', h: 'select' }, { t: 'total_score DESC, user_id;', k: '', h: 'select' }
+    ]
+  }
 }
 
 ];
@@ -1724,7 +2414,11 @@ function buildAll() {
       ${acc('❓','pill-green','問題','問題',q.question)}
       ${acc('📊','pill-orange','出力例','期待出力',q.output)}
       ${acc('✅','pill-red','模範回答','模範解答コード',q.answer)}
-      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',q.explain)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',
+        (Array.isArray(q.viz)
+          ? q.viz.map((_, vIdx) => `<div class="sql-viz-wrapper" id="viz-${i}-${vIdx}" tabindex="-1" style="margin-bottom: 24px;"></div>`).join('')
+          : q.viz ? `<div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1"></div>` : ''
+        ) + q.explain)}
       <div class="nav-bar">
         <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
         <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
@@ -1732,6 +2426,16 @@ function buildAll() {
       </div>
     </div>
   `).join('');
+
+  QS.forEach((q, i) => {
+    if (q.viz) {
+      if (Array.isArray(q.viz)) {
+        q.viz.forEach((v, vIdx) => initVisualizer(document.getElementById(`viz-${i}-${vIdx}`), v));
+      } else {
+        initVisualizer(document.getElementById('viz-' + i), q.viz);
+      }
+    }
+  });
 
   go(0);
 }
@@ -1747,6 +2451,24 @@ function go(i) {
 }
 
 buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => { el.open = !wasMobile; });
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => { el.open = !isMobile; });
+  }
+});
 </script>
 </body>
 </html>
