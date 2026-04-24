@@ -137,7 +137,6 @@ table.vtbl tr:nth-child(even) td{background:#080c12}
 .tc-r {color:var(--red)!important;font-weight:700}
 .null {color:var(--dim)!important;font-style:italic}
 
-
 /* ── Insight / Anti / Column boxes ── */
 .insight-box{background:#0a1520;border:1px solid #1a3a55;border-radius:8px;padding:14px 16px;margin-top:14px}
 .insight-title{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);letter-spacing:1px;margin-bottom:10px}
@@ -228,11 +227,11 @@ table.vtbl tr:nth-child(even) td{background:#080c12}
 .sv-table td.val-fail   { background: var(--sql-red-bg) !important; border-left: 2px solid var(--sql-red-txt); color: var(--sql-red-txt); text-decoration: line-through; opacity: 0.7; }
 .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
 .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
-.sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-select, .sql-hl-sub {
+.sql-hl-from, .sql-hl-join, .sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-select, .sql-hl-sub, .sql-hl-eval, .sql-hl-join-eval, .sql-hl-join-res, .sql-hl-from-users {
   border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
 }
-.sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); }
-.sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-sub { background: var(--sql-orange-bg); }
+.sql-hl-from, .sql-hl-join, .sql-hl-from-users, .sql-hl-join-res { background: var(--sql-blue-bg); }
+.sql-hl-where, .sql-hl-group, .sql-hl-having, .sql-hl-agg, .sql-hl-sub, .sql-hl-eval, .sql-hl-join-eval { background: var(--sql-orange-bg); }
 .sql-hl-select { background: var(--sql-green-bg); }
 .sv-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: 600; letter-spacing: 0.02em; }
 .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
@@ -485,7 +484,7 @@ const QS = [
 <span class="cmt">/*
   実行順序（問題1修正版）:
   1. FROM orders               → ordersテーブルを参照
-  2. WHERE created_at の範囲   → created_at インデックスを使って対象行を絞り込む（Index Scan）
+  2. WHERE created_at の範囲   → created_at インデックスを使って対象行を特定（Index Scan）
   3. SELECT order_id, amount   → 絞り込まれた行から列を返す
 */</span></pre>`,
   viz: {
@@ -503,7 +502,7 @@ const QS = [
         ], cnt: "全 3行 読込" },
       { id: "where", badge: "② WHERE (範囲指定)", bc: "badge-orange",
         label: "WHERE created_at >= '2024-01-01' AND < '2025-01-01'",
-        desc: "SARGableな範囲指定により、created_atインデックスを使って対象行を高速に絞り込みます（Index Scan）。列に関数を適用しないため、インデックスが有効に機能します。",
+        desc: "SARGableな範囲指定により、created_atインデックスを使って該当する範囲だけを高速に特定します（Index Scan）。列に関数を適用しないため、インデックスが有効に機能します。",
         type: "eval",
         cols: ["order_id", "user_id", "amount", "created_at"],
         ch: ["", "", "", "col-eval"],
@@ -514,7 +513,7 @@ const QS = [
         ], cnt: "3行 → 2行 (Index Scan)" },
       { id: "select", badge: "③ SELECT", bc: "badge-green",
         label: "SELECT order_id, amount",
-        desc: "絞り込まれた2行から指定の列のみを出力します。",
+        desc: "特定された2行から指定の列のみを出力します。",
         type: "select",
         cols: ["order_id", "amount", "user_id", "created_at"],
         ch: ["col-select", "col-select"],
@@ -649,7 +648,7 @@ const QS = [
       steps: [
         { id: "from", badge: "① FROM", bc: "badge-blue",
           label: "FROM users",
-          desc: "usersテーブル全体（6列）を読み込みます。profile_image（数MB）やpassword_hash（機密）など不要な列も含まれています。",
+          desc: "usersテーブル全体（6列）を読み込みます。profile_image（数MB）やpassword_hash（機密）など、この処理には不要な列も含まれています。",
           type: "base",
           cols: ["user_id", "name", "email", "profile_image", "password_hash", "created_at"],
           ch: ["col-base", "col-base", "col-base", "col-base", "col-base", "col-base"],
@@ -659,7 +658,7 @@ const QS = [
           ], cnt: "全 2行 × 6列" },
         { id: "select", badge: "② SELECT (列指定)", bc: "badge-green",
           label: "SELECT user_id, name",
-          desc: "必要な2列のみ取得します。profile_image（数MB）やpassword_hashは転送されないため、ネットワーク転送量が劇的に削減されます。カバリングインデックスがあればIndex Only Scanで完結します。",
+          desc: "必要な2列のみ抽出します。データ量の大きい列（profile_image）や機密列（password_hash）が除外され、アプリケーションへのネットワーク転送量が劇的に削減されます。",
           type: "select",
           cols: ["user_id", "name", "email", "profile_image", "password_hash", "created_at"],
           ch: ["col-select", "col-select"],
@@ -679,7 +678,7 @@ const QS = [
       steps: [
         { id: "from", badge: "① FROM", bc: "badge-blue",
           label: "FROM orders",
-          desc: "ordersテーブル全体（6列）を読み込みます。必要なのはuser_idとamount+tax_amountの計算結果のみです。",
+          desc: "ordersテーブル全体（6列）を読み込みます。必要なのはuser_idと、amount+tax_amountの計算結果のみです。",
           type: "base",
           cols: ["order_id", "user_id", "amount", "tax_amount", "status", "created_at"],
           ch: ["col-base", "col-base", "col-base", "col-base", "col-base", "col-base"],
@@ -818,7 +817,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
 <span class="cmt">/*
   実行順序（シナリオA LEFT JOIN版）:
   1. FROM users u                → users を読む（左テーブル）
-  2. LEFT JOIN orders o ON ...  → user_id が一致するordersを結合。一致しない行はNULLで付与
+  2. LEFT JOIN orders o ON ...  → user_id が一致するordersを結合。一致しない行はNULLで補完
   3. GROUP BY u.user_id, u.name → ユーザーごとにグループ化
   4. SELECT MAX(o.amount)        → 各グループの最大金額を計算（NULLは無視）
 */</span></pre>`,
@@ -827,7 +826,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
       steps: [
         { id: "from", badge: "① FROM / LEFT JOIN", bc: "badge-blue",
           label: "左: users (u), 右: orders (o)",
-          desc: "LEFT JOINにより左テーブル（users）の全行が保持されます。注文のないU003も結果に含まれます。",
+          desc: "結合の準備として左右のテーブルを読み込みます。LEFT JOINでは左テーブル（users）の全行が必ず保持されます。",
           type: "base", join: true,
           left: {
             label: "users (u) 左テーブル", cols: ["user_id", "name"],
@@ -835,7 +834,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
             rows: [
               { v: ["U001", "田中"] },
               { v: ["U002", "鈴木"] },
-              { v: ["U003", "佐藤（注文なし）"] }
+              { v: ["U003", "佐藤"] }
             ]
           },
           right: {
@@ -851,7 +850,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
           cnt: "左: 3行 / 右: 4行" },
         { id: "join", badge: "② ON (結合条件)", bc: "badge-orange",
           label: "ON u.user_id = o.user_id",
-          desc: "user_idで突き合わせます。U003は右テーブルに一致がないためNULLで補完されます。U999は左テーブルにないため除外（LEFT JOINのルール）。",
+          desc: "user_idで突き合わせます。U003は右テーブルに一致がないためNULLで補完されます。U999の注文は左テーブルにないため除外されます。",
           type: "eval", join: true,
           left: {
             label: "users (u)", cols: ["user_id", "name"],
@@ -859,7 +858,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
             rows: [
               { v: ["U001", "田中"], cc: ["val-pass"] },
               { v: ["U002", "鈴木"], cc: ["val-pass"] },
-              { v: ["U003 (NULL補完)", "佐藤"], cc: ["val-pass"] }
+              { v: ["U003", "佐藤"], cc: ["val-pass"] }
             ]
           },
           right: {
@@ -873,9 +872,21 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
             ]
           },
           cnt: "結合成功: 3ユーザー / NULL補完: U003" },
-        { id: "group", badge: "③ GROUP BY", bc: "badge-orange",
+        { id: "join-res", badge: "③ 結合後の中間テーブル", bc: "badge-blue",
+          label: "LEFT JOIN 完了",
+          desc: "LEFT JOINの結果、左テーブルのU003が保持され、右テーブルの列にはNULLが補完された1つのテーブルが論理的に作られます。",
+          type: "base",
+          cols: ["u.user_id", "u.name", "o.order_id", "o.amount"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: ["U001", "田中", "1", "5000"] },
+            { v: ["U001", "田中", "2", "3000"] },
+            { v: ["U002", "鈴木", "3", "8000"] },
+            { v: ["U003", "佐藤", "NULL", "NULL"] }
+          ], cnt: "論理行数: 4行" },
+        { id: "group", badge: "④ GROUP BY", bc: "badge-orange",
           label: "GROUP BY u.user_id, u.name",
-          desc: "ユーザーごとにグループ化します。U001は2件の注文、U002は1件、U003は0件（NULLのまま）。",
+          desc: "中間テーブルをユーザーごとにグループ化します。U001は2件の注文、U002は1件、U003は0件（NULLのまま）のグループになります。",
           type: "group",
           cols: ["user_id", "name", "amount(s)"],
           ch: ["col-eval", "col-eval"],
@@ -884,9 +895,9 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
             { c: "row-grp-2", v: ["U002", "鈴木", "8000"] },
             { c: "row-grp-3", v: ["U003", "佐藤", "NULL"] }
           ], cnt: "3グループ" },
-        { id: "select", badge: "④ SELECT + MAX", bc: "badge-green",
+        { id: "select", badge: "⑤ SELECT + MAX", bc: "badge-green",
           label: "SELECT user_id, name, MAX(amount) AS latest_amount",
-          desc: "各グループからMAX(amount)を計算。U003はNULL（注文なし）のまま保持されます。LEFT JOINにより全ユーザーが結果に含まれます。",
+          desc: "各グループからMAX(amount)を計算。U003はNULL（注文なし）のまま保持されます。LEFT JOINにより全ユーザーが結果に含まれることが保証されます。",
           type: "select",
           cols: ["user_id", "name", "latest_amount"],
           ch: ["col-select", "col-select", "col-select"],
@@ -902,7 +913,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
         { t: "    u.name,\n", k: "", h: "select" },
         { t: "    MAX(o.amount) AS latest_amount\n", k: "", h: "select" },
         { t: "FROM      ", k: "sql-kw", h: "from" }, { t: "users  u\n", k: "", h: "from" },
-        { t: "LEFT JOIN ", k: "sql-kw", h: "from" }, { t: "orders o\n", k: "", h: "from" },
+        { t: "LEFT JOIN ", k: "sql-kw", h: "from join join-res" }, { t: "orders o\n", k: "", h: "from join join-res" },
         { t: "  ON ", k: "sql-kw", h: "join" }, { t: "u.user_id = o.user_id\n", k: "", h: "join" },
         { t: "GROUP BY  ", k: "sql-kw", h: "group" }, { t: "u.user_id, u.name;", k: "", h: "group" }
       ]
@@ -911,7 +922,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
       steps: [
         { id: "from", badge: "① FROM / INNER JOIN", bc: "badge-blue",
           label: "左: orders (o), 右: users (u)",
-          desc: "INNER JOINにより、両テーブルに存在する行だけが結合されます。削除済みユーザー（U999）の注文は自動的に除外されます。",
+          desc: "INNER JOINでは、両テーブルに存在する行だけが結合されます。",
           type: "base", join: true,
           left: {
             label: "orders (o)", cols: ["order_id", "user_id", "amount"],
@@ -935,7 +946,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
           cnt: "左: 4行 / 右: 3行" },
         { id: "join", badge: "② ON (結合条件)", bc: "badge-orange",
           label: "ON o.user_id = u.user_id",
-          desc: "user_idで突き合わせます。U999は右テーブルに存在しないため除外（INNER JOINのルール：両方に一致する行のみ）。",
+          desc: "user_idで突き合わせます。U999は右テーブルに存在しないため除外（両方に一致する行のみ残る）。",
           type: "eval", join: true,
           left: {
             label: "orders (o)", cols: ["order_id", "user_id", "amount"],
@@ -953,11 +964,22 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
             rows: [
               { v: ["U001", "田中"], cc: ["val-pass"] },
               { v: ["U002", "鈴木"], cc: ["val-pass"] },
-              { c: "row-dimmed", v: ["U003 (対応注文なし)", "佐藤"] }
+              { c: "row-dimmed", v: ["U003", "佐藤"], cc: ["val-fail"] }
             ]
           },
           cnt: "結合成功: 3行 / 除外: 1行 (U999)" },
-        { id: "select", badge: "③ SELECT", bc: "badge-green",
+        { id: "join-res", badge: "③ 結合後の中間テーブル", bc: "badge-blue",
+          label: "INNER JOIN 完了",
+          desc: "INNER JOINの結果、両方に一致した行のみが残ります。U999の注文はここで完全に除外されます。",
+          type: "base",
+          cols: ["o.order_id", "o.user_id", "o.amount", "u.name"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: [1, "U001", "5000", "田中"] },
+            { v: [2, "U001", "3000", "田中"] },
+            { v: [3, "U002", "8000", "鈴木"] }
+          ], cnt: "論理行数: 3行" },
+        { id: "select", badge: "④ SELECT", bc: "badge-green",
           label: "SELECT o.order_id, o.user_id, u.name, o.amount",
           desc: "結合後の3行から指定列を出力します。削除済みユーザーの注文は意図通り除外されています。",
           type: "select",
@@ -976,7 +998,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
         { t: "    u.name,\n", k: "", h: "select" },
         { t: "    o.amount\n", k: "", h: "select" },
         { t: "FROM       ", k: "sql-kw", h: "from" }, { t: "orders o\n", k: "", h: "from" },
-        { t: "INNER JOIN ", k: "sql-kw", h: "from" }, { t: "users  u\n", k: "", h: "from" },
+        { t: "INNER JOIN ", k: "sql-kw", h: "from join join-res" }, { t: "users  u\n", k: "", h: "from join join-res" },
         { t: "  ON ", k: "sql-kw", h: "join" }, { t: "o.user_id = u.user_id;", k: "", h: "join" }
       ]
     }
@@ -1132,7 +1154,7 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
       steps: [
         { id: "from", badge: "① FROM", bc: "badge-blue",
           label: "FROM employees",
-          desc: "employeesテーブル全体を読み込みます。bonus列にNULLを持つ行（E002）があります。",
+          desc: "employeesテーブル全体を読み込みます。E002のbonus列にNULLが含まれています。",
           type: "base",
           cols: ["emp_id", "salary", "bonus"],
           ch: ["col-base", "col-base", "col-base"],
@@ -1141,22 +1163,33 @@ RailsやDjangoなどのORMでは <code>User.all</code> がデフォルトで <co
             { v: ["E002", "280000", "NULL"] },
             { v: ["E003", "320000", "30000"] }
           ], cnt: "全 3行 読込" },
-        { id: "select", badge: "② SELECT + COALESCE", bc: "badge-green",
-          label: "SELECT emp_id, salary + COALESCE(bonus, 0) AS total_pay",
-          desc: "COALESCE(bonus, 0)でNULLを0に変換してから加算します。E002のbonusはNULL→0に変換され、salary+0=280000となります（NULLのままだとsalary+NULL=NULLになるバグを防止）。",
-          type: "select",
-          cols: ["emp_id", "salary", "COALESCE(bonus,0)", "total_pay"],
-          ch: ["col-select", "", "col-select", "col-select"],
+        { id: "eval", badge: "② COALESCE 評価", bc: "badge-orange",
+          label: "COALESCE(bonus, 0)",
+          desc: "加算の前にCOALESCE関数が評価されます。E002のNULLは0に安全に変換され、他の値はそのまま保持されます。",
+          type: "eval",
+          cols: ["emp_id", "salary", "bonus", "COALESCE(bonus, 0)"],
+          ch: ["", "", "", "col-eval"],
           rows: [
-            { v: ["E001", "300000", "50000", "350000"], cc: ["", "", "val-pass"] },
-            { v: ["E002", "280000", "0 (NULL→0)", "280000"], cc: ["", "", "val-pass"] },
-            { v: ["E003", "320000", "30000", "350000"], cc: ["", "", "val-pass"] }
+            { v: ["E001", "300000", "50000", "50000"], cc: ["", "", "", "val-pass"] },
+            { v: ["E002", "280000", "NULL", "0 (NULL→0)"], cc: ["", "", "", "val-pass"] },
+            { v: ["E003", "320000", "30000", "30000"], cc: ["", "", "", "val-pass"] }
+          ], cnt: "NULLを0に変換" },
+        { id: "select", badge: "③ SELECT (加算)", bc: "badge-green",
+          label: "SELECT emp_id, salary + COALESCE(...) AS total_pay",
+          desc: "変換後の値を使って加算を行います。NULLが0に置き換わっているため、salary + NULL = NULL になるバグを防げます。",
+          type: "select",
+          cols: ["emp_id", "salary", "COALESCE結果", "total_pay"],
+          ch: ["col-select", "", "", "col-select"],
+          rows: [
+            { v: ["E001", "300000", "50000", "350000"] },
+            { v: ["E002", "280000", "0", "280000"] },
+            { v: ["E003", "320000", "30000", "350000"] }
           ], cnt: "結果: 3行（NULLなし）" }
       ],
       sql: [
         { t: "SELECT\n", k: "sql-kw", h: "select" },
         { t: "    emp_id,\n", k: "", h: "select" },
-        { t: "    salary + COALESCE(bonus, 0) AS total_pay\n", k: "", h: "select" },
+        { t: "    salary + COALESCE(bonus, 0) AS total_pay\n", k: "", h: "eval select" },
         { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "employees;", k: "", h: "from" }
       ]
     }
@@ -1260,52 +1293,87 @@ NULLの問題を根本から減らすには、スキーマ設計時に <strong>N
   3. Index Scan                → インデックスが指す行だけを読む
   4. SELECT customer_id, company_name → 列を返す
 */</span></pre>`,
-  viz: {
-    steps: [
-      { id: "from", badge: "① FROM", bc: "badge-blue",
-        label: "FROM customers",
-        desc: "customersテーブルを読み込みます。customer_id列にはBTreeインデックスが存在します。",
-        type: "base",
-        cols: ["customer_id", "company_name"],
-        ch: ["col-base", "col-base"],
-        rows: [
-          { v: ["CUS001", "田中商事"] },
-          { v: ["CUS002", "鈴木工業"] },
-          { v: ["CUS100", "佐藤物産"] },
-          { v: ["VND001", "山田ベンダー"] },
-          { v: ["EMP001", "高橋個人"] }
-        ], cnt: "全 5行 読込" },
-      { id: "where", badge: "② WHERE LIKE (前方一致)", bc: "badge-orange",
-        label: "WHERE customer_id LIKE 'CUS%'",
-        desc: "前方一致（'CUS%'）はBTreeインデックスで範囲検索に変換されます。DBは内部的に「customer_id >= 'CUS' AND customer_id < 'CUT'」として処理するため、Index Scanが使えます。",
-        type: "eval",
-        cols: ["customer_id", "company_name"],
-        ch: ["col-eval"],
-        rows: [
-          { v: ["CUS001 ✓", "田中商事"], cc: ["val-pass"] },
-          { v: ["CUS002 ✓", "鈴木工業"], cc: ["val-pass"] },
-          { v: ["CUS100 ✓", "佐藤物産"], cc: ["val-pass"] },
-          { c: "row-dimmed", v: ["VND001 ✗", "山田ベンダー"], cc: ["val-fail"] },
-          { c: "row-dimmed", v: ["EMP001 ✗", "高橋個人"], cc: ["val-fail"] }
-        ], cnt: "5行 → 3行 (Index Scan)" },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
-        label: "SELECT customer_id, company_name",
-        desc: "前方一致で絞り込まれた3行を出力します。",
-        type: "select",
-        cols: ["customer_id", "company_name"],
-        ch: ["col-select", "col-select"],
-        rows: [
-          { v: ["CUS001", "田中商事"] },
-          { v: ["CUS002", "鈴木工業"] },
-          { v: ["CUS100", "佐藤物産"] }
-        ], cnt: "結果: 3行 × 2列" }
-    ],
-    sql: [
-      { t: "SELECT ", k: "sql-kw", h: "select" }, { t: "customer_id, company_name\n", k: "", h: "select" },
-      { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "customers\n", k: "", h: "from" },
-      { t: "WHERE  ", k: "sql-kw", h: "where" }, { t: "customer_id LIKE 'CUS%';", k: "", h: "where" }
-    ]
-  },
+  viz: [
+    {
+      steps: [
+        { id: "from", badge: "① FROM", bc: "badge-blue",
+          label: "FROM products",
+          desc: "productsテーブルを読み込みます。product_name列にインデックスがあっても、中間一致では使えません。",
+          type: "base",
+          cols: ["product_id", "product_name"],
+          ch: ["col-base", "col-base"],
+          rows: [
+            { v: [1, "青森産リンゴ"] },
+            { v: [2, "みかん"] },
+            { v: [3, "リンゴジュース"] },
+            { v: [4, "バナナ"] }
+          ], cnt: "全件スキャン開始" },
+        { id: "where", badge: "② WHERE LIKE (中間一致)", bc: "badge-orange",
+          label: "WHERE product_name LIKE '%リンゴ%'",
+          desc: "「どこから始まるか」が不明なため、インデックスを諦めてテーブルの全行を上から下まで調べる「Seq Scan」になります。データ量に比例して遅くなります。",
+          type: "eval",
+          cols: ["product_id", "product_name"],
+          ch: ["", "col-eval"],
+          rows: [
+            { v: [1, "青森産リンゴ ✓"], cc: ["", "val-pass"] },
+            { c: "row-dimmed", v: [2, "みかん ✗"], cc: ["", "val-fail"] },
+            { v: [3, "リンゴジュース ✓"], cc: ["", "val-pass"] },
+            { c: "row-dimmed", v: [4, "バナナ ✗"], cc: ["", "val-fail"] }
+          ], cnt: "全件評価 → 2行 (Seq Scan)" }
+      ],
+      sql: [
+        { t: "SELECT ", k: "sql-kw", h: "select" }, { t: "product_id, product_name\n", k: "", h: "select" },
+        { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "products\n", k: "", h: "from" },
+        { t: "WHERE  ", k: "sql-kw", h: "where" }, { t: "product_name LIKE '%リンゴ%';", k: "", h: "where" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① FROM", bc: "badge-blue",
+          label: "FROM customers",
+          desc: "customersテーブルを読み込みます。customer_id列にはBTreeインデックスが存在します。",
+          type: "base",
+          cols: ["customer_id", "company_name"],
+          ch: ["col-base", "col-base"],
+          rows: [
+            { v: ["CUS001", "田中商事"] },
+            { v: ["CUS002", "鈴木工業"] },
+            { v: ["CUS100", "佐藤物産"] },
+            { v: ["EMP001", "高橋個人"] },
+            { v: ["VND001", "山田ベンダー"] }
+          ], cnt: "全 5行" },
+        { id: "where", badge: "② WHERE LIKE (前方一致)", bc: "badge-orange",
+          label: "WHERE customer_id LIKE 'CUS%'",
+          desc: "前方一致（'CUS%'）はBTreeインデックスで範囲検索に変換されます。DBは内部的に「customer_id >= 'CUS' AND customer_id < 'CUT'」として処理するため、Index Scanが使えます。",
+          type: "eval",
+          cols: ["customer_id", "company_name"],
+          ch: ["col-eval"],
+          rows: [
+            { v: ["CUS001 ✓", "田中商事"], cc: ["val-pass"] },
+            { v: ["CUS002 ✓", "鈴木工業"], cc: ["val-pass"] },
+            { v: ["CUS100 ✓", "佐藤物産"], cc: ["val-pass"] },
+            { c: "row-dimmed", v: ["EMP001 ✗", "高橋個人"], cc: ["val-fail"] },
+            { c: "row-dimmed", v: ["VND001 ✗", "山田ベンダー"], cc: ["val-fail"] }
+          ], cnt: "範囲検索 → 3行 (Index Scan)" },
+        { id: "select", badge: "③ SELECT", bc: "badge-green",
+          label: "SELECT customer_id, company_name",
+          desc: "前方一致で高速に絞り込まれた3行を出力します。",
+          type: "select",
+          cols: ["customer_id", "company_name"],
+          ch: ["col-select", "col-select"],
+          rows: [
+            { v: ["CUS001", "田中商事"] },
+            { v: ["CUS002", "鈴木工業"] },
+            { v: ["CUS100", "佐藤物産"] }
+          ], cnt: "結果: 3行 × 2列" }
+      ],
+      sql: [
+        { t: "SELECT ", k: "sql-kw", h: "select" }, { t: "customer_id, company_name\n", k: "", h: "select" },
+        { t: "FROM   ", k: "sql-kw", h: "from" }, { t: "customers\n", k: "", h: "from" },
+        { t: "WHERE  ", k: "sql-kw", h: "where" }, { t: "customer_id LIKE 'CUS%';", k: "", h: "where" }
+      ]
+    }
+  ],
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
@@ -1592,54 +1660,80 @@ ECサイトで商品名の部分一致検索を実装する場合、初期は <s
 */</span></pre>`,
   viz: {
     steps: [
-      { id: "from", badge: "① FROM / LEFT JOIN", bc: "badge-blue",
-        label: "左: users (u), 右: orders (o)",
-        desc: "LEFT JOINでusersの全行を保持しながらordersを結合します。注文のないユーザーも結果に含まれます（相関サブクエリの2N+1回アクセスが1回のJOINに統合）。",
-        type: "base", join: true,
-        left: {
-          label: "users (u) — plan='premium'", cols: ["user_id", "name", "plan"],
-          ch: [],
-          rows: [
-            { v: ["U001", "田中", "premium"] },
-            { v: ["U002", "鈴木", "premium"] },
-            { v: ["U003", "佐藤", "premium"] }
-          ]
-        },
-        right: {
-          label: "orders (o)", cols: ["order_id", "user_id", "created_at"],
-          ch: [],
-          rows: [
-            { v: [1, "U001", "2024-10-01"] },
-            { v: [2, "U001", "2024-12-01"] },
-            { v: [3, "U003", "2024-11-15"] }
-          ]
-        },
-        cnt: "左: 3行 / 右: 3行" },
+      { id: "from-users", badge: "① FROM (主テーブル)", bc: "badge-blue",
+        label: "FROM users u",
+        desc: "まず主軸となるusersテーブルを読み込みます。",
+        type: "base",
+        cols: ["user_id", "name", "plan"],
+        ch: ["col-base", "col-base", "col-base"],
+        rows: [
+          { v: ["U001", "田中", "premium"] },
+          { v: ["U002", "鈴木", "premium"] },
+          { v: ["U003", "佐藤", "premium"] },
+          { v: ["U004", "高橋", "free"] }
+        ], cnt: "全 4行" },
       { id: "where", badge: "② WHERE", bc: "badge-orange",
         label: "WHERE u.plan = 'premium'",
-        desc: "集計前にpremiumユーザーのみに絞ります。WHEREはGROUP BYの前に実行されるため効率的です。",
+        desc: "JOINの前に、必要なユーザー（premium）だけに絞り込みます。無駄な結合を減らすことができます。",
         type: "eval",
         cols: ["user_id", "name", "plan"],
         ch: ["", "", "col-eval"],
         rows: [
           { v: ["U001", "田中", "premium ✓"], cc: ["", "", "val-pass"] },
           { v: ["U002", "鈴木", "premium ✓"], cc: ["", "", "val-pass"] },
-          { v: ["U003", "佐藤", "premium ✓"], cc: ["", "", "val-pass"] }
-        ], cnt: "全員premium → 3行通過" },
-      { id: "group", badge: "③ GROUP BY", bc: "badge-orange",
-        label: "GROUP BY u.user_id, u.name",
-        desc: "ユーザーごとにグループ化します。U001は2件の注文、U002は0件（LEFT JOINによりNULL）、U003は1件。",
-        type: "group",
-        cols: ["user_id", "name", "order_id(s)"],
-        ch: ["col-eval", "col-eval"],
+          { v: ["U003", "佐藤", "premium ✓"], cc: ["", "", "val-pass"] },
+          { c: "row-dimmed", v: ["U004", "高橋", "free ✗"], cc: ["", "", "val-fail"] }
+        ], cnt: "4行 → 3行" },
+      { id: "join-eval", badge: "③ LEFT JOIN (突き合わせ)", bc: "badge-blue",
+        label: "LEFT JOIN orders o ON o.user_id = u.user_id",
+        desc: "絞り込んだ3人のユーザーに対してordersを一括で結合します。相関サブクエリのように何度もクエリを発行せず、1回の結合で処理します。",
+        type: "eval", join: true,
+        left: {
+          label: "users (premium)", cols: ["user_id", "name"],
+          ch: ["col-eval"],
+          rows: [
+            { v: ["U001", "田中"], cc: ["val-pass"] },
+            { v: ["U002", "鈴木"], cc: ["val-pass"] },
+            { v: ["U003", "佐藤"], cc: ["val-pass"] }
+          ]
+        },
+        right: {
+          label: "orders", cols: ["order_id", "user_id", "created_at"],
+          ch: ["", "col-eval"],
+          rows: [
+            { v: [1, "U001", "2024-10-01"], cc: ["", "val-pass"] },
+            { v: [2, "U001", "2024-12-01"], cc: ["", "val-pass"] },
+            { v: [3, "U003", "2024-11-15"], cc: ["", "val-pass"] }
+          ]
+        },
+        cnt: "突き合わせ実行" },
+      { id: "join-res", badge: "④ 結合結果 (中間テーブル)", bc: "badge-blue",
+        label: "JOIN後の論理的な状態",
+        desc: "LEFT JOINにより、注文がないU002の行にはordersの列にNULLが補完されます。",
+        type: "base",
+        cols: ["u.user_id", "u.name", "o.order_id", "o.created_at"],
+        ch: ["col-base", "col-base", "col-base", "col-base"],
         rows: [
-          { c: "row-grp-1", v: ["U001", "田中", "1, 2"] },
-          { c: "row-grp-2", v: ["U002", "鈴木", "NULL (注文なし)"] },
-          { c: "row-grp-3", v: ["U003", "佐藤", "3"] }
-        ], cnt: "3グループ" },
-      { id: "select", badge: "④ SELECT + COUNT/MAX", bc: "badge-green",
-        label: "SELECT user_id, name, COUNT(o.order_id), MAX(o.created_at)",
-        desc: "各グループからCOUNT(列名)で件数、MAXで最終注文日を計算します。COUNT(o.order_id)はNULLを除外するためU002は0件になります。相関サブクエリの2N+1回が1回のJOIN+集計で完結します。",
+          { v: ["U001", "田中", "1", "2024-10-01"] },
+          { v: ["U001", "田中", "2", "2024-12-01"] },
+          { v: ["U002", "鈴木", "NULL", "NULL"] },
+          { v: ["U003", "佐藤", "3", "2024-11-15"] }
+        ], cnt: "中間結果: 4行" },
+      { id: "group", badge: "⑤ GROUP BY", bc: "badge-orange",
+        label: "GROUP BY u.user_id, u.name",
+        desc: "ユーザーごとにグループ化します。U001は2行、U002とU003は1行ずつに分類されます。",
+        type: "group",
+        cols: ["user_id", "name", "order_id", "created_at"],
+        ch: ["col-eval", "col-eval", "", ""],
+        rows: [
+          { c: "row-grp-1", v: ["U001", "田中", "1", "2024-10-01"] },
+          { c: "row-grp-1", v: ["U001", "田中", "2", "2024-12-01"] },
+          { c: "row-grp-2", v: ["U002", "鈴木", "NULL", "NULL"] },
+          { c: "row-grp-3", v: ["U003", "佐藤", "3", "2024-11-15"] }
+        ], cnt: "3グループに分類" },
+      { id: "select", badge: "⑥ SELECT + 集計", bc: "badge-green",
+        label: "SELECT u.user_id, COUNT(o.order_id), MAX(o.created_at)",
+        desc: "各グループからCOUNTとMAXを計算します。COUNT(o.order_id)はNULLを除外するためU002は0件になります。これで相関サブクエリと同じ結果が1回のJOINで得られました。",
         type: "select",
         cols: ["user_id", "name", "order_count", "last_order_at"],
         ch: ["col-select", "col-select", "col-select", "col-select"],
@@ -1655,9 +1749,9 @@ ECサイトで商品名の部分一致検索を実装する場合、初期は <s
       { t: "    u.name,\n", k: "", h: "select" },
       { t: "    COUNT(o.order_id) AS order_count,\n", k: "", h: "select" },
       { t: "    MAX(o.created_at) AS last_order_at\n", k: "", h: "select" },
-      { t: "FROM      ", k: "sql-kw", h: "from" }, { t: "users  u\n", k: "", h: "from" },
-      { t: "LEFT JOIN ", k: "sql-kw", h: "from" }, { t: "orders o\n", k: "", h: "from" },
-      { t: "  ON ", k: "sql-kw", h: "from" }, { t: "o.user_id = u.user_id\n", k: "", h: "from" },
+      { t: "FROM      ", k: "sql-kw", h: "from-users" }, { t: "users u\n", k: "", h: "from-users" },
+      { t: "LEFT JOIN ", k: "sql-kw", h: "join-eval join-res" }, { t: "orders o\n", k: "", h: "join-eval join-res" },
+      { t: "  ON ", k: "sql-kw", h: "join-eval" }, { t: "o.user_id = u.user_id\n", k: "", h: "join-eval" },
       { t: "WHERE  ", k: "sql-kw", h: "where" }, { t: "u.plan = 'premium'\n", k: "", h: "where" },
       { t: "GROUP BY  ", k: "sql-kw", h: "group" }, { t: "u.user_id, u.name;", k: "", h: "group" }
     ]
@@ -1769,7 +1863,7 @@ ECサイトで商品名の部分一致検索を実装する場合、初期は <s
     steps: [
       { id: "from", badge: "① FROM", bc: "badge-blue",
         label: "FROM orders",
-        desc: "ordersテーブルを参照します。複合インデックス(user_id, created_at DESC)が存在する前提で処理します。",
+        desc: "ordersテーブルを参照します。ここでは複合インデックス(user_id, created_at DESC)が存在する前提で、仮想的にインデックス順に並んだ状態をイメージします。",
         type: "base",
         cols: ["order_id", "user_id", "amount", "created_at"],
         ch: ["col-base", "col-base", "col-base", "col-base"],
@@ -1795,7 +1889,7 @@ ECサイトで商品名の部分一致検索を実装する場合、初期は <s
         ], cnt: "5行 → 4行" },
       { id: "select", badge: "③ ORDER BY + LIMIT (ソート不要)", bc: "badge-green",
         label: "ORDER BY created_at DESC LIMIT 10",
-        desc: "複合インデックス(user_id, created_at DESC)がcreated_at降順で並んでいるため、追加ソート不要で先頭から10件読むだけで完了します。インデックスなしの場合は全対象行をメモリソートする追加コストが発生します。",
+        desc: "複合インデックス(user_id, created_at DESC)がcreated_at降順で並んでいるため、追加のソート処理は不要です。先頭から10件読むだけで完了します。インデックスなしの場合は全対象行をメモリソートする追加コストが発生します。",
         type: "select",
         cols: ["order_id", "amount", "created_at"],
         ch: ["col-select", "col-select", "col-select"],
@@ -2012,7 +2106,7 @@ UPDATE や DELETE でも EXISTS が使えます。<strong><code>DELETE FROM user
 <span class="kw">WHERE</span> a <span class="op">=</span> <span class="num">1</span> <span class="kw">AND</span> b <span class="op">=</span> <span class="num">2</span> <span class="kw">AND</span> c <span class="op">=</span> <span class="num">3</span> <span class="cmt">-- ✅ 全3列 → 使える</span>
 <span class="kw">WHERE</span> b <span class="op">=</span> <span class="num">2</span>                     <span class="cmt">-- ❌ bは先頭ではない → 使えない</span>
 <span class="kw">WHERE</span> a <span class="op">=</span> <span class="num">1</span> <span class="kw">AND</span> c <span class="op">=</span> <span class="num">3</span>          <span class="cmt">-- ⚠️  a部分は使えるがcは間にbが抜けているため使えない</span></pre>
-<div class="callout ok"><strong>カバリングインデックス：</strong>クエリで必要な全ての列（WHERE・SELECT・ORDER BYで使う列）がインデックスに含まれていると、テーブル本体を一切読まずにインデックスだけで結果を返せます（Index Only Scan）。最高速のパターンです。</div>`,
+<div class="callout ok"><strong>カバリングインデックス：</strong>クエリで必要な全ての列（WHERE・SELECT・ORDER BYで使う列）がインデックスに含まれていると、テーブル本体を読まずにインデックスだけで結果を返せます（Index Only Scan）。最高速のパターンです。</div>`,
   question: `<p>以下のクエリに対して<em>最適な複合インデックスを設計してください</em>。さらにカバリングインデックスになるよう改善する方針も示してください。</p>
 <pre><span class="cmt">-- クエリA: 特定ユーザーの completed 注文を新しい順に取得</span>
 <span class="kw">SELECT</span> order_id, amount, created_at
