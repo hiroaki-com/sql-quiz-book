@@ -566,7 +566,38 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>相対的な比較が容易に：</strong>「一番高い人と比べて自分はどれくらい差があるか」「全体の平均からどれくらい離れているか」といった相対評価は、ウィンドウ関数の得意領域です。GROUP BY と自己結合を組み合わせる従来の方法に比べ、圧倒的にシンプルかつ高速に書けます。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>従来の書き方と比較：</strong>ウィンドウ関数なしで同じ結果を得るには <code>SELECT e.*, m.dept_max FROM employee_salaries e JOIN (SELECT dept, MAX(salary) AS dept_max FROM employee_salaries GROUP BY dept) m ON e.dept = m.dept</code> のようにサブクエリと JOIN が必要でした。ウィンドウ関数を使うことでこれが1クエリに収まります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>従来の書き方と比較：</strong>ウィンドウ関数なしで同じ結果を得るには、サブクエリで部署ごとの最大値を求め JOIN する必要がありました。ウィンドウ関数を使うことでこれが1クエリに収まります。</div></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">🔄 従来の書き方 vs ウィンドウ関数</div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;">
+    <div style="flex:1;min-width:240px;">
+      <div class="data-tbl-name" style="color:var(--red);">❌ 従来：サブクエリ + JOIN（テーブルを2回スキャン）</div>
+      <pre style="margin-top:4px;font-size:11px;"><span class="kw">SELECT</span> e.emp_name, e.dept, e.salary,
+       m.dept_max,
+       m.dept_max <span class="op">-</span> e.salary <span class="kw">AS</span> diff_from_max
+<span class="kw">FROM</span> <span class="tbl">employee_salaries</span> e
+<span class="kw">JOIN</span> (
+  <span class="kw">SELECT</span> dept, <span class="fn">MAX</span>(salary) <span class="kw">AS</span> dept_max
+  <span class="kw">FROM</span> <span class="tbl">employee_salaries</span>
+  <span class="kw">GROUP BY</span> dept
+) m <span class="kw">ON</span> e.dept <span class="op">=</span> m.dept
+<span class="kw">ORDER BY</span> dept, diff_from_max;</pre>
+      <p style="font-size:11px;color:var(--red);margin-top:2px;">テーブルを2回スキャン・サブクエリが必要</p>
+    </div>
+    <div style="flex:1;min-width:240px;">
+      <div class="data-tbl-name" style="color:var(--green);">✅ ウィンドウ関数：1クエリ・1スキャンで完結</div>
+      <pre style="margin-top:4px;font-size:11px;"><span class="kw">SELECT</span>
+  emp_name, dept, salary,
+  <span class="fn">MAX</span>(salary) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> dept)
+    <span class="kw">AS</span> dept_max,
+  <span class="fn">MAX</span>(salary) <span class="kw">OVER</span>(<span class="kw">PARTITION BY</span> dept)
+    <span class="op">-</span> salary <span class="kw">AS</span> diff_from_max
+<span class="kw">FROM</span> <span class="tbl">employee_salaries</span>
+<span class="kw">ORDER BY</span> dept, diff_from_max;</pre>
+      <p style="font-size:11px;color:var(--green);margin-top:2px;">シンプル・1回のスキャンで計算が完了する</p>
+    </div>
+  </div>
 </div>`
 },
 
@@ -699,6 +730,33 @@ const QS = [
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>フラグ立て・異常検知への応用：</strong>「注文回数が2回以上のユーザーだけを抽出したい」といった場合、このクエリをサブクエリ（またはCTE）で囲み <code>WHERE order_count >= 2</code> とすることで、詳細な注文履歴を残したまま対象ユーザーだけを抽出できます。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>COUNT(列名) と COUNT(*) の違い：</strong>ウィンドウ関数でも通常の集約関数と同様に、<code>COUNT(列名)</code> はその列が NULL でない行だけをカウントし、<code>COUNT(*)</code> は NULL を含めた全ての行数をカウントします。</div></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">🔑 ウィンドウ関数の本質：「行を潰す」か「行を保つ」か</div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;">
+    <div style="flex:1;min-width:220px;">
+      <div class="data-tbl-name" style="color:var(--red);">❌ GROUP BY（行が3行に集約される）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th class="tc-r">order_count</th><th class="tc-r">total_amount</th></tr>
+        <tr><td>U1</td><td class="tc-r">3</td><td class="tc-r">3500</td></tr>
+        <tr><td>U2</td><td class="tc-r">1</td><td class="tc-r">1500</td></tr>
+        <tr><td>U3</td><td class="tc-r">1</td><td class="tc-r">3000</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--red);margin-top:4px;">order_id・amount の明細情報が失われる</p>
+    </div>
+    <div style="flex:1;min-width:220px;">
+      <div class="data-tbl-name" style="color:var(--green);">✅ ウィンドウ関数（全5行を保持したまま集計値を付与）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th class="tc-g">order_count</th><th class="tc-hi">total_amount</th></tr>
+        <tr><td>1</td><td>U1</td><td>1000</td><td class="tc-g">3</td><td class="tc-hi">3500</td></tr>
+        <tr><td>2</td><td>U1</td><td>2000</td><td class="tc-g">3</td><td class="tc-hi">3500</td></tr>
+        <tr><td>5</td><td>U1</td><td>500</td><td class="tc-g">3</td><td class="tc-hi">3500</td></tr>
+        <tr><td>3</td><td>U2</td><td>1500</td><td class="tc-g">1</td><td class="tc-hi">1500</td></tr>
+        <tr><td>4</td><td>U3</td><td>3000</td><td class="tc-g">1</td><td class="tc-hi">3000</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--green);margin-top:4px;">明細を残したまま集計値を各行に横付けできる</p>
+    </div>
+  </div>
 </div>`
 },
 
@@ -826,6 +884,31 @@ const QS = [
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>MIN() との違い：</strong>「最初のイベント名」を取る際、<code>MIN(event_name)</code> を使うと文字コード順（辞書順）で一番小さいものが取れてしまい、日付順の「最初」にはなりません。時間軸に沿った最初の値を取るには必ず <code>FIRST_VALUE()</code> を使います。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>対となる LAST_VALUE()：</strong>最後の値を取得する <code>LAST_VALUE()</code> もありますが、デフォルトのフレーム指定（<code>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code>）の仕様により、そのまま使うと「現在の行の値」が返ってしまいます。実務では <code>ORDER BY ... DESC</code> に並べ替えて <code>FIRST_VALUE()</code> を使う方が安全で直感的です。</div></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">⚠️ MIN() を使うと「最初」ではなく「辞書順最小」になる</div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;">
+    <div style="flex:1;min-width:210px;">
+      <div class="data-tbl-name" style="color:var(--red);">❌ MIN(event_name) — 辞書順最小を返す</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>event_date</th><th>event_name</th><th class="tc-r">MIN の結果</th></tr>
+        <tr><td>04-01</td><td>登録</td><td class="tc-r">閲覧</td></tr>
+        <tr><td>04-02</td><td>閲覧</td><td class="tc-r">閲覧</td></tr>
+        <tr><td>04-05</td><td>購入</td><td class="tc-r">閲覧</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--red);margin-top:4px;">「閲覧」は2番目のイベントなのに辞書順で最小のため先頭扱いに</p>
+    </div>
+    <div style="flex:1;min-width:210px;">
+      <div class="data-tbl-name" style="color:var(--green);">✅ FIRST_VALUE() ORDER BY event_date — 日付順の先頭を返す</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>event_date</th><th>event_name</th><th class="tc-g">FIRST_VALUE の結果</th></tr>
+        <tr><td>04-01</td><td>登録</td><td class="tc-g">登録</td></tr>
+        <tr><td>04-02</td><td>閲覧</td><td class="tc-g">登録</td></tr>
+        <tr><td>04-05</td><td>購入</td><td class="tc-g">登録</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--green);margin-top:4px;">ORDER BY event_date ASC で「時系列的に最初のイベント」を正確に取得</p>
+    </div>
+  </div>
 </div>`
 },
 
@@ -949,6 +1032,17 @@ const QS = [
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での活用例（DATEDIFF）：</strong><code>DATEDIFF(LEAD(visit_date) OVER(...), visit_date)</code> のように日付の差分関数と組み合わせることで、「ユーザーが平均して何日おきにサイトを訪れるか（再訪間隔）」を1クエリで簡単に分析できます。マーケティング分析における超重要テクニックです。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULL が意味を持つ：</strong>next_visit が NULL の行は「その後二度と来なかったユーザーの最終訪問」を意味します。<code>WHERE next_visit IS NULL</code> で絞り込めば離脱ユーザーの最終行動を一覧できます。NULL は「欠損」ではなく「そのユーザーの終点」という情報です。</div></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">📐 DATEDIFF + LEAD で「次回訪問までの日数」を導出する</div>
+  <div class="tbl-wrap" style="margin-top:8px;"><table class="vtbl">
+    <tr><th>user_id</th><th>visit_date</th><th class="tc-y">next_visit (LEAD)</th><th class="tc-p">days_to_next<br><small style="font-weight:400;">DATEDIFF(next_visit, visit_date)</small></th></tr>
+    <tr><td>U1</td><td>04-01</td><td class="tc-y">04-05</td><td class="tc-p">4日後に再訪</td></tr>
+    <tr><td>U1</td><td>04-05</td><td class="tc-y">04-10</td><td class="tc-p">5日後に再訪</td></tr>
+    <tr><td>U1</td><td>04-10</td><td class="null">NULL</td><td class="null">NULL（最終訪問 → 離脱候補）</td></tr>
+    <tr><td>U2</td><td>04-02</td><td class="null">NULL</td><td class="null">NULL（最終訪問 → 離脱候補）</td></tr>
+  </table></div>
+  <p style="font-size:11px;color:var(--dim);margin-top:6px;"><code>WHERE days_to_next IS NULL</code> で絞り込むと離脱ユーザーの最終行動のみ抽出できます。NULL は「欠損」ではなく、「その後の訪問が存在しない」という意味のある情報として活用できます。</p>
 </div>`
 },
 
@@ -1066,6 +1160,31 @@ const QS = [
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCE() との使い分け：</strong><code>COALESCE(LAG(users) OVER(...), 0)</code> と書くのと同じ結果になりますが、LAGの第3引数を使う方がコードがすっきりし、ウィンドウ関数の意図（デフォルト値の補完）が明確になります。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>複数行ずらす：</strong>第2引数を変更して <code>LAG(users, 7)</code> とすれば「1週間前（7行前）のデータ」を取得できます。曜日ごとのトレンドを比較する（先週の同曜日との比較）際によく使われます。</div></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">🔄 デフォルト値なし (NULL) vs デフォルト値あり (0) の結果比較</div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;">
+    <div style="flex:1;min-width:190px;">
+      <div class="data-tbl-name" style="color:var(--red);">❌ LAG(users) — デフォルト値なし</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>date</th><th>users</th><th class="tc-r">prev_users</th><th class="tc-r">差分 (users - prev)</th></tr>
+        <tr><td>04-01</td><td>100</td><td class="null">NULL</td><td class="null">NULL ← 計算不能</td></tr>
+        <tr><td>04-02</td><td>120</td><td class="tc-r">100</td><td class="tc-r">+20</td></tr>
+        <tr><td>04-03</td><td>150</td><td class="tc-r">120</td><td class="tc-r">+30</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--red);margin-top:4px;">先頭行の差分が NULL になり、集計から除外されてしまう</p>
+    </div>
+    <div style="flex:1;min-width:190px;">
+      <div class="data-tbl-name" style="color:var(--green);">✅ LAG(users, 1, 0) — デフォルト値 0</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>date</th><th>users</th><th class="tc-g">prev_users</th><th class="tc-g">差分 (users - prev)</th></tr>
+        <tr><td>04-01</td><td>100</td><td class="tc-g">0</td><td class="tc-g">+100 ← 計算できる</td></tr>
+        <tr><td>04-02</td><td>120</td><td class="tc-g">100</td><td class="tc-g">+20</td></tr>
+        <tr><td>04-03</td><td>150</td><td class="tc-g">120</td><td class="tc-g">+30</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--green);margin-top:4px;">初日も 0 比較として扱え、全行で差分計算が正常に機能する</p>
+    </div>
+  </div>
 </div>`
 },
 
@@ -1193,6 +1312,34 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同値の境界またぎ：</strong>NTILE は「行数」だけで機械的に分割するため、同じ売上の人が境界線をまたいで別々のグループに分かれてしまうことがあります。厳密に「同じ値なら同じグループ」にしたい場合は、<code>NTILE</code> ではなく <code>PERCENT_RANK</code> や <code>RANK</code> などを利用して自前で分割ロジックを組む必要があります。</div></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">⚠️ 同値が境界をまたぐ例（4件を2分割すると同額が別グループに）</div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;">
+    <div style="flex:1;min-width:200px;">
+      <div class="data-tbl-name" style="color:var(--dim);">NTILE(3) — 5件・3分割（問題なし）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>customer_id</th><th>total_amount</th><th class="tc-p">tier</th></tr>
+        <tr><td>C1</td><td>50000</td><td class="tc-p">1</td></tr>
+        <tr><td>C2</td><td>40000</td><td class="tc-p">1</td></tr>
+        <tr><td>C3</td><td>30000</td><td class="tc-p">2</td></tr>
+        <tr><td>C4</td><td>20000</td><td class="tc-p">2</td></tr>
+        <tr><td>C5</td><td>10000</td><td class="tc-p">3</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--dim);margin-top:4px;">全員が異なる値のため境界またぎは発生しない</p>
+    </div>
+    <div style="flex:1;min-width:200px;">
+      <div class="data-tbl-name" style="color:var(--red);">❌ NTILE(2) — 同額 30,000 が別グループに</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>customer_id</th><th>total_amount</th><th class="tc-p">tier</th></tr>
+        <tr><td>C1</td><td>50000</td><td class="tc-p">1</td></tr>
+        <tr><td>C2</td><td class="tc-y">30000</td><td class="tc-p" style="border-left:2px solid var(--yellow);">1</td></tr>
+        <tr><td>C3</td><td class="tc-y">30000</td><td class="tc-r" style="border-left:2px solid var(--red);">2</td></tr>
+        <tr><td>C4</td><td>10000</td><td class="tc-r">2</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--red);margin-top:4px;">同額 30,000 の C2・C3 が tier 1 と 2 に分かれてしまう</p>
+    </div>
+  </div>
 </div>`
 },
 
@@ -1311,7 +1458,18 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での絞り込み：</strong>「上位20%のユーザーを抽出したい」場合は、サブクエリ（またはCTE）と組み合わせて <code>WHERE pct_rank <= 0.2</code> と指定します。全体の人数が100人でも10000人でも、クエリを変えずに常に上位20%を動的に抽出できるのが強みです。</div></div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CUME_DIST() との違い：</strong>似た関数に <code>CUME_DIST()</code>（累積分布）があります。PERCENT_RANK が「1位を0とする」のに対し、CUME_DIST は「1位の時点で 1/4(0.25)」からスタートし、最後が必ず1になります。要件によって使い分けます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>CUME_DIST() との違い：</strong>似た関数に <code>CUME_DIST()</code>（累積分布）があります。PERCENT_RANK が「1位を0とする」のに対し、CUME_DIST は「1位の時点で 1/N」からスタートし、最後が必ず1になります。要件によって使い分けます。</div></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">📊 PERCENT_RANK と CUME_DIST の数値比較（4名の例）</div>
+  <div class="tbl-wrap" style="margin-top:8px;"><table class="vtbl">
+    <tr><th>student_id</th><th>score</th><th>RANK</th><th class="tc-g">PERCENT_RANK<br><small style="font-weight:400;">(RANK−1) / (N−1)</small></th><th class="tc-p">CUME_DIST<br><small style="font-weight:400;">RANK / N</small></th></tr>
+    <tr><td>S1</td><td>95</td><td>1位</td><td class="tc-g">0.000　← 必ず0から開始</td><td class="tc-p">0.250</td></tr>
+    <tr><td>S2</td><td>88</td><td>2位</td><td class="tc-g">0.333</td><td class="tc-p">0.500</td></tr>
+    <tr><td>S3</td><td>75</td><td>3位</td><td class="tc-g">0.667</td><td class="tc-p">0.750</td></tr>
+    <tr><td>S4</td><td>60</td><td>4位</td><td class="tc-g">1.000　← 必ず1で終了</td><td class="tc-p">1.000</td></tr>
+  </table></div>
+  <p style="font-size:11px;color:var(--dim);margin-top:6px;">「上位N%以内」をフィルタする用途では <code>PERCENT_RANK</code> が直感的（0から始まるので <code>&lt;= 0.2</code> = 上位20%）。CUME_DIST は「全体の何%がこの値以下か」という累積頻度の表現に向きます。</p>
 </div>`
 },
 
@@ -1438,6 +1596,16 @@ const QS = [
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務でのユースケース：</strong>「当月の目標達成率」を出す際、当月の売上に加えて「前月までの未達分（負債）」を足し合わせて目標を再計算するような、複雑な予実管理ダッシュボードでこのフレーム指定が活躍します。</div></div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>フレームのずらし方まとめ：</strong>終端を <code>CURRENT ROW</code>（デフォルト）→ 現在行を含む累計。<code>1 PRECEDING</code> → 現在行を除いた「前まで」の累計。<code>1 FOLLOWING</code> → 現在行の「次の行まで」を含む累計。このように終端・始端を自由に動かせるのがフレーム指定の真価です。</div></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">📐 主なフレーム指定パターン早見表</div>
+  <div class="tbl-wrap" style="margin-top:8px;"><table class="vtbl">
+    <tr><th>ROWS BETWEEN … AND …</th><th>集計対象の範囲</th><th>代表的な用途</th></tr>
+    <tr><td><code>UNBOUNDED PRECEDING</code>〜 <code>CURRENT ROW</code></td><td>先頭行〜現在行（自身を含む）</td><td class="tc-g">累計売上・累計件数</td></tr>
+    <tr><td><code>UNBOUNDED PRECEDING</code> 〜 <code>1 PRECEDING</code></td><td>先頭行〜1行前（自身を含まない）</td><td class="tc-y">前期までの累計（今期を除く）</td></tr>
+    <tr><td><code>1 PRECEDING</code> 〜 <code>1 FOLLOWING</code></td><td>前後1行ずつ（計3行）</td><td class="tc-p">3期移動平均</td></tr>
+    <tr><td><code>UNBOUNDED PRECEDING</code> 〜 <code>UNBOUNDED FOLLOWING</code></td><td>パーティション全体</td><td class="tc-hi">グループ合計を全行に付与（ORDER BY なし OVER と同等）</td></tr>
+  </table></div>
 </div>`
 },
 
@@ -1567,9 +1735,45 @@ const QS = [
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での使い分け：</strong>「その日が終わった時点での累計売上」を出したい場合は、同日の売上をまとめる RANGE（デフォルト）の挙動が正解です。一方で、「1件1件の注文に対して、その時点での累計額を厳密に出したい」場合は、必ず <code>ORDER BY date, id</code> のように一意になるキーを追加するか、<code>ROWS</code> を明示的に指定する必要があります。</div></div>
 </div>
+<div style="margin-top:14px;">
+  <div class="data-label">🔑 「ピアグループ」の概念：RANGE が同値の行をどう扱うか</div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;">
+    <div style="flex:1;min-width:220px;">
+      <div class="data-tbl-name" style="color:var(--yellow);">RANGE：04-02 行を評価するとき、同日の行を「ピアグループ」としてまとめる</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>sale_date</th><th>amount</th><th class="tc-y">フレームに含まれる行</th><th class="tc-y">range_total</th></tr>
+        <tr><td>04-01</td><td>10</td><td style="color:var(--dim);">[04-01のみ]</td><td style="color:var(--dim);">10</td></tr>
+        <tr style="background:rgba(227,137,59,0.12)"><td class="tc-y">04-02</td><td class="tc-y">20</td><td class="tc-y">[04-01, <strong>04-02×2行</strong>] ← ピアグループ</td><td class="tc-y">60</td></tr>
+        <tr style="background:rgba(227,137,59,0.12)"><td class="tc-y">04-02</td><td class="tc-y">30</td><td class="tc-y">[04-01, <strong>04-02×2行</strong>] ← ピアグループ</td><td class="tc-y">60</td></tr>
+        <tr><td>04-03</td><td>40</td><td style="color:var(--dim);">[04-01〜04-03すべて]</td><td style="color:var(--dim);">100</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--yellow);margin-top:4px;">同日の2行は「値が同じ」ためピアグループになり、両方合算した 60 が付与される</p>
+    </div>
+    <div style="flex:1;min-width:220px;">
+      <div class="data-tbl-name" style="color:var(--purple);">ROWS：同じ日付でも「物理的な行位置」で独立処理</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>sale_date</th><th>amount</th><th class="tc-p">フレームに含まれる行</th><th class="tc-p">rows_total</th></tr>
+        <tr><td>04-01</td><td>10</td><td style="color:var(--dim);">[04-01のみ]</td><td style="color:var(--dim);">10</td></tr>
+        <tr style="background:rgba(88,166,255,0.08)"><td>04-02</td><td>20</td><td class="tc-p">[04-01, <strong>この行(20)</strong>]</td><td class="tc-p">30</td></tr>
+        <tr style="background:rgba(63,185,80,0.08)"><td>04-02</td><td>30</td><td class="tc-p">[04-01, 20, <strong>この行(30)</strong>]</td><td class="tc-p">60</td></tr>
+        <tr><td>04-03</td><td>40</td><td style="color:var(--dim);">[04-01〜04-03すべて]</td><td style="color:var(--dim);">100</td></tr>
+      </table></div>
+      <p style="font-size:11px;color:var(--purple);margin-top:4px;">各行を個別にカウントするため、同日でも 30・60 と異なる値が付与される</p>
+    </div>
+  </div>
+</div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>意図せず RANGE になっている：</strong>移動平均を出そうとして <code>ORDER BY date</code> しか書かなかった場合、暗黙的に <code>RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code> になり、平均ではなく「その日までの累計平均」という謎の数値になってしまいます。フレームは常に意識しましょう。</div></div>
+</div>
+<div style="margin-top:10px;">
+  <div class="data-label">✅ 迷ったときの判断基準</div>
+  <div class="tbl-wrap" style="margin-top:8px;"><table class="vtbl">
+    <tr><th>やりたいこと</th><th>推奨する書き方</th><th>理由</th></tr>
+    <tr><td>「その日が終わった時点での累計」</td><td class="tc-y">ORDER BY date のみ（RANGE デフォルト）</td><td>同日まとめが自然な場合</td></tr>
+    <tr><td>「1件ずつ厳密に累計を出す」</td><td class="tc-g">ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW を明示</td><td>行の独立処理を保証</td></tr>
+    <tr><td>「移動平均を出す」</td><td class="tc-g">ROWS BETWEEN N-1 PRECEDING AND CURRENT ROW</td><td>同値で範囲が予期せず広がらない</td></tr>
+  </table></div>
 </div>`
 },
 
@@ -1732,6 +1936,26 @@ const QS = [
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>WINDOW句で重複をなくす：</strong>同じ <code>PARTITION BY ... ORDER BY ...</code> を何度も書くのが面倒な場合、モダンなSQLでは <code>WINDOW w AS (PARTITION BY user_id ORDER BY order_date)</code> と下部に定義し、SELECT内では <code>SUM(amount) OVER w</code> のようにスッキリ書くことができます（DRY原則）。</div></div>
 <div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>データエンジニアリングの要：</strong>「顧客の育成状況（CRM）」を分析する際、このクエリで作ったテーブルがあれば、「2回目の購入までの平均日数は？」「累計5000円を超えた顧客の離脱率は？」といった高度な分析が、シンプルな GROUP BY だけで可能になります。ウィンドウ関数は複雑なビジネスロジックを解きほぐす最高のツールです。</div></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">📋 今回使った3関数の役割と挙動のまとめ</div>
+  <div class="tbl-wrap" style="margin-top:8px;"><table class="vtbl">
+    <tr><th>関数</th><th>付与する指標</th><th>先頭行の値</th><th>フレーム依存</th></tr>
+    <tr><td><code class="tc-hi">ROW_NUMBER()</code></td><td class="tc-g">order_num（何回目の注文か）</td><td class="tc-g">必ず 1 から始まる</td><td style="color:var(--dim);">なし（行番号のみ）</td></tr>
+    <tr><td><code class="tc-hi">SUM(amount)</code></td><td class="tc-y">running_amt（累計購入金額）</td><td class="tc-y">初回注文の金額のみ</td><td class="tc-y">あり（先頭〜現在行 が暗黙のデフォルト）</td></tr>
+    <tr><td><code class="tc-hi">LAG(order_date)</code></td><td class="tc-p">prev_date（前回購入日）</td><td class="null">NULL（前の行が存在しない）</td><td style="color:var(--dim);">なし（行参照のみ）</td></tr>
+  </table></div>
+</div>
+<div style="margin-top:14px;">
+  <div class="data-label">🏢 このデータマートで可能になる次の分析（GROUP BY のみで実現）</div>
+  <div class="tbl-wrap" style="margin-top:8px;"><table class="vtbl">
+    <tr><th>分析テーマ</th><th>必要な追加クエリ</th></tr>
+    <tr><td>2回目購入までの平均日数</td><td><code>WHERE order_num = 2 → AVG(DATEDIFF(order_date, prev_date))</code></td></tr>
+    <tr><td>累計 5,000円を初めて突破した注文回数</td><td><code>WHERE running_amt >= 5000 → MIN(order_num) per user</code></td></tr>
+    <tr><td>初回購入（ファースト）のみ抽出</td><td><code>WHERE order_num = 1</code></td></tr>
+    <tr><td>ユーザーごとの平均再購入間隔</td><td><code>AVG(DATEDIFF(order_date, prev_date)) GROUP BY user_id</code></td></tr>
+  </table></div>
+  <p style="font-size:11px;color:var(--dim);margin-top:6px;">1回のウィンドウ関数クエリで作ったデータマートが、その後の複雑な分析を単純な GROUP BY + WHERE で実現できるようにします。これがウィンドウ関数を「データエンジニアリングの要」と呼ぶ理由です。</p>
 </div>`
 }
 

@@ -334,13 +334,13 @@ function initVisualizer(root, data) {
 
   function renderStepInfo(step) {
     return `
-      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:8px 10px;">
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:10px 14px;">
         <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
           <span class="sv-badge ${step.bc}">${step.badge}</span>
           <code style="font-size:14px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
           <span class="sv-collapse-icon" style="margin-left:auto;font-size:10px;color:var(--color-txt-muted);">▼</span>
         </summary>
-        <div style="margin-top:12px;font-size:10px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+        <div style="margin-top:12px;font-size:13px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
       </details>
     `;
   }
@@ -385,22 +385,22 @@ function initVisualizer(root, data) {
 
   root.innerHTML = `
     <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
-      <div class="sv-sidebar" style="flex:0 0 300px;min-width:240px;">
-        <div style="font-size:11px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+      <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
         <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
-        <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:8px 10px;;background:var(--color-bg-panel);">
-          <summary style="font-size:10px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+        <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+          <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
             <span>LEGEND (現在のステップ)</span>
             <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
           </summary>
-          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:10px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
         </details>
       </div>
-      <div style="flex:1;min-width:280px;max-width:100%;">
+      <div style="flex:1;min-width:300px;">
         <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
         <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
         <div class="sv-tarea sv-animate"></div>
-        <div class="sv-rowcount" style="font-size:11px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+        <div class="sv-rowcount" style="font-size:12px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
       </div>
     </div>
   `;
@@ -550,6 +550,36 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>GROUP BYとの違い：</strong>GROUP BY を使うと行がグループ単位（1行）に潰れてしまうため、「個別の売上」と「全体の売上」を同時に出すには、サブクエリで集計した結果をJOINし直す必要がありました。<code>OVER()</code> を使えばクエリ一発で取得できます。</div></div>
+</div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 GROUP BY vs OVER() — 同じ sales テーブルへの問い方の違い</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;">
+  <div style="flex:1;min-width:160px;">
+    <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#f85149;margin-bottom:6px;">❌ GROUP BY （行が潰れる）</div>
+    <div style="overflow-x:auto;"><table class="vtbl">
+      <tr><th>SUM(amount)</th></tr>
+      <tr><td style="color:#f85149;font-weight:700;">650,000</td></tr>
+    </table></div>
+    <div style="font-size:11px;color:#768390;margin-top:6px;line-height:1.5;">4行 → <strong style="color:#f85149;">1行</strong>に集約<br>個人の売上情報が消える</div>
+  </div>
+  <div style="display:flex;align-items:center;font-size:20px;color:#30363d;padding-top:10px;">→</div>
+  <div style="flex:1;min-width:260px;">
+    <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#3fb950;margin-bottom:6px;">✅ OVER() （行数を保持）</div>
+    <div style="overflow-x:auto;"><table class="vtbl">
+      <tr><th>emp_name</th><th>amount</th><th style="color:#3fb950;">SUM(amount) OVER()</th></tr>
+      <tr><td>田中</td><td>150,000</td><td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">650,000</td></tr>
+      <tr><td>佐藤</td><td>200,000</td><td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">650,000</td></tr>
+      <tr><td>鈴木</td><td>120,000</td><td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">650,000</td></tr>
+      <tr><td>高橋</td><td>180,000</td><td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">650,000</td></tr>
+    </table></div>
+    <div style="font-size:11px;color:#768390;margin-top:6px;line-height:1.5;">4行を<strong style="color:#3fb950;">保持</strong>したまま全体合計が付与<br>構成比の計算もこの行でそのまま行える</div>
+  </div>
+</div>
+</div>
+
+<div class="insight-box" style="margin-top:12px;">
+<div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>実行順序：</strong>ウィンドウ関数は <em>WHEREやGROUP BYによる絞り込み・集約が全て終わった後</em>、最後の SELECT の直前で評価されます。したがって <code>WHERE amount > 10000</code> があれば、「1万以上の行だけの合計」が計算されます。</div></div>
 </div>
 <div class="anti-box">
@@ -666,6 +696,50 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>PARTITION BY はウィンドウ関数版の GROUP BY：</strong>集計の単位（グループ）を決める役割は同じですが、集約が行われない（詳細行がそのまま残る）ため、「個人の給与と、部署の給与平均を比較して、部署内で平均以上か判定する」といった相対的な分析が驚くほど簡単に書けます。</div></div>
+</div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 PARTITION BY dept の効果 — データが3つのパーティションに分割される</div>
+<div style="overflow-x:auto;"><table class="vtbl">
+  <thead><tr>
+    <th style="color:#768390;">dept（パーティションキー）</th>
+    <th>emp_name</th>
+    <th>salary</th>
+    <th style="color:#e3893b;">dept_total（パーティション内SUM）</th>
+  </tr></thead>
+  <tbody>
+    <tr style="background:rgba(88,166,255,0.07);">
+      <td style="border-left:3px solid #58a6ff;color:#58a6ff;font-weight:700;">営業</td>
+      <td>田中</td><td>300,000</td>
+      <td style="color:#e3893b;font-weight:700;background:rgba(227,137,59,0.12);">580,000</td>
+    </tr>
+    <tr style="background:rgba(88,166,255,0.07);">
+      <td style="border-left:3px solid #58a6ff;color:#58a6ff;font-weight:700;">営業</td>
+      <td>佐藤</td><td>280,000</td>
+      <td style="color:#e3893b;font-weight:700;background:rgba(227,137,59,0.12);">580,000</td>
+    </tr>
+    <tr style="border-top:2px dashed #58a6ff;background:rgba(63,185,80,0.06);">
+      <td style="border-left:3px solid #3fb950;color:#3fb950;font-weight:700;">開発</td>
+      <td>鈴木</td><td>400,000</td>
+      <td style="color:#e3893b;font-weight:700;background:rgba(227,137,59,0.12);">750,000</td>
+    </tr>
+    <tr style="background:rgba(63,185,80,0.06);">
+      <td style="border-left:3px solid #3fb950;color:#3fb950;font-weight:700;">開発</td>
+      <td>高橋</td><td>350,000</td>
+      <td style="color:#e3893b;font-weight:700;background:rgba(227,137,59,0.12);">750,000</td>
+    </tr>
+    <tr style="border-top:2px dashed #3fb950;background:rgba(188,140,255,0.06);">
+      <td style="border-left:3px solid #bc8cff;color:#bc8cff;font-weight:700;">人事</td>
+      <td>伊藤</td><td>320,000</td>
+      <td style="color:#e3893b;font-weight:700;background:rgba(227,137,59,0.12);">320,000</td>
+    </tr>
+  </tbody>
+</table></div>
+<div style="font-size:11px;color:#768390;margin-top:8px;line-height:1.6;">点線 = パーティション境界。部署が変わると集計ウィンドウがリセットされ、新しいパーティション内のみで合計が再計算される。<br>行数は5行のまま変化なし。</div>
+</div>
+
+<div class="insight-box" style="margin-top:12px;">
+<div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>複数列の指定も可能：</strong><code>PARTITION BY year, month</code> のように複数列を指定すれば、「年月ごとの合計」を各行に付与できます。</div></div>
 </div>
 <div class="anti-box">
@@ -745,7 +819,7 @@ const QS = [
         ], cnt: "全 4行 読込" },
       { id: "window", badge: "② Window関数 (ORDER BY)", bc: "badge-orange",
         label: "SUM(amount) OVER(ORDER BY sale_date)",
-        desc: "sale_date 順に行を並べ、1行目から「現在の行」までの SUM を計算します。これにより見事な累計が算出されます。",
+        desc: "sale_date 順に行を並べ、<strong>「最初の行（UNBOUNDED PRECEDING）〜現在の行（CURRENT ROW）」</strong>が集計フレームとなります。行が1行下がるたびにフレームが1行拡張され、その全行の SUM を計算することで累計が得られます。",
         type: "eval",
         cols: ["sale_date","amount","計算対象範囲","running_total"],
         ch:   ["","","col-eval","col-eval"],
@@ -781,6 +855,65 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>PARTITION BY と組み合わせた「部門別累計」：</strong><code>SUM(amount) OVER(PARTITION BY dept ORDER BY date)</code> と書けば、「部署ごとの売上累計」を算出できます。この複合技は実務ダッシュボード用クエリで必須です。</div></div>
+</div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 ORDER BY による累計 — ウィンドウフレームが行ごとに拡張される</div>
+<div style="overflow-x:auto;"><table class="vtbl">
+  <thead><tr>
+    <th>sale_date</th>
+    <th>amount</th>
+    <th style="color:#4dabf7;">集計フレーム（先頭 〜 現在行）</th>
+    <th style="color:#3fb950;">running_total</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td>04-01</td><td>10,000</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">
+        <span style="background:rgba(79,171,247,0.25);color:#4dabf7;padding:1px 6px;border-radius:3px;font-weight:700;">10,000</span>
+      </td>
+      <td style="color:#3fb950;font-weight:700;">10,000</td>
+    </tr>
+    <tr>
+      <td>04-02</td><td>15,000</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">
+        <span style="background:rgba(79,171,247,0.1);color:#768390;padding:1px 6px;border-radius:3px;">10,000</span>
+        <span style="color:#768390;margin:0 2px;">+</span>
+        <span style="background:rgba(79,171,247,0.25);color:#4dabf7;padding:1px 6px;border-radius:3px;font-weight:700;">15,000</span>
+      </td>
+      <td style="color:#3fb950;font-weight:700;">25,000</td>
+    </tr>
+    <tr>
+      <td>04-03</td><td>12,000</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">
+        <span style="background:rgba(79,171,247,0.1);color:#768390;padding:1px 6px;border-radius:3px;">10,000</span>
+        <span style="color:#768390;margin:0 2px;">+</span>
+        <span style="background:rgba(79,171,247,0.1);color:#768390;padding:1px 6px;border-radius:3px;">15,000</span>
+        <span style="color:#768390;margin:0 2px;">+</span>
+        <span style="background:rgba(79,171,247,0.25);color:#4dabf7;padding:1px 6px;border-radius:3px;font-weight:700;">12,000</span>
+      </td>
+      <td style="color:#3fb950;font-weight:700;">37,000</td>
+    </tr>
+    <tr>
+      <td>04-04</td><td>20,000</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">
+        <span style="background:rgba(79,171,247,0.1);color:#768390;padding:1px 6px;border-radius:3px;">10,000</span>
+        <span style="color:#768390;margin:0 2px;">+</span>
+        <span style="background:rgba(79,171,247,0.1);color:#768390;padding:1px 6px;border-radius:3px;">15,000</span>
+        <span style="color:#768390;margin:0 2px;">+</span>
+        <span style="background:rgba(79,171,247,0.1);color:#768390;padding:1px 6px;border-radius:3px;">12,000</span>
+        <span style="color:#768390;margin:0 2px;">+</span>
+        <span style="background:rgba(79,171,247,0.25);color:#4dabf7;padding:1px 6px;border-radius:3px;font-weight:700;">20,000</span>
+      </td>
+      <td style="color:#3fb950;font-weight:700;">57,000</td>
+    </tr>
+  </tbody>
+</table></div>
+<div style="font-size:11px;color:#768390;margin-top:8px;line-height:1.6;"><span style="background:rgba(79,171,247,0.25);color:#4dabf7;padding:1px 5px;border-radius:2px;font-weight:700;">青太字</span> = 現在行（CURRENT ROW）　<span style="background:rgba(79,171,247,0.1);color:#768390;padding:1px 5px;border-radius:2px;">薄青</span> = 過去行（UNBOUNDED PRECEDING）<br>行が下に進むほどフレームが1行ずつ拡張され、全て足し合わせることで累計が得られる。</div>
+</div>
+
+<div class="insight-box" style="margin-top:12px;">
+<div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>同値（タイ）の挙動に注意：</strong>ORDER BY に指定した列に同じ値（同じ日付など）が複数あると、それらは同じブロックとしてまとめて処理され、累計も同じ値になります。行ごとに一意にしたい場合は <code>ORDER BY date, id</code> のように一意キーを追加します。</div></div>
 </div>
 <div class="anti-box">
@@ -904,6 +1037,42 @@ const QS = [
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>なぜ ROW_NUMBER なのか：</strong>グループごとの最新日時を取るだけなら <code>MAX(login_time) GROUP BY user_id</code> でも可能ですが、その場合「ログインしたデバイス（IPアドレス等）などの<em>他の列を同時に取得できない</em>」という致命的な弱点があります。ROW_NUMBER で行番号を振り、後で <code>WHERE rn = 1</code> で行ごと抽出することでこの問題を完全に解決できます。</div></div>
 </div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 GROUP BY MAX() vs ROW_NUMBER() — 「最新行の全列」を取る手段の比較</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;">
+  <div style="flex:1;min-width:220px;">
+    <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#f85149;margin-bottom:6px;">❌ GROUP BY user_id — 他の列が取れない</div>
+    <pre style="background:#160a0a;border:1px solid #3a1515;border-radius:5px;padding:10px;font-size:11px;margin:0 0 6px;"><span style="color:#ff7b72;">SELECT</span> user_id, <span style="color:#79c0ff;">MAX</span>(login_time)
+<span style="color:#ff7b72;">FROM</span> logins
+<span style="color:#ff7b72;">GROUP BY</span> user_id;</pre>
+    <div style="overflow-x:auto;"><table class="vtbl">
+      <tr><th>user_id</th><th style="color:#f85149;">MAX(login_time)</th></tr>
+      <tr><td>U1</td><td style="color:#f85149;">04-03 09:00</td></tr>
+      <tr><td>U2</td><td style="color:#f85149;">04-04 15:00</td></tr>
+    </table></div>
+    <div style="font-size:11px;color:#f85149;margin-top:6px;">⚠️ デバイス種別や他の列が取れない！</div>
+  </div>
+  <div style="flex:1;min-width:240px;">
+    <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#3fb950;margin-bottom:6px;">✅ ROW_NUMBER + WHERE rn=1 — 全列取得できる</div>
+    <pre style="background:#0a1e0a;border:1px solid #1a3a1a;border-radius:5px;padding:10px;font-size:11px;margin:0 0 6px;"><span style="color:#ff7b72;">SELECT</span> * <span style="color:#ff7b72;">FROM</span> (
+  <span style="color:#ff7b72;">SELECT</span> *,
+    <span style="color:#79c0ff;">ROW_NUMBER</span>() <span style="color:#ff7b72;">OVER</span>(
+      <span style="color:#ff7b72;">PARTITION BY</span> user_id
+      <span style="color:#ff7b72;">ORDER BY</span> login_time <span style="color:#ff7b72;">DESC</span>
+    ) <span style="color:#ff7b72;">AS</span> rn
+  <span style="color:#ff7b72;">FROM</span> logins
+) t <span style="color:#ff7b72;">WHERE</span> rn = 1;</pre>
+    <div style="overflow-x:auto;"><table class="vtbl">
+      <tr><th>user_id</th><th style="color:#3fb950;">login_time</th><th style="color:#3fb950;">rn</th></tr>
+      <tr><td>U1</td><td style="color:#3fb950;font-weight:700;">04-03 09:00</td><td style="color:#3fb950;font-weight:700;">1</td></tr>
+      <tr><td>U2</td><td style="color:#3fb950;font-weight:700;">04-04 15:00</td><td style="color:#3fb950;font-weight:700;">1</td></tr>
+    </table></div>
+    <div style="font-size:11px;color:#3fb950;margin-top:6px;">✓ 最新行の全列を行ごと取得できる（Q8で詳解）</div>
+  </div>
+</div>
+</div>
+
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY / ORDER BY を書き忘れる：</strong><code>ROW_NUMBER() OVER()</code> とだけ書くと、テーブル全体に対して適当な順序で連番が振られてしまいます。「グループごとに」「〜の順で」という意図がある場合は、必ず <code>PARTITION BY</code> と <code>ORDER BY</code> をセットで指定してください。</div></div>
@@ -988,7 +1157,7 @@ const QS = [
         ], cnt: "全 5行 読込" },
       { id: "window", badge: "② 順位評価", bc: "badge-orange",
         label: "OVER(ORDER BY score DESC)",
-        desc: "AさんとBさんが同点（95点）、CさんとDさんが同点（88点）です。3つの関数の挙動の違いに注目してください。",
+        desc: "AさんとBさんが同点（95点）、CさんとDさんが同点（88点）です。<br>RANK は「2人が1位なら、2位という席が2つ消費される」ため次が3位に飛びます。DENSE_RANK は「席の消費に関わらず次の番号を詰める」ため飛びません。「飛んだ」の表記に注目してください。",
         type: "eval",
         cols: ["score","RANK (飛ぶ)","DENSE_RANK (詰める)","ROW_NUMBER (連番)"],
         ch:   ["","col-eval","col-eval","col-eval"],
@@ -1026,6 +1195,56 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>実務での使い分け：</strong>「トップ3」のリストを作るとき、RANKを使うと同点がいた場合「1位,1位,3位」となり3人抽出されます。DENSE_RANKを使うと「1位,1位,2位,3位」となり4人以上抽出される可能性があります。ROW_NUMBERなら必ず3人になります。「要件として同点をどう扱うか」で使い分けます。</div></div>
+</div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 3関数の違い — 同点(95点×2, 88点×2)があったとき何が起きるか</div>
+<div style="overflow-x:auto;"><table class="vtbl">
+  <thead><tr>
+    <th>student</th>
+    <th>score</th>
+    <th style="color:#3fb950;">RANK()<br><span style="font-size:10px;font-weight:400;">同順位の次を飛ばす</span></th>
+    <th style="color:#e3b341;">DENSE_RANK()<br><span style="font-size:10px;font-weight:400;">同順位でも詰める</span></th>
+    <th style="color:#bc8cff;">ROW_NUMBER()<br><span style="font-size:10px;font-weight:400;">必ず一意の連番</span></th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td>Aさん</td><td style="font-weight:700;">95</td>
+      <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">1</td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.08);">1</td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.08);">1</td>
+    </tr>
+    <tr>
+      <td>Bさん</td><td style="font-weight:700;">95</td>
+      <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">1 ← 同点</td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.08);">1 ← 同点</td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.08);">2 ← 強制区別</td>
+    </tr>
+    <tr style="border-top:1px dashed #30363d;">
+      <td>Cさん</td><td>88</td>
+      <td style="color:#f85149;font-weight:700;background:rgba(248,81,73,0.08);">3 ← 2が欠番!</td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.08);">2 ← 詰める</td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.08);">3</td>
+    </tr>
+    <tr>
+      <td>Dさん</td><td>88</td>
+      <td style="color:#f85149;font-weight:700;background:rgba(248,81,73,0.08);">3 ← 同点</td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.08);">2 ← 同点</td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.08);">4 ← 強制区別</td>
+    </tr>
+    <tr style="border-top:1px dashed #30363d;">
+      <td>Eさん</td><td>70</td>
+      <td style="color:#f85149;font-weight:700;background:rgba(248,81,73,0.08);">5 ← 4が欠番!</td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.08);">3</td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.08);">5</td>
+    </tr>
+  </tbody>
+</table></div>
+<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;font-size:11px;line-height:1.6;">
+  <span style="background:rgba(248,81,73,0.08);border:1px solid rgba(248,81,73,0.3);padding:3px 8px;border-radius:4px;color:#f85149;">RANK：同点2人いたら「2位は欠番」→ 次は3位</span>
+  <span style="background:rgba(227,179,65,0.08);border:1px solid rgba(227,179,65,0.3);padding:3px 8px;border-radius:4px;color:#e3b341;">DENSE_RANK：欠番なし、常に連続した整数</span>
+  <span style="background:rgba(188,140,255,0.08);border:1px solid rgba(188,140,255,0.3);padding:3px 8px;border-radius:4px;color:#bc8cff;">ROW_NUMBER：同点でも強制的に異なる番号</span>
+</div>
 </div>`
 },
 
@@ -1101,7 +1320,7 @@ const QS = [
         ], cnt: "全 4行 読込" },
       { id: "window", badge: "② LAG() による前行参照", bc: "badge-orange",
         label: "LAG(amount) OVER(ORDER BY date)",
-        desc: "日付順にソートされた状態で、各行から見て「1つ前の行の amount」を引っ張ってきます。04-01 には前行がないため NULL になります。",
+        desc: "ORDER BY date で並んだ後、各行は自分の「1つ上の行の amount」を参照します。先頭の 04-01 には上の行が存在しないため必ず NULL が返ります（デフォルト値は <code>LAG(amount, 1, 0)</code> のように第3引数で変更可能）。",
         type: "eval",
         cols: ["date","amount","参照元","prev_amount (LAG)"],
         ch:   ["","","","col-eval"],
@@ -1137,6 +1356,60 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>自己結合（SELF JOIN）の撲滅：</strong>LAG関数がない時代は、前日比を出すために「日付を1日ずらした自分自身のテーブルとJOINする」という非常に重くて複雑なクエリが必要でした。LAGの登場により、分析SQLの書きやすさが革命的に向上しました。</div></div>
+</div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 LAG() の動作 — 各行が「1行前の値」を参照する</div>
+<div style="overflow-x:auto;"><table class="vtbl">
+  <thead><tr>
+    <th>date</th>
+    <th>amount</th>
+    <th style="color:#e3b341;">LAG(amount) — 参照先</th>
+    <th style="color:#e3b341;">prev_amount</th>
+    <th style="color:#bc8cff;">diff（引き算）</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td style="font-weight:700;">04-01</td>
+      <td>100</td>
+      <td style="color:#768390;font-style:italic;font-size:11px;">前の行がない → NULL</td>
+      <td style="color:#768390;font-style:italic;">NULL</td>
+      <td style="color:#768390;font-style:italic;">NULL</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">04-02</td>
+      <td>120</td>
+      <td style="color:#e3b341;font-size:12px;font-family:'JetBrains Mono',monospace;">
+        ↑ 04-01 の amount
+      </td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.1);">100</td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.1);">+20</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">04-03</td>
+      <td>90</td>
+      <td style="color:#e3b341;font-size:12px;font-family:'JetBrains Mono',monospace;">
+        ↑ 04-02 の amount
+      </td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.1);">120</td>
+      <td style="color:#f85149;font-weight:700;background:rgba(248,81,73,0.08);">−30</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">04-04</td>
+      <td>150</td>
+      <td style="color:#e3b341;font-size:12px;font-family:'JetBrains Mono',monospace;">
+        ↑ 04-03 の amount
+      </td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.1);">90</td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.1);">+60</td>
+    </tr>
+  </tbody>
+</table></div>
+<div style="font-size:11px;color:#768390;margin-top:8px;line-height:1.6;">↑ 矢印 = LAG が参照する行。ORDER BY date で並んだ状態で、各行は必ず「直上の行」の値を借りる。先頭行 (04-01) は借りる先がないため NULL となる。</div>
+</div>
+
+<div class="insight-box" style="margin-top:12px;">
+<div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PARTITION BYとの併用：</strong><code>LAG(amount) OVER(PARTITION BY store_id ORDER BY date)</code> とすれば、店舗が切り替わったタイミングで適切にLAGがリセット（NULL）されるため、別店舗の前日売上を引いてしまう事故を防げます。</div></div>
 </div>
 <div class="anti-box">
@@ -1215,7 +1488,7 @@ const QS = [
         ], cnt: "全 5行 読込" },
       { id: "window", badge: "② フレームの移動", bc: "badge-orange",
         label: "ROWS BETWEEN 2 PRECEDING AND CURRENT ROW",
-        desc: "行が進むごとに、集計対象となる「枠（フレーム）」がずれていきます。常に直近最大3行の平均値（AVG）を計算します。",
+        desc: "行が下に進むにつれ、集計フレームが右にスライドします。フレーム幅は常に最大3行（2 PRECEDING ＋ CURRENT ROW）ですが、先頭付近ではデータが足りないため1行・2行でAVGを計算します。04-04の行は [140, 120, 190] の平均 = (450÷3) = 150 になります。",
         type: "eval",
         cols: ["date","amount","集計フレーム (直近最大3行)","AVG() 計算結果"],
         ch:   ["","","col-eval","col-eval"],
@@ -1253,12 +1526,82 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>フレーム指定のキーワード：</strong><br>
-・<code>PRECEDING</code>：前の行<br>
-・<code>FOLLOWING</code>：後の行<br>
-・<code>UNBOUNDED PRECEDING</code>：最初の行<br>
-・<code>UNBOUNDED FOLLOWING</code>：最後の行<br>
-・<code>CURRENT ROW</code>：現在の行</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>フレーム指定のキーワード早見表：</strong><code>PRECEDING</code>（前の行）/ <code>FOLLOWING</code>（後の行）/ <code>UNBOUNDED PRECEDING</code>（最初の行）/ <code>UNBOUNDED FOLLOWING</code>（最後の行）/ <code>CURRENT ROW</code>（現在の行）の5つが基本セットです。</div></div>
+</div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW — フレームがどう動くか</div>
+<div style="overflow-x:auto;margin-bottom:10px;"><table class="vtbl">
+  <thead>
+    <tr>
+      <th>date</th>
+      <th>amount</th>
+      <th style="color:#4dabf7;text-align:center;min-width:48px;">04-01<br><span style="font-size:9px;font-weight:400;">100</span></th>
+      <th style="color:#4dabf7;text-align:center;min-width:48px;">04-02<br><span style="font-size:9px;font-weight:400;">140</span></th>
+      <th style="color:#4dabf7;text-align:center;min-width:48px;">04-03<br><span style="font-size:9px;font-weight:400;">120</span></th>
+      <th style="color:#4dabf7;text-align:center;min-width:48px;">04-04<br><span style="font-size:9px;font-weight:400;">190</span></th>
+      <th style="color:#4dabf7;text-align:center;min-width:48px;">04-05<br><span style="font-size:9px;font-weight:400;">170</span></th>
+      <th style="color:#3fb950;">moving_avg</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="font-weight:700;">04-01</td><td>100</td>
+      <td style="background:rgba(79,171,247,0.35);text-align:center;font-weight:700;color:#4dabf7;border:1px solid #1f6feb;">★</td>
+      <td style="background:transparent;"></td>
+      <td style="background:transparent;"></td>
+      <td style="background:transparent;"></td>
+      <td style="background:transparent;"></td>
+      <td style="color:#3fb950;font-weight:700;">100</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">04-02</td><td>140</td>
+      <td style="background:rgba(79,171,247,0.15);text-align:center;color:#768390;font-size:11px;">○</td>
+      <td style="background:rgba(79,171,247,0.35);text-align:center;font-weight:700;color:#4dabf7;border:1px solid #1f6feb;">★</td>
+      <td style="background:transparent;"></td>
+      <td style="background:transparent;"></td>
+      <td style="background:transparent;"></td>
+      <td style="color:#3fb950;font-weight:700;">120</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">04-03</td><td>120</td>
+      <td style="background:rgba(79,171,247,0.15);text-align:center;color:#768390;font-size:11px;">○</td>
+      <td style="background:rgba(79,171,247,0.15);text-align:center;color:#768390;font-size:11px;">○</td>
+      <td style="background:rgba(79,171,247,0.35);text-align:center;font-weight:700;color:#4dabf7;border:1px solid #1f6feb;">★</td>
+      <td style="background:transparent;"></td>
+      <td style="background:transparent;"></td>
+      <td style="color:#3fb950;font-weight:700;">120</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">04-04</td><td>190</td>
+      <td style="background:transparent;text-align:center;font-size:11px;color:#30363d;">—</td>
+      <td style="background:rgba(79,171,247,0.15);text-align:center;color:#768390;font-size:11px;">○</td>
+      <td style="background:rgba(79,171,247,0.15);text-align:center;color:#768390;font-size:11px;">○</td>
+      <td style="background:rgba(79,171,247,0.35);text-align:center;font-weight:700;color:#4dabf7;border:1px solid #1f6feb;">★</td>
+      <td style="background:transparent;"></td>
+      <td style="color:#3fb950;font-weight:700;">150</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">04-05</td><td>170</td>
+      <td style="background:transparent;text-align:center;font-size:11px;color:#30363d;">—</td>
+      <td style="background:transparent;text-align:center;font-size:11px;color:#30363d;">—</td>
+      <td style="background:rgba(79,171,247,0.15);text-align:center;color:#768390;font-size:11px;">○</td>
+      <td style="background:rgba(79,171,247,0.15);text-align:center;color:#768390;font-size:11px;">○</td>
+      <td style="background:rgba(79,171,247,0.35);text-align:center;font-weight:700;color:#4dabf7;border:1px solid #1f6feb;">★</td>
+      <td style="color:#3fb950;font-weight:700;">160</td>
+    </tr>
+  </tbody>
+</table></div>
+<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:11px;line-height:1.6;">
+  <span><span style="background:rgba(79,171,247,0.35);border:1px solid #1f6feb;padding:1px 6px;border-radius:2px;color:#4dabf7;font-weight:700;">★</span> CURRENT ROW（現在行）</span>
+  <span><span style="background:rgba(79,171,247,0.15);padding:1px 6px;border-radius:2px;color:#768390;">○</span> PRECEDING（集計対象の過去行）</span>
+  <span><span style="color:#30363d;padding:1px 6px;">—</span> フレーム外（集計対象外）</span>
+</div>
+<div style="margin-top:10px;font-size:11px;color:#768390;line-height:1.6;">04-04行の場合: フレーム = 「2行前(04-02)〜現在(04-04)」→ (140+120+190)÷3 = <strong style="color:#3fb950;">150</strong>。04-01 はフレーム外なので対象外。</div>
+</div>
+
+<div class="insight-box" style="margin-top:12px;">
+<div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>実務での移動平均の価値：</strong>日々の売上やアクティブユーザー数は曜日によって大きく変動します（土日だけ上がるなど）。これを「7日移動平均（<code>6 PRECEDING AND CURRENT ROW</code>）」にすることでノイズが消え、本当のトレンド（上昇傾向か下降傾向か）が見えるようになります。分析の基本テクニックです。</div></div>
 </div>
 <div class="anti-box">
@@ -1394,6 +1737,72 @@ const QS = [
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>GROUP BY で代替できない理由：</strong>よくある間違いとして <code>SELECT user_id, MAX(order_date), item FROM orders GROUP BY user_id</code> と書いてしまう人がいますが、MySQLなどでは <code>item</code> がどの行のものか保証されず、でたらめなデータが返るかエラーになります。<strong>「最新の行の全ての列」</strong>を取りたいときは、必ず ROW_NUMBER + サブクエリのパターンを使います。</div></div>
 </div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 2層構造の実行フロー — サブクエリ → 外側WHERE という2ステップ</div>
+
+<div style="margin-bottom:12px;">
+  <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#58a6ff;margin-bottom:6px;">① 内側サブクエリ実行 — ROW_NUMBER で全行に連番付与</div>
+  <div style="overflow-x:auto;"><table class="vtbl">
+    <thead><tr>
+      <th>order_id</th><th>user_id</th><th>order_date</th><th>item</th>
+      <th style="color:#e3893b;">rn（ユーザー別最新順）</th>
+    </tr></thead>
+    <tbody>
+      <tr style="background:rgba(88,166,255,0.07);">
+        <td>3</td><td style="color:#58a6ff;font-weight:700;">U1</td><td>04-05</td><td>ノートPC</td>
+        <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.1);">1 ← 最新</td>
+      </tr>
+      <tr style="background:rgba(88,166,255,0.07);">
+        <td>1</td><td style="color:#58a6ff;font-weight:700;">U1</td><td>04-01</td><td>マウス</td>
+        <td style="color:#e3893b;font-weight:700;">2</td>
+      </tr>
+      <tr style="background:rgba(63,185,80,0.06);border-top:1px dashed #30363d;">
+        <td>5</td><td style="color:#3fb950;font-weight:700;">U2</td><td>04-08</td><td>モニター</td>
+        <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.1);">1 ← 最新</td>
+      </tr>
+      <tr style="background:rgba(63,185,80,0.06);">
+        <td>2</td><td style="color:#3fb950;font-weight:700;">U2</td><td>04-02</td><td>デスク</td>
+        <td style="color:#e3893b;font-weight:700;">2</td>
+      </tr>
+      <tr style="background:rgba(188,140,255,0.06);border-top:1px dashed #30363d;">
+        <td>4</td><td style="color:#bc8cff;font-weight:700;">U3</td><td>04-06</td><td>椅子</td>
+        <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.1);">1 ← 最新</td>
+      </tr>
+    </tbody>
+  </table></div>
+</div>
+
+<div style="text-align:center;font-size:18px;color:#4dabf7;margin:4px 0;">↓ WHERE rn = 1</div>
+
+<div style="margin-top:8px;">
+  <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#3fb950;margin-bottom:6px;">② 外側クエリで rn=1 の行だけを抽出 — 各ユーザーの最新1件のみ残る</div>
+  <div style="overflow-x:auto;"><table class="vtbl">
+    <thead><tr>
+      <th>order_id</th><th>user_id</th><th>order_date</th><th>item</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>3</td><td style="color:#58a6ff;font-weight:700;">U1</td>
+        <td style="color:#3fb950;font-weight:700;">04-05</td>
+        <td style="color:#3fb950;font-weight:700;">ノートPC</td>
+      </tr>
+      <tr>
+        <td>5</td><td style="color:#3fb950;font-weight:700;">U2</td>
+        <td style="color:#3fb950;font-weight:700;">04-08</td>
+        <td style="color:#3fb950;font-weight:700;">モニター</td>
+      </tr>
+      <tr>
+        <td>4</td><td style="color:#bc8cff;font-weight:700;">U3</td>
+        <td style="color:#3fb950;font-weight:700;">04-06</td>
+        <td style="color:#3fb950;font-weight:700;">椅子</td>
+      </tr>
+    </tbody>
+  </table></div>
+  <div style="font-size:11px;color:#768390;margin-top:6px;">5行 → <strong style="color:#3fb950;">3行</strong>（ユーザー数 = ユーザーごと最新1件）。rn列は外側SELECTで除外される。</div>
+</div>
+</div>
+
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>RANK() を使ってしまう：</strong>「最新」を取得する際、もし同じ日時に2回の注文があった場合、RANK() を使うと <code>rn=1</code> が2件できてしまい、最終的に行数がユーザー数より多くなってしまいます（1対多の重複によるJOINバグの原因になります）。必ず一意になる ROW_NUMBER() を使うのが安全です。</div></div>
@@ -1517,8 +1926,59 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>WITH句（CTE）を使った書き換え：</strong>サブクエリがネストして読みづらい場合、<code>WITH ranked AS ( SELECT ... RANK() ... ) SELECT * FROM ranked WHERE rnk <= 2;</code> と書くと上から下へ自然に読めるモダンなSQLになります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>WITH句（CTE）を使った書き換え：</strong>サブクエリがネストして読みづらい場合、<code>WITH ranked AS ( SELECT ... RANK() ... ) SELECT * FROM ranked WHERE rnk &lt;= 2;</code> と書くと上から下へ自然に読めるモダンなSQLになります。</div></div>
 </div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 カテゴリ別 Top N — パーティション × RANK の組み合わせ効果</div>
+<div style="overflow-x:auto;"><table class="vtbl">
+  <thead><tr>
+    <th>category</th><th>name</th><th>price</th>
+    <th style="color:#e3893b;">RANK()<br><span style="font-size:9px;font-weight:400;">PARTITION BY category<br>ORDER BY price DESC</span></th>
+    <th style="color:#3fb950;">WHERE rnk &lt;= 2</th>
+  </tr></thead>
+  <tbody>
+    <tr style="background:rgba(88,166,255,0.07);">
+      <td style="color:#58a6ff;font-weight:700;border-left:3px solid #58a6ff;">家電</td>
+      <td>冷蔵庫</td><td>120,000</td>
+      <td style="color:#e3893b;font-weight:700;">1</td>
+      <td style="color:#3fb950;font-weight:700;">✓ 抽出</td>
+    </tr>
+    <tr style="background:rgba(88,166,255,0.07);">
+      <td style="color:#58a6ff;font-weight:700;border-left:3px solid #58a6ff;">家電</td>
+      <td>洗濯機</td><td>90,000</td>
+      <td style="color:#e3893b;font-weight:700;">2</td>
+      <td style="color:#3fb950;font-weight:700;">✓ 抽出</td>
+    </tr>
+    <tr style="background:rgba(88,166,255,0.04);opacity:0.5;">
+      <td style="color:#58a6ff;border-left:3px solid #58a6ff;">家電</td>
+      <td>TV</td><td>80,000</td>
+      <td style="color:#f85149;">3</td>
+      <td style="color:#f85149;">✗ 除外</td>
+    </tr>
+    <tr style="background:rgba(63,185,80,0.06);border-top:2px dashed #30363d;">
+      <td style="color:#3fb950;font-weight:700;border-left:3px solid #3fb950;">家具</td>
+      <td>ソファ</td><td>70,000</td>
+      <td style="color:#e3893b;font-weight:700;">1 ← パーティションでリセット</td>
+      <td style="color:#3fb950;font-weight:700;">✓ 抽出</td>
+    </tr>
+    <tr style="background:rgba(63,185,80,0.06);">
+      <td style="color:#3fb950;font-weight:700;border-left:3px solid #3fb950;">家具</td>
+      <td>ベッド</td><td>50,000</td>
+      <td style="color:#e3893b;font-weight:700;">2</td>
+      <td style="color:#3fb950;font-weight:700;">✓ 抽出</td>
+    </tr>
+    <tr style="background:rgba(63,185,80,0.03);opacity:0.5;">
+      <td style="color:#3fb950;border-left:3px solid #3fb950;">家具</td>
+      <td>テーブル</td><td>30,000</td>
+      <td style="color:#f85149;">3</td>
+      <td style="color:#f85149;">✗ 除外</td>
+    </tr>
+  </tbody>
+</table></div>
+<div style="font-size:11px;color:#768390;margin-top:8px;line-height:1.6;">家電パーティション内で 1〜3 位を付与し、次に家具パーティションで再び 1 から付与。<br>「カテゴリをまたがった総合ランク」ではなく「カテゴリ内ランク」が付与されるのが PARTITION BY の効果。</div>
+</div>
+
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ウィンドウ関数非対応環境での無理な代替：</strong>古いMySQL（5.7以前）ではウィンドウ関数が使えず、これを相関サブクエリ等で代替しようとするとクエリが非常に複雑かつ重くなります。モダンなRDBMS環境ではウィンドウ関数を積極的に利用しましょう。</div></div>
@@ -1642,6 +2102,56 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ウィンドウ関数は最強の武器：</strong>「行を潰さずに全体の文脈（前後の行やグループ全体）を参照できる」という性質は、SQLの表現力を飛躍的に高めます。実務でダッシュボード向けのデータマートを作成する際、ウィンドウ関数を使わずに書かれたSQLはほぼ存在しないと言っても過言ではありません。この感覚をマスターすることが、中級者から上級者への最大の壁になります。</div></div>
+</div>
+
+<div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+<div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#4dabf7;letter-spacing:1px;margin-bottom:12px;">📊 3つのウィンドウ関数が各行で同時評価される — 行ごとの計算内訳</div>
+<div style="overflow-x:auto;"><table class="vtbl">
+  <thead><tr>
+    <th>month</th>
+    <th>amount</th>
+    <th style="color:#3fb950;">SUM OVER(ORDER BY month)<br><span style="font-size:9px;font-weight:400;">= running_total</span></th>
+    <th style="color:#e3b341;">LAG(amount) OVER(...)<br><span style="font-size:9px;font-weight:400;">= prev_amount</span></th>
+    <th style="color:#bc8cff;">amount − LAG()<br><span style="font-size:9px;font-weight:400;">= diff_from_prev</span></th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td style="font-weight:700;">01月</td><td>100</td>
+      <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">100<br><span style="font-size:10px;font-weight:400;color:#768390;">[100]</span></td>
+      <td style="color:#768390;font-style:italic;">NULL（先頭行）</td>
+      <td style="color:#768390;font-style:italic;">NULL</td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">02月</td><td>120</td>
+      <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">220<br><span style="font-size:10px;font-weight:400;color:#768390;">[100+120]</span></td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.08);">100<br><span style="font-size:10px;font-weight:400;color:#768390;">↑01月の値</span></td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.08);">+20<br><span style="font-size:10px;font-weight:400;color:#768390;">120−100</span></td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">03月</td><td>150</td>
+      <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">370<br><span style="font-size:10px;font-weight:400;color:#768390;">[100+120+150]</span></td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.08);">120<br><span style="font-size:10px;font-weight:400;color:#768390;">↑02月の値</span></td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.08);">+30<br><span style="font-size:10px;font-weight:400;color:#768390;">150−120</span></td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">04月</td><td>130</td>
+      <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">500<br><span style="font-size:10px;font-weight:400;color:#768390;">[100+120+150+130]</span></td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.08);">150<br><span style="font-size:10px;font-weight:400;color:#768390;">↑03月の値</span></td>
+      <td style="color:#f85149;font-weight:700;background:rgba(248,81,73,0.08);">−20<br><span style="font-size:10px;font-weight:400;color:#768390;">130−150</span></td>
+    </tr>
+    <tr>
+      <td style="font-weight:700;">05月</td><td>180</td>
+      <td style="color:#3fb950;font-weight:700;background:rgba(63,185,80,0.08);">680<br><span style="font-size:10px;font-weight:400;color:#768390;">[100+120+150+130+180]</span></td>
+      <td style="color:#e3b341;font-weight:700;background:rgba(227,179,65,0.08);">130<br><span style="font-size:10px;font-weight:400;color:#768390;">↑04月の値</span></td>
+      <td style="color:#bc8cff;font-weight:700;background:rgba(188,140,255,0.08);">+50<br><span style="font-size:10px;font-weight:400;color:#768390;">180−130</span></td>
+    </tr>
+  </tbody>
+</table></div>
+<div style="font-size:11px;color:#768390;margin-top:8px;line-height:1.6;">3つのウィンドウ関数は各行を処理する際に「独立したウィンドウ」で同時に評価される。テーブルスキャンは1回だけ。</div>
+</div>
+
+<div class="insight-box" style="margin-top:12px;">
+<div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>分析エンジニアの実務：</strong>「前月比120%達成！でも累計目標には届かないかも…」といった多角的な視点を提供するために、様々な角度からの指標（単月、累計、移動平均など）を1つのテーブルにまとめることがデータエンジニアの重要なミッションです。</div></div>
 </div>`
 }
