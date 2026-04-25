@@ -337,7 +337,7 @@ function initVisualizer(root, data) {
       <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:10px 14px;">
         <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
           <span class="sv-badge ${step.bc}">${step.badge}</span>
-          <code style="font-size:14px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <code style="font-size:11px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
           <span class="sv-collapse-icon" style="margin-left:auto;font-size:10px;color:var(--color-txt-muted);">▼</span>
         </summary>
         <div style="margin-top:12px;font-size:13px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
@@ -550,6 +550,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>GROUP BYとの違い：</strong>GROUP BY を使うと行がグループ単位（1行）に潰れてしまうため、「個別の売上」と「全体の売上」を同時に出すには、サブクエリで集計した結果をJOINし直す必要がありました。<code>OVER()</code> を使えばクエリ一発で取得できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>実行順序：</strong>ウィンドウ関数は <em>WHEREやGROUP BYによる絞り込み・集約が全て終わった後</em>、最後の SELECT の直前で評価されます。したがって <code>WHERE amount > 10000</code> があれば、「1万以上の行だけの合計」が計算されます。</div></div>
 </div>
 
 <div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
@@ -578,10 +579,6 @@ const QS = [
 </div>
 </div>
 
-<div class="insight-box" style="margin-top:12px;">
-<div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>実行順序：</strong>ウィンドウ関数は <em>WHEREやGROUP BYによる絞り込み・集約が全て終わった後</em>、最後の SELECT の直前で評価されます。したがって <code>WHERE amount > 10000</code> があれば、「1万以上の行だけの合計」が計算されます。</div></div>
-</div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE句でウィンドウ関数を使う：</strong><code>WHERE SUM(amount) OVER() > 500000</code> はエラーになります。WHEREはウィンドウ関数より「前」に評価されるためです。ウィンドウ関数の結果で絞り込みたい場合は、Q8で解説する「サブクエリ（CTE）」を使います。</div></div>
@@ -696,6 +693,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>PARTITION BY はウィンドウ関数版の GROUP BY：</strong>集計の単位（グループ）を決める役割は同じですが、集約が行われない（詳細行がそのまま残る）ため、「個人の給与と、部署の給与平均を比較して、部署内で平均以上か判定する」といった相対的な分析が驚くほど簡単に書けます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>複数列の指定も可能：</strong><code>PARTITION BY year, month</code> のように複数列を指定すれば、「年月ごとの合計」を各行に付与できます。</div></div>
 </div>
 
 <div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
@@ -738,10 +736,6 @@ const QS = [
 <div style="font-size:11px;color:#768390;margin-top:8px;line-height:1.6;">点線 = パーティション境界。部署が変わると集計ウィンドウがリセットされ、新しいパーティション内のみで合計が再計算される。<br>行数は5行のまま変化なし。</div>
 </div>
 
-<div class="insight-box" style="margin-top:12px;">
-<div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>複数列の指定も可能：</strong><code>PARTITION BY year, month</code> のように複数列を指定すれば、「年月ごとの合計」を各行に付与できます。</div></div>
-</div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BY とウィンドウ関数を混同する：</strong><code>SELECT dept, SUM(salary) OVER(PARTITION BY dept) FROM employees GROUP BY dept;</code> のように書くのは誤りです。GROUP BY は行を潰す処理なので、同時に <code>OVER(PARTITION BY)</code> を使うと意図しない結果（またはエラー）になります。単純なグループ合計なら通常の <code>SUM() ... GROUP BY</code> を使いましょう。</div></div>
@@ -855,6 +849,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>PARTITION BY と組み合わせた「部門別累計」：</strong><code>SUM(amount) OVER(PARTITION BY dept ORDER BY date)</code> と書けば、「部署ごとの売上累計」を算出できます。この複合技は実務ダッシュボード用クエリで必須です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>同値（タイ）の挙動に注意：</strong>ORDER BY に指定した列に同じ値（同じ日付など）が複数あると、それらは同じブロックとしてまとめて処理され、累計も同じ値になります。行ごとに一意にしたい場合は <code>ORDER BY date, id</code> のように一意キーを追加します。</div></div>
 </div>
 
 <div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
@@ -912,10 +907,6 @@ const QS = [
 <div style="font-size:11px;color:#768390;margin-top:8px;line-height:1.6;"><span style="background:rgba(79,171,247,0.25);color:#4dabf7;padding:1px 5px;border-radius:2px;font-weight:700;">青太字</span> = 現在行（CURRENT ROW）　<span style="background:rgba(79,171,247,0.1);color:#768390;padding:1px 5px;border-radius:2px;">薄青</span> = 過去行（UNBOUNDED PRECEDING）<br>行が下に進むほどフレームが1行ずつ拡張され、全て足し合わせることで累計が得られる。</div>
 </div>
 
-<div class="insight-box" style="margin-top:12px;">
-<div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>同値（タイ）の挙動に注意：</strong>ORDER BY に指定した列に同じ値（同じ日付など）が複数あると、それらは同じブロックとしてまとめて処理され、累計も同じ値になります。行ごとに一意にしたい場合は <code>ORDER BY date, id</code> のように一意キーを追加します。</div></div>
-</div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY に一意にならない列だけを指定する：</strong>たとえば「月」だけで <code>ORDER BY month</code> として複数の日次データがあると、同じ月のデータはすべてまとめて足されてしまい、意図した「行ごとの累計」になりません。常に一意に決まるようにソートキーを指定してください。</div></div>
@@ -1356,6 +1347,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>自己結合（SELF JOIN）の撲滅：</strong>LAG関数がない時代は、前日比を出すために「日付を1日ずらした自分自身のテーブルとJOINする」という非常に重くて複雑なクエリが必要でした。LAGの登場により、分析SQLの書きやすさが革命的に向上しました。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PARTITION BYとの併用：</strong><code>LAG(amount) OVER(PARTITION BY store_id ORDER BY date)</code> とすれば、店舗が切り替わったタイミングで適切にLAGがリセット（NULL）されるため、別店舗の前日売上を引いてしまう事故を防げます。</div></div>
 </div>
 
 <div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
@@ -1408,10 +1400,6 @@ const QS = [
 <div style="font-size:11px;color:#768390;margin-top:8px;line-height:1.6;">↑ 矢印 = LAG が参照する行。ORDER BY date で並んだ状態で、各行は必ず「直上の行」の値を借りる。先頭行 (04-01) は借りる先がないため NULL となる。</div>
 </div>
 
-<div class="insight-box" style="margin-top:12px;">
-<div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PARTITION BYとの併用：</strong><code>LAG(amount) OVER(PARTITION BY store_id ORDER BY date)</code> とすれば、店舗が切り替わったタイミングで適切にLAGがリセット（NULL）されるため、別店舗の前日売上を引いてしまう事故を防げます。</div></div>
-</div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NULLの考慮漏れ：</strong>最初の行は必ず LAG の結果が NULL になります。もし前日差分(diff)をさらに SUM などの集計に回す場合、NULL が混入して計算が狂うことがあります。<code>COALESCE(LAG(amount) OVER(...), 0)</code> のように、必要に応じて NULL を 0 などで保護しましょう。</div></div>
@@ -1527,6 +1515,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>フレーム指定のキーワード早見表：</strong><code>PRECEDING</code>（前の行）/ <code>FOLLOWING</code>（後の行）/ <code>UNBOUNDED PRECEDING</code>（最初の行）/ <code>UNBOUNDED FOLLOWING</code>（最後の行）/ <code>CURRENT ROW</code>（現在の行）の5つが基本セットです。</div></div>
+<div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>実務での移動平均の価値：</strong>日々の売上やアクティブユーザー数は曜日によって大きく変動します（土日だけ上がるなど）。これを「7日移動平均（<code>6 PRECEDING AND CURRENT ROW</code>）」にすることでノイズが消え、本当のトレンド（上昇傾向か下降傾向か）が見えるようになります。分析の基本テクニックです。</div></div>
 </div>
 
 <div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
@@ -1600,10 +1589,6 @@ const QS = [
 <div style="margin-top:10px;font-size:11px;color:#768390;line-height:1.6;">04-04行の場合: フレーム = 「2行前(04-02)〜現在(04-04)」→ (140+120+190)÷3 = <strong style="color:#3fb950;">150</strong>。04-01 はフレーム外なので対象外。</div>
 </div>
 
-<div class="insight-box" style="margin-top:12px;">
-<div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>実務での移動平均の価値：</strong>日々の売上やアクティブユーザー数は曜日によって大きく変動します（土日だけ上がるなど）。これを「7日移動平均（<code>6 PRECEDING AND CURRENT ROW</code>）」にすることでノイズが消え、本当のトレンド（上昇傾向か下降傾向か）が見えるようになります。分析の基本テクニックです。</div></div>
-</div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>フレームのデフォルト挙動を誤解する：</strong><code>ORDER BY</code> だけを指定し <code>ROWS BETWEEN</code> を省略した場合、暗黙的に <code>RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code>（先頭行から現在の行まで）が適用され、「累計」になってしまいます。移動平均を出したいときは必ず明示的にフレームを指定してください。</div></div>
@@ -2102,6 +2087,7 @@ const QS = [
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ウィンドウ関数は最強の武器：</strong>「行を潰さずに全体の文脈（前後の行やグループ全体）を参照できる」という性質は、SQLの表現力を飛躍的に高めます。実務でダッシュボード向けのデータマートを作成する際、ウィンドウ関数を使わずに書かれたSQLはほぼ存在しないと言っても過言ではありません。この感覚をマスターすることが、中級者から上級者への最大の壁になります。</div></div>
+<div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>分析エンジニアの実務：</strong>「前月比120%達成！でも累計目標には届かないかも…」といった多角的な視点を提供するために、様々な角度からの指標（単月、累計、移動平均など）を1つのテーブルにまとめることがデータエンジニアの重要なミッションです。</div></div>
 </div>
 
 <div style="margin:14px 0;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
@@ -2148,11 +2134,6 @@ const QS = [
   </tbody>
 </table></div>
 <div style="font-size:11px;color:#768390;margin-top:8px;line-height:1.6;">3つのウィンドウ関数は各行を処理する際に「独立したウィンドウ」で同時に評価される。テーブルスキャンは1回だけ。</div>
-</div>
-
-<div class="insight-box" style="margin-top:12px;">
-<div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🏢</span><div class="insight-body"><strong>分析エンジニアの実務：</strong>「前月比120%達成！でも累計目標には届かないかも…」といった多角的な視点を提供するために、様々な角度からの指標（単月、累計、移動平均など）を1つのテーブルにまとめることがデータエンジニアの重要なミッションです。</div></div>
 </div>`
 }
 
