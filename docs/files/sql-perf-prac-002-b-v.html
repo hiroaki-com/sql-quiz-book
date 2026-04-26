@@ -495,38 +495,36 @@ const QS = [
 */</span></pre>`,
   viz: {
     steps: [
-      { id: 'from', badge: '① FROM', bc: 'badge-blue',
-        label: 'FROM users',
-        desc: 'users テーブル全体（代表3行）をメモリに読み込みます。is_active = false の行（鈴木）も含まれており、bio などの大きな列もこの段階では対象になります。',
+      { id: 'from', badge: '① カバリングインデックス参照', bc: 'badge-blue',
+        label: 'INDEX (user_id) INCLUDE (email, name) WHERE is_active=TRUE',
+        desc: '部分カバリングインデックスには user_id（B-Tree キー）・email・name の3列だけが格納されています。is_active=FALSE の鈴木はそもそもインデックスに存在しません（部分インデックスのため格納対象外）。bio など INCLUDE に含まれない列はインデックス外であり、この時点でヒープ（テーブル本体）へのアクセスはゼロです。',
         type: 'base',
-        cols: ['user_id','email','name','is_active','bio'],
-        ch:   ['col-base','col-base','col-base','col-base','col-base'],
+        cols: ['user_id (INDEX KEY)','email (INCLUDE)','name (INCLUDE)','bio (インデックス外・未参照)'],
+        ch:   ['col-base','col-base','col-base',''],
         rows: [
-          { v: [1,'tanaka@ex.com','田中','true','(長文)'] },
-          { v: [2,'suzuki@ex.com','鈴木','false','(長文)'] },
-          { v: [3,'sato@ex.com','佐藤','true','(長文)'] }
-        ], cnt: '全 3行（代表例）読込' },
-      { id: 'where', badge: '② WHERE', bc: 'badge-orange',
-        label: "WHERE is_active = TRUE",
-        desc: '部分インデックス条件と一致する行のみを通過させます。鈴木（is_active=false）は除外されます。カバリングインデックスでは、この絞り込みをインデックスのみで実行できます。',
+          { v: [1,'tanaka@ex.com','田中','— (ヒープのみ)'], cc: ['','','','val-dimmed'] },
+          { v: [3,'sato@ex.com','佐藤','— (ヒープのみ)'],  cc: ['','','','val-dimmed'] }
+        ], cnt: 'インデックスから直接 2行 読込（鈴木は部分インデックスに存在しない / ヒープ: 0アクセス）' },
+      { id: 'where', badge: '② WHERE + ORDER BY（インデックス内で完結）', bc: 'badge-orange',
+        label: 'WHERE is_active=TRUE（確定済）＋ ORDER BY user_id（ソートコストゼロ）',
+        desc: '部分インデックス (WHERE is_active=TRUE) の設計により、インデックス内のデータはすべてアクティブユーザーのみです（鈴木はそもそも格納されていないため追加フィルタ不要）。また user_id が B-Tree キーのためインデックスはすでに user_id 順に保存されており、ORDER BY user_id のソートコストはゼロです。すべてがインデックス内で完結します。',
         type: 'eval',
-        cols: ['user_id','email','name','is_active','bio'],
-        ch:   ['','','','col-eval',''],
+        cols: ['user_id','email','name','is_active (部分インデックス確定済)'],
+        ch:   ['','','','col-eval'],
         rows: [
-          { v: [1,'tanaka@ex.com','田中','true','(長文)'],   cc: ['','','','val-pass',''] },
-          { v: [2,'suzuki@ex.com','鈴木','false','(長文)'],  c: 'row-dimmed', cc: ['','','','val-fail',''] },
-          { v: [3,'sato@ex.com','佐藤','true','(長文)'],    cc: ['','','','val-pass',''] }
-        ], cnt: '3行 → 2行' },
-      { id: 'select', badge: '③ SELECT', bc: 'badge-green',
-        label: 'SELECT user_id, email, name',
-        desc: 'インデックスに含まれる3列だけを取り出します。bio はインデックスに格納されていないため読まれません。SELECT/WHERE/ORDER BY に必要な列がすべてインデックス内に収まるため、テーブル本体（ヒープ）へのアクセスはゼロになります（Index Only Scan）。',
+          { v: [1,'tanaka@ex.com','田中','✓ TRUE（インデックス内全行）'], cc: ['','','','val-pass'] },
+          { v: [3,'sato@ex.com','佐藤','✓ TRUE（インデックス内全行）'],  cc: ['','','','val-pass'] }
+        ], cnt: '2行（is_active=FALSE の行は部分インデックスに存在しない）' },
+      { id: 'select', badge: '③ SELECT — Heap Fetches: 0', bc: 'badge-green',
+        label: 'SELECT user_id, email, name（全列がインデックス内に存在）',
+        desc: 'SELECT に必要な user_id・email・name はすべてカバリングインデックスに含まれています。bio のような巨大な列はインデックスに存在しないため一度も読まれません。EXPLAIN (ANALYZE, BUFFERS) で Heap Fetches: 0 と表示されれば、Index Only Scan が完全に機能しています。',
         type: 'select',
-        cols: ['user_id','email','name','is_active (除外)','bio (除外)'],
-        ch:   ['col-select','col-select','col-select','',''],
+        cols: ['user_id','email','name','bio (ヒープのみ・参照ゼロ)'],
+        ch:   ['col-select','col-select','col-select',''],
         rows: [
-          { v: [1,'tanaka@ex.com','田中','—','—'], cc: ['','','','val-dimmed','val-dimmed'] },
-          { v: [3,'sato@ex.com','佐藤','—','—'],   cc: ['','','','val-dimmed','val-dimmed'] }
-        ], cnt: '結果: 2行 × 3列（Heap Fetches: 0）' }
+          { v: [1,'tanaka@ex.com','田中','— (参照なし)'], cc: ['','','','val-dimmed'] },
+          { v: [3,'sato@ex.com','佐藤','— (参照なし)'],  cc: ['','','','val-dimmed'] }
+        ], cnt: '結果: 2行 × 3列（Heap Fetches: 0 — Index Only Scan 完全動作）' }
     ],
     sql: [
       { t: 'SELECT',    k: 'sql-kw', h: 'select' }, { t: '  user_id, email, name\n', k: '', h: 'select' },
@@ -539,7 +537,7 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>カバリングインデックスとは「クエリのSELECT/WHERE/ORDER BYに必要な列をすべてインデックスに含める」設計です。DBはインデックスだけで結果を返せるため、テーブル本体のランダムI/Oが完全になくなります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>カバリングインデックスとは「クエリの SELECT・WHERE・ORDER BY に必要な列をすべてインデックスに含める」設計です。PostgreSQL 11以降は <code>INCLUDE (列名)</code> で B-Tree キー以外の列をインデックスに追加できます。DB はインデックスだけで結果を返せるため、テーブル本体（ヒープ）へのランダム I/O が完全になくなります。<code>EXPLAIN (ANALYZE, BUFFERS)</code> で <em>Heap Fetches: 0</em> を確認するのが動作確認の第一歩です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Heap Fetchesが0かを確認：</strong>EXPLAIN (ANALYZE, BUFFERS) の出力で <code>Heap Fetches: 0</code> と表示されれば Index Only Scan が完全に機能しています。<code>Heap Fetches: 大きな数</code> になる場合は、テーブルのVISIBILITY MAPが古くなっている可能性があり、<code>VACUUM users</code> を実行してください。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>インデックスのサイズとのトレードオフ：</strong>INCLUDE列を追加するとインデックスサイズが増えます。email や name のような頻繁に更新される列をINCLUDEすると、更新のたびにインデックスも更新されます。<em>読み取り頻度が高く、更新頻度が低い列</em> をINCLUDEの候補にしてください。</div></div>
 </div>
@@ -896,16 +894,27 @@ GraphQLのN+1問題を解決するDataLoader（Facebook製）は、1リクエス
             { v: [2,'80,000',60],  c: 'row-dimmed', cc: ['','val-fail',''] },
             { v: [3,'50,000',30],  c: 'row-dimmed', cc: ['','val-fail',''] }
           ], cnt: '3行 → 1行（1回目参照）' },
-        { id: 'select', badge: '③ UNION ALL: 2回目参照', bc: 'badge-green',
-          label: 'UNION ALL — monthly_stats を再参照（再集計なし）',
-          desc: 'UNION ALL で 2 回目の参照も同じ一時テーブルから読みます。orders の再スキャン・再集計は発生しません。MATERIALIZED の恩恵で集計コストが 1 回で済みます。',
-          type: 'select',
-          cols: ['user_id','total_amount','order_count','name'],
-          ch:   ['col-select','col-select','col-select','col-select'],
+        { id: 'agg', badge: '③ 2回目参照: WHERE order_count > 50', bc: 'badge-orange',
+          label: '一時テーブルを再参照（再集計なし）— order_count > 50 でフィルタ',
+          desc: '同じ一時テーブルを2回目に参照します。order_count > 50 の条件で絞り込むと user_id=2（鈴木, 60回）のみ通過します。user_id=1（8回）と user_id=3（30回）は除外されます。orders テーブルへの再スキャン・再集計は一切発生しません（一時テーブル参照のみ）。',
+          type: 'eval',
+          cols: ['user_id','total_amount','order_count'],
+          ch:   ['','','col-eval'],
           rows: [
-            { v: [1,'170,000',8,'田中'] },
-            { v: [2,'80,000',60,'NULL'], cc: ['','','','val-dimmed'] }
-          ], cnt: 'UNION ALL 結果: 計 2行（集計は1回のみ）' }
+            { v: [1,'170,000',8],  c: 'row-dimmed', cc: ['','','val-fail'] },
+            { v: [2,'80,000',60],  cc: ['','','val-pass'] },
+            { v: [3,'50,000',30],  c: 'row-dimmed', cc: ['','','val-fail'] }
+          ], cnt: '3行 → 1行（2回目参照 / orders 再集計なし）' },
+        { id: 'select', badge: '④ UNION ALL 最終結果', bc: 'badge-green',
+          label: '1回目(total_amount>100000) UNION ALL 2回目(order_count>50) — 集計は計1回',
+          desc: '1回目参照（田中, total_amount=170,000）と2回目参照（鈴木, order_count=60）を UNION ALL で結合した最終結果です。1,000万件の orders テーブルへの集計スキャンは合計1回だけです。MATERIALIZED なしでは重い GROUP BY が2回実行されていました。',
+          type: 'select',
+          cols: ['user_id','total_amount','order_count','name','由来'],
+          ch:   ['col-select','col-select','col-select','col-select','col-select'],
+          rows: [
+            { v: [1,'170,000',8,'田中','1回目 SELECT（total_amount>100000）'] },
+            { v: [2,'80,000',60,'NULL','2回目 SELECT（order_count>50）'], cc: ['','','','val-dimmed',''] }
+          ], cnt: 'UNION ALL 最終結果: 計 2行（orders への集計スキャン: 1回のみ）' }
       ],
       sql: [
         { t: 'WITH',           k: 'sql-kw', h: 'group' }, { t: ' monthly_stats ', k: '', h: 'group' },
@@ -922,17 +931,17 @@ GraphQLのN+1問題を解決するDataLoader（Facebook製）は、1リクエス
         { t: 'FROM   ', k: 'sql-kw', h: 'where' }, { t: 'monthly_stats m\n', k: '', h: 'where' },
         { t: 'JOIN   ', k: 'sql-kw', h: 'where' }, { t: 'users u USING (user_id)\n', k: '', h: 'where' },
         { t: 'WHERE  ', k: 'sql-kw', h: 'where' }, { t: 'm.total_amount > 100000\n', k: '', h: 'where' },
-        { t: 'UNION ALL\n', k: 'sql-kw', h: 'select' },
-        { t: 'SELECT ', k: 'sql-kw', h: 'select' }, { t: 'm.user_id, m.total_amount, m.order_count, NULL\n', k: '', h: 'select' },
-        { t: 'FROM   ', k: 'sql-kw', h: 'select' }, { t: 'monthly_stats m\n', k: '', h: 'select' },
-        { t: 'WHERE  ', k: 'sql-kw', h: 'select' }, { t: 'm.order_count > 50;', k: '', h: 'select' }
+        { t: 'UNION ALL\n', k: 'sql-kw', h: 'agg select' },
+        { t: 'SELECT ', k: 'sql-kw', h: 'agg select' }, { t: 'm.user_id, m.total_amount, m.order_count, NULL\n', k: '', h: 'agg select' },
+        { t: 'FROM   ', k: 'sql-kw', h: 'agg select' }, { t: 'monthly_stats m\n', k: '', h: 'agg select' },
+        { t: 'WHERE  ', k: 'sql-kw', h: 'agg' }, { t: 'm.order_count > 50;', k: '', h: 'agg' }
       ]
     }
   ],
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>CTE（WITH句）は複雑なクエリを読みやすく分割するための機能です。名前付きサブクエリとも呼ばれます。<code>WITH 名前 AS (SELECT …) SELECT … FROM 名前</code> の形で使います。可読性向上に非常に有効ですが、パフォーマンス特性を理解した上で使うことが重要です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>CTE（<code>WITH 名前 AS (…)</code>）とは名前付きサブクエリです。<strong>MATERIALIZED</strong> を付けると、CTE内の SELECT を<em>先に1回だけ実行して一時テーブルに保存</em>します（重い集計を複数回参照する場合に有効）。<strong>NOT MATERIALIZED</strong> は CTE をサブクエリとして<em>外側クエリにインライン展開</em>し、外側の WHERE が CTE 内に押し込まれます（インデックスが効く）。PostgreSQL 11以前は常に MATERIALIZED 扱いで外側 WHERE が使えず<em>「最適化の壁（Optimization Fence）」</em>と呼ばれました。12以降はオプティマイザが自動判断しますが、<em>明示指定で実行計画を固定するのが安全</em>です。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>PostgreSQL 12以降のデフォルト挙動：</strong>PostgreSQL 12以降ではオプティマイザがMATERIALIZEDかNOT MATERIALIZEDかを自動判断します。ただし副作用（VOLATILE関数など）を含む場合は常にMATERIALIZEDになります。パフォーマンスが出ない場合は明示的に指定して実行計画を固定するのが安全です。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>CTEは「デバッグ用途」にも使える：</strong>複雑なJOINやサブクエリをCTE化すると、中間結果を <code>SELECT * FROM cte名</code> で確認できます。開発中はCTEを使って段階的にクエリを組み立て、完成後にパフォーマンスを考慮して必要に応じてNOT MATERIALIZEDやインライン化を検討する進め方が実用的です。</div></div>
 </div>
@@ -1271,17 +1280,17 @@ SlackやLINEのようなチャットUIで「チャンネル一覧に最新メッ
             { v: ['SKU-002','商品B',  2000] },
             { v: ['SKU-003','商品C',  3000] }
           ], cnt: '3配列 → 3行に展開' },
-        { id: 'where', badge: '② ON CONFLICT + DO UPDATE', bc: 'badge-orange',
-          label: 'UNIQUE (sku) 照合 → INSERT or UPDATE',
-          desc: 'UNNEST で展開した各行を products の sku UNIQUE インデックスと照合します。VALUES 方式と同じロジックですが、クエリ文字列が配列サイズに依存しません。',
+        { id: 'where', badge: '② ON CONFLICT (sku) 照合', bc: 'badge-orange',
+          label: 'UNIQUE (sku) 照合 → INSERT or DO UPDATE SET',
+          desc: 'UNNEST で展開した各行を products の sku UNIQUE インデックスと照合します。SKU-001・SKU-002 は既存行と競合するため DO UPDATE が実行され、SKU-003 は競合なしで INSERT されます。VALUES 方式と同じロジックですが、配列サイズが変わってもクエリ形式が不変のためプリペアドステートメントのキャッシュが常に有効です。',
           type: 'eval',
-          cols: ['sku','競合?','EXCLUDED.price','products.price'],
-          ch:   ['col-eval','col-eval','',''],
+          cols: ['sku (展開)','既存 price','新 price (EXCLUDED)','競合?','動作'],
+          ch:   ['col-eval','','','col-eval',''],
           rows: [
-            { v: ['SKU-001','✓ 競合',1500,'1000 → 1500'],    cc: ['','val-fail','',''] },
-            { v: ['SKU-002','✓ 競合',2000,'2000（変化なし）'], cc: ['','val-fail','',''] },
-            { v: ['SKU-003','✗ なし',3000,'（INSERT）'],       cc: ['','val-pass','','val-dimmed'] }
-          ], cnt: '競合: 2行 / 新規: 1行' },
+            { v: ['SKU-001',1000,1500,'✓ 競合','DO UPDATE'], cc: ['','','','val-fail',''] },
+            { v: ['SKU-002',2000,2000,'✓ 競合','DO UPDATE'], cc: ['','','','val-fail',''] },
+            { v: ['SKU-003','(なし)',3000,'✗ なし','INSERT'], cc: ['','val-dimmed','','val-pass','val-pass'] }
+          ], cnt: '競合: 2行（UPDATE）/ 新規: 1行（INSERT）' },
         { id: 'select', badge: '③ 結果', bc: 'badge-green',
           label: 'UPSERT 完了（1クエリ・1トランザクション）',
           desc: '5,000 件の配列でも同じクエリ形式で処理できます。ループで 1 件ずつ INSERT する場合と比べ、トランザクションと WAL 書き込みのオーバーヘッドが 1 回で済みます。',
