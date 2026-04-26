@@ -672,24 +672,41 @@ const QS = [
   viz: {
     steps: [
       {
-        id: "eval", badge: "① FROM & WHERE", bc: "badge-orange",
-        label: "WHERE status = 'succeeded'",
-        desc: "全行の中から、決済が成功した行のみを抽出します。failedの行は除外されます。",
-        type: "eval",
-        cols: ["payment_id", "paid_at", "amount", "status"],
-        ch: ["", "", "", "col-eval"],
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM payments",
+        desc: "対象テーブルから全6行を読み込みます。",
+        type: "base",
+        cols: ["payment_id", "amount", "status", "paid_at"],
+        ch: ["col-base", "col-base", "col-base", "col-base"],
         rows: [
-          { v: [1, "2024-01-10 10:00", 5000, "succeeded"], cc: ["", "", "", "val-pass"] },
-          { v: [2, "2024-01-25 15:30", 8000, "succeeded"], cc: ["", "", "", "val-pass"] },
-          { c: "row-dimmed", v: [3, "2024-01-28 09:00", 3000, "failed"], cc: ["", "", "", "val-fail"] },
-          { v: [4, "2024-02-05 11:00", 12000, "succeeded"], cc: ["", "", "", "val-pass"] },
-          { v: [5, "2024-02-20 16:00", 4500, "succeeded"], cc: ["", "", "", "val-pass"] },
-          { v: [6, "2024-03-08 14:00", 7000, "succeeded"], cc: ["", "", "", "val-pass"] }
+          { v: [1, 5000, "succeeded", "2024-01-10 10:00"] },
+          { v: [2, 8000, "succeeded", "2024-01-25 15:30"] },
+          { v: [3, 3000, "failed", "2024-01-28 09:00"] },
+          { v: [4, 12000, "succeeded", "2024-02-05 11:00"] },
+          { v: [5, 4500, "succeeded", "2024-02-20 16:00"] },
+          { v: [6, 7000, "succeeded", "2024-03-08 14:00"] }
+        ],
+        cnt: "全 6行 読込"
+      },
+      {
+        id: "where", badge: "② WHERE", bc: "badge-orange",
+        label: "WHERE status = 'succeeded'",
+        desc: "決済が成功した行のみを抽出します。failedの行は除外されます。",
+        type: "eval",
+        cols: ["payment_id", "amount", "status", "paid_at"],
+        ch: ["", "", "col-eval", ""],
+        rows: [
+          { v: [1, 5000, "succeeded", "2024-01-10 10:00"], cc: ["", "", "val-pass", ""] },
+          { v: [2, 8000, "succeeded", "2024-01-25 15:30"], cc: ["", "", "val-pass", ""] },
+          { c: "row-dimmed", v: [3, 3000, "failed", "2024-01-28 09:00"], cc: ["", "", "val-fail", ""] },
+          { v: [4, 12000, "succeeded", "2024-02-05 11:00"], cc: ["", "", "val-pass", ""] },
+          { v: [5, 4500, "succeeded", "2024-02-20 16:00"], cc: ["", "", "val-pass", ""] },
+          { v: [6, 7000, "succeeded", "2024-03-08 14:00"], cc: ["", "", "val-pass", ""] }
         ],
         cnt: "6行 → 5行"
       },
       {
-        id: "group", badge: "② DATE_TRUNC & GROUP BY", bc: "badge-orange",
+        id: "group", badge: "③ DATE_TRUNC & GROUP BY", bc: "badge-orange",
         label: "GROUP BY DATE_TRUNC('month', paid_at)",
         desc: "paid_at を月初に切り捨てた値でグループ化します。",
         type: "group",
@@ -705,7 +722,7 @@ const QS = [
         cnt: "5行 → 3グループ"
       },
       {
-        id: "agg", badge: "③ 集計 (SELECT)", bc: "badge-green",
+        id: "agg", badge: "④ 集計 (SELECT)", bc: "badge-green",
         label: "SUM(amount), COUNT(*)",
         desc: "グループごとに売上を合計し、件数をカウントします。",
         type: "select",
@@ -725,7 +742,7 @@ const QS = [
       { t: "  SUM(amount) AS total_revenue,\n", k: "", h: "select agg" },
       { t: "  COUNT(*) AS payment_count\n", k: "", h: "select agg" },
       { t: "FROM ", k: "sql-kw", h: "from" }, { t: "payments\n", k: "", h: "from" },
-      { t: "WHERE ", k: "sql-kw", h: "from eval" }, { t: "status = 'succeeded'\n", k: "", h: "from eval" },
+      { t: "WHERE ", k: "sql-kw", h: "where" }, { t: "status = 'succeeded'\n", k: "", h: "where" },
       { t: "GROUP BY\n", k: "sql-kw", h: "group" },
       { t: "  DATE_TRUNC('month', paid_at)\n", k: "", h: "group" },
       { t: "ORDER BY ", k: "sql-kw", h: "select agg" }, { t: "month ASC;", k: "", h: "select agg" }
@@ -823,7 +840,22 @@ const QS = [
   viz: {
     steps: [
       {
-        id: "window", badge: "① LAG OVER", bc: "badge-orange",
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM monthly_revenue",
+        desc: "月次の売上サマリーデータを読み込みます。",
+        type: "base",
+        cols: ["month", "revenue"],
+        ch: ["col-base", "col-base"],
+        rows: [
+          { v: ["2024-01-01", 100000] },
+          { v: ["2024-02-01", 120000] },
+          { v: ["2024-03-01", 0] },
+          { v: ["2024-04-01", 135000] }
+        ],
+        cnt: "全 4行 読込"
+      },
+      {
+        id: "window", badge: "② LAG OVER", bc: "badge-orange",
         label: "LAG(revenue, 1) OVER (ORDER BY month)",
         desc: "月で並べたときの「1行前（前月）」の売上を取得します。1月は前月がないためNULLになります。",
         type: "eval",
@@ -838,7 +870,7 @@ const QS = [
         cnt: "前月値を各行に付与"
       },
       {
-        id: "nullif", badge: "② NULLIF & ROUND", bc: "badge-green",
+        id: "nullif", badge: "③ NULLIF & ROUND", bc: "badge-green",
         label: "/ NULLIF(prev, 0) * 100.0",
         desc: "ゼロ除算エラーを防ぐため、前月売上が0のときは NULLIF で NULL に変換します。その後 ROUND で丸めます。",
         type: "select",
@@ -853,7 +885,7 @@ const QS = [
         cnt: ""
       },
       {
-        id: "select", badge: "③ 最終結果", bc: "badge-green",
+        id: "select", badge: "④ 最終結果", bc: "badge-green",
         label: "SELECT growth_pct",
         desc: "計算された成長率が最終出力となります。4月は前月が0のため、成長率はNULLとなります。",
         type: "select",
@@ -877,7 +909,7 @@ const QS = [
       { t: "  ROUND(\n    (revenue - LAG(...) OVER (...))\n    / ", k: "", h: "select nullif" },
       { t: "NULLIF", k: "sql-kw", h: "nullif select" },
       { t: "(LAG(...) OVER (...), 0)\n    * 100.0, 1\n  ) AS growth_pct\n", k: "", h: "nullif select" },
-      { t: "FROM ", k: "sql-kw", h: "select" }, { t: "monthly_revenue\n", k: "", h: "select" },
+      { t: "FROM ", k: "sql-kw", h: "from select" }, { t: "monthly_revenue\n", k: "", h: "from select" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "month;", k: "", h: "select" }
     ]
   },
@@ -969,7 +1001,22 @@ const QS = [
   viz: {
     steps: [
       {
-        id: "coalesce1", badge: "① COALESCE (name)", bc: "badge-orange",
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM user_profiles",
+        desc: "対象テーブルから全4行を読み込みます。NULLが点在しています。",
+        type: "base",
+        cols: ["user_id", "display_name", "email", "bio", "score"],
+        ch: ["col-base", "col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: ["U01", "田中 太郎", "tanaka@ex.com", "エンジニアです", 850] },
+          { v: ["U02", "NULL", "sato@ex.com", "NULL", 620], cc: ["", "val-dimmed", "", "val-dimmed", ""] },
+          { v: ["U03", "鈴木 一郎", "suzuki@ex.com", "デザイナーです", "NULL"], cc: ["", "", "", "", "val-dimmed"] },
+          { v: ["U04", "NULL", "yamada@ex.com", "NULL", "NULL"], cc: ["", "val-dimmed", "", "val-dimmed", "val-dimmed"] }
+        ],
+        cnt: "全 4行 読込"
+      },
+      {
+        id: "coalesce1", badge: "② COALESCE (name)", bc: "badge-orange",
         label: "COALESCE(display_name, SPLIT_PART(...))",
         desc: "左から順に評価し、最初の「NULLではない値」を返します。U02とU04はdisplay_nameがNULLなので、代替値が使われます。",
         type: "eval",
@@ -984,7 +1031,7 @@ const QS = [
         cnt: "名前の補完"
       },
       {
-        id: "coalesce2", badge: "② COALESCE (bio, score)", bc: "badge-orange",
+        id: "coalesce2", badge: "③ COALESCE (bio, score)", bc: "badge-orange",
         label: "COALESCE(bio, '未設定'), COALESCE(score, 0)",
         desc: "同様に、bio と score についても NULL の場合は安全なデフォルト値に変換します。",
         type: "eval",
@@ -999,7 +1046,7 @@ const QS = [
         cnt: "プロフィールの補完"
       },
       {
-        id: "nullif", badge: "③ (補足) NULLIF", bc: "badge-blue",
+        id: "nullif", badge: "④ (補足) NULLIF", bc: "badge-blue",
         label: "NULLIF(col, '')",
         desc: "空文字とNULLが混在するのを防ぐため、空文字を意図的にNULLに変換する際などに NULLIF を活用します。",
         type: "base",
@@ -1014,7 +1061,7 @@ const QS = [
         cnt: ""
       },
       {
-        id: "select", badge: "④ 最終結果", bc: "badge-green",
+        id: "select", badge: "⑤ 最終結果", bc: "badge-green",
         label: "SELECT safe_name, safe_bio, safe_score",
         desc: "デフォルト値が補完され、API側で安全に扱えるデータになります。",
         type: "select",
@@ -1037,8 +1084,8 @@ const QS = [
       { t: "(bio, '未設定') AS safe_bio,\n  ", k: "", h: "coalesce2 select" },
       { t: "COALESCE", k: "sql-kw", h: "coalesce2 select nullif" },
       { t: "(score, 0) AS safe_score\n", k: "", h: "coalesce2 select nullif" },
-      { t: "FROM ", k: "sql-kw", h: "coalesce1 coalesce2 select" },
-      { t: "user_profiles;\n", k: "", h: "coalesce1 coalesce2 select" }
+      { t: "FROM ", k: "sql-kw", h: "from coalesce1 coalesce2 select" },
+      { t: "user_profiles;\n", k: "", h: "from coalesce1 coalesce2 select" }
     ]
   },
   explain: `
@@ -1143,38 +1190,42 @@ const QS = [
   viz: {
     steps: [
       {
-        id: "join", badge: "① LEFT JOIN", bc: "badge-blue",
-        label: "LEFT JOIN orders o ON ... AND o.status='completed'",
-        desc: "左テーブル(users)の全行を維持しつつ、右テーブル(orders)を結合します。U02(キャンセルのみ)とU04(注文なし)は右側がNULLで埋まります。",
-        type: "base", join: true,
-        left: {
-          label: "users (u)", cols: ["user_id", "name"],
-          rows: [
-            { v: ["U01", "田中"] },
-            { v: ["U01", "田中"] },
-            { v: ["U02", "佐藤"] },
-            { v: ["U03", "鈴木"] },
-            { v: ["U04", "山田"] }
-          ]
-        },
-        right: {
-          label: "orders (o)", cols: ["order_id", "amount", "status"],
-          rows: [
-            { v: [1, 5000, "completed"] },
-            { v: [2, 8000, "completed"] },
-            { c: "row-dimmed", v: ["NULL", "NULL", "（cancelled除外）"], cc: ["val-dimmed", "val-dimmed", "val-dimmed"] },
-            { v: [4, 12000, "completed"] },
-            { c: "row-dimmed", v: ["NULL", "NULL", "（注文なし）"], cc: ["val-dimmed", "val-dimmed", "val-dimmed"] }
-          ]
-        },
-        cnt: "結合結果: 5行 (NULL補完2行)"
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM users u",
+        desc: "左テーブル（主テーブル）として、全ユーザーを読み込みます。",
+        type: "base",
+        cols: ["user_id", "name"],
+        ch: ["col-base", "col-base"],
+        rows: [
+          { v: ["U01", "田中"] },
+          { v: ["U02", "佐藤"] },
+          { v: ["U03", "鈴木"] },
+          { v: ["U04", "山田"] }
+        ],
+        cnt: "全 4行 読込"
       },
       {
-        id: "count", badge: "② COUNT(列名)", bc: "badge-orange",
+        id: "join", badge: "② LEFT JOIN", bc: "badge-blue",
+        label: "LEFT JOIN orders o ON ... AND o.status='completed'",
+        desc: "右テーブル(orders)の完了注文のみを結合します。条件に一致しないU02とU04は右側がNULLになります。",
+        type: "base",
+        cols: ["u.user_id", "u.name", "o.order_id", "o.amount", "o.status"],
+        ch: ["col-base", "col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { v: ["U01", "田中", 1, 5000, "completed"] },
+          { v: ["U01", "田中", 2, 8000, "completed"] },
+          { c: "row-dimmed", v: ["U02", "佐藤", "NULL", "NULL", "NULL"], cc: ["", "", "val-dimmed", "val-dimmed", "val-dimmed"] },
+          { v: ["U03", "鈴木", 4, 12000, "completed"] },
+          { c: "row-dimmed", v: ["U04", "山田", "NULL", "NULL", "NULL"], cc: ["", "", "val-dimmed", "val-dimmed", "val-dimmed"] }
+        ],
+        cnt: "結合結果: 5行"
+      },
+      {
+        id: "count", badge: "③ COUNT(列名)", bc: "badge-orange",
         label: "COUNT(o.order_id)",
         desc: "COUNT(*) は NULL の行も1件として数えますが、COUNT(列名) は NULL を無視します。これにより0件ユーザーが正しく「0」と計上されます。",
         type: "eval",
-        cols: ["user_id", "o.order_id (元データ)", "COUNT(*)", "COUNT(o.order_id)"],
+        cols: ["u.user_id", "o.order_id (元データ)", "COUNT(*)", "COUNT(o.order_id)"],
         ch: ["", "", "", "col-eval"],
         rows: [
           { v: ["U01", "1, 2", "2", "2"], cc: ["", "", "", "val-pass"] },
@@ -1185,11 +1236,11 @@ const QS = [
         cnt: "件数の集計"
       },
       {
-        id: "sum", badge: "③ COALESCE(SUM)", bc: "badge-orange",
+        id: "sum", badge: "④ COALESCE(SUM)", bc: "badge-orange",
         label: "COALESCE(SUM(o.amount), 0)",
         desc: "注文がない(NULL)ユーザーの SUM を計算すると結果も NULL になります。APIで null を返さないよう、COALESCE で 0 に変換します。",
         type: "eval",
-        cols: ["user_id", "o.amount (元データ)", "SUM(o.amount)", "COALESCE(SUM, 0)"],
+        cols: ["u.user_id", "o.amount (元データ)", "SUM(o.amount)", "COALESCE(SUM, 0)"],
         ch: ["", "", "col-eval", "col-select"],
         rows: [
           { v: ["U01", "5000, 8000", "13000", "13000"], cc: ["", "", "val-pass", "val-pass"] },
@@ -1200,7 +1251,7 @@ const QS = [
         cnt: "合計金額の集計"
       },
       {
-        id: "select", badge: "④ 最終結果", bc: "badge-green",
+        id: "select", badge: "⑤ 最終結果", bc: "badge-green",
         label: "SELECT order_count, total_amount",
         desc: "合計金額の多い順に並べた最終結果です。注文なしユーザーも0件としてしっかりレポートに含まれます。",
         type: "select",
@@ -1221,11 +1272,11 @@ const QS = [
       { t: "(o.order_id) AS order_count,\n  ", k: "", h: "count select" },
       { t: "COALESCE", k: "sql-kw", h: "sum select" },
       { t: "(SUM(o.amount), 0) AS total_amount\n", k: "", h: "sum select" },
-      { t: "FROM ", k: "sql-kw", h: "join" }, { t: "users u\n", k: "", h: "join" },
+      { t: "FROM ", k: "sql-kw", h: "from join" }, { t: "users u\n", k: "", h: "from join" },
       { t: "LEFT JOIN ", k: "sql-kw", h: "join" }, { t: "orders o\n", k: "", h: "join" },
       { t: "  ON ", k: "sql-kw", h: "join" }, { t: "u.user_id = o.user_id\n", k: "", h: "join" },
-      { t: "  AND o.status = 'completed'\n", k: "", h: "join eval" },
-      { t: "GROUP BY ", k: "sql-kw", h: "group count sum" }, { t: "u.user_id, u.name\n", k: "", h: "group count sum" },
+      { t: "  AND o.status = 'completed'\n", k: "", h: "join" },
+      { t: "GROUP BY ", k: "sql-kw", h: "count sum" }, { t: "u.user_id, u.name\n", k: "", h: "count sum" },
       { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "total_amount DESC;", k: "", h: "select" }
     ]
   },
