@@ -240,8 +240,8 @@
   .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
   .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
   .sql-hl-base, .sql-hl-join, .sql-hl-cte1-base { border-radius: 3px; padding: 2px 4px; color: var(--sql-blue-txt); background: var(--sql-blue-bg); }
-  .sql-hl-eval, .sql-hl-cte1-group, .sql-hl-cte2 { border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt); background: var(--sql-orange-bg); }
-  .sql-hl-select, .sql-hl-group, .sql-hl-cte3 { border-radius: 3px; padding: 2px 4px; color: var(--sql-green-txt); background: var(--sql-green-bg); }
+  .sql-hl-eval, .sql-hl-cte1-group, .sql-hl-cte2, .sql-hl-cte3 { border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt); background: var(--sql-orange-bg); }
+  .sql-hl-select, .sql-hl-group, .sql-hl-final { border-radius: 3px; padding: 2px 4px; color: var(--sql-green-txt); background: var(--sql-green-bg); }
   .sv-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: 600; letter-spacing: 0.02em; }
   .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
   .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
@@ -1051,7 +1051,7 @@ const QS = [
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ORDER BY なしの STRING_AGG：</strong><code>STRING_AGG(item_name, ', ')</code> は連結順が保証されず、毎回異なる順序で商品が並ぶ可能性があります。UIが変化してしまうのを防ぐため、必ず <code>ORDER BY</code> を指定して順序を固定しましょう。</div></div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>1対Nのテーブルを複数同時に JOIN して集約する：</strong>明細テーブルと別の1対Nテーブル（例: クーポン適用履歴）を同時に LEFT JOIN するとカーテシアン積が発生し、行が増殖して集計値が狂います。実務では別CTEで集約してからメインテーブルに JOIN するのが安全な設計です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>1対Nのテーブルを複数同時に JOIN して集約する：</strong>明細テーブルと別の1対Nテーブル（例: クーポン適用履歴）を同時に LEFT JOIN するとカーテシアン積が発生し、行が増殖して集計値が狂います。実務では別CTEで集約してからメインテーブルに JOIN 取るのが安全な設計です。</div></div>
 </div>
 
 <div class="column-box">
@@ -1204,21 +1204,34 @@ with_type <span class="kw">AS</span> (
         ]
       },
       {
-        id: "cte3", badge: "④ 最終出力", bc: "badge-green",
-        label: "CTE 3: with_type (成長タイプの判定) と最終取得",
-        desc: "2つ前の CTE を参照し、CASE 式で成長率に応じたラベル (growth_type) を付与します。この結果が最終出力となります。",
-        type: "select",
+        id: "cte3", badge: "④ 成長タイプの判定", bc: "badge-orange",
+        label: "CTE 3: with_type (CASE式による分類)",
+        desc: "2つ前の CTE を参照し、CASE 式で成長率に応じたラベル (growth_type) を付与し、新しい中間テーブルを定義します。",
+        type: "eval",
         cols: ["month", "revenue", "growth_pct", "growth_type (CASE)"],
-        ch: ["col-base", "col-base", "col-eval", "col-select"],
+        ch: ["col-base", "col-base", "col-eval", "col-eval"],
         rows: [
           { c: "row-grp-1", v: ["2024-01-01", 100000, "NULL", "基準月"], cc: ["", "", "", "val-pass"] },
           { c: "row-grp-2", v: ["2024-02-01", 120000, "+20.0", "急成長"], cc: ["", "", "", "val-pass"] },
           { c: "row-grp-3", v: ["2024-03-01", 150000, "+25.0", "急成長"], cc: ["", "", "", "val-pass"] }
         ]
+      },
+      {
+        id: "final", badge: "⑤ 最終出力", bc: "badge-green",
+        label: "最終クエリ: CTEの呼び出しと結果の取得",
+        desc: "最後に、定義した CTE (with_type) からデータを全件取得し、month 順に並べ替えて最終結果として出力します。",
+        type: "select",
+        cols: ["month", "revenue", "prev_revenue", "growth_pct", "growth_type"],
+        ch: ["col-select", "col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { c: "row-grp-1", v: ["2024-01-01", 100000, "NULL", "NULL", "基準月"], cc: ["val-pass", "val-pass", "val-pass", "val-pass", "val-pass"] },
+          { c: "row-grp-2", v: ["2024-02-01", 120000, 100000, "+20.0", "急成長"], cc: ["val-pass", "val-pass", "val-pass", "val-pass", "val-pass"] },
+          { c: "row-grp-3", v: ["2024-03-01", 150000, 120000, "+25.0", "急成長"], cc: ["val-pass", "val-pass", "val-pass", "val-pass", "val-pass"] }
+        ]
       }
     ],
     sql: [
-      { t: "WITH\n", k: "sql-kw", h: "cte1-base cte1-group cte2 cte3" },
+      { t: "WITH\n", k: "sql-kw", h: "cte1-base cte1-group cte2 cte3 final" },
       { t: "-- ① 第1ステップ: 月次売上の集計\n", k: "cmt", h: "cte1-base cte1-group" },
       { t: "monthly_revenue ", k: "", h: "cte1-base cte1-group" }, { t: "AS", k: "sql-kw", h: "cte1-base cte1-group" }, { t: " (\n  ", k: "", h: "cte1-base cte1-group" },
       { t: "SELECT\n    DATE_TRUNC('month', paid_at) ", k: "", h: "cte1-group" }, { t: "AS", k: "sql-kw", h: "cte1-group" }, { t: " month,\n    ", k: "", h: "cte1-group" },
@@ -1241,10 +1254,10 @@ with_type <span class="kw">AS</span> (
       { t: "ELSE ", k: "sql-kw", h: "cte3" }, { t: "'減少'\n    ", k: "", h: "cte3" },
       { t: "END AS", k: "sql-kw", h: "cte3" }, { t: " growth_type\n  ", k: "", h: "cte3" },
       { t: "FROM ", k: "sql-kw", h: "cte3" }, { t: "with_growth\n)\n\n", k: "", h: "cte3" },
-      { t: "-- 最終出力: 各ステップを経た最終結果の取得\n", k: "cmt", h: "cte3" },
-      { t: "SELECT ", k: "sql-kw", h: "cte3" }, { t: "*\n", k: "", h: "cte3" },
-      { t: "FROM ", k: "sql-kw", h: "cte3" }, { t: "with_type\n", k: "", h: "cte3" },
-      { t: "ORDER BY ", k: "sql-kw", h: "cte3" }, { t: "month;\n", k: "", h: "cte3" }
+      { t: "-- 最終出力: 各ステップを経た最終結果の取得\n", k: "cmt", h: "final" },
+      { t: "SELECT ", k: "sql-kw", h: "final" }, { t: "*\n", k: "", h: "final" },
+      { t: "FROM ", k: "sql-kw", h: "final" }, { t: "with_type\n", k: "", h: "final" },
+      { t: "ORDER BY ", k: "sql-kw", h: "final" }, { t: "month;\n", k: "", h: "final" }
     ]
   },
   explain: `
