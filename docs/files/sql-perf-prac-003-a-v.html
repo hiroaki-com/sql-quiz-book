@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQLパフォーマンス最適化5選 — カバリングINDEX／Window関数／EXPLAIN読解／N+1解決／Keyset Pagination（応用編003）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #0a0e13;
+  --bg2:    #131920;
+  --bg3:    #1c2330;
+  --bg4:    #263040;
+  --border: #2a3545;
+  --text:   #cdd9e5;
+  --dim:    #768390;
+  --accent: #4dabf7;
+  --green:  #3fb950;
+  --orange: #f0883e;
+  --red:    #f85149;
+  --purple: #bc8cff;
+  --yellow: #e3b341;
+  --kw:     #ff7b72;
+  --fn:     #79c0ff;
+  --str:    #a5d6ff;
+  --num:    #f0c674;
+  --cmt:    #6a737d;
+  --tbl:    #ffa657;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;font-size:15px;line-height:1.6}
+.site-header{background:var(--bg2)}
+.header-inner{padding:16px}
+.header-flex{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+.header-badge{background:var(--bg3);border:1px solid var(--accent);border-radius:6px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:var(--accent);line-height:1;white-space:nowrap}
+.header-text-wrap{flex:1}
+.header-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px}
+.header-tags{display:flex;gap:6px;flex-wrap:wrap}
+.htag{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 7px;border-radius:10px;border:1px solid var(--border);color:var(--dim)}
+.sticky-tabs{background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200}
+.tab-row{display:flex;overflow-x:auto;scrollbar-width:none}
+.tab-row::-webkit-scrollbar{display:none}
+.tab-btn{flex-shrink:0;background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:11px;padding:9px 14px;cursor:pointer;white-space:nowrap;transition:color .15s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--bg3)}
+.tab-num{margin-right:5px}
+.prog-wrap{height:2px;background:var(--bg4)}
+.prog-fill{height:100%;background:var(--accent);transition:width .2s}
+main{max-width:960px;margin:0 auto;padding:22px 14px 90px}
+.panel{display:none}
+.panel.active{display:block}
+.q-header{margin-bottom:18px}
+.q-number{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:2px;margin-bottom:4px}
+.q-title{font-size:18px;font-weight:700;margin-bottom:8px;line-height:1.3}
+.q-tags{display:flex;gap:6px;flex-wrap:wrap}
+.q-tag{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:3px;font-weight:600}
+.tag-r{background:#1a2c44;color:var(--accent);border:1px solid #1e4070}
+.tag-g{background:#162416;color:var(--green);border:1px solid #1e3a1e}
+.tag-o{background:#2e1e0a;color:var(--orange);border:1px solid #4a2e0a}
+.tag-p{background:#1e1433;color:var(--purple);border:1px solid #3a2060}
+.acc{background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:12px}
+.acc-head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none}
+.acc-head:hover{background:var(--bg3)}
+.acc-icon{font-size:14px;width:22px;text-align:center;flex-shrink:0}
+.acc-title{font-size:13px;font-weight:600;flex:1}
+.acc-pill{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:3px;flex-shrink:0}
+.pill-blue  {background:#112233;color:var(--accent);border:1px solid #1a3a55}
+.pill-green {background:#0e1f0e;color:var(--green);border:1px solid #1a3a1a}
+.pill-orange{background:#1e1205;color:var(--orange);border:1px solid #3a2010}
+.pill-red   {background:#1e0a0a;color:var(--red);border:1px solid #3a1010}
+.pill-purple{background:#160f2a;color:var(--purple);border:1px solid #3a1a60}
+.acc-chevron{color:var(--dim);font-size:11px;flex-shrink:0;transition:transform .2s}
+.acc.closed .acc-chevron{transform:rotate(-90deg)}
+.acc-body{padding:14px 16px;border-top:1px solid var(--border)}
+.acc.closed .acc-body{display:none}
+p{font-size:13.5px;margin-bottom:10px}
+p:last-child{margin-bottom:0}
+strong{color:var(--accent);font-weight:600}
+em{color:var(--yellow);font-style:normal;font-weight:600}
+code{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg4);padding:1px 5px;border-radius:3px;color:var(--tbl)}
+pre{background:#060a0f;border:1px solid var(--border);border-radius:6px;padding:14px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;margin:8px 0}
+.kw {color:var(--kw);font-weight:700}
+.fn {color:var(--fn)}
+.tbl{color:var(--tbl)}
+.str{color:var(--str)}
+.num{color:var(--num)}
+.cmt{color:var(--cmt);font-style:italic}
+.op {color:var(--orange)}
+.callout{border-left:3px solid var(--accent);background:#0e1e33;padding:9px 13px;border-radius:0 5px 5px 0;margin:10px 0;font-size:13px}
+.callout.warn  {border-left-color:var(--yellow);background:#1e1a08}
+.callout.danger{border-left-color:var(--red);background:#1e0e0e}
+.callout.ok    {border-left-color:var(--green);background:#0a1e0a}
+.data-section{margin:14px 0}
+.data-label{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tbl);letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.data-label::before{content:'';display:block;width:3px;height:12px;background:var(--tbl);border-radius:2px}
+.data-tables{display:flex;gap:14px;flex-wrap:wrap}
+.data-tbl-wrap{flex:1;min-width:220px}
+.data-tbl-name{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--orange);margin-bottom:4px}
+.tbl-wrap{overflow-x:auto;margin-bottom:4px}
+table.vtbl{border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:11.5px;background:#060a0f;border:1px solid var(--border);border-radius:4px;min-width:100%}
+table.vtbl th{background:var(--bg3);color:var(--tbl);padding:5px 11px;border:1px solid var(--border);text-align:left;white-space:nowrap;font-weight:600}
+table.vtbl td{padding:4px 11px;border:1px solid #1c2635;white-space:nowrap}
+table.vtbl tr:nth-child(even) td{background:#080c12}
+.tr-hi  td{background:#0e1e33!important}
+.tr-hi2 td{background:#0e1e0e!important}
+.tr-hi3 td{background:#1e1433!important}
+.tr-hi4 td{background:#1e1a0a!important}
+.tr-dim td{opacity:.4}
+.tc-hi{color:var(--accent)!important;font-weight:700}
+.tc-g {color:var(--green)!important;font-weight:700}
+.tc-p {color:var(--purple)!important;font-weight:700}
+.tc-y {color:var(--yellow)!important;font-weight:700}
+.tc-o {color:var(--orange)!important;font-weight:700}
+.tc-r {color:var(--red)!important;font-weight:700}
+.null {color:var(--dim)!important;font-style:italic}
+
+.insight-box{background:#0a1520;border:1px solid #1a3a55;border-radius:8px;padding:14px 16px;margin-top:14px}
+.insight-title{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent);letter-spacing:1px;margin-bottom:10px}
+.insight-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+.insight-icon{font-size:13px;flex-shrink:0;margin-top:1px}
+.insight-body{font-size:12.5px;color:var(--text);line-height:1.6}
+.insight-body strong{color:var(--accent)}
+.insight-body em{color:var(--yellow)}
+.insight-body code{font-size:11px}
+.anti-box{background:#160a0a;border:1px solid #3a1515;border-radius:8px;padding:14px 16px;margin-top:10px}
+.anti-title{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--red);letter-spacing:1px;margin-bottom:10px}
+.anti-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+.anti-body{font-size:12.5px;color:var(--text);line-height:1.6}
+.anti-body strong{color:var(--red)}
+.anti-body code{font-size:11px}
+.column-box{background:#0d1520;border:1px solid #1c3550;border-left:3px solid var(--fn);border-radius:8px;padding:14px 16px;margin-top:10px}
+.column-title{font-size:11px;font-weight:700;color:var(--fn);letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.column-body{font-size:12.5px;color:var(--text);line-height:1.6}
+.column-body strong{color:var(--fn)}
+.nav-bar{display:flex;justify-content:space-between;align-items:center;margin-top:24px;gap:10px}
+.nav-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:9px 16px;border-radius:6px;cursor:pointer;flex-shrink:0;transition:border-color .15s,color .15s}
+.nav-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:#0e1e33}
+.nav-btn:disabled{opacity:.3;cursor:default}
+.nav-info{font-size:11px;color:var(--dim);font-family:'JetBrains Mono',monospace;text-align:center}
+@media(max-width:520px){
+  .header-inner{padding:12px 10px 6px}
+  .q-title{font-size:15px}
+  pre{font-size:11px;padding:10px}
+  table.vtbl{font-size:10.5px}
+  .acc-title{font-size:12px}
+  .header-badge{font-size:14px;padding:5px 8px}
+  main{padding:16px 10px 60px}
+  .data-tables{flex-direction:column}
+}
+
+/* ── SQL Step Visualizer ── */
+.sql-viz-wrapper {
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: 'Noto Sans JP', system-ui, sans-serif;
+  --color-bg-base:    #0a0e13;
+  --color-bg-panel:   #131920;
+  --color-border-main:#2a3545;
+  --color-border-sub: #1c2a38;
+  --color-txt-main:   #cdd9e5;
+  --color-txt-sub:    #768390;
+  --color-txt-muted:  #4a5568;
+  --sql-blue-bg:    rgba(77,171,247,0.12); --sql-blue-txt:   #4dabf7; --sql-blue-bd:    #1e4070;
+  --sql-orange-bg:  rgba(240,136,62,0.12); --sql-orange-txt: #f0883e; --sql-orange-bd:  #7d4e00;
+  --sql-green-bg:   rgba(63,185,80,0.12);  --sql-green-txt:  #3fb950; --sql-green-bd:   #1e4a1e;
+  --sql-red-bg:     rgba(248,81,73,0.10);  --sql-red-txt:    #f85149;
+  --sql-grp1-bg: rgba(77,171,247,0.04);
+  --sql-grp2-bg: rgba(77,171,247,0.09);
+  --sql-grp3-bg: rgba(77,171,247,0.15);
+  --border-radius: 6px;
+  color: var(--color-txt-main);
+  font-family: var(--font-sans);
+  min-height: auto;
+  padding: 6px 0 2px;
+}
+.sv-nav-btn { padding:5px 14px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);font-size:11px;font-family:var(--font-mono);background:var(--color-bg-panel);color:var(--color-txt-main);cursor:pointer;transition:all .2s }
+.sv-nav-btn:disabled { opacity:.3;cursor:not-allowed }
+.sv-nav-btn:not(:disabled):hover { border-color:var(--color-border-main);background:#0e1a26 }
+.sv-dot { height:6px;border:none;background:var(--color-border-sub);border-radius:3px;cursor:pointer;padding:0;transition:width .3s cubic-bezier(.4,0,.2,1),background .3s;flex-shrink:0;width:8px }
+.sv-dot.done { background:var(--color-border-main) }
+.sv-dot.active { background:var(--sql-blue-txt);width:24px }
+.sv-table { border-collapse:collapse;width:100%;font-family:var(--font-mono);font-size:10px }
+.sv-table th { padding:5px 11px;font-size:9px;font-weight:600;border:1px solid var(--color-border-sub);text-align:left;transition:all .3s ease;white-space:nowrap;background:var(--color-bg-panel);color:var(--color-txt-sub) }
+.sv-table td { padding:5px 11px;border:1px solid var(--color-border-sub);white-space:nowrap;background:var(--color-bg-base);color:var(--color-txt-main);transition:background .3s ease,opacity .3s ease }
+.sv-table th.col-base   { background:var(--sql-blue-bg);   color:var(--sql-blue-txt) }
+.sv-table th.col-eval   { background:var(--sql-orange-bg); color:var(--sql-orange-txt) }
+.sv-table th.col-select { background:var(--sql-green-bg);  color:var(--sql-green-txt) }
+.sv-table tr.row-dimmed td { background:transparent;opacity:.28 }
+.sv-table tr.row-grp-1 td { background:var(--sql-grp1-bg) }
+.sv-table tr.row-grp-2 td { background:var(--sql-grp2-bg) }
+.sv-table tr.row-grp-3 td { background:var(--sql-grp3-bg) }
+.sv-table td.val-pass   { background:var(--sql-green-bg)!important;border-left:2px solid var(--sql-green-txt);color:var(--sql-green-txt);font-weight:600 }
+.sv-table td.val-fail   { background:var(--sql-red-bg)!important;border-left:2px solid var(--sql-red-txt);color:var(--sql-red-txt);text-decoration:line-through;opacity:.7 }
+.sv-table td.val-dimmed { background:transparent!important;opacity:.2;color:var(--color-txt-muted) }
+.sql-kw { color:var(--sql-blue-txt);font-weight:600 }
+.sql-hl-from,.sql-hl-join { background:var(--sql-blue-bg);border-radius:3px;padding:1px 3px;color:var(--sql-blue-txt) }
+.sql-hl-where,.sql-hl-group,.sql-hl-having,.sql-hl-agg,.sql-hl-sub,.sql-hl-scan { background:var(--sql-orange-bg);border-radius:3px;padding:1px 3px;color:var(--sql-orange-txt) }
+.sql-hl-select { background:var(--sql-green-bg);border-radius:3px;padding:1px 3px;color:var(--sql-green-txt) }
+.sv-badge { display:inline-block;padding:2px 8px;border-radius:12px;font-size:9px;font-weight:600;letter-spacing:.02em }
+.badge-blue   { background:var(--sql-blue-bg);   color:var(--sql-blue-txt);   border:1px solid var(--sql-blue-bd) }
+.badge-orange { background:var(--sql-orange-bg); color:var(--sql-orange-txt); border:1px solid var(--sql-orange-bd) }
+.badge-green  { background:var(--sql-green-bg);  color:var(--sql-green-txt);  border:1px solid var(--sql-green-bd) }
+@keyframes sv-fade-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+.sv-animate { animation:sv-fade-in .3s ease forwards }
+.sv-mobile-collapse summary::-webkit-details-marker { display:none }
+.sv-mobile-collapse summary { list-style:none }
+.sv-collapse-icon { transition:transform .2s ease;display:inline-block }
+.sv-mobile-collapse[open] .sv-collapse-icon { transform:rotate(180deg) }
+@media (min-width:641px) {
+  .sv-mobile-collapse > summary { pointer-events:none }
+  .sv-mobile-collapse .sv-collapse-icon { display:none!important }
+}
+@media (max-width:640px) {
+  .sv-sidebar { flex:1 1 100%!important;min-width:100%!important }
+  .sql-viz-wrapper { padding:4px 0 2px }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">PRAC</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">パフォーマンス最適化で学ぶ SQL 応用5選（カバリングINDEX／Window関数 vs GROUP BY／EXPLAIN読解／N+1解決／Keyset Pagination 編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★ 応用</span>
+      <span class="htag">パフォーマンス</span>
+      <span class="htag">チューニング</span>
+      <span class="htag">PostgreSQL対応</span>
+      <span class="htag">003</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+
+function initVisualizer(root, data) {
+  let currentStepIndex = 0;
+
+  root.innerHTML = `
+<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+  <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+    <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+    <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:13px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+    <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+      <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+        <span>LEGEND (現在のステップ)</span>
+        <span class="sv-collapse-icon" style="font-size:10px;">&#x25BC;</span>
+      </summary>
+      <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:12px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+    </details>
+  </div>
+  <div style="flex:1;min-width:300px;">
+    <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+    <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+    <div class="sv-tarea sv-animate"></div>
+    <div class="sv-rowcount" style="font-size:12px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+  </div>
+</div>`;
+
+  function getLegendHTML(type) {
+    const mk = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dim =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const pf =
+      `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:11px;">&#x2713; 通過</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:11px;">&#x2717; 除外</span></div>
+      </div>`;
+    if (type === 'base')   return mk('blue',   'データ取得・結合対象') + dim;
+    if (type === 'eval')   return mk('orange', '評価対象の列・フィルタキー') + dim + pf;
+    if (type === 'group')  return mk('orange', 'グループ化キー・集計対象') +
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;">
+        <div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div>
+        <div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div>
+        <div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div>
+      </div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === 'select') return mk('green',  '出力対象の列') + dim;
+    return '';
+  }
+
+  function renderSQL(d, stepId) {
+    return d.sql.map(t => {
+      const isMatch = t.h && t.h.split(' ').includes(stepId);
+      const cls = `${t.k || ''} ${isMatch ? `sql-hl-${stepId}` : ''}`.trim();
+      return `<span class="${cls}">${t.t}</span>`;
+    }).join('');
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:8px 12px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:11px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:10px;color:var(--color-txt-muted);">&#x25BC;</span>
+        </summary>
+        <div style="margin-top:10px;font-size:12px;line-height:1.6;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:10px;">${step.desc}</div>
+      </details>`;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((c, i) => `<th class="${headerClasses?.[i] || ''}">${c}</th>`).join('');
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ''}">${val}</td>`).join('');
+      return `<tr class="${r.c || ''}">${tds}</tr>`;
+    }).join('');
+    const lbl = label ? `<div style="font-size:9px;font-weight:500;color:var(--color-txt-sub);margin-bottom:6px;">&#x25B8; ${label}</div>` : '';
+    return `<div style="flex:1;min-width:240px;">${lbl}<div style="overflow-x:auto;"><table class="sv-table"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+        ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
+        <div style="display:flex;align-items:center;font-size:20px;color:var(--sql-blue-txt);padding-top:28px;">&#x22C8;</div>
+        ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+      </div>`;
+    }
+    return buildTable('', step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? 'active' : (i < currentStepIndex ? 'done' : '');
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}"></button>`;
+    }).join('');
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:10px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? 'disabled' : ''}>&#x2190; Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? 'disabled' : ''}>Next &#x2192;</button>
+      </div>`;
+  }
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML = renderSQL(data, step.id);
+    root.querySelector('.sv-legend').innerHTML = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = window.innerWidth > 640);
+  }
+
+  root.__viz = {
+    next:  () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev:  () => { if (currentStepIndex > 0)                     { currentStepIndex--; renderAll(); } },
+    goTo:  i  => { if (i >= 0 && i < data.steps.length)          { currentStepIndex = i; renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'prev') root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+}
+
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  カバリングインデックス — ヒープアクセスをゼロにする
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "カバリングインデックス — ヒープアクセスをゼロにしてIndex Onlyを実現",
+  tags: [["r","Covering Index"],["r","Index Only Scan"],["o","ヒープアクセス排除"],["g","INCLUDE"]],
+  premise: `<p>通常のインデックスは検索条件の列だけを保持します。クエリがSELECTで追加の列を要求すると、インデックスで行を特定した後に<em>ヒープ（テーブル本体）へ再アクセス</em>が発生します。これを <strong>ヒープアクセス（Heap Fetch）</strong> と呼びます。</p>
+<p><strong>カバリングインデックス</strong> はSELECTで使う列もインデックスに含めることで、クエリをインデックスだけで完結させ（<em>Index Only Scan</em>）、ヒープアクセスを完全に排除します。PostgreSQL 11以降では <code>INCLUDE</code> 句で検索に使わない列もインデックスに追加できます。</p>
+<pre><span class="cmt">-- 通常インデックス: 検索後にヒープへ追加アクセスが発生する</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id);     <span class="cmt">-- user_id だけ格納 → amount を返すためヒープへ</span>
+
+<span class="cmt">-- カバリングインデックス: INCLUDE で追加列を格納 → ヒープ不要</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_covering
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id)
+    <span class="kw">INCLUDE</span> (amount, created_at);  <span class="cmt">-- SELECT列もインデックスに格納 → Index Only Scan</span></pre>
+<div class="callout ok"><strong>INCLUDE列はソートや絞り込みに使えない：</strong>INCLUDE句に入れた列はあくまで「値の格納」だけで、WHERE条件やORDER BYのインデックス利用はできません。絞り込みに使う列は必ず通常のインデックスキー列として指定してください。</div>`,
+  question: `<p><code>orders</code> テーブルで「ユーザーの最新注文一覧API」が遅い状況です。EXPLAIN ANALYZEで<em>Heap Fetches が大量発生</em>していることが確認されました。<em>カバリングインデックスを設計</em>して、Index Only Scan へ改善してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（300万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id(PK)</th><th>user_id</th><th>amount</th><th>status</th><th>created_at</th></tr>
+        <tr><td>1001</td><td>U001</td><td>3000</td><td>shipped</td><td>2024-06-01</td></tr>
+        <tr><td>1002</td><td>U001</td><td>5000</td><td>pending</td><td>2024-07-15</td></tr>
+        <tr><td>1003</td><td>U002</td><td>1200</td><td>shipped</td><td>2024-07-20</td></tr>
+        <tr><td>1004</td><td>U001</td><td>8500</td><td>shipped</td><td>2024-08-10</td></tr>
+        <tr><td>1005</td><td>U003</td><td>2200</td><td>shipped</td><td>2024-07-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 遅いクエリ（user_id のみのインデックスがある状態）</span>
+<span class="kw">SELECT</span> order_id, amount, status, created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">10</span>;</pre>
+<div class="data-section">
+  <div class="data-label">EXPLAIN ANALYZE（改善前）</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>ノード</th><th>コスト</th><th>Heap Fetches</th></tr>
+    <tr class="tr-hi"><td>Index Scan on idx_orders_user</td><td class="tc-r">cost=0.56..8420</td><td class="tc-r">29,800件</td></tr>
+  </table></div>
+</div>`,
+  output: `<p>改善後のEXPLAIN ANALYZE（Index Only Scan でHeap Fetchesがゼロに）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ノード</th><th class="tc-g">コスト（改善後）</th><th class="tc-g">Heap Fetches</th></tr>
+<tr class="tr-hi2"><td>Index Only Scan on idx_orders_covering</td><td class="tc-g">cost=0.56..94</td><td class="tc-g">0件 ✅</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① 旧インデックスを削除（任意。競合を避けるため）</span>
+<span class="kw">DROP INDEX IF EXISTS</span> idx_orders_user;
+
+<span class="cmt">-- ② カバリングインデックスを作成</span>
+<span class="kw">CREATE INDEX</span> idx_orders_covering
+    <span class="kw">ON</span> <span class="tbl">orders</span> (
+        user_id,              <span class="cmt">-- 【超基礎】WHERE user_id = ? の等値検索キー（先頭列）</span>
+        created_at <span class="kw">DESC</span>       <span class="cmt">-- 【応用】ORDER BY created_at DESC のソートをインデックスで吸収</span>
+    )
+    <span class="kw">INCLUDE</span> (               <span class="cmt">-- 【応用】SELECT列をインデックスに格納してヒープアクセスを排除</span>
+        amount,               <span class="cmt">-- SELECTで使うが検索・ソートには不要 → INCLUDEに入れる</span>
+        status,               <span class="cmt">-- 同上</span>
+        order_id              <span class="cmt">-- 同上（PK も格納してヒープへのポインタ参照も不要に）</span>
+    );
+
+<span class="cmt">-- ③ クエリ自体は変更なし（オプティマイザが自動でIndex Only Scanを選択する）</span>
+<span class="kw">SELECT</span> order_id, amount, status, created_at  <span class="cmt">-- 【超基礎】必要な列だけ指定</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>  user_id    <span class="op">=</span> <span class="str">'U001'</span>                  <span class="cmt">-- 【超基礎】インデックスキー列で等値絞り込み</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>                     <span class="cmt">-- インデックスの列順・方向と一致 → Sort不要</span>
+<span class="kw">LIMIT</span>  <span class="num">10</span>;                                  <span class="cmt">-- 【超基礎】最大取得件数を制限</span>
+
+<span class="cmt">-- ④ visibility map が更新されているか確認（Index Only Scan の前提条件）</span>
+<span class="kw">SELECT</span> relname, n_live_tup, n_dead_tup
+<span class="kw">FROM</span>   pg_stat_user_tables
+<span class="kw">WHERE</span>  relname <span class="op">=</span> <span class="str">'orders'</span>;                   <span class="cmt">-- dead tupleが多い場合はVACUUMを実行する</span>
+
+<span class="cmt">/*
+  実行順序（③のクエリ）:
+  1. FROM orders                  → テーブル参照（ただしヒープは読まない）
+  2. Index Only Scan              → インデックスから user_id='U001' の行を取得
+  3. created_at DESC 順に取得     → インデックスの並び順がそのまま結果順序に
+  4. LIMIT 10                     → 上位10件で打ち切り（インデックスの途中で停止）
+  5. SELECT 列を返す              → 全列がインデックス内に存在 → ヒープアクセスなし
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM orders — 全行参照",
+        desc: "ordersテーブルの全行を参照します。カバリングインデックスが設定された状態では、以降の各ステップでヒープ（テーブル本体）へのアクセスが発生しません。",
+        type: "base",
+        cols: ["order_id","user_id","amount","status","created_at"],
+        ch:   ["col-base","col-base","col-base","col-base","col-base"],
+        rows: [
+          { v: [1001,"U001",3000,"shipped","2024-06-01"] },
+          { v: [1002,"U001",5000,"pending","2024-07-15"] },
+          { v: [1003,"U002",1200,"shipped","2024-07-20"] },
+          { v: [1004,"U001",8500,"shipped","2024-08-10"] },
+          { v: [1005,"U003",2200,"shipped","2024-07-01"] }
+        ],
+        cnt: "全5行 参照" },
+
+      { id: "where", badge: "② WHERE", bc: "badge-orange",
+        label: "WHERE user_id = 'U001' — インデックスで絞り込み",
+        desc: "インデックスキー列 user_id で絞り込みます。通常のインデックスなら絞り込み後にヒープへ再アクセスしてamount・status・created_atを取得しますが、カバリングインデックスではINCLUDE列として格納済みのため不要です（Heap Fetches = 0）。",
+        type: "eval",
+        cols: ["order_id","user_id","amount","status","created_at"],
+        ch:   ["","col-eval","","",""],
+        rows: [
+          { v: [1001,"U001",3000,"shipped","2024-06-01"], cc: ["","val-pass","","",""] },
+          { v: [1002,"U001",5000,"pending","2024-07-15"], cc: ["","val-pass","","",""] },
+          { c: "row-dimmed", v: [1003,"U002",1200,"shipped","2024-07-20"], cc: ["","val-fail","","",""] },
+          { v: [1004,"U001",8500,"shipped","2024-08-10"], cc: ["","val-pass","","",""] },
+          { c: "row-dimmed", v: [1005,"U003",2200,"shipped","2024-07-01"], cc: ["","val-fail","","",""] }
+        ],
+        cnt: "5行 → 3行（ヒープアクセスなし）" },
+
+      { id: "select", badge: "③ ORDER BY + SELECT", bc: "badge-green",
+        label: "ORDER BY created_at DESC → LIMIT 10 → SELECT",
+        desc: "インデックスが (user_id, created_at DESC) の順で構成されているため追加のソートが不要です。INCLUDE列（amount, status, order_id）もインデックス末端ページから直接取得。Index Only Scanが成立し、Heap Fetches = 0 が実現されます。",
+        type: "select",
+        cols: ["order_id","amount","status","created_at","user_id (key)"],
+        ch:   ["col-select","col-select","col-select","col-select",""],
+        rows: [
+          { v: [1004,8500,"shipped","2024-08-10","U001"], cc: ["","","","","val-dimmed"] },
+          { v: [1002,5000,"pending","2024-07-15","U001"], cc: ["","","","","val-dimmed"] },
+          { v: [1001,3000,"shipped","2024-06-01","U001"], cc: ["","","","","val-dimmed"] }
+        ],
+        cnt: "結果: 3行 × 4列 — Heap Fetches = 0 ✅" }
+    ],
+    sql: [
+      { t: "SELECT", k: "sql-kw", h: "select" }, { t: " order_id, amount, status, created_at\n", k: "", h: "select" },
+      { t: "FROM   ", k: "sql-kw", h: "from"   }, { t: "orders\n", k: "", h: "from" },
+      { t: "WHERE  ", k: "sql-kw", h: "where"  }, { t: "user_id = 'U001'\n", k: "", h: "where" },
+      { t: "ORDER BY", k: "sql-kw", h: "select" }, { t: " created_at DESC\n", k: "", h: "select" },
+      { t: "LIMIT  ", k: "sql-kw", h: "select" }, { t: "10;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>インデックスは「本の索引」と同じです。通常の索引は「用語とページ番号」だけを持ち、本文は本（ヒープ）を開かないと読めません。カバリングインデックスは「用語・ページ番号・本文の要約」まで索引に載せるイメージです。本を開く手間（ヒープアクセス）がゼロになります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Index Only Scan の前提条件：</strong>PostgreSQLのIndex Only Scanは <em>Visibility Map（可視性マップ）</em> を参照します。VACUUMが十分に走っていないテーブルでは dead tuple があり、可視性が不明なページでは Heap Fetch が発生します。<code>VACUUM ANALYZE orders;</code> を実行してからEXPLAIN ANALYZEで再確認する習慣を持ちましょう。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>インデックスサイズとのトレードオフ：</strong>INCLUDE列を多く追加するとインデックスが肥大化し、書き込み（INSERT/UPDATE）のコストが増えます。頻繁に更新される列をINCLUDEに入れると逆効果になる場合があります。<em>「参照が多く更新が少ない列」</em>をINCLUDEに入れるのがベストプラクティスです。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>SELECT * で全列を取得する：</strong><code>SELECT *</code> は全列を取得するため、インデックスにすべての列を含めない限りIndex Only Scanになりません。APIのレスポンス設計でも「必要な列だけSELECTする」習慣が、カバリングインデックスを活かす前提です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INCLUDEに絞り込みに使う列を入れる：</strong><code>WHERE status = 'shipped'</code> のように絞り込みに使う列をINCLUDEに入れてもインデックスが効きません。絞り込みに使う列は必ずキー列（INCLUDE前の括弧内）に配置してください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：API設計とカバリングインデックスのセット設計</div>
+<div class="column-body">
+実務では「APIのレスポンス仕様が決まったらカバリングインデックスを設計する」という順序が効果的です。例えば「注文一覧API: user_id で絞り込み、created_at の降順で order_id / amount / status を返す」という仕様があれば、<code>ON orders (user_id, created_at DESC) INCLUDE (order_id, amount, status)</code> が最適解として導けます。<strong>SELECT列 ＝ INCLUDE列、WHERE/ORDER BY列 ＝ キー列</strong>というマッピングを意識すると設計がシンプルになります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  Window関数 vs GROUP BY — 各ユーザーの最新注文を1行で取得
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "Window関数 vs GROUP BY — 各ユーザーの「最新1件」を効率的に取得する",
+  tags: [["r","ROW_NUMBER"],["r","Window関数"],["o","DISTINCT ON"],["p","サブクエリ最適化"]],
+  premise: `<p><strong>Window関数</strong> は <code>OVER()</code> 句を使い、グループ化を行わずに各行に集計・順位付けの結果を付与します。GROUP BYと異なり、<em>グループ内の全行を保持したまま</em>計算できるため「グループ内の最大・最小・順位」を持つクエリに向いています。</p>
+<pre><span class="cmt">-- ROW_NUMBER: パーティション内での連番を付与する</span>
+<span class="kw">SELECT</span>
+    user_id,
+    order_id,
+    created_at,
+    <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (
+        <span class="kw">PARTITION BY</span> user_id          <span class="cmt">-- ユーザーごとにリセットして連番を振る</span>
+        <span class="kw">ORDER BY</span>     created_at <span class="kw">DESC</span>  <span class="cmt">-- 最新順に1, 2, 3... と番号が付く</span>
+    ) <span class="kw">AS</span> rn
+<span class="kw">FROM</span> <span class="tbl">orders</span>;</pre>
+<div class="callout ok"><strong>PostgreSQL限定のDISTINCT ON：</strong>PostgreSQLには <code>SELECT DISTINCT ON (col)</code> という構文があり、グループ内の最初の1行だけを取得できます。Window関数より記述が短く済む場合があります。</div>`,
+  question: `<p><code>orders</code> テーブルから<em>各ユーザーの最新注文1件だけ</em>を取得するクエリを書いてください。現在の相関サブクエリ方式は全件スキャンで遅い状況です。<em>ROW_NUMBER() と DISTINCT ON の2通り</em>で改善してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（500万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at</th></tr>
+        <tr><td>1</td><td>U001</td><td>3000</td><td>2024-06-01</td></tr>
+        <tr><td>2</td><td>U001</td><td>5000</td><td>2024-07-15</td></tr>
+        <tr><td>3</td><td>U002</td><td>1200</td><td>2024-07-20</td></tr>
+        <tr><td>4</td><td>U002</td><td>8000</td><td>2024-09-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 遅い相関サブクエリ方式（各行ごとにサブクエリが実行される）</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span> o
+<span class="kw">WHERE</span> created_at <span class="op">=</span> (
+    <span class="kw">SELECT</span> <span class="fn">MAX</span>(created_at)             <span class="cmt">-- ❌ 外側の各行ごとにこのサブクエリが走る</span>
+    <span class="kw">FROM</span>   <span class="tbl">orders</span>
+    <span class="kw">WHERE</span>  user_id <span class="op">=</span> o.user_id
+);</pre>`,
+  output: `<p>期待する結果（各ユーザーの最新注文1件のみ）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at</th></tr>
+<tr class="tr-hi2"><td>2</td><td>U001</td><td class="tc-g">5000</td><td class="tc-hi">2024-07-15</td></tr>
+<tr class="tr-hi2"><td>4</td><td>U002</td><td class="tc-g">8000</td><td class="tc-hi">2024-09-01</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① ROW_NUMBER() を使う方法（汎用・2件目以降も取得できる）</span>
+<span class="kw">SELECT</span> order_id, user_id, amount, created_at
+<span class="kw">FROM</span> (
+    <span class="kw">SELECT</span>
+        order_id,
+        user_id,
+        amount,
+        created_at,
+        <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (       <span class="cmt">-- 【超基礎】ウィンドウ関数の宣言。OVERが必須</span>
+            <span class="kw">PARTITION BY</span> user_id   <span class="cmt">-- 【超基礎】ユーザーごとに連番をリセット</span>
+            <span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>  <span class="cmt">-- 最新順に1番を振る（最新 = rn=1）</span>
+        ) <span class="kw">AS</span> rn
+    <span class="kw">FROM</span> <span class="tbl">orders</span>                    <span class="cmt">-- 【超基礎】対象テーブル</span>
+) <span class="kw">AS</span> ranked
+<span class="kw">WHERE</span> rn <span class="op">=</span> <span class="num">1</span>;                      <span class="cmt">-- 【超基礎】各ユーザーの1番（最新）だけ残す</span>
+
+<span class="cmt">-- ② DISTINCT ON を使う方法（PostgreSQL専用・より簡潔）</span>
+<span class="kw">SELECT DISTINCT ON</span> (user_id)      <span class="cmt">-- 【応用】user_id ごとに最初の1行だけを返す</span>
+    order_id, user_id, amount, created_at
+<span class="kw">FROM</span>  <span class="tbl">orders</span>
+<span class="kw">ORDER BY</span> user_id, created_at <span class="kw">DESC</span>; <span class="cmt">-- DISTINCT ON の列を ORDER BY の先頭に置く必要がある</span>
+
+<span class="cmt">-- ③ インデックス（両方のクエリに有効）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_created
+    <span class="kw">ON</span> <span class="tbl">orders</span> (user_id, created_at <span class="kw">DESC</span>);  <span class="cmt">-- PARTITION BY + ORDER BY に対応</span>
+
+<span class="cmt">/*
+  実行順序（①のクエリ）:
+  1. FROM orders                → テーブル全体を参照（インデックス使用）
+  2. ROW_NUMBER() OVER(...)     → user_idごとにcreated_at降順で連番を付与
+  3. FROM (...) AS ranked       → 上記をサブクエリとして全行を一時保持
+  4. WHERE rn = 1               → 各ユーザーの最新行（rn=1）だけに絞り込む
+  5. SELECT 列を返す
+*/</span></pre>`,
+  viz: [
+    {
+      steps: [
+        { id: "from", badge: "① FROM", bc: "badge-blue",
+          label: "FROM orders — 全行参照",
+          desc: "ordersテーブル全体（4行）を参照します。次のステップでPARTITION BY user_id・ORDER BY created_at DESCの順に連番が付与されます。",
+          type: "base",
+          cols: ["order_id","user_id","amount","created_at"],
+          ch:   ["col-base","col-base","col-base","col-base"],
+          rows: [
+            { v: [1,"U001",3000,"2024-06-01"] },
+            { v: [2,"U001",5000,"2024-07-15"] },
+            { v: [3,"U002",1200,"2024-07-20"] },
+            { v: [4,"U002",8000,"2024-09-01"] }
+          ],
+          cnt: "全4行 参照" },
+
+        { id: "sub", badge: "② ROW_NUMBER() OVER", bc: "badge-orange",
+          label: "PARTITION BY user_id  ORDER BY created_at DESC",
+          desc: "user_idごとに created_at の降順で連番 rn を付与します。各ユーザーの最新行が rn=1 になります。GROUP BYとは異なり、元の行数（4行）はそのまま維持されます。",
+          type: "group",
+          cols: ["order_id","user_id","amount","created_at","rn"],
+          ch:   ["","col-eval","","col-eval","col-eval"],
+          rows: [
+            { c: "row-grp-2", v: [2,"U001",5000,"2024-07-15",1] },
+            { c: "row-grp-1", v: [1,"U001",3000,"2024-06-01",2] },
+            { c: "row-grp-3", v: [4,"U002",8000,"2024-09-01",1] },
+            { c: "row-grp-2", v: [3,"U002",1200,"2024-07-20",2] }
+          ],
+          cnt: "4行（連番付与後）— U001: 2行 / U002: 2行" },
+
+        { id: "where", badge: "③ WHERE rn = 1", bc: "badge-orange",
+          label: "WHERE rn = 1 — 各ユーザーの最新行を抽出",
+          desc: "サブクエリの外側で rn=1 のみに絞り込みます。各ユーザーで最新（created_at 最大）の行だけが残ります。ROW_NUMBERは同順位でも必ず一意の連番を付けるため、確実に1行が残ります。",
+          type: "eval",
+          cols: ["order_id","user_id","amount","created_at","rn"],
+          ch:   ["","","","","col-eval"],
+          rows: [
+            { v: [2,"U001",5000,"2024-07-15",1], cc: ["","","","","val-pass"] },
+            { c: "row-dimmed", v: [1,"U001",3000,"2024-06-01",2], cc: ["","","","","val-fail"] },
+            { v: [4,"U002",8000,"2024-09-01",1], cc: ["","","","","val-pass"] },
+            { c: "row-dimmed", v: [3,"U002",1200,"2024-07-20",2], cc: ["","","","","val-fail"] }
+          ],
+          cnt: "4行 → 2行" },
+
+        { id: "select", badge: "④ SELECT", bc: "badge-green",
+          label: "SELECT order_id, user_id, amount, created_at",
+          desc: "各ユーザーの最新注文1件を最終出力します。rn列はサブクエリ内の計算用であり、SELECT結果には含まれません。",
+          type: "select",
+          cols: ["order_id","user_id","amount","created_at","rn (除外)"],
+          ch:   ["col-select","col-select","col-select","col-select",""],
+          rows: [
+            { v: [2,"U001",5000,"2024-07-15","—"], cc: ["","","","","val-dimmed"] },
+            { v: [4,"U002",8000,"2024-09-01","—"], cc: ["","","","","val-dimmed"] }
+          ],
+          cnt: "結果: 2行 × 4列（各ユーザーの最新注文）" }
+      ],
+      sql: [
+        { t: "SELECT", k: "sql-kw", h: "select" }, { t: " order_id, user_id, amount, created_at\n", k: "", h: "select" },
+        { t: "FROM", k: "sql-kw", h: "from" }, { t: " (\n", k: "", h: "from" },
+        { t: "  SELECT", k: "sql-kw", h: "from" }, { t: " order_id, user_id, amount, created_at,\n", k: "", h: "from" },
+        { t: "  ROW_NUMBER", k: "sql-kw", h: "sub" }, { t: "() ", k: "", h: "sub" },
+        { t: "OVER", k: "sql-kw", h: "sub" }, { t: " (\n", k: "", h: "sub" },
+        { t: "    PARTITION BY", k: "sql-kw", h: "sub" }, { t: " user_id\n", k: "", h: "sub" },
+        { t: "    ORDER BY", k: "sql-kw", h: "sub" }, { t: " created_at ", k: "", h: "sub" },
+        { t: "DESC", k: "sql-kw", h: "sub" }, { t: "\n  ) ", k: "", h: "sub" },
+        { t: "AS", k: "sql-kw", h: "sub" }, { t: " rn\n", k: "", h: "sub" },
+        { t: "  FROM", k: "sql-kw", h: "from" }, { t: " orders\n) ", k: "", h: "from" },
+        { t: "AS", k: "sql-kw", h: "from" }, { t: " ranked\n", k: "", h: "from" },
+        { t: "WHERE", k: "sql-kw", h: "where" }, { t: " rn = 1;", k: "", h: "where" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① FROM", bc: "badge-blue",
+          label: "FROM orders — 全行参照",
+          desc: "ordersテーブル全体（4行）を参照します。DISTINCT ON はPostgreSQL専用の構文で、ORDER BY と組み合わせることで各グループの最初の1行を取得します。",
+          type: "base",
+          cols: ["order_id","user_id","amount","created_at"],
+          ch:   ["col-base","col-base","col-base","col-base"],
+          rows: [
+            { v: [1,"U001",3000,"2024-06-01"] },
+            { v: [2,"U001",5000,"2024-07-15"] },
+            { v: [3,"U002",1200,"2024-07-20"] },
+            { v: [4,"U002",8000,"2024-09-01"] }
+          ],
+          cnt: "全4行 参照" },
+
+        { id: "group", badge: "② ORDER BY", bc: "badge-orange",
+          label: "ORDER BY user_id, created_at DESC",
+          desc: "DISTINCT ON (user_id) の仕様として ORDER BY の先頭列が DISTINCT ON 列と一致する必要があります。user_idでグループを作り、その中で created_at 降順（最新が先頭）に並べ替えます。",
+          type: "group",
+          cols: ["order_id","user_id","amount","created_at"],
+          ch:   ["","col-eval","","col-eval"],
+          rows: [
+            { c: "row-grp-1", v: [2,"U001",5000,"2024-07-15"] },
+            { c: "row-grp-2", v: [1,"U001",3000,"2024-06-01"] },
+            { c: "row-grp-3", v: [4,"U002",8000,"2024-09-01"] },
+            { c: "row-grp-2", v: [3,"U002",1200,"2024-07-20"] }
+          ],
+          cnt: "4行（user_id昇順 + created_at降順でソート済み）" },
+
+        { id: "select", badge: "③ DISTINCT ON → SELECT", bc: "badge-green",
+          label: "DISTINCT ON (user_id) — グループ先頭行を1行取得",
+          desc: "各 user_id グループの先頭行（created_at が最新の行）だけを残します。ROW_NUMBERより記述が短く、最新1件の取得に特化した PostgreSQL 固有の最適化手法です。",
+          type: "select",
+          cols: ["order_id","user_id","amount","created_at"],
+          ch:   ["col-select","col-select","col-select","col-select"],
+          rows: [
+            { v: [2,"U001",5000,"2024-07-15"] },
+            { c: "row-dimmed", v: [1,"U001",3000,"2024-06-01"] },
+            { v: [4,"U002",8000,"2024-09-01"] },
+            { c: "row-dimmed", v: [3,"U002",1200,"2024-07-20"] }
+          ],
+          cnt: "結果: 2行 × 4列（各ユーザーの最新注文）" }
+      ],
+      sql: [
+        { t: "SELECT DISTINCT ON", k: "sql-kw", h: "select" }, { t: " (user_id)\n", k: "", h: "select" },
+        { t: "  order_id, user_id, amount, created_at\n", k: "", h: "select" },
+        { t: "FROM  ", k: "sql-kw", h: "from" }, { t: "orders\n", k: "", h: "from" },
+        { t: "ORDER BY", k: "sql-kw", h: "group" }, { t: " user_id, created_at ", k: "", h: "group" },
+        { t: "DESC;", k: "sql-kw", h: "group" }
+      ]
+    }
+  ],
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>Window関数は <code>関数() OVER(PARTITION BY ... ORDER BY ...)</code> という構文です。GROUP BYと違い、<em>元の行を削除せず</em>に計算結果を列として追加します。GROUP BY後はグループが1行になりますが、Window関数後は元の行数がそのまま残ります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ROW_NUMBER vs RANK vs DENSE_RANK：</strong>同順位が存在する場合の違いがあります。<code>ROW_NUMBER</code>は常に一意の連番（1,2,3）、<code>RANK</code>は同値に同番号で次がスキップ（1,1,3）、<code>DENSE_RANK</code>は同値に同番号でスキップなし（1,1,2）です。「最新1件を確実に1件取る」には <em>ROW_NUMBER</em> が最適です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>CTEで可読性を上げる：</strong>Window関数を含むサブクエリはCTEに切り出すと読みやすくなります。<code>WITH ranked AS (SELECT ..., ROW_NUMBER() OVER (...) AS rn FROM orders) SELECT * FROM ranked WHERE rn = 1</code> のようにCTEを使うと、チームのレビューでも意図が伝わりやすくなります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>相関サブクエリでMAX()を使う：</strong>今回の「旧方式」がこれです。外側のクエリが100万行あれば内側のサブクエリも100万回実行されます。Window関数に書き換えることでテーブルへのアクセスを1回に削減できます。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>DISTINCT ON で ORDER BY の先頭列を揃えない：</strong><code>SELECT DISTINCT ON (user_id) ... ORDER BY created_at DESC</code> はエラーになります。PostgreSQLの仕様で、DISTINCT ON に指定した列がORDER BYの先頭に来る必要があります。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：「直近N件」パターンの設計</div>
+<div class="column-body">
+実務では「ユーザーごとの直近3件の注文を返す」など N件パターンが頻出です。ROW_NUMBERを使って <code>WHERE rn &lt;= 3</code> とするだけで対応できます。DISTINCT ONは1件限定のため、N件取得にはROW_NUMBERの方が汎用的です。また、ダッシュボードなどで「カテゴリごとの売れ筋TOP3商品」のような集計もWindow関数1本で解決できます。<strong>「グループ内の順位」が絡む要件はまずWindow関数を検討する</strong>習慣を持ちましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  EXPLAIN ANALYZE の読み方 — ボトルネックを特定する
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "EXPLAIN ANALYZE の読み方 — ボトルネックノードを特定してチューニングに繋げる",
+  tags: [["r","EXPLAIN ANALYZE"],["r","実行計画"],["o","Seq Scan"],["g","コスト読解"]],
+  premise: `<p><strong>EXPLAIN ANALYZE</strong> はSQLの実行計画（どの順序・手法でデータを取得するか）と実際の実行時間を出力します。ツリー構造で表示され、<em>内側（インデント深い）のノードが先に実行</em>されます。各ノードの読み方を理解することがSQLチューニングの第一歩です。</p>
+<pre><span class="cmt">-- 基本構文（実際にクエリを実行して計画＋実測を返す）</span>
+<span class="kw">EXPLAIN ANALYZE</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">WHERE</span> user_id <span class="op">=</span> <span class="str">'U001'</span>;</pre>
+<div class="callout warn"><strong>EXPLAINとEXPLAIN ANALYZEの違い：</strong>EXPLAIN だけでは実際にはクエリを実行しない（推定コストのみ）。EXPLAIN ANALYZE は実際に実行するため、UPDATEやDELETEにはトランザクションでラップして <code>BEGIN; EXPLAIN ANALYZE UPDATE...; ROLLBACK;</code> とすることで副作用を防げます。</div>`,
+  question: `<p>以下のEXPLAIN ANALYZE出力を読み解き、<em>ボトルネックとなっているノードを特定</em>し、改善クエリとインデックスを提示してください。</p>
+<div class="data-section">
+  <div class="data-label">EXPLAIN ANALYZE 出力（遅いクエリ）</div>
+  <div class="tbl-wrap"><table class="vtbl">
+    <tr><th>ノード</th><th>推定コスト</th><th>実測時間</th><th>行数（推定→実測）</th></tr>
+    <tr class="tr-hi"><td>Sort（amount DESC）</td><td class="tc-r">cost=58420..58470</td><td class="tc-r">actual=4820ms</td><td>2M→2M</td></tr>
+    <tr class="tr-hi"><td>&nbsp;&nbsp;→ Hash Join</td><td class="tc-r">cost=18000..52000</td><td class="tc-y">actual=2100ms</td><td>2M→2M</td></tr>
+    <tr class="tr-hi"><td>&nbsp;&nbsp;&nbsp;&nbsp;→ Seq Scan on orders</td><td class="tc-r">cost=0..38000</td><td class="tc-r">actual=3200ms</td><td>5M→2M</td></tr>
+    <tr><td>&nbsp;&nbsp;&nbsp;&nbsp;→ Hash on users</td><td>cost=400..400</td><td class="tc-g">actual=12ms</td><td>10K→10K</td></tr>
+  </table></div>
+</div>
+<pre><span class="cmt">-- 対象クエリ（遅い）</span>
+<span class="kw">SELECT</span> o.order_id, u.name, o.amount, o.created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o
+<span class="kw">JOIN</span>   <span class="tbl">users</span>  u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id
+<span class="kw">WHERE</span>  o.status     <span class="op">=</span> <span class="str">'shipped'</span>
+  <span class="kw">AND</span>  o.created_at <span class="op">&gt;=</span> <span class="str">'2024-01-01'</span>
+<span class="kw">ORDER BY</span> o.amount <span class="kw">DESC</span>;</pre>`,
+  output: `<p>ボトルネック特定と改善後のEXPLAIN ANALYZE：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>ノード（改善後）</th><th class="tc-g">推定コスト</th><th class="tc-g">実測時間</th></tr>
+<tr class="tr-hi2"><td>Sort（amount DESC）</td><td class="tc-g">cost=280..295</td><td class="tc-g">actual=18ms</td></tr>
+<tr class="tr-hi2"><td>→ Nested Loop Join</td><td class="tc-g">cost=0.56..265</td><td class="tc-g">actual=9ms</td></tr>
+<tr class="tr-hi2"><td>&nbsp;&nbsp;→ Index Scan on orders（status+created_at）</td><td class="tc-g">cost=0.56..230</td><td class="tc-g">actual=7ms</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① ボトルネック分析のコメント</span>
+<span class="cmt">-- 問題1: Seq Scan on orders（5M行全件スキャン）が最大ボトルネック</span>
+<span class="cmt">--        → status と created_at にインデックスがなく全件読んでいる</span>
+<span class="cmt">-- 問題2: Sort（amount DESC）がメモリ上で 2M行 をソートしている</span>
+<span class="cmt">--        → 絞り込み後の行数を減らせばソートコストも減る</span>
+
+<span class="cmt">-- ② 複合インデックスの作成（Seq Scanをなくす）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_status_created
+    <span class="kw">ON</span> <span class="tbl">orders</span> (
+        status,               <span class="cmt">-- 【超基礎】WHERE status='shipped' の等値絞り込み（先頭列）</span>
+        created_at            <span class="cmt">-- 【超基礎】WHERE created_at >= の範囲絞り込み（2番目）</span>
+    );
+<span class="cmt">-- ※ amount はORDER BYのみで件数が多いためインデックスより絞り込み優先</span>
+
+<span class="cmt">-- ③ EXPLAIN ANALYZE で確認（UPDATEなどの副作用があるクエリはROLLBACKと組み合わせる）</span>
+<span class="kw">EXPLAIN</span> (<span class="fn">ANALYZE</span>, <span class="fn">BUFFERS</span>, <span class="fn">FORMAT</span> TEXT)   <span class="cmt">-- BUFFERSでキャッシュヒット率も確認</span>
+<span class="kw">SELECT</span> o.order_id, u.name, o.amount, o.created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o
+<span class="kw">JOIN</span>   <span class="tbl">users</span>  u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id      <span class="cmt">-- 【超基礎】JOINの結合条件</span>
+<span class="kw">WHERE</span>  o.status     <span class="op">=</span> <span class="str">'shipped'</span>              <span class="cmt">-- インデックス先頭列 → Index Scan で使える</span>
+  <span class="kw">AND</span>  o.created_at <span class="op">&gt;=</span> <span class="str">'2024-01-01'</span>          <span class="cmt">-- インデックス2列目 → 範囲絞り込みに使える</span>
+<span class="kw">ORDER BY</span> o.amount <span class="kw">DESC</span>;                       <span class="cmt">-- 絞り込み後の件数が少なければSortは速い</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders                  → テーブル参照
+  2. Index Scan（status+created） → インデックスで2条件に絞り込む（Seq Scan解消）
+  3. Nested Loop JOIN users       → 絞り込み後の少数行にuserをJOIN
+  4. ORDER BY amount DESC         → 絞り込み済みの少数行をソート（高速）
+  5. SELECT 列を返す
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "scan", badge: "① Index Scan", bc: "badge-orange",
+        label: "Index Scan on orders — 先にordersを絞り込む",
+        desc: "複合インデックス (status, created_at) を使い、ordersテーブルから対象行を直接抽出します。500万件の全件スキャンを回避し、結合前の行数を劇的に減らすことが最重要ポイントです。",
+        type: "eval",
+        cols: ["order_id","user_id","amount","status","created_at"],
+        ch:   ["","","","col-eval","col-eval"],
+        rows: [
+          { v: [1,"U001",5000,"shipped","2024-03-01"], cc: ["","","","val-pass","val-pass"] },
+          { c: "row-dimmed", v: [2,"U002",3000,"pending","2024-06-15"], cc: ["","","","val-fail",""] },
+          { v: [3,"U001",8000,"shipped","2024-07-20"], cc: ["","","","val-pass","val-pass"] },
+          { c: "row-dimmed", v: [4,"U003",2000,"shipped","2023-12-01"], cc: ["","","","val-pass","val-fail"] }
+        ],
+        cnt: "orders: 4行 → 2件に絞り込み（Seq Scan 解消）" },
+
+      { id: "join", badge: "② Nested Loop Join", bc: "badge-blue",
+        label: "JOIN users — 絞り込んだ少数行に結合",
+        desc: "抽出されたordersの行（2件）に対してのみ、usersテーブルをuser_idで結合（Nested Loop Join）します。結合回数が最小限になるため、非常に高速に処理されます。",
+        type: "base", join: true,
+        left: {
+          label: "orders (絞り込み後)",
+          cols: ["order_id","user_id","amount","status","created_at"],
+          rows: [
+            { v: [1,"U001",5000,"shipped","2024-03-01"] },
+            { v: [3,"U001",8000,"shipped","2024-07-20"] }
+          ]
+        },
+        right: {
+          label: "users (u)",
+          cols: ["user_id","name"],
+          rows: [
+            { v: ["U001","田中"] },
+            { v: ["U002","鈴木"] },
+            { v: ["U003","山田"] }
+          ]
+        },
+        cnt: "結合後: 2行" },
+
+      { id: "select", badge: "③ Sort & SELECT", bc: "badge-green",
+        label: "Sort (amount DESC) → SELECT",
+        desc: "結合後の結果を amount DESC でソートします。絞り込み後で対象が2件のみのため、メモリ上でのソートコスト（Sortノード）は改善前の4820msから劇的に削減されます。",
+        type: "select",
+        cols: ["order_id","name","amount","created_at"],
+        ch:   ["col-select","col-select","col-select","col-select"],
+        rows: [
+          { v: [3,"田中",8000,"2024-07-20"] },
+          { v: [1,"田中",5000,"2024-03-01"] }
+        ],
+        cnt: "結果: 2行 × 4列（改善前: ~5000ms → 改善後: ~18ms）" }
+    ],
+    sql: [
+      { t: "SELECT", k: "sql-kw", h: "select" }, { t: " o.order_id, u.name, o.amount, o.created_at\n", k: "", h: "select" },
+      { t: "FROM  ", k: "sql-kw", h: "scan"   }, { t: "orders o\n", k: "", h: "scan" },
+      { t: "JOIN  ", k: "sql-kw", h: "join"   }, { t: "users  u ", k: "", h: "join" },
+      { t: "ON", k: "sql-kw", h: "join" }, { t: " u.user_id = o.user_id\n", k: "", h: "join" },
+      { t: "WHERE ", k: "sql-kw", h: "scan"  }, { t: "o.status = 'shipped'\n", k: "", h: "scan" },
+      { t: "  AND ", k: "sql-kw", h: "scan"  }, { t: "o.created_at >= '2024-01-01'\n", k: "", h: "scan" },
+      { t: "ORDER BY", k: "sql-kw", h: "select" }, { t: " o.amount ", k: "", h: "select" },
+      { t: "DESC;", k: "sql-kw", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>EXPLAIN ANALYZEの出力はツリー形式で、<em>インデントが深いノードほど先に実行</em>されます。ボトルネックは「actual time（実測時間）が最も大きいノード」を探すことで特定できます。コストは相対的な推定値のため、actual timeと合わせて判断します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>BUFFERS オプションを追加する：</strong><code>EXPLAIN (ANALYZE, BUFFERS)</code> とするとキャッシュヒット率も確認できます。<code>shared hit</code>（バッファキャッシュヒット）が多いほどI/Oコストは低く、<code>shared read</code>（ディスクI/O）が多いほど遅くなります。同じインデックスでも初回（cold）と2回目以降（warm）で速度が変わる理由がここで分かります。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>統計情報の鮮度を確認する：</strong>推定行数と実測行数が大きく乖離している場合、テーブルの統計情報が古い可能性があります。<code>ANALYZE テーブル名;</code> を実行して統計情報を更新すると、オプティマイザが適切なプランを選択できるようになります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>推定コストだけ見てチューニングする：</strong>EXPLAINのコストは推定値 পুরোনোであり、実際の速度と乖離することがあります。必ずEXPLAIN ANALYZEで実測値を確認してからインデックスを追加してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>本番環境でEXPLAIN ANALYZEを実行する：</strong>EXPLAIN ANALYZEはクエリを実際に実行するため、重いクエリを本番DBで実行するとサービスに影響します。ステージング環境か、本番のリードレプリカで実行するのが安全です。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：pgBadgerとauto_explainによる自動ログ解析</div>
+<div class="column-body">
+実務では遅いクエリを手動で特定するのは困難です。PostgreSQLの <code>pg_stat_statements</code> 拡張を使うと「累積で最も時間がかかったクエリTOP N」を取得できます。さらに <code>auto_explain</code> 拡張を設定すると、一定時間を超えたクエリの実行計画をログに自動で記録します。<strong>遅いクエリを発見 → EXPLAIN ANALYZEで分析 → インデックス追加 → 再確認</strong>というサイクルを回す基盤として、これらの拡張をあらかじめ有効化しておくことが実務でのスタンダードです。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  N+1問題の解決 — JOINかサブクエリで1クエリに畳む
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "N+1問題の解決 — ORMが生むN回クエリをJOINで1クエリに畳む",
+  tags: [["r","N+1問題"],["r","JOIN"],["o","ORM"],["p","クエリ最適化"]],
+  premise: `<p><strong>N+1問題</strong>は、1回の「親」クエリでN行を取得した後、各行に対して「子」クエリをN回実行するパターンです。DBへのラウンドトリップ（接続のやり取り）がN+1回発生するため、Nが大きくなるほどレイテンシが線形増加します。</p>
+<pre><span class="cmt">-- N+1パターンの例（疑似コード）</span>
+<span class="cmt">-- ① 1回目のクエリ（1回）</span>
+orders = <span class="fn">query</span>(<span class="str">"SELECT * FROM orders WHERE status='shipped'"</span>);  <span class="cmt">-- N件取得</span>
+
+<span class="cmt">-- ② 各orderに対してuserを取得（N回）</span>
+<span class="kw">FOR</span> order <span class="kw">IN</span> orders:
+    user = <span class="fn">query</span>(<span class="str">"SELECT * FROM users WHERE user_id = ?"</span>, order.user_id);  <span class="cmt">-- ❌ N回</span></pre>
+<div class="callout danger"><strong>N+1は「動くが遅い」バグ：</strong>開発環境では件数が少なく気づきにくいですが、本番でN=10,000になると1万回のクエリが走ります。ORMのLazy Loadingが原因のことが多いため、発行されるSQLをログで確認する習慣が重要です。</div>`,
+  question: `<p>注文一覧APIで「N+1問題」が発生しています。以下の2クエリを<em>1つのSQLに統合</em>して、DB接続回数を削減してください。さらに、ユーザーごとの注文件数も同時に返してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（10万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>status</th></tr>
+        <tr><td>1</td><td>U001</td><td>3000</td><td>shipped</td></tr>
+        <tr><td>2</td><td>U001</td><td>5000</td><td>shipped</td></tr>
+        <tr><td>3</td><td>U002</td><td>1200</td><td>shipped</td></tr>
+        <tr><td>4</td><td>U003</td><td>2500</td><td>pending</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ users（1万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id(PK)</th><th>name</th><th>email</th></tr>
+        <tr><td>U001</td><td>田中</td><td>tanaka@ex.com</td></tr>
+        <tr><td>U002</td><td>鈴木</td><td>suzuki@ex.com</td></tr>
+        <tr><td>U003</td><td>山田</td><td>yamada@ex.com</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<pre><span class="cmt">-- 問題のあるN+1パターン（2本のクエリが分かれている）</span>
+<span class="cmt">-- クエリ①: ordersを取得（1回）</span>
+<span class="kw">SELECT</span> order_id, user_id, amount, status <span class="kw">FROM</span> <span class="tbl">orders</span> <span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'shipped'</span>;
+
+<span class="cmt">-- クエリ②: 各orderのuserを取得（orders件数分N回）</span>
+<span class="kw">SELECT</span> name, email <span class="kw">FROM</span> <span class="tbl">users</span> <span class="kw">WHERE</span> user_id <span class="op">=</span> ?;  <span class="cmt">-- ❌ N回実行される</span></pre>`,
+  output: `<p>統合後：1クエリでorder情報・user情報・注文件数を全取得：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_name</th><th>email</th><th>amount</th><th class="tc-hi">user_order_count</th></tr>
+<tr class="tr-hi2"><td>1</td><td>田中</td><td>tanaka@ex.com</td><td>3000</td><td class="tc-g">2</td></tr>
+<tr class="tr-hi2"><td>2</td><td>田中</td><td>tanaka@ex.com</td><td>5000</td><td class="tc-g">2</td></tr>
+<tr class="tr-hi2"><td>3</td><td>鈴木</td><td>suzuki@ex.com</td><td>1200</td><td class="tc-g">1</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- N+1を解消する統合クエリ（JOIN + Window関数で1回のDB接続に集約）</span>
+<span class="kw">SELECT</span>
+    o.order_id,                           <span class="cmt">-- 【超基礎】ordersテーブルの列（エイリアスoで参照）</span>
+    u.name        <span class="kw">AS</span> user_name,          <span class="cmt">-- 【超基礎】usersテーブルの列（エイリアスuで参照）</span>
+    u.email,
+    o.amount,
+    <span class="fn">COUNT</span>(o.order_id) <span class="kw">OVER</span> (              <span class="cmt">-- 【応用】Window関数で同じuser_idの注文件数を各行に付与</span>
+        <span class="kw">PARTITION BY</span> o.user_id            <span class="cmt">-- ユーザーごとにカウント（GROUP BYは不要）</span>
+    ) <span class="kw">AS</span> user_order_count
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o                          <span class="cmt">-- 【超基礎】主テーブル</span>
+<span class="kw">JOIN</span>   <span class="tbl">users</span>  u <span class="kw">ON</span> u.user_id <span class="op">=</span> o.user_id  <span class="cmt">-- 【超基礎】user_idを結合キーにしてusers情報を付与</span>
+<span class="kw">WHERE</span>  o.status <span class="op">=</span> <span class="str">'shipped'</span>;              <span class="cmt">-- 【超基礎】出荷済みのみを絞り込む</span>
+
+<span class="cmt">-- 補足: ORMでのEager Load（Railsの場合）</span>
+<span class="cmt">-- Order.where(status: 'shipped').includes(:user)  ← includesがJOINまたはIN句で一括取得</span>
+
+<span class="cmt">-- インデックス（WHERE + JOIN 両方に有効）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_status    <span class="kw">ON</span> <span class="tbl">orders</span> (status);     <span class="cmt">-- WHERE絞り込み用</span>
+<span class="kw">CREATE INDEX</span> idx_orders_user_id   <span class="kw">ON</span> <span class="tbl">orders</span> (user_id);    <span class="cmt">-- JOIN結合キー用</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders o WHERE status='shipped'  → インデックスでshippedのみ絞り込む
+  2. JOIN users u ON u.user_id=o.user_id   → 各orderにuserを結合（Nested Loop or Hash）
+  3. COUNT() OVER(PARTITION BY o.user_id)  → ウィンドウ関数でuser別件数を各行に追加
+  4. SELECT 列を返す
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "where", badge: "① WHERE", bc: "badge-orange",
+        label: "WHERE status = 'shipped' — まずordersを絞り込む",
+        desc: "まずordersテーブルを status='shipped' で絞り込みます。N+1問題を起こすORMではここで一旦アプリ側に結果を返してしまいますが、今回は1つのクエリ内で処理を継続します。",
+        type: "eval",
+        cols: ["order_id","user_id","amount","status"],
+        ch:   ["","","","col-eval"],
+        rows: [
+          { v: [1,"U001",3000,"shipped"], cc: ["","","","val-pass"] },
+          { v: [2,"U001",5000,"shipped"], cc: ["","","","val-pass"] },
+          { v: [3,"U002",1200,"shipped"], cc: ["","","","val-pass"] },
+          { c: "row-dimmed", v: [4,"U003",2500,"pending"], cc: ["","","","val-fail"] }
+        ],
+        cnt: "orders: 4行 → 3行（shippedのみ）" },
+
+      { id: "join", badge: "② JOIN", bc: "badge-blue",
+        label: "JOIN users — アプリ側ループの代わりにDBで結合",
+        desc: "絞り込んだordersに対して、usersテーブルを結合します。アプリ側でN回SQLを発行する代わりに、DB内部の最適化されたレイヤーで一括結合され、ネットワークの往復が1回で済みます。",
+        type: "base", join: true,
+        left: {
+          label: "orders (絞り込み後)",
+          cols: ["order_id","user_id","amount","status"],
+          rows: [
+            { v: [1,"U001",3000,"shipped"] },
+            { v: [2,"U001",5000,"shipped"] },
+            { v: [3,"U002",1200,"shipped"] }
+          ]
+        },
+        right: {
+          label: "users (u)",
+          cols: ["user_id","name","email"],
+          rows: [
+            { v: ["U001","田中","tanaka@ex.com"] },
+            { v: ["U002","鈴木","suzuki@ex.com"] },
+            { v: ["U003","山田","yamada@ex.com"] }
+          ]
+        },
+        cnt: "結合後: 3行（DB接続: 1回のみ）" },
+
+      { id: "agg", badge: "③ Window関数", bc: "badge-orange",
+        label: "COUNT(o.order_id) OVER (PARTITION BY o.user_id)",
+        desc: "Window関数で、ユーザーごとの注文件数を各行に付与します。GROUP BYと異なり明細行を圧縮しないため、個別の注文情報とユーザー単位の集計値を同時に取得できます。",
+        type: "group",
+        cols: ["order_id","user_id","name","amount","user_order_count(付与)"],
+        ch:   ["","col-eval","","","col-eval"],
+        rows: [
+          { c: "row-grp-1", v: [1,"U001","田中",3000,2] },
+          { c: "row-grp-1", v: [2,"U001","田中",5000,2] },
+          { c: "row-grp-2", v: [3,"U002","鈴木",1200,1] }
+        ],
+        cnt: "3行（行数変化なし）" },
+
+      { id: "select", badge: "④ SELECT", bc: "badge-green",
+        label: "SELECT — 必要な列を最終出力",
+        desc: "1回のSQL実行で、注文情報・ユーザー情報・注文件数の全てを取得します。N+1パターン（DB接続N+1回）を1回の接続に削減し、レイテンシを最小化します。",
+        type: "select",
+        cols: ["order_id","user_name","email","amount","user_order_count"],
+        ch:   ["col-select","col-select","col-select","col-select","col-select"],
+        rows: [
+          { v: [1,"田中","tanaka@ex.com",3000,2] },
+          { v: [2,"田中","tanaka@ex.com",5000,2] },
+          { v: [3,"鈴木","suzuki@ex.com",1200,1] }
+        ],
+        cnt: "結果: 3行 × 5列" }
+    ],
+    sql: [
+      { t: "SELECT\n", k: "sql-kw", h: "select" },
+      { t: "  o.order_id,\n", k: "", h: "select" },
+      { t: "  u.name ", k: "", h: "select" }, { t: "AS", k: "sql-kw", h: "select" }, { t: " user_name, u.email, o.amount,\n", k: "", h: "select" },
+      { t: "  COUNT", k: "sql-kw", h: "agg" }, { t: "(o.order_id) ", k: "", h: "agg" },
+      { t: "OVER", k: "sql-kw", h: "agg" }, { t: " (\n", k: "", h: "agg" },
+      { t: "    PARTITION BY", k: "sql-kw", h: "agg" }, { t: " o.user_id\n  ) ", k: "", h: "agg" },
+      { t: "AS", k: "sql-kw", h: "agg" }, { t: " user_order_count\n", k: "", h: "agg" },
+      { t: "FROM  ", k: "sql-kw", h: "where"  }, { t: "orders o\n", k: "", h: "where" },
+      { t: "JOIN  ", k: "sql-kw", h: "join"  }, { t: "users  u ", k: "", h: "join" },
+      { t: "ON", k: "sql-kw", h: "join" }, { t: " u.user_id = o.user_id\n", k: "", h: "join" },
+      { t: "WHERE ", k: "sql-kw", h: "where" }, { t: "o.status = 'shipped';", k: "", h: "where" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>JOINは「2つのテーブルを1つの結果表に結合する」操作です。<code>ON A.key = B.key</code> で結合条件を指定します。N+1問題の本質は「ループの中でDBに問い合わせる」ことで、JOINを使って「SQLの中でループを解決する」のが正しいアプローチです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ORMのEager Loadを使う：</strong>Railsの <code>includes</code>、LaravelのEager Loading（<code>with</code>）など、ORMにはN+1を回避する仕組みがあります。ただしORMが生成するSQLを必ずログで確認してください。「includesしているのに別途クエリが走っている」場合はEager Loadが効いていない可能性があります。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>IN句バッチ取得：</strong>JOINが難しい場合のもう一つの解決策として「親のIDをまとめてIN句で子を一括取得する」方法があります。<code>SELECT * FROM users WHERE user_id IN (U001, U002, U003...)</code> のようにアプリ側で1回だけ子を取得してマッピングする方法で、N+1は2回のクエリに収まります。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ループの中でDBアクセスする：</strong>どの言語・フレームワークでも「forループ内でSQLを発行する」パターンは N+1 問題そのものです。コードレビューでこのパターンが見えたら必ず指摘してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>JOINを避けてアプリ側でマージする：</strong>「JOINは遅い」という誤解からアプリ側でデータをマージするパターンがあります。適切なインデックスがあればJOINはDBに任せる方が高速です。アプリ側のマージはネットワーク転送量が増え、メモリも余分に使います。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：SlowQueryログでN+1を検出する</div>
+<div class="column-body">
+N+1問題は開発中に気づきにくいため、<strong>SlowQueryログ</strong>と合わせて「同じクエリのパターンが短時間に何百回も記録されている」ことで発見することが多いです。PostgreSQLでは <code>pg_stat_statements</code> で「最も実行回数が多いクエリ」を確認すると、N+1起因のクエリが上位に現れます。Railsなら <code>bullet</code> gem、Laravelなら <code>Laravel Debugbar</code> などのN+1検出ツールも開発環境で活用しましょう。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  Keyset Pagination — OFFSETの落とし穴とカーソル方式
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "Keyset Pagination — OFFSET の落とし穴とカーソル方式で高速ページング",
+  tags: [["r","OFFSET"],["r","Keyset Pagination"],["o","ページング"],["g","カーソル"]],
+  premise: `<p>APIの一覧エンドポイントで最も一般的なページングは <code>LIMIT N OFFSET M</code> です。しかしOFFSETは<em>スキップする行もすべて読んでから捨てる</em>ため、後半ページになるほど線形に遅くなります。</p>
+<pre><span class="cmt">-- OFFSETページングの問題（10000ページ目）</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">orders</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">20</span>
+<span class="kw">OFFSET</span> <span class="num">200000</span>;  <span class="cmt">-- ❌ 200000行読んでから捨てる → 後半ページほど遅い</span></pre>
+<div class="callout warn"><strong>Keyset（カーソル）Pagination：</strong>前ページの最後の行のキー値を使って「それより大きい/小さい行」に絞り込む方式です。スキップ行のスキャンが発生せず、どのページでも一定のパフォーマンスが維持されます。</div>`,
+  question: `<p><code>orders</code> テーブルに対する「前ページの最後のorder_id・created_atを受け取って次ページを返す」<em>Keyset Pagination クエリ</em>を実装してください。ソートは <code>created_at DESC, order_id DESC</code> です。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（500万件）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at</th></tr>
+        <tr><td>5</td><td>U001</td><td>3000</td><td>2024-09-10</td></tr>
+        <tr><td>4</td><td>U002</td><td>5000</td><td>2024-09-08</td></tr>
+        <tr><td>3</td><td>U003</td><td>1200</td><td>2024-09-08</td></tr>
+        <tr><td>2</td><td>U001</td><td>8000</td><td>2024-09-05</td></tr>
+        <tr><td>1</td><td>U002</td><td>2500</td><td>2024-09-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>
+<p>前ページの最後の行: <code>created_at = '2024-09-08', order_id = 4</code></p>`,
+  output: `<p>Keyset Paginationによる次ページ（created_at降順の続き）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>amount</th><th>created_at</th></tr>
+<tr class="tr-hi2"><td>3</td><td>U003</td><td>1200</td><td class="tc-hi">2024-09-08</td></tr>
+<tr class="tr-hi2"><td>2</td><td>U001</td><td>8000</td><td class="tc-hi">2024-09-05</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- ① OFFSET方式（問題あり：後半ページで全件スキャンが発生）</span>
+<span class="kw">SELECT</span> order_id, user_id, amount, created_at
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>, order_id <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">20</span>
+<span class="kw">OFFSET</span> <span class="num">200000</span>;    <span class="cmt">-- ❌ 前の200000行をスキャンしてから捨てる</span>
+
+<span class="cmt">-- ② Keyset Pagination（解決策：前ページの末尾キーを条件にする）</span>
+<span class="cmt">-- 前ページの最後: created_at='2024-09-08', order_id=4</span>
+<span class="kw">SELECT</span>
+    order_id, user_id, amount, created_at  <span class="cmt">-- 【超基礎】取得する列を指定</span>
+<span class="kw">FROM</span>   <span class="tbl">orders</span>
+<span class="kw">WHERE</span>
+    (created_at, order_id)                 <span class="cmt">-- 【応用】行値コンストラクタで2列同時比較</span>
+    <span class="op">&lt;</span> (<span class="str">'2024-09-08'</span>, <span class="num">4</span>)                  <span class="cmt">-- ✅ (created_at < '2024-09-08')
+                                           --    OR (created_at = '2024-09-08' AND order_id < 4) と同義</span>
+<span class="kw">ORDER BY</span>
+    created_at <span class="kw">DESC</span>,                      <span class="cmt">-- 【超基礎】主ソートキー（新しい順）</span>
+    order_id   <span class="kw">DESC</span>                       <span class="cmt">-- 【超基礎】同一created_atのタイブレーカー</span>
+<span class="kw">LIMIT</span> <span class="num">20</span>;                                <span class="cmt">-- 【超基礎】次ページの件数を指定</span>
+
+<span class="cmt">-- ③ インデックス（ORDER BY と条件の両方に使える複合インデックス）</span>
+<span class="kw">CREATE INDEX</span> idx_orders_created_id
+    <span class="kw">ON</span> <span class="tbl">orders</span> (created_at <span class="kw">DESC</span>, order_id <span class="kw">DESC</span>);  <span class="cmt">-- ソート順と一致させる</span>
+
+<span class="cmt">-- ④ レスポンスにnext_cursorを含めるAPIの例（アプリ側の実装パターン）</span>
+<span class="cmt">-- {
+--   "data": [...],
+--   "next_cursor": {           ← 次のページリクエストに含めるカーソル
+--     "created_at": "2024-09-05",
+--     "order_id": 2
+--   }
+-- }</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM orders                              → テーブル参照
+  2. WHERE (created_at, order_id) < (値, 値)  → インデックスで直接スタート位置へジャンプ
+  3. ORDER BY created_at DESC, order_id DESC  → インデックス順と一致 → Sort不要
+  4. LIMIT 20                                 → 20件取得で即停止 → 無駄読みなし
+  5. SELECT 列を返す
+*/</span></pre>`,
+  viz: {
+    steps: [
+      { id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM orders — 全行参照（前ページの境界値を確認）",
+        desc: "ordersテーブルを参照します。Keyset Paginationでは前ページの最後の行のキー値（created_at='2024-09-08', order_id=4）をカーソルとして保持します。インデックスを使ってこのカーソル位置に直接ジャンプします。",
+        type: "base",
+        cols: ["order_id","user_id","amount","created_at"],
+        ch:   ["col-base","col-base","col-base","col-base"],
+        rows: [
+          { v: [5,"U001",3000,"2024-09-10"] },
+          { v: [4,"U002",5000,"2024-09-08"] },
+          { v: [3,"U003",1200,"2024-09-08"] },
+          { v: [2,"U001",8000,"2024-09-05"] },
+          { v: [1,"U002",2500,"2024-09-01"] }
+        ],
+        cnt: "全5行（OFFSETなら全件スキャン → Keysetはインデックスで直接ジャンプ）" },
+
+      { id: "where", badge: "② WHERE（Keysetフィルタ）", bc: "badge-orange",
+        label: "(created_at, order_id) < ('2024-09-08', 4)",
+        desc: "行値コンストラクタで2列を一括比較します。「created_at < '2024-09-08'」または「created_at = '2024-09-08' AND order_id < 4」の行だけが通過します。インデックスで境界位置に直接ジャンプするため、OFFSETのように前ページ分を読んで捨てる無駄がありません。",
+        type: "eval",
+        cols: ["order_id","user_id","amount","created_at","条件評価"],
+        ch:   ["","","","col-eval","col-eval"],
+        rows: [
+          { c: "row-dimmed", v: [5,"U001",3000,"2024-09-10","09-10 > 09-08 → 除外"], cc: ["","","","val-fail","val-fail"] },
+          { c: "row-dimmed", v: [4,"U002",5000,"2024-09-08","= 09-08 かつ id=4（境界）→ 除外"], cc: ["","","","val-fail","val-fail"] },
+          { v: [3,"U003",1200,"2024-09-08","= 09-08 かつ id=3 < 4 → 通過"], cc: ["","","","val-pass","val-pass"] },
+          { v: [2,"U001",8000,"2024-09-05","09-05 < 09-08 → 通過"], cc: ["","","","val-pass","val-pass"] },
+          { v: [1,"U002",2500,"2024-09-01","09-01 < 09-08 → 通過"], cc: ["","","","val-pass","val-pass"] }
+        ],
+        cnt: "5行 → 3行（ヒープスキャンなし・インデックスで直接ジャンプ）" },
+
+      { id: "select", badge: "③ ORDER BY + LIMIT + SELECT", bc: "badge-green",
+        label: "ORDER BY created_at DESC, order_id DESC → LIMIT 20",
+        desc: "インデックス (created_at DESC, order_id DESC) の並び順と ORDER BY が一致するため追加ソートが不要です。LIMIT 20 は通過行から先頭20件で即停止します。何ページ目でも常に LIMIT 件数分だけ読むため、一定のパフォーマンスが保証されます。",
+        type: "select",
+        cols: ["order_id","user_id","amount","created_at"],
+        ch:   ["col-select","col-select","col-select","col-select"],
+        rows: [
+          { v: [3,"U003",1200,"2024-09-08"] },
+          { v: [2,"U001",8000,"2024-09-05"] },
+          { v: [1,"U002",2500,"2024-09-01"] }
+        ],
+        cnt: "結果: 3行 × 4列（LIMIT 20 — 常に最大LIMIT件数分のみ読む）" }
+    ],
+    sql: [
+      { t: "SELECT", k: "sql-kw", h: "select" }, { t: " order_id, user_id, amount, created_at\n", k: "", h: "select" },
+      { t: "FROM  ", k: "sql-kw", h: "from"   }, { t: "orders\n", k: "", h: "from" },
+      { t: "WHERE ", k: "sql-kw", h: "where"  }, { t: "\n", k: "", h: "where" },
+      { t: "  (created_at, order_id)\n  < ('2024-09-08', 4)\n", k: "", h: "where" },
+      { t: "ORDER BY", k: "sql-kw", h: "select" }, { t: " created_at ", k: "", h: "select" },
+      { t: "DESC", k: "sql-kw", h: "select" }, { t: ", order_id ", k: "", h: "select" },
+      { t: "DESC\n", k: "sql-kw", h: "select" },
+      { t: "LIMIT ", k: "sql-kw", h: "select" }, { t: "20;", k: "", h: "select" }
+    ]
+  },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong><code>LIMIT N OFFSET M</code> はMをどう計算するかというと「ページ番号 × 1ページの件数」です。例えば3ページ目（1ページ20件）は <code>OFFSET 40</code> です。OFFSETが大きいほどDBが「捨てる」行数が増えるため、後半ページほど遅くなります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Keysetのカーソルはタイブレーカーが必要：</strong>ソートキーが <code>created_at</code> だけだと、同じ日時の行が複数あるときにどこで区切るか判断できません。必ず一意性のある列（order_idやPK）をセカンダリキーとして追加してください。一意のソートがKeyset Paginationの絶対条件です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>Keysetの制約：「任意のページへのジャンプ」ができない：</strong>Keyset方式は前のページのカーソルがないと次ページを取得できないため、「100ページに飛ぶ」という操作ができません。SNSのフィード・チャット履歴・無限スクロールなど「次へ進む一方向のUI」には最適ですが、ページ番号ナビゲーションが必要なUIにはOFFSETが適しています。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>ソートに一意性のない列だけを使う：</strong><code>ORDER BY created_at DESC</code> だけだと、同日時の行の順序が不定になります。ページをまたいで同じ行が重複したり行が抜けたりします。必ず <code>ORDER BY created_at DESC, order_id DESC</code> のように一意になるセカンダリキーを追加してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>カーソルにオフセット番号を使う：</strong><code>{"cursor": 200}</code> のようにオフセット番号をカーソルに使うとOFFSETと同じ問題が再発します。カーソルには必ず「最後の行のキー値」を使ってください。</div></div>
+</div>
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：GraphQL Relay ConnectionとKeysetの関係</div>
+<div class="column-body">
+GraphQLのRelay仕様（<code>edges/node/cursor</code>パターン）はKeyset Paginationを前提に設計されています。<code>after: "cursor文字列"</code> でページを進む方式は、内部的にはKeysetのカーソルをBase64エンコードしたものです。実務でGraphQL APIを設計するとき、Relay ConnectionとKeysetを合わせて実装することで、<strong>スケールしても常に一定速度のページング</strong>を実現できます。OFFSET方式でスタートして後でKeysetに移行するのはコストが高いため、設計段階での選択が重要です。
+</div>
+</div>
+`
+}
+];
+
+/* ══════════════════════════════════════════════════
+   UI Builder
+══════════════════════════════════════════════════ */
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]||'tag-r'}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})">
+      <span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}
+    </button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length} — SERIES 003 応用編</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力','期待出力',q.output)}
+      ${acc('✅','pill-red','解答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント・アンチパターン）',
+        (Array.isArray(q.viz)
+          ? q.viz.map((_, vIdx) => `<div class="sql-viz-wrapper" id="viz-${i}-${vIdx}" tabindex="-1" style="margin-bottom:24px;"></div>`).join('')
+          : `<div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1"></div>`
+        ) + q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i===0?'disabled':''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i===QS.length-1?'disabled':''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  QS.forEach((q, i) => {
+    if (q.viz) {
+      if (Array.isArray(q.viz)) {
+        q.viz.forEach((v, vIdx) => initVisualizer(document.getElementById(`viz-${i}-${vIdx}`), v));
+      } else {
+        initVisualizer(document.getElementById('viz-' + i), q.viz);
+      }
+    }
+  });
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+  document.getElementById('progFill').style.width = ((i+1) / QS.length * 100) + '%';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !wasMobile);
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !isMobile);
+  }
+});
+</script>
+</body>
+</html>

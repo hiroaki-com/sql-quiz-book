@@ -334,9 +334,10 @@ function initVisualizer(root, data) {
 
   function renderTableArea(step) {
     if (step.join) {
+      const sepContent = step.joinSep !== undefined ? step.joinSep : '⋈';
       return `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
         ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
-        <div style="display:flex;align-items:center;font-size:20px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+        <div style="display:flex;align-items:center;font-size:18px;color:var(--color-txt-sub);padding-top:28px;">${sepContent}</div>
         ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
       </div>`;
     }
@@ -523,9 +524,24 @@ const QS = [
         ],
         cnt: 'B-Tree: status → created_at の順でソート済み'
       },
-      { id: 'where', badge: '② API判定', bc: 'badge-orange',
+      { id: 'from', badge: '② スキャン範囲の比較', bc: 'badge-orange',
+        label: 'WHERE status の有無でB-Treeの探索コストが変わる',
+        desc: "B-Treeのエントリはstatus→created_atの順で並んでいます。API-AはWHERE status='paid'でpaidブロックを直接参照（2エントリのみ読込）。API-Bはstatusをスキップするため、B-Tree全体をcreated_atで順にスキャンします（5エントリ全スキャン = Seq Scan相当）。",
+        type: 'eval',
+        cols: ['順番', 'status', 'created_at', 'API-A スキャン', 'API-B スキャン'],
+        ch:   ['', 'col-base', 'col-base', 'col-eval', 'col-eval'],
+        rows: [
+          { c: 'row-grp-1', v: ['①', 'cancelled', '2024-01-05', '— スキップ', '🔍 スキャン'], cc: ['', '', '', 'val-dimmed', ''] },
+          { c: 'row-grp-1', v: ['②', 'cancelled', '2024-06-20', '— スキップ', '🔍 スキャン'], cc: ['', '', '', 'val-dimmed', ''] },
+          { c: 'row-grp-2', v: ['③', 'paid',      '2024-03-15', '✅ 読込',    '🔍 スキャン'], cc: ['', '', '', 'val-pass', ''] },
+          { c: 'row-grp-2', v: ['④', 'paid',      '2024-12-20', '✅ 読込',    '🔍 スキャン'], cc: ['', '', '', 'val-pass', ''] },
+          { c: 'row-grp-3', v: ['⑤', 'pending',   '2024-12-10', '— スキップ', '🔍 スキャン'], cc: ['', '', '', 'val-dimmed', ''] }
+        ],
+        cnt: 'API-A: 2エントリ読込（Index Scan） ↔ API-B: 5エントリ全スキャン（Seq Scan相当）'
+      },
+      { id: 'where', badge: '③ API判定', bc: 'badge-orange',
         label: 'LEFT-PREFIX RULE の適用',
-        desc: 'インデックスの先頭列 status を使用しているかどうかが判定基準です。API-Bはstatusをスキップし、API-CのWHEREにあるuser_idはインデックスに存在しません。',
+        desc: 'インデックスの先頭列 status を使用しているかどうかが判定基準です。API-Bはstatusをスキップし、API-CのWHEREにあるuser_idはインデックスに存在しません。②の比較と照らし合わせると「先頭列なし＝全スキャン」の理由が確認できます。',
         type: 'eval',
         cols: ['API', 'WHERE条件', 'インデックス適用', '実行計画'],
         ch:   ['', '', 'col-eval', 'col-eval'],
@@ -536,7 +552,7 @@ const QS = [
         ],
         cnt: 'API-A: OK / API-B・C: Seq Scan（要対応）'
       },
-      { id: 'select', badge: '③ 追加インデックス', bc: 'badge-green',
+      { id: 'select', badge: '④ 追加インデックス', bc: 'badge-green',
         label: 'idx_orders_created_at & idx_orders_user_status',
         desc: 'API-B用に(created_at)単独インデックスを、API-C用に高カーディナリティのuser_idを先頭にした(user_id, status)複合インデックスを追加します。',
         type: 'select',
@@ -560,9 +576,9 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>インデックスを作っても「WHERE句に列名を書けば使われる」わけではありません。複合インデックスは <em>左端の列から連続して使われる場合にのみ</em> 有効です。これはSQL最適化で最もよく見逃されるポイントです。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>カーディナリティと列順序：</strong>user_idのように値の種類が多い列（高カーディナリティ）を先頭に置くと、1回の絞り込みでヒット件数を劇的に減らせます。statusのように数種類しかない列（低カーディナリティ）は後ろに置くのが基本戦略です。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>EXPLAIN ANALYZEの読み方：</strong><code>Index Scan using インデックス名</code> が表示されればインデックスが使われています。<code>Seq Scan</code>（シーケンシャルスキャン）は全件スキャンを意味します。実行計画の <code>rows=</code> の数値が小さいほど絞り込みが効いています。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>インデックスを作っても「WHERE句に列名を書けば使われる」わけではありません。複合インデックスは <em>左端の列から連続して使われる場合にのみ</em> 有効です。これはSQL最適化で最もよく見逃されるポイントです。ビジュアライザの②（スキャン範囲比較）でB-Treeの探索コストの差を確認してください。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>カーディナリティと列順序：</strong>user_idのように値の種類が多い列（高カーディナリティ）を先頭に置くと、1回の絞り込みでヒット件数を劇的に減らせます。statusのように数種類しかない列（低カーディナリティ）は後ろに置くのが基本戦略です。ただし「<em>WHERE句で必ず指定される列を先頭に置く</em>」ことが最優先です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>EXPLAIN ANALYZEの読み方：</strong><code>Index Scan using インデックス名</code> が表示されればインデックスが使われています。<code>Seq Scan</code>（シーケンシャルスキャン）は全件スキャンを意味します。実行計画の <code>rows=</code> の数値が小さいほど絞り込みが効いています。②で可視化した「B-Treeの探索コスト差」がそのまま <code>rows=</code> の数値に反映されます。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
@@ -661,24 +677,39 @@ const QS = [
 */</span></pre>`,
   viz: {
     steps: [
-      { id: 'from', badge: '① FROM posts', bc: 'badge-blue',
-        label: '取得対象テーブル（表示分）',
-        desc: 'postsテーブル全体が対象です。カーソル位置（前ページ末尾: post_id=999, created_at=2024-12-19 08:30:00）以前はすでに返却済みです。',
+      { id: 'from', badge: '① OFFSET方式の問題', bc: 'badge-blue',
+        label: 'OFFSET 3 = 先頭3行を読んで捨てる（ページが深いほど無駄が増える）',
+        desc: 'OFFSET N はインデックスの先頭からN行を読み込んで捨ててから残りを返します。ここでは5件テーブルでOFFSET 3 LIMIT 2を示します。本番100万件では OFFSET 999980 が100万行近くを捨てる処理になります。',
+        type: 'eval',
+        cols: ['post_id', 'created_at', 'OFFSETの扱い'],
+        ch:   ['col-base', 'col-base', 'col-eval'],
+        rows: [
+          { c: 'row-dimmed', v: [1001, '2024-12-20 10:00:00', '🗑 読み捨て (OFFSET 1)'], cc: ['', '', 'val-fail'] },
+          { c: 'row-dimmed', v: [1000, '2024-12-20 10:00:00', '🗑 読み捨て (OFFSET 2)'], cc: ['', '', 'val-fail'] },
+          { c: 'row-dimmed', v: [999,  '2024-12-19 08:30:00', '🗑 読み捨て (OFFSET 3)'], cc: ['', '', 'val-fail'] },
+          { v: [998, '2024-12-19 08:30:00', '✅ LIMIT 1件目'], cc: ['', '', 'val-pass'] },
+          { v: [997, '2024-12-18 15:00:00', '✅ LIMIT 2件目'], cc: ['', '', 'val-pass'] }
+        ],
+        cnt: '読込5行 → 返却2行（捨て率60%）。100万件では「捨て率ほぼ100%」になる'
+      },
+      { id: 'from', badge: '② キーセット方式: FROM posts', bc: 'badge-blue',
+        label: '取得対象テーブル — カーソル位置（前ページ末尾）を基点にする',
+        desc: 'キーセット方式ではOFFSETを使わず、前ページ末尾の値（post_id=999, created_at=2024-12-19 08:30:00）をWHERE条件として使います。①と比べて「読み捨てゼロ」が実現できます。',
         type: 'base',
         cols: ['post_id', 'title', 'created_at'],
         ch:   ['col-base', 'col-base', 'col-base'],
         rows: [
           { v: [1001, '記事A', '2024-12-20 10:00:00'] },
           { v: [1000, '記事B', '2024-12-20 10:00:00'] },
-          { v: [999,  '記事C（前ページ末尾）', '2024-12-19 08:30:00'] },
+          { v: [999,  '記事C（前ページ末尾・カーソル）', '2024-12-19 08:30:00'] },
           { v: [998,  '記事D', '2024-12-19 08:30:00'] },
           { v: [997,  '記事E', '2024-12-18 15:00:00'] }
         ],
-        cnt: '全 100万行（インデックスで直接アクセス）'
+        cnt: '全 100万行（インデックスでカーソル位置に直接ジャンプ）'
       },
-      { id: 'where', badge: '② WHERE カーソル条件', bc: 'badge-orange',
+      { id: 'where', badge: '③ WHERE カーソル条件', bc: 'badge-orange',
         label: '(created_at, post_id) < (:last_created_at, :last_post_id)',
-        desc: '行値比較でカーソル位置を評価します。post_id=999が前ページ末尾（カーソル）なので、created_atが古いか、同時刻でpost_idが小さい行だけが通過します。',
+        desc: '行値比較でカーソル位置を評価します。post_id=999が前ページ末尾（カーソル）なので、created_atが古いか、同時刻でpost_idが小さい行だけが通過します。①の「読み捨て」と違い、条件に合わない行はインデックス走査の時点でスキップされます。',
         type: 'eval',
         cols: ['post_id', 'created_at', 'カーソル判定'],
         ch:   ['', 'col-eval', 'col-eval'],
@@ -689,11 +720,11 @@ const QS = [
           { v: [998, '2024-12-19 08:30:00', '✅ 同時刻・ID小'], cc: ['', '', 'val-pass'] },
           { v: [997, '2024-12-18 15:00:00', '✅ 古い日時'],     cc: ['', '', 'val-pass'] }
         ],
-        cnt: '5行 → 2行（カーソル以降のみ）'
+        cnt: '読込0行（読み捨てなし） → 条件一致行から直接 LIMIT 分だけ取得'
       },
-      { id: 'select', badge: '③ ORDER BY + LIMIT 20', bc: 'badge-green',
+      { id: 'select', badge: '④ ORDER BY + LIMIT 20', bc: 'badge-green',
         label: 'ORDER BY created_at DESC, post_id DESC  LIMIT 20',
-        desc: 'インデックスの順序と一致するためソート不要です。カーソル位置から20件を取得して停止します。何ページ目でも常に一定のコストです。',
+        desc: 'インデックスの順序と一致するためソート不要です。カーソル位置から20件を取得して停止します。①のOFFSET方式と違い、何ページ目でも常に同じコストです。',
         type: 'select',
         cols: ['post_id', 'title', 'created_at'],
         ch:   ['col-select', 'col-select', 'col-select'],
@@ -701,7 +732,7 @@ const QS = [
           { v: [998, '記事D', '2024-12-19 08:30:00'] },
           { v: [997, '記事E', '2024-12-18 15:00:00'] }
         ],
-        cnt: '結果: 最大20件（常に一定コスト）'
+        cnt: '結果: 最大20件（何ページ目でも常に一定コスト）'
       }
     ],
     sql: [
@@ -719,8 +750,8 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>LIMIT 20 OFFSET 1000 は「最初から1020行を読み込み、先頭1000行を捨てて20行返す」という仕組みです。DBは読み捨てた行にもコストを払います。ページ数が増えると劣化するのはこのためです。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>キーセット方式のトレードオフ：</strong>キーセット方式は高速ですが「N番目のページに直接ジャンプできない」デメリットがあります。SNSフィード・無限スクロール・「次のページ」ボタンとの相性は抜群ですが、「100ページ目に直接飛ぶ」が必要なユースケースにはOFFSETが必要です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>LIMIT 20 OFFSET 1000 は「最初から1020行を読み込み、先頭1000行を捨てて20行返す」という仕組みです。DBは読み捨てた行にもコストを払います。ビジュアライザの①で「読み捨て行」が赤く表示されていることを確認してください。ページ数が増えると劣化するのはこのためです。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>キーセット方式のトレードオフ：</strong>キーセット方式は高速ですが「N番目のページに直接ジャンプできない」デメリットがあります。SNSフィード・無限スクロール・「次のページ」ボタンとの相性は抜群ですが、「100ページ目に直接飛ぶ」が必要なユースケースにはOFFSETが必要です。①と③の比較で「読み捨て行数」の差を実感してください。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>ソート列は一意性を確保する：</strong>カーソルにする列は一意に並びを決定できる必要があります。<code>created_at</code> だけでは同一時刻の行が複数ある場合に重複や抜けが発生します。必ず <code>post_id</code> のような一意列を第2ソート列として追加してください。</div></div>
 </div>
 <div class="anti-box">
@@ -850,9 +881,22 @@ const QS = [
 */</span></pre>`,
   viz: {
     steps: [
-      { id: 'from', badge: '① FROM users', bc: 'badge-blue',
-        label: '基準テーブル: users',
-        desc: 'usersが基準テーブルです。LEFT JOINは左テーブル（users）の全行を保持します。各サブクエリはこの後1回ずつ実行されます。',
+      { id: 'from', badge: '① 相関サブクエリの問題', bc: 'badge-blue',
+        label: 'SELECT句のサブクエリ → users の行数分だけ実行される（N+1）',
+        desc: 'usersが3行なら、ordersへのCOUNT(*) サブクエリが3回、reviewsへのCOUNT(*) が3回、loginsへのMAXが3回 = 合計10クエリ発行されます（1+3×3）。1,000ユーザーなら3,001クエリ。この表はその「実行回数」を可視化したものです。',
+        type: 'eval',
+        cols: ['users 行', 'ordersサブクエリ実行', 'reviewsサブクエリ実行', 'loginsサブクエリ実行'],
+        ch:   ['col-base', 'col-eval', 'col-eval', 'col-eval'],
+        rows: [
+          { v: ['user_id=1 (田中)', '🔄 実行1回目', '🔄 実行1回目', '🔄 実行1回目'], cc: ['', 'val-fail', 'val-fail', 'val-fail'] },
+          { v: ['user_id=2 (鈴木)', '🔄 実行2回目', '🔄 実行2回目', '🔄 実行2回目'], cc: ['', 'val-fail', 'val-fail', 'val-fail'] },
+          { v: ['user_id=3 (佐藤)', '🔄 実行3回目', '🔄 実行3回目', '🔄 実行3回目'], cc: ['', 'val-fail', 'val-fail', 'val-fail'] }
+        ],
+        cnt: '合計クエリ数: 1（外側）+ 3×3（サブクエリ）= 10回 ← 1,000ユーザーなら3,001回'
+      },
+      { id: 'from', badge: '② FROM users（基準テーブル）', bc: 'badge-blue',
+        label: 'LEFT JOIN方式: usersを1回だけ取得して基準にする',
+        desc: 'LEFT JOIN方式では、まずusersを基準テーブルとして1回だけ取得します。この後、各サブクエリも「全体で1回ずつ」だけ実行されます。①の「行ごとに3回×N」とは根本的に異なります。',
         type: 'base',
         cols: ['user_id', 'name'],
         ch:   ['col-base', 'col-base'],
@@ -861,36 +905,49 @@ const QS = [
           { v: [2, '鈴木'] },
           { v: [3, '佐藤'] }
         ],
-        cnt: '全 3行 (users)'
+        cnt: '全 3行 (users) — ここは1回だけ読まれる'
       },
-      { id: 'group', badge: '② サブクエリ集計', bc: 'badge-orange',
-        label: 'orders / reviews / logins を GROUP BY user_id で集計',
-        desc: '各テーブルをuser_idでGROUP BY集計します。この操作は各テーブル1回ずつ（計3回）だけ実行されます。相関サブクエリ方式の3,001回と対比してください。',
-        type: 'group',
-        cols: ['user_id', 'order_count', 'review_count', 'last_login'],
-        ch:   ['col-eval', 'col-eval', 'col-eval', 'col-eval'],
-        rows: [
-          { c: 'row-grp-1', v: [1, 2, 1, '2025-01-15'] },
-          { c: 'row-grp-3', v: [3, 1, 0, 'NULL'] }
-        ],
-        cnt: '集計結果: 2行（user_id=2 はデータなし）'
+      { id: 'group', badge: '③ サブクエリ GROUP BY 集計（各1回）', bc: 'badge-orange',
+        label: 'orders・reviews・logins を user_id でそれぞれ集計（計3回）',
+        desc: '3つのサブクエリはそれぞれ全体で1回だけ実行されます。①の「3行 × 3サブクエリ = 9回」と違い、ここでは「3テーブル × 各1回 = 3回」のみです。結果はuser_idをキーにした集計テーブルになります。',
+        join: true,
+        joinSep: '　',
+        left: {
+          label: 'o: orders → GROUP BY',
+          cols: ['user_id', 'order_count'],
+          ch:   ['col-eval', 'col-eval'],
+          rows: [
+            { c: 'row-grp-1', v: [1, 2] },
+            { c: 'row-grp-3', v: [3, 1] }
+          ]
+        },
+        right: {
+          label: 'r: reviews → GROUP BY　　l: logins → MAX',
+          cols: ['user_id', 'review_count', 'user_id', 'last_login'],
+          ch:   ['col-eval', 'col-eval', 'col-eval', 'col-eval'],
+          rows: [
+            { c: 'row-grp-1', v: [1, 1, 1, '2025-01-15'] },
+            { c: 'row-grp-3', v: [3, 0, '—', 'NULL'] }
+          ]
+        },
+        cnt: '集計3回のみ（user_id=2 は各テーブルにデータなし → 結果に現れない）'
       },
-      { id: 'where', badge: '③ LEFT JOIN 結合後', bc: 'badge-orange',
+      { id: 'where', badge: '④ LEFT JOIN 結合後', bc: 'badge-orange',
         label: 'ON o.user_id = u.user_id（一致なし → NULL）',
-        desc: '集計済みテーブルとusersを結合します。user_id=2（鈴木）はordersにもreviewsにも存在しないためNULLが入ります。',
+        desc: '集計済みテーブルとusersを結合します。user_id=2（鈴木）はordersにもreviewsにも存在しないためNULLが入ります。LEFT JOINなのでusersの全行が保持されます。',
         type: 'eval',
         cols: ['user_id', 'name', 'order_count', 'review_count', 'last_login'],
         ch:   ['', '', 'col-eval', 'col-eval', 'col-eval'],
         rows: [
-          { v: [1, '田中', 2, 1, '2025-01-15'],   cc: ['', '', 'val-pass', 'val-pass', 'val-pass'] },
-          { v: [2, '鈴木', 'NULL', 'NULL', 'NULL'], cc: ['', '', 'val-fail', 'val-fail', 'val-dimmed'] },
-          { v: [3, '佐藤', 1, 'NULL', 'NULL'],     cc: ['', '', 'val-pass', 'val-fail', 'val-dimmed'] }
+          { v: [1, '田中', 2, 1, '2025-01-15'],     cc: ['', '', 'val-pass', 'val-pass', 'val-pass'] },
+          { v: [2, '鈴木', 'NULL', 'NULL', 'NULL'],  cc: ['', '', 'val-fail', 'val-fail', 'val-dimmed'] },
+          { v: [3, '佐藤', 1, 'NULL', 'NULL'],       cc: ['', '', 'val-pass', 'val-fail', 'val-dimmed'] }
         ],
-        cnt: '3行（NULLは対応データなし）'
+        cnt: '3行（NULLは対応データなし — 次のステップでCOALESCEが0に変換する）'
       },
-      { id: 'select', badge: '④ SELECT + COALESCE', bc: 'badge-green',
+      { id: 'select', badge: '⑤ SELECT + COALESCE', bc: 'badge-green',
         label: 'COALESCE(order_count, 0): NULL → 0 に変換',
-        desc: 'COALESCE関数でNULLを0に変換して最終結果を返します。last_loginはNULLのままで問題ありません（ログインなし）。',
+        desc: 'COALESCE関数でNULLを0に変換して最終結果を返します。last_loginはNULLのままで問題ありません（ログインなし）。①の10クエリが、全体4回のテーブル走査に削減されています。',
         type: 'select',
         cols: ['user_id', 'name', 'order_count', 'review_count', 'last_login'],
         ch:   ['col-select', 'col-select', 'col-select', 'col-select', 'col-select'],
@@ -899,7 +956,7 @@ const QS = [
           { v: [2, '鈴木', 0, 0, 'NULL'] },
           { v: [3, '佐藤', 1, 0, 'NULL'] }
         ],
-        cnt: '結果: 3行 × 5列'
+        cnt: '結果: 3行 × 5列 — テーブル走査合計 4回（相関サブクエリ方式 10回 → 60%削減）'
       }
     ],
     sql: [
@@ -924,13 +981,13 @@ const QS = [
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>LEFT JOINは「左のテーブルの全行を残しつつ、右のテーブルに一致する行を結合する」操作です。右側に一致する行がない場合は NULL が入ります。COALESCE と組み合わせることで「一致なし → 0」という自然な集計結果を作れます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>LEFT JOINは「左のテーブルの全行を残しつつ、右のテーブルに一致する行を結合する」操作です。右側に一致する行がない場合は NULL が入ります。COALESCE と組み合わせることで「一致なし → 0」という自然な集計結果を作れます。ビジュアライザの①でN+1の発生構造、③で各サブクエリが独立した集計テーブルであることを確認してください。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Lateral JOIN（PostgreSQL）：</strong>PostgreSQL では <code>LEFT JOIN LATERAL (…) ON TRUE</code> を使うと、相関サブクエリのように「外側の行を参照するサブクエリ」をJOINとして書けます。LIMIT付きのサブクエリと組み合わせると「各ユーザーの最新3件の注文」のような集計も効率的にできます。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>WHERE句の相関サブクエリ：</strong>SELECT句だけでなく WHERE句にも <code>WHERE (SELECT COUNT(*) FROM orders WHERE user_id = u.user_id) > 0</code> のような相関サブクエリが書けますが、これも同様に行ごとに実行されます。<code>EXISTS</code> か <code>INNER JOIN</code> に書き換えるのが原則です。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BYなしで直接JOINすると行数が爆発する：</strong><code>LEFT JOIN orders ON orders.user_id = u.user_id</code> を GROUP BY なしで行うと、ordersの行数分だけusersが増殖します（田中×注文2件 = 2行になる）。集計してから JOIN するか、Window関数を使ってください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>GROUP BYなしで直接JOINすると行数が爆発する：</strong><code>LEFT JOIN orders ON orders.user_id = u.user_id</code> を GROUP BY なしで行うと、ordersの行数分だけusersが増殖します（田中×注文2件 = 2行になる）。ビジュアライザ③のように、必ず集計してから JOIN するか、Window関数を使ってください。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COUNT(*) と COUNT(列名) の混同：</strong><code>COUNT(*)</code> は NULL を含む全行を数えますが、<code>COUNT(列名)</code> はその列が NULL でない行だけを数えます。注文件数を数える場合は <code>COUNT(*)</code> で問題ありませんが、意味を理解して使い分けてください。</div></div>
 </div>
 <div class="column-box">
@@ -1284,7 +1341,7 @@ ECサイトの「購入確定API」では、① ordersテーブルへINSERT → 
         ],
         cnt: '全 1,000万行（pending: 約10,000行）'
       },
-      { id: 'where', badge: '② 部分インデックス', bc: 'badge-orange',
+      { id: 'where', badge: '② 部分インデックス登録判定', bc: 'badge-orange',
         label: "WHERE status = 'pending' → インデックス登録対象",
         desc: "部分インデックスはstatus='pending'の行だけをインデックスに格納します。done/runningの行はインデックスに存在しないため、インデックスサイズが1/1,000になります。",
         type: 'eval',
@@ -1298,7 +1355,19 @@ ECサイトの「購入確定API」では、① ordersテーブルへINSERT → 
         ],
         cnt: 'インデックス: 10,000行 / テーブル: 1,000万行'
       },
-      { id: 'select', badge: '③ SELECT 結果', bc: 'badge-green',
+      { id: 'where', badge: '③ インデックスサイズ比較', bc: 'badge-orange',
+        label: '通常インデックス vs 部分インデックス — エントリ数の差',
+        desc: '通常インデックスはstatus値に関係なく全行を格納するため1,000万エントリになります。部分インデックスはpendingの行だけを格納するため10,000エントリのみです。インデックス全体がメモリ（shared_buffers）に常駐できるサイズになり、ディスクI/Oがほぼゼロになります。',
+        type: 'eval',
+        cols: ['インデックス種別', 'エントリ数', 'サイズ目安', 'キャッシュ常駐', '速度'],
+        ch:   ['', 'col-eval', 'col-eval', 'col-eval', 'col-eval'],
+        rows: [
+          { v: ['通常インデックス (status, created_at)', '1,000万', '〜500 MB', '❌ 溢れる', '遅い'], cc: ['', 'val-fail', 'val-fail', 'val-fail', 'val-fail'] },
+          { v: ['部分インデックス WHERE pending',         '10,000',  '〜500 KB', '✅ 常駐',   '超高速'], cc: ['', 'val-pass', 'val-pass', 'val-pass', 'val-pass'] }
+        ],
+        cnt: 'エントリ数 1,000倍の差 → インデックス全体がL3キャッシュ/shared_buffersに収まる'
+      },
+      { id: 'select', badge: '④ SELECT 結果', bc: 'badge-green',
         label: "ORDER BY created_at ASC  LIMIT 10 → Index Scan",
         desc: "部分インデックスのWHERE条件（status='pending'）とクエリが完全一致するため直接Index Scanが使われます。1,000万行からわずか10,000行のインデックスを経由して10件を取得します。",
         type: 'select',
@@ -1324,8 +1393,8 @@ ECサイトの「購入確定API」では、① ordersテーブルへINSERT → 
   explain: `
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>部分インデックスは <code>CREATE INDEX … WHERE 条件</code> で作成します。このインデックスはクエリの WHERE 条件がインデックスの WHERE 条件を「含む」場合にのみ使用されます。PostgreSQL のオプティマイザが自動的に判断します。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ジョブキューへの応用：</strong>ジョブキューはほとんどの行が <code>done</code> 状態で蓄積されていきます。通常インデックスにこれらも含まれると、インデックスが肥大化してキャッシュに乗りにくくなります。部分インデックスで <code>pending/running</code> だけをインデックス化すると、インデックス全体がメモリに常駐でき超高速になります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>部分インデックスは <code>CREATE INDEX … WHERE 条件</code> で作成します。このインデックスはクエリの WHERE 条件がインデックスの WHERE 条件を「含む」場合にのみ使用されます。PostgreSQL のオプティマイザが自動的に判断します。ビジュアライザの③でエントリ数の差（1,000万 vs 10,000）を確認してください。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ジョブキューへの応用：</strong>ジョブキューはほとんどの行が <code>done</code> 状態で蓄積されていきます。通常インデックスにこれらも含まれると、インデックスが肥大化してキャッシュに乗りにくくなります。③の比較が示すように、部分インデックスで <code>pending</code> だけをインデックス化すると、インデックス全体（〜500KB）がメモリに常駐でき超高速になります。</div></div>
 <div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>FOR UPDATE SKIP LOCKED：</strong>複数ワーカーが同時にジョブを取得する際、SKIP LOCKED は「他のワーカーがロック中の行を飛ばして次の行を取得する」ため、待ち合いなしに並行処理できます。PostgreSQL 9.5以降・MySQL 8.0以降で使用可能です。</div></div>
 </div>
 <div class="anti-box">

@@ -421,102 +421,226 @@ const QS = [
 </table></div>`,
   answer: `<pre><span class="cmt">-- ① GINインデックス（@> 演算子専用・最も効率的）</span>
 <span class="kw">CREATE INDEX</span> idx_products_meta_gin
-    <span class="kw">ON</span> <span class="tbl">products</span> <span class="kw">USING GIN</span> (         <span class="cmt">-- 【超基礎】GINはJSONBや配列の逆引きインデックス</span>
-        metadata <span class="fn">jsonb_path_ops</span>       <span class="cmt">-- 【応用】@> 専用オプション（通常GINよりサイズ小・高速）</span>
+    <span class="kw">ON</span> <span class="tbl">products</span> <span class="kw">USING GIN</span> (
+        metadata <span class="fn">jsonb_path_ops</span>  <span class="cmt">-- @> 専用オプション（通常GINより軽量・高速）</span>
     );
 
-<span class="cmt">-- ② @> 演算子でコンテナ検索（インデックスが効く）</span>
+<span class="cmt">-- ② @> 演算子でコンテナ検索</span>
 <span class="kw">SELECT</span> product_id, name
 <span class="kw">FROM</span>   <span class="tbl">products</span>
-<span class="kw">WHERE</span>  metadata <span class="op">@&gt;</span> <span class="str">'{"color":"red","size":"M"}'</span>;  <span class="cmt">-- ✅ GINインデックスが使われる</span>
+<span class="kw">WHERE</span>  metadata <span class="op">@&gt;</span> <span class="str">'{"color":"red","size":"M"}'</span>;  <span class="cmt">-- GINインデックスが有効</span>
 
-<span class="cmt">-- ③ JSONB特定キーへのアクセス方法（演算子の種類）</span>
+<span class="cmt">-- ③ JSONB特定キーへのアクセス方法</span>
 <span class="kw">SELECT</span>
-    metadata <span class="op">-&gt;</span>  <span class="str">'color'</span>  <span class="kw">AS</span> color_json,   <span class="cmt">-- 【超基礎】-&gt; : JSONBとして取得（ダブルクォートあり）</span>
-    metadata <span class="op">-&gt;&gt;</span> <span class="str">'color'</span>  <span class="kw">AS</span> color_text,   <span class="cmt">-- 【超基礎】-&gt;&gt;: テキストとして取得（ダブルクォートなし）</span>
-    metadata <span class="op">#&gt;&gt;</span> <span class="str">'{tags,0}'</span> <span class="kw">AS</span> first_tag    <span class="cmt">-- 【応用】#&gt;&gt;: パス配列でネスト要素にアクセス</span>
+    metadata <span class="op">-&gt;</span>  <span class="str">'color'</span>    <span class="kw">AS</span> color_json,  <span class="cmt">-- -&gt;  : JSONB型として取得（ダブルクォートあり）</span>
+    metadata <span class="op">-&gt;&gt;</span> <span class="str">'color'</span>    <span class="kw">AS</span> color_text,  <span class="cmt">-- -&gt;&gt; : text型として取得（ダブルクォートなし）</span>
+    metadata <span class="op">#&gt;&gt;</span> <span class="str">'{tags,0}'</span> <span class="kw">AS</span> first_tag    <span class="cmt">-- #&gt;&gt; : パス配列でネスト要素にアクセス</span>
 <span class="kw">FROM</span>   <span class="tbl">products</span>
 <span class="kw">WHERE</span>  product_id <span class="op">=</span> <span class="num">1</span>;
 
-<span class="cmt">-- ④ 特定キーへの部分インデックス（colorキーのみの絞り込みが多い場合）</span>
+<span class="cmt">-- ④ 特定キーの式インデックス（特定キーの絞り込みが多い場合）</span>
 <span class="kw">CREATE INDEX</span> idx_products_color
-    <span class="kw">ON</span> <span class="tbl">products</span> ((metadata <span class="op">-&gt;&gt;</span> <span class="str">'color'</span>));  <span class="cmt">-- 【応用】特定キーの値を式インデックスにする</span>
+    <span class="kw">ON</span> <span class="tbl">products</span> ((metadata <span class="op">-&gt;&gt;</span> <span class="str">'color'</span>));
 
-<span class="cmt">-- ④のインデックスを使うクエリ（-&gt;&gt;で等値比較）</span>
+<span class="cmt">-- 式インデックスを使用した等値比較</span>
 <span class="kw">SELECT</span> product_id, name
 <span class="kw">FROM</span>   <span class="tbl">products</span>
-<span class="kw">WHERE</span>  metadata <span class="op">-&gt;&gt;</span> <span class="str">'color'</span> <span class="op">=</span> <span class="str">'red'</span>;         <span class="cmt">-- ✅ 式インデックスが使われる</span>
+<span class="kw">WHERE</span>  metadata <span class="op">-&gt;&gt;</span> <span class="str">'color'</span> <span class="op">=</span> <span class="str">'red'</span>;
 
 <span class="cmt">/*
   実行順序（②のクエリ）:
-  1. FROM products               → テーブル参照
-  2. GIN Index Scan              → @> 条件でGINインデックスを逆引き
-  3. Bitmap Heap Scan            → 対象の行IDを集めてヒープから取得
-  4. WHERE metadata @> '...'     → GINフィルタ済み（再確認フィルタ）
-  5. SELECT 列を返す
+  1. FROM         → テーブル参照
+  2. GIN Scan     → @> 条件でGINインデックスを逆引き
+  3. Bitmap Scan  → 対象の行IDを集めてヒープから取得
+  4. WHERE        → GINフィルタによる再確認
+  5. SELECT       → 結果を返す
 */</span></pre>`,
-  viz: {
-    steps: [
-      { id: "from", badge: "① FROM", bc: "badge-blue",
-        label: "FROM products",
-        desc: "products テーブル（50万件）を対象とします。GINインデックスなしでは全件スキャン（Seq Scan）が発生します。",
-        type: "base",
-        cols: ["product_id", "name", "metadata (JSONB)"],
-        ch: ["col-base", "col-base", "col-base"],
-        rows: [
-          { v: [1, "Tシャツ赤M",    '{"color":"red","size":"M","tags":["sale"]}'] },
-          { v: [2, "パンツ青L",     '{"color":"blue","size":"L","tags":[]}'] },
-          { v: [3, "ジャケット赤S", '{"color":"red","size":"S","tags":["new"]}'] }
-        ],
-        cnt: "全3行（代表サンプル）"
-      },
-      { id: "where", badge: "② WHERE @>", bc: "badge-orange",
-        label: 'WHERE metadata @> \'{"color":"red","size":"M"}\'',
-        desc: "GINインデックスを逆引きして @> 演算子（containment）で絞り込みます。color=red かつ size=M の両方を含む行のみ通過。行2（blue）と行3（size=S）は除外されます。",
-        type: "eval",
-        cols: ["product_id", "name", "metadata (JSONB)"],
-        ch: ["", "", "col-eval"],
-        rows: [
-          { v: [1, "Tシャツ赤M",    '{"color":"red","size":"M",...}'],   cc: ["", "", "val-pass"] },
-          { c: "row-dimmed", v: [2, "パンツ青L",     '{"color":"blue","size":"L",...}'],  cc: ["", "", "val-fail"] },
-          { c: "row-dimmed", v: [3, "ジャケット赤S", '{"color":"red","size":"S",...}'],   cc: ["", "", "val-fail"] }
-        ],
-        cnt: "3行 → 1行"
-      },
-      { id: "select", badge: "③ SELECT", bc: "badge-green",
-        label: "SELECT product_id, name",
-        desc: "絞り込まれた1行から product_id と name 列を出力します。metadata 列は SELECT に含まれないため非表示になります。",
-        type: "select",
-        cols: ["product_id", "name", "metadata"],
-        ch: ["col-select", "col-select"],
-        rows: [
-          { v: [1, "Tシャツ赤M", "(非表示)"], cc: ["", "", "val-dimmed"] }
-        ],
-        cnt: "結果: 1行 × 2列"
-      }
-    ],
-    sql: [
-      { t: "SELECT ", k: "sql-kw", h: "select" },
-      { t: "product_id, name\n", k: "", h: "select" },
-      { t: "FROM   ", k: "sql-kw", h: "from" },
-      { t: "products\n", k: "", h: "from" },
-      { t: "WHERE  ", k: "sql-kw", h: "where" },
-      { t: "metadata ", k: "", h: "where" },
-      { t: "@>", k: "sql-kw", h: "where" },
-      { t: " '{\"color\":\"red\",\"size\":\"M\"}';" , k: "", h: "where" }
-    ]
-  },
+  viz: [
+    {
+      steps: [
+        { id: "from", badge: "① FROM products", bc: "badge-blue",
+          label: "FROM products — GINインデックスの有無で挙動が変わる",
+          desc: "products テーブル（50万件）を対象とします。GINインデックスなしでは全件スキャン（Seq Scan）が発生します。GINインデックスを作成することで、@> 演算子による JSONB 包含チェックが逆引き索引で高速化され、Bitmap Index Scan → Heap Fetch の順で処理が進みます。",
+          type: "base",
+          cols: ["product_id", "name", "metadata (JSONB)"],
+          ch: ["col-base", "col-base", "col-base"],
+          rows: [
+            { v: [1, "Tシャツ赤M",    '{"color":"red","size":"M","tags":["sale"]}'] },
+            { v: [2, "パンツ青L",     '{"color":"blue","size":"L","tags":[]}'] },
+            { v: [3, "ジャケット赤S", '{"color":"red","size":"S","tags":["new"]}'] }
+          ],
+          cnt: "全3行（代表サンプル）— GINインデックスなしでは全50万行をスキャン"
+        },
+        { id: "where", badge: "② WHERE @>（GIN逆引き）", bc: "badge-orange",
+          label: 'WHERE metadata @> \'{"color":"red","size":"M"}\'',
+          desc: "@>（containment: 包含）演算子は「metadata が指定した JSON をすべて含む行」を返します。GINインデックスがあれば、逆引きテーブルからマッチする行IDを一瞬で特定できます（Seq Scan 不要）。行2は color=blue で不一致、行3は color=red だが size=S で不一致のため除外。",
+          type: "eval",
+          cols: ["product_id", "name", "metadata (JSONB)"],
+          ch: ["", "", "col-eval"],
+          rows: [
+            { v: [1, "Tシャツ赤M",    '{"color":"red","size":"M",...}'],   cc: ["", "", "val-pass"] },
+            { c: "row-dimmed", v: [2, "パンツ青L",     '{"color":"blue","size":"L",...}'],  cc: ["", "", "val-fail"] },
+            { c: "row-dimmed", v: [3, "ジャケット赤S", '{"color":"red","size":"S",...}'],   cc: ["", "", "val-fail"] }
+          ],
+          cnt: "3行 → 1行（GIN逆引きで color+size の両条件を同時評価）"
+        },
+        { id: "select", badge: "③ SELECT", bc: "badge-green",
+          label: "SELECT product_id, name",
+          desc: "絞り込まれた1行から product_id と name 列のみを出力します。metadata 列は SELECT に含まれないため非表示になります。GINインデックスがあればこの全工程が数ms で完了します（Seq Scan では数秒かかる場合がある）。",
+          type: "select",
+          cols: ["product_id", "name", "metadata"],
+          ch: ["col-select", "col-select"],
+          rows: [
+            { v: [1, "Tシャツ赤M", "(非表示)"], cc: ["", "", "val-dimmed"] }
+          ],
+          cnt: "結果: 1行 × 2列"
+        }
+      ],
+      sql: [
+        { t: "SELECT ", k: "sql-kw", h: "select" },
+        { t: "product_id, name\n", k: "", h: "select" },
+        { t: "FROM   ", k: "sql-kw", h: "from" },
+        { t: "products\n", k: "", h: "from" },
+        { t: "WHERE  ", k: "sql-kw", h: "where" },
+        { t: "metadata ", k: "", h: "where" },
+        { t: "@>", k: "sql-kw", h: "where" },
+        { t: " '{\"color\":\"red\",\"size\":\"M\"}';" , k: "", h: "where" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① 対象行（product_id=1）", bc: "badge-blue",
+          label: "JSONB演算子の比較 — 同じキーでも戻り値の型が変わる",
+          desc: "product_id=1 の metadata は {\"color\":\"red\",\"size\":\"M\",\"tags\":[\"sale\"]} です。この JSONB 値に対して 3 種類の演算子（-> / ->> / #>>）を適用すると、戻り値の型と用途がそれぞれ異なります。特に -> と ->> の混同が WHERE 句の型エラーを引き起こす最大の落とし穴です。",
+          type: "base",
+          cols: ["product_id", "name", "metadata (JSONB)"],
+          ch: ["col-base", "col-base", "col-base"],
+          rows: [
+            { v: [1, "Tシャツ赤M", '{"color":"red","size":"M","tags":["sale"]}'] }
+          ],
+          cnt: "対象: 1行 — 以降3ステップで演算子の型の違いを順に確認"
+        },
+        { id: "where", badge: "② -> 演算子（JSONB型）", bc: "badge-orange",
+          label: "metadata -> 'color' は JSONB 型で返すため WHERE 比較に使えない",
+          desc: "-> はキーに対応する値を JSONB 型のまま返します。文字列には二重引用符が付いたまま（\"red\"）返るため、WHERE 句で = 'red'（text型）と直接比較しようとすると型エラーになります。-> はネストアクセスの途中経路や JSON 型が必要な場面に限定して使います。",
+          type: "eval",
+          cols: ["式", "戻り値", "戻り値の型", "= 'red' 比較"],
+          ch: ["col-eval", "col-eval", "", ""],
+          rows: [
+            { v: ["metadata -> 'color'", '"red"（引用符あり）', "jsonb", "❌ 型エラー"], cc: ["val-pass", "val-pass", "", "val-fail"] },
+            { v: ["metadata -> 'tags'",  '["sale"]',           "jsonb", "— 配列のまま"],  cc: ["val-pass", "val-pass", "", ""] }
+          ],
+          cnt: "-> : JSONB型で返す — WHERE の等値比較・式インデックスには使えない"
+        },
+        { id: "sub", badge: "③ ->> 演算子（text型）", bc: "badge-orange",
+          label: "metadata ->> 'color' はテキスト型で返すので WHERE 比較・式インデックスに使える",
+          desc: "->> はキーに対応する値をテキスト型として返します。引用符が除去されるため（red）、WHERE 句の = 'red' 比較が可能になります。式インデックスも CREATE INDEX ON products ((metadata ->> 'color')) のように作成します。フィルタ目的では常にこちらを選びます。",
+          type: "eval",
+          cols: ["式", "戻り値", "戻り値の型", "= 'red' 比較"],
+          ch: ["col-eval", "col-eval", "", ""],
+          rows: [
+            { v: ["metadata ->> 'color'", "red（引用符なし）", "text", "✓ 可能"], cc: ["val-pass", "val-pass", "", "val-pass"] },
+            { v: ["metadata ->> 'size'",  "M（引用符なし）",  "text", "✓ 可能"], cc: ["val-pass", "val-pass", "", "val-pass"] }
+          ],
+          cnt: "->> : text型で返す — WHERE句の等値比較・式インデックスの基本演算子"
+        },
+        { id: "select", badge: "④ #>> 演算子（ネストパス）", bc: "badge-green",
+          label: "#>> '{tags,0}' でネストした要素に一度にアクセスできる",
+          desc: "#>> はパス配列（'{tags,0}' など）でネストした要素に一度にアクセスし、テキスト型として返します。配列のインデックス（0始まり）や深くネストしたオブジェクトに有効です。JSONB型で返す #> も同様の構文で、ネストの途中結果が欲しい場合に使います。",
+          type: "select",
+          cols: ["式", "パス", "戻り値", "戻り値の型"],
+          ch: ["col-select", "col-select", "col-select", "col-select"],
+          rows: [
+            { v: ["metadata #>> '{tags,0}'", "{tags} の 0番目", "sale",     "text"]  },
+            { v: ["metadata #>> '{color}'",  "{color}",         "red",      "text"]  },
+            { v: ["metadata #>  '{tags}'",   "{tags}（JSONB）", '["sale"]', "jsonb"] }
+          ],
+          cnt: "#>> / #> : パス配列でネスト要素に直接アクセス（text / jsonb を選択）"
+        }
+      ],
+      sql: [
+        { t: "SELECT\n",                   k: "sql-kw", h: "select" },
+        { t: "    metadata ",              k: "",       h: "where"  },
+        { t: "->",                         k: "sql-kw", h: "where"  },
+        { t: "  'color'  AS color_json,\n",k: "",       h: "where"  },
+        { t: "    metadata ",              k: "",       h: "sub"    },
+        { t: "->>",                        k: "sql-kw", h: "sub"    },
+        { t: " 'color'  AS color_text,\n", k: "",       h: "sub"    },
+        { t: "    metadata ",              k: "",       h: "select" },
+        { t: "#>>",                        k: "sql-kw", h: "select" },
+        { t: " '{tags,0}' AS first_tag\n", k: "",       h: "select" },
+        { t: "FROM   ",                    k: "sql-kw", h: "from"   },
+        { t: "products\n",                 k: "",       h: "from"   },
+        { t: "WHERE  ",                    k: "sql-kw", h: "from"   },
+        { t: "product_id = 1;",            k: "",       h: "from"   }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① 対象テーブル", bc: "badge-blue",
+          label: "式インデックス作成前の状態",
+          desc: "特定のキー（例: color）による等値検索が頻発する場合、JSONB全体へのGINインデックスよりも、そのキーだけを抽出したB-Tree式インデックスの方がサイズが小さく高速になります。",
+          type: "base",
+          cols: ["product_id", "name", "metadata (JSONB)"],
+          ch: ["col-base", "col-base", "col-base"],
+          rows: [
+            { v: [1, "Tシャツ赤M", '{"color":"red","size":"M","tags":["sale"]}'] },
+            { v: [2, "パンツ青L", '{"color":"blue","size":"L","tags":[]}'] },
+            { v: [3, "ジャケット赤S", '{"color":"red","size":"S","tags":["new"]}'] }
+          ],
+          cnt: "全3行"
+        },
+        { id: "where", badge: "② 式インデックスの内部イメージ", bc: "badge-orange",
+          label: "CREATE INDEX ON products ((metadata ->> 'color'))",
+          desc: "式インデックスを作成すると、指定した式（metadata ->> 'color'）の評価結果があらかじめ計算され、B-Treeインデックスとして保存されます。これにより、JSONBを毎回パースすることなく高速な検索が可能になります。",
+          type: "eval",
+          cols: ["product_id", "式: metadata ->> 'color'", "インデックス格納値"],
+          ch: ["col-eval", "col-eval", "col-eval"],
+          rows: [
+            { v: [1, "評価結果: red",  "'red'"] },
+            { v: [2, "評価結果: blue", "'blue'"] },
+            { v: [3, "評価結果: red",  "'red'"] }
+          ],
+          cnt: "抽出された text 値が B-Tree に格納される"
+        },
+        { id: "select", badge: "③ インデックス検索", bc: "badge-green",
+          label: "WHERE metadata ->> 'color' = 'red'",
+          desc: "クエリのWHERE句が式インデックスの定義と完全に一致しているため、B-Treeインデックスが使用されます。'red'に合致する行（1, 3）が瞬時に特定されます。",
+          type: "select",
+          cols: ["product_id", "name", "metadata ->> 'color'"],
+          ch: ["col-select", "col-select", "col-select"],
+          rows: [
+            { v: [1, "Tシャツ赤M",    "red"] },
+            { v: [3, "ジャケット赤S", "red"] }
+          ],
+          cnt: "結果: 2行（B-Tree Index Scan で高速取得）"
+        }
+      ],
+      sql: [
+        { t: "SELECT ", k: "sql-kw", h: "select" },
+        { t: "product_id, name\n", k: "", h: "select" },
+        { t: "FROM   ", k: "sql-kw", h: "from" },
+        { t: "products\n", k: "", h: "from" },
+        { t: "WHERE  ", k: "sql-kw", h: "where select" },
+        { t: "metadata ", k: "", h: "where select" },
+        { t: "->>", k: "sql-kw", h: "where select" },
+        { t: " 'color' = 'red';", k: "", h: "where select" }
+      ]
+    }
+  ],
   explain: `
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>JSONBとJSONの違いは「バイナリ格納かテキスト格納か」です。JSONB はキーが自動ソートされ重複キーが除去されるため、<code>@&gt;</code> 演算子やインデックスが使えます。JSON型（非JSONB）はテキストのまま格納されるためインデックスが使えず、常にJSONBを選ぶべきです。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>GINインデックスの更新コスト：</strong>GINインデックスは書き込み時に「ペンディングリスト」に溜めて非同期でインデックスに反映する仕組み（Fastupdate）を持ちます。書き込みが多い列にGINを張ると、Fastupdate のマージ処理が定期的に発生しI/Oが増えます。書き込み頻度が高い列には <code>WITH (fastupdate=off)</code> で無効化することも選択肢です。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>JSONB vs 正規化テーブル：</strong>JSONBは「スキーマが頻繁に変わる」「カラムが多様でスパース」な場合に有効です。一方、「常にセットで使う」「型安全性が必要」「複雑なJOINを行う」場合は正規化した通常のテーブルの方が保守性・パフォーマンスともに優れます。JSONBは「正規化の例外」として使うべきものです。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>JSONBとJSONの格納方式の違い：</strong>JSON型はテキストをそのまま格納するため、キー順序の保証・重複キーの除去・インデックス利用のいずれも不可です。JSONBはバイナリ格納でキーが自動ソートされ重複キーが除去されるため、<code>@&gt;</code> 演算子とGINインデックスが使えます。<strong>新規プロジェクトでは常にJSONBを選ぶ</strong>ことが鉄則です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>演算子の型を意識する（ビジュアライザ②で確認）：</strong><code>-&gt;</code> は JSONB型を返すため <code>= 'red'</code>（text比較）は型エラーになります。WHERE句のフィルタや式インデックスの作成には必ず <code>-&gt;&gt;</code>（text型を返す）を使います。ネストしたパスへの一括アクセスには <code>#&gt;&gt;</code>（text）または <code>#&gt;</code>（jsonb）を使います。この3種の違いを混同すると型エラーかインデックス不使用の原因になります。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>GINインデックスの更新コストとFastupdate：</strong>GINインデックスは書き込み時に「ペンディングリスト」に溜めて非同期でマージする仕組み（Fastupdate）を持ちます。書き込みが多い列にGINを張るとマージI/Oが定期的に発生します。書き込み頻度が高い列には <code>WITH (fastupdate=off)</code> で無効化し、即時マージさせることも選択肢です。また <code>jsonb_path_ops</code> オプションで <code>@&gt;</code> 専用に絞るとインデックスサイズも削減できます。</div></div>
+<div class="insight-row"><span class="insight-icon">📐</span><div class="insight-body"><strong>JSONB vs 正規化テーブルの設計判断：</strong>「スキーマが頻繁に変わる」「カラムが多様でスパース」な場合はJSONBが有効。「型安全性が必要」「JOINが複雑になる」場合は正規化テーブルの方が保守性・パフォーマンスともに優れます。<strong>共通属性はカラム・追加属性のみJSONBに格納するハイブリッド設計</strong>が実務ベストプラクティスです。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>-&gt;&gt;演算子で取得してからアプリ側でフィルタ：</strong><code>SELECT * FROM products</code> で全件取得してアプリ側でJSONBのcolorをフィルタするパターンです。SQLのWHERE句でフィルタしてインデックスを効かせることが基本です。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>全件取得してアプリ側でフィルタ：</strong><code>SELECT * FROM products</code> で全50万件を取得してアプリ側のループで color を比較するパターンです。SQLのWHERE句でGINインデックスを効かせてフィルタするのが鉄則。ネットワーク転送量も激増します。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>-> 演算子を WHERE 句の等値比較に使う：</strong><code>WHERE metadata -&gt; 'color' = 'red'</code> は型エラー（jsonb vs text）になります。必ず <code>-&gt;&gt;</code> を使い <code>WHERE metadata -&gt;&gt; 'color' = 'red'</code> と書いてください。式インデックスも <code>(metadata -&gt;&gt; 'color')</code> で作成します。</div></div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>JSON型（非JSONB）を使う：</strong>JSON型はインデックスも演算子も使えません。新しいプロジェクトではJSON型を使う理由はほぼないため、常にJSONBを選んでください。</div></div>
 </div>
 <div class="column-box">
@@ -574,105 +698,172 @@ const QS = [
 <tr class="tr-hi2"><td>2024-01-01</td><td class="tc-g">2</td><td class="tc-y">8000</td><td class="tc-hi">4000.00</td></tr>
 <tr class="tr-hi2"><td>2024-02-01</td><td class="tc-g">1</td><td class="tc-y">1200</td><td class="tc-hi">1200.00</td></tr>
 </table></div>`,
-  answer: `<pre><span class="cmt">-- ① Materialized View の作成（最初のREFRESHも同時に実行される）</span>
-<span class="kw">CREATE MATERIALIZED VIEW</span> mv_monthly_sales  <span class="cmt">-- 【超基礎】MVの名前を定義</span>
-<span class="kw">AS</span>
+  answer: `<pre><span class="cmt">-- ① Materialized View（MV）の作成</span>
+<span class="kw">CREATE MATERIALIZED VIEW</span> mv_monthly_sales <span class="kw">AS</span>
 <span class="kw">SELECT</span>
-    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at) <span class="kw">AS</span> month,  <span class="cmt">-- 【超基礎】月単位に丸める関数</span>
-    <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count,                 <span class="cmt">-- 【超基礎】各月の注文件数</span>
-    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount,                <span class="cmt">-- 【超基礎】各月の合計金額</span>
-    <span class="fn">AVG</span>(amount) <span class="kw">AS</span> avg_amount                   <span class="cmt">-- 【超基礎】各月の平均金額</span>
+    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at) <span class="kw">AS</span> month,
+    <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count,
+    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_amount,
+    <span class="fn">AVG</span>(amount) <span class="kw">AS</span> avg_amount
 <span class="kw">FROM</span>   <span class="tbl">orders</span>
 <span class="kw">GROUP BY</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, created_at)
 <span class="kw">ORDER BY</span> month
-<span class="kw">WITH DATA</span>;                                     <span class="cmt">-- 【超基礎】作成直後にデータを格納する</span>
+<span class="kw">WITH DATA</span>;  <span class="cmt">-- 作成直後にデータを格納</span>
 
-<span class="cmt">-- ② CONCURRENTLY更新のための一意インデックス（必須）</span>
+<span class="cmt">-- ② CONCURRENTLY更新用の一意インデックス（必須）</span>
 <span class="kw">CREATE UNIQUE INDEX</span> idx_mv_monthly_sales_month
-    <span class="kw">ON</span> mv_monthly_sales (month);               <span class="cmt">-- CONCURRENTLYに一意インデックスが必須</span>
+    <span class="kw">ON</span> mv_monthly_sales (month);
 
-<span class="cmt">-- ③ 定期更新（cron や pg_cron で実行 → ダッシュボードは古いデータを参照し続けられる）</span>
-<span class="kw">REFRESH MATERIALIZED VIEW CONCURRENTLY</span>        <span class="cmt">-- 【応用】参照ロックなしで更新（SELECT可能な状態を維持）</span>
-    mv_monthly_sales;                          <span class="cmt">-- 更新するMV名</span>
+<span class="cmt">-- ③ MVの定期更新（参照ロックなしで更新）</span>
+<span class="kw">REFRESH MATERIALIZED VIEW CONCURRENTLY</span> mv_monthly_sales;
 
-<span class="cmt">-- ④ ダッシュボードクエリ（元の5秒クエリの代わりにMVを参照）</span>
-<span class="kw">SELECT</span> month, order_count, total_amount, avg_amount  <span class="cmt">-- 【超基礎】MVをテーブルのように参照</span>
+<span class="cmt">-- ④ ダッシュボードクエリ（集計済みのMVを参照）</span>
+<span class="kw">SELECT</span> month, order_count, total_amount, avg_amount
 <span class="kw">FROM</span>   mv_monthly_sales
-<span class="kw">ORDER BY</span> month;                                <span class="cmt">-- 【超基礎】月順に並べる</span>
+<span class="kw">ORDER BY</span> month;
 
-<span class="cmt">-- ⑤ MVの最終更新時刻を確認する</span>
+<span class="cmt">-- ⑤ MVの最終更新時刻の確認</span>
 <span class="kw">SELECT</span> schemaname, matviewname, last_refresh
-<span class="kw">FROM</span>   pg_matviews                             <span class="cmt">-- MVのメタ情報テーブル</span>
+<span class="kw">FROM</span>   pg_matviews
 <span class="kw">WHERE</span>  matviewname <span class="op">=</span> <span class="str">'mv_monthly_sales'</span>;
 
 <span class="cmt">/*
   実行順序（④のクエリ）:
-  1. FROM mv_monthly_sales    → ディスクに保存済みの集計結果を直接読む（Seq Scan）
-  2. ORDER BY month           → 少数行（月数分）をソート
-  3. SELECT 列を返す          → 事前集計済みの結果を返す（集計処理は発生しない）
+  1. FROM     → ディスクに保存済みの集計結果を直接読み込む
+  2. ORDER BY → 月順にソート（集計処理は発生しない）
+  3. SELECT   → 結果を返す
 */</span></pre>`,
-  viz: {
-    steps: [
-      { id: "from", badge: "① FROM orders", bc: "badge-blue",
-        label: "FROM orders (1000万件・毎回 Seq Scan)",
-        desc: "通常ビューでは参照のたびに orders テーブル全体（1000万件）をスキャンして GROUP BY を実行します。これが5秒以上かかる原因です。",
-        type: "base",
-        cols: ["order_id", "user_id", "amount", "created_at"],
-        ch: ["col-base", "col-base", "col-base", "col-base"],
-        rows: [
-          { v: [1, "U001", "3,000", "2024-01-15"] },
-          { v: [2, "U002", "5,000", "2024-01-20"] },
-          { v: [3, "U001", "1,200", "2024-02-03"] }
-        ],
-        cnt: "全 1000万行 Seq Scan（5秒以上）"
-      },
-      { id: "group", badge: "② GROUP BY 集計", bc: "badge-orange",
-        label: "GROUP BY DATE_TRUNC('month', created_at)",
-        desc: "月単位にグループ化し COUNT(*) / SUM(amount) / AVG(amount) を計算します。MV作成時（WITH DATA）にのみ一度実行され、結果をディスクに保存します。",
-        type: "group",
-        cols: ["month", "order_count", "total_amount", "avg_amount"],
-        ch: ["col-eval", "col-eval", "col-eval", "col-eval"],
-        rows: [
-          { c: "row-grp-1", v: ["2024-01-01", 2, "8,000", "4,000.00"] },
-          { c: "row-grp-2", v: ["2024-02-01", 1, "1,200", "1,200.00"] }
-        ],
-        cnt: "1000万行 → 月数分の行（MV作成時のみ実行）"
-      },
-      { id: "select", badge: "③ MV参照（高速）", bc: "badge-green",
-        label: "SELECT * FROM mv_monthly_sales",
-        desc: "ダッシュボードは mv_monthly_sales を参照するだけです。保存済みの集計結果をそのまま読み返すため数msで返却されます。REFRESH まで同じ結果を返し続けます。",
-        type: "select",
-        cols: ["month", "order_count", "total_amount", "avg_amount"],
-        ch: ["col-select", "col-select", "col-select", "col-select"],
-        rows: [
-          { v: ["2024-01-01", 2, "8,000", "4,000.00"] },
-          { v: ["2024-02-01", 1, "1,200", "1,200.00"] }
-        ],
-        cnt: "結果: 2行（保存済みデータ → 数ms）"
-      }
-    ],
-    sql: [
-      { t: "SELECT\n",                    k: "sql-kw", h: "select" },
-      { t: "  month, order_count,\n",     k: "",       h: "select" },
-      { t: "  total_amount, avg_amount\n",k: "",       h: "select" },
-      { t: "FROM   ", k: "sql-kw", h: "from" },
-      { t: "mv_monthly_sales\n", k: "", h: "from" },
-      { t: "ORDER BY ", k: "sql-kw", h: "select" },
-      { t: "month;", k: "", h: "select" }
-    ]
-  },
+  viz: [
+    {
+      steps: [
+        { id: "from", badge: "① FROM orders（毎回Seq Scan）", bc: "badge-blue",
+          label: "通常ビュー: 参照のたびに orders 全件スキャン → 5秒以上",
+          desc: "通常ビューでは参照のたびに orders テーブル全体（1000万件）をスキャンして GROUP BY を実行します。ダッシュボードへの毎リクエストで同じ重い集計が繰り返されることが5秒以上かかる原因です。MVはこの集計結果をディスクに物理保存することで、次のステップ以降の高速参照を実現します。",
+          type: "base",
+          cols: ["order_id", "user_id", "amount", "created_at"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: [1, "U001", "3,000", "2024-01-15"] },
+            { v: [2, "U002", "5,000", "2024-01-20"] },
+            { v: [3, "U001", "1,200", "2024-02-03"] }
+          ],
+          cnt: "全 1000万行 Seq Scan（5秒以上）— 毎リクエスト実行が問題"
+        },
+        { id: "group", badge: "② GROUP BY 集計（MV作成時のみ）", bc: "badge-orange",
+          label: "GROUP BY DATE_TRUNC('month', created_at) — MV作成時に一度だけ実行",
+          desc: "月単位にグループ化し COUNT(*) / SUM(amount) / AVG(amount) を計算します。この重い集計は CREATE MATERIALIZED VIEW ... WITH DATA の実行時に一度だけ走り、結果をディスクに保存します。以降は REFRESH が呼ばれるまでこの保存済み結果を使い続けます。",
+          type: "group",
+          cols: ["month", "order_count", "total_amount", "avg_amount"],
+          ch: ["col-eval", "col-eval", "col-eval", "col-eval"],
+          rows: [
+            { c: "row-grp-1", v: ["2024-01-01", 2, "8,000", "4,000.00"] },
+            { c: "row-grp-2", v: ["2024-02-01", 1, "1,200", "1,200.00"] }
+          ],
+          cnt: "1000万行 → 月数分の行（MV作成時のみ実行 — 以降はディスク保存済み）"
+        },
+        { id: "select", badge: "③ MV参照（数ms）", bc: "badge-green",
+          label: "SELECT * FROM mv_monthly_sales — 保存済み結果を直接読むだけ",
+          desc: "ダッシュボードは mv_monthly_sales を参照するだけです。保存済みの集計結果をそのまま読み返すため数msで返却されます。REFRESH まで同じ結果を返し続けます。元テーブルに新規 INSERT があっても MV は変わらない点に注意（ビジュアライザ②で鮮度ライフサイクルを確認）。",
+          type: "select",
+          cols: ["month", "order_count", "total_amount", "avg_amount"],
+          ch: ["col-select", "col-select", "col-select", "col-select"],
+          rows: [
+            { v: ["2024-01-01", 2, "8,000", "4,000.00"] },
+            { v: ["2024-02-01", 1, "1,200", "1,200.00"] }
+          ],
+          cnt: "結果: 2行（保存済みデータ → 数ms で返却）"
+        }
+      ],
+      sql: [
+        { t: "SELECT\n",                    k: "sql-kw", h: "select" },
+        { t: "  month, order_count,\n",     k: "",       h: "select" },
+        { t: "  total_amount, avg_amount\n",k: "",       h: "select" },
+        { t: "FROM   ", k: "sql-kw", h: "from" },
+        { t: "mv_monthly_sales\n", k: "", h: "from" },
+        { t: "ORDER BY ", k: "sql-kw", h: "select" },
+        { t: "month;", k: "", h: "select" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① MV作成直後（WITH DATA）", bc: "badge-blue",
+          label: "CREATE MATERIALIZED VIEW ... WITH DATA — 作成と同時に集計実行・保存",
+          desc: "WITH DATA を指定すると MV 作成と同時に集計が実行され、結果がディスクに保存されます。この時点では orders テーブルの最新状態と MV の内容が一致しています（鮮度 = 100%）。",
+          type: "base",
+          cols: ["状態", "MV の内容", "orders との差分", "REFRESH 必要?"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: ["作成直後（WITH DATA）", "最新の集計済み結果", "差分なし（一致）", "—（不要）"] }
+          ],
+          cnt: "MV作成直後 — orders と MV が同期した状態"
+        },
+        { id: "group", badge: "② orders に新規 INSERT 後（MV は古いまま）", bc: "badge-orange",
+          label: "orders に新データが追加されても MV は自動更新されない",
+          desc: "orders テーブルに新しい注文が INSERT されても、MV は自動更新されません。この時点でダッシュボードにアクセスすると MV の古い集計値が表示されます。「許容できる遅延時間」を要件定義し、その間隔で REFRESH を実行するスケジュールを設定することが重要です。",
+          type: "eval",
+          cols: ["状態", "MV の内容", "orders との差分", "REFRESH 必要?"],
+          ch: ["", "col-eval", "col-eval", "col-eval"],
+          rows: [
+            { v: ["orders に INSERT 後", "古い集計値（ズレあり）", "新規注文が反映されていない", "✓ 必要"],
+              cc: ["", "val-fail", "val-fail", "val-pass"] }
+          ],
+          cnt: "orders 更新後 — MV が古くなる（REFRESH するまで差分が広がり続ける）"
+        },
+        { id: "where", badge: "③ REFRESH CONCURRENTLY（ロックなし更新）", bc: "badge-orange",
+          label: "REFRESH CONCURRENTLY — ダッシュボードをブロックせずに MV を更新",
+          desc: "REFRESH CONCURRENTLY は一意インデックスを使って差分のみを更新し、更新中も MV への SELECT をブロックしません。ロックなし版（CONCURRENTLY なし）は AccessExclusiveLock で MV 全体をロックするため、実行中はダッシュボードが応答不能になります。本番では必ず CONCURRENTLY を使います。",
+          type: "eval",
+          cols: ["方式", "更新中の SELECT", "一意インデックス", "更新コスト"],
+          ch: ["col-eval", "col-eval", "", ""],
+          rows: [
+            { v: ["CONCURRENTLY あり",  "✓ 参照可能（ノーブロック）", "必須", "やや高い（差分計算あり）"], cc: ["val-pass", "val-pass", "", ""] },
+            { v: ["CONCURRENTLY なし",  "❌ 完全ブロック（秒単位）", "不要", "低い（単純全更新）"],       cc: ["val-fail", "val-fail", "", ""] }
+          ],
+          cnt: "本番では CONCURRENTLY 必須 — 一意インデックスを事前に作成すること"
+        },
+        { id: "select", badge: "④ REFRESH 完了後（最新化）", bc: "badge-green",
+          label: "REFRESH 完了 — MV が orders と再び同期した状態に戻る",
+          desc: "REFRESH 完了後は MV の内容が orders の現在の集計値と一致します。pg_cron で 10〜60 分おきに CONCURRENTLY REFRESH をスケジュールすることで、「許容範囲内の鮮度」を維持できます。",
+          type: "select",
+          cols: ["状態", "MV の内容", "orders との差分", "ダッシュボード応答"],
+          ch: ["col-select", "col-select", "col-select", "col-select"],
+          rows: [
+            { v: ["REFRESH 完了後", "最新の集計済み結果", "差分なし（再同期）", "数ms（高速）"] }
+          ],
+          cnt: "REFRESH 後 — MV が最新化され、鮮度が回復した状態"
+        }
+      ],
+      sql: [
+        { t: "-- 一意インデックス（CONCURRENTLY必須）\n", k: "sql-kw", h: "from" },
+        { t: "CREATE UNIQUE INDEX ", k: "sql-kw", h: "from" },
+        { t: "idx_mv_month\n  ON mv_monthly_sales (month);\n\n", k: "", h: "from" },
+        { t: "-- 定期REFRESH（ロックなし）\n", k: "sql-kw", h: "where" },
+        { t: "REFRESH MATERIALIZED VIEW ", k: "sql-kw", h: "where" },
+        { t: "CONCURRENTLY\n", k: "sql-kw", h: "where" },
+        { t: "  mv_monthly_sales;\n\n", k: "", h: "where" },
+        { t: "-- 最終更新時刻の確認\n", k: "sql-kw", h: "select" },
+        { t: "SELECT ", k: "sql-kw", h: "select" },
+        { t: "matviewname, last_refresh\n", k: "", h: "select" },
+        { t: "FROM   ", k: "sql-kw", h: "select" },
+        { t: "pg_matviews\n", k: "", h: "select" },
+        { t: "WHERE  ", k: "sql-kw", h: "select" },
+        { t: "matviewname = 'mv_monthly_sales';", k: "", h: "select" }
+      ]
+    }
+  ],
   explain: `
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>Materialized Viewは「計算結果を保存したテーブル」と思ってください。ダッシュボードや分析画面など「リアルタイム性よりも速度を優先したい」場面に最適です。元テーブルが更新されてもMVには自動で反映されないため、「許容できる遅延時間」を要件として決めてからREFREHのスケジュールを設定します。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>pg_cronで定期REFRESH：</strong>PostgreSQL拡張の <code>pg_cron</code> を使うと、DB内から定期的にREFRESHをスケジュールできます。<code>SELECT cron.schedule('*/10 * * * *', 'REFRESH MATERIALIZED VIEW CONCURRENTLY mv_monthly_sales')</code> で10分おきにREFRESHできます。外部のcronサーバーが不要になり、DB側で完結します。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>MVにインデックスを張れる：</strong>MVは通常テーブルと同様にインデックスを作成できます。CONCURRENT REFRESHに必要な一意インデックス以外にも、よく使うWHERE条件やJOIN条件用のインデックスをMVに追加することでさらに高速化できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>MVは「結果を保存したテーブル」：</strong>Materialized View は「計算結果を保存したテーブル」です。ダッシュボードや分析画面など「リアルタイム性よりも速度を優先したい」場面に最適です。元テーブルが更新されても MV は自動反映されないため、「許容できる遅延時間」を要件定義してから REFRESH スケジュールを設定します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CONCURRENTLY の必要性（ビジュアライザ②で確認）：</strong>ビジュアライザ②のステップ③で示したように、CONCURRENTLY なしの REFRESH は AccessExclusiveLock で MV を完全ブロックします。本番ではダッシュボードが秒単位で応答不能になるため、必ず CONCURRENTLY を使います。一意インデックスが事前に存在することが前提条件です。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>pg_cronで定期REFRESH：</strong>PostgreSQL拡張の <code>pg_cron</code> を使うと、DB内から定期的にREFRESHをスケジュールできます。<code>SELECT cron.schedule('*/10 * * * *', 'REFRESH MATERIALIZED VIEW CONCURRENTLY mv_monthly_sales')</code> で10分おきにREFRESHできます。外部のcronサーバーが不要になり、DB側で完結します。</div></div>
+<div class="insight-row"><span class="insight-icon">📐</span><div class="insight-body"><strong>MVにもインデックスを張れる：</strong>MVは通常テーブルと同様にインデックスを作成できます。CONCURRENTLY REFRESH に必要な一意インデックス以外にも、よく使う WHERE 条件や ORDER BY 用のインデックスを追加することでさらに高速化できます。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
 <div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>リアルタイム性が必要な画面にMVを使う：</strong>注文確定直後に「最新の集計」を表示する画面にMVを使うと、REFRESHのタイミングまで古いデータが表示されます。MVは「多少古くても良い」ダッシュボード・分析・レポートに限定してください。</div></div>
-<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CONCURRENTLY なしでピーク時にREFRESHする：</strong>CONCURRENTLY なしのREFRESHは AccessExclusiveLock を取得するためMVへの参照が完全にブロックされます。トラフィックが多い時間帯に実行するとダッシュボードが数秒間応答不能になります。必ずCONCURRENTLYを使うか、低トラフィック時間帯に実行してください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CONCURRENTLY なしでピーク時にREFRESHする：</strong>CONCURRENTLY なしのREFRESHは AccessExclusiveLock を取得するためMVへの参照が完全にブロックされます。必ずCONCURRENTLYを使うか、低トラフィック時間帯に実行してください。</div></div>
 </div>
 <div class="column-box">
 <div class="column-title">☕ 実務コラム：MVとRedisキャッシュの使い分け</div>
@@ -727,40 +918,36 @@ const QS = [
 <tr><td>C001</td><td>P002</td><td>1</td><td>2024-09-01 10:05</td></tr>
 <tr class="tr-hi2"><td>C001</td><td>P003</td><td class="tc-g">1（新規）</td><td class="tc-hi">2024-09-01 11:00</td></tr>
 </table></div>`,
-  answer: `<pre><span class="cmt">-- ① 基本UPSERT：カートに商品を追加or数量を1増やす</span>
-<span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (         <span class="cmt">-- 【超基礎】INSERTのテーブルと列を指定</span>
-    cart_id, product_id, quantity, updated_at
-)
-<span class="kw">VALUES</span> (
-    <span class="str">'C001'</span>, <span class="str">'P001'</span>, <span class="num">1</span>, <span class="fn">NOW</span>()        <span class="cmt">-- 【超基礎】挿入する値（競合時はEXCLUDEDで参照できる）</span>
-)
-<span class="kw">ON CONFLICT</span> (cart_id, product_id) <span class="cmt">-- 【超基礎】この2列のUNIQUE制約で衝突を検出する</span>
-<span class="kw">DO UPDATE SET</span>                      <span class="cmt">-- 【超基礎】衝突（すでに存在）した場合の更新処理</span>
-    quantity   <span class="op">=</span> <span class="tbl">cart_items</span>.quantity <span class="op">+</span> <span class="kw">EXCLUDED</span>.quantity,  <span class="cmt">-- 既存量 + 新規量（加算）</span>
-    updated_at <span class="op">=</span> <span class="kw">EXCLUDED</span>.updated_at; <span class="cmt">-- 【応用】EXCLUDED=INSERTしようとした値</span>
+  answer: `<pre><span class="cmt">-- ① 基本UPSERT：カートに商品を追加または数量を1増やす</span>
+<span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (cart_id, product_id, quantity, updated_at)
+<span class="kw">VALUES</span> (<span class="str">'C001'</span>, <span class="str">'P001'</span>, <span class="num">1</span>, <span class="fn">NOW</span>())
+<span class="kw">ON CONFLICT</span> (cart_id, product_id)  <span class="cmt">-- UNIQUE制約での衝突検出</span>
+<span class="kw">DO UPDATE SET</span>                      <span class="cmt">-- 衝突（既存データあり）時の更新処理</span>
+    quantity   <span class="op">=</span> <span class="tbl">cart_items</span>.quantity <span class="op">+</span> <span class="kw">EXCLUDED</span>.quantity,  <span class="cmt">-- 既存量に新規量を加算</span>
+    updated_at <span class="op">=</span> <span class="kw">EXCLUDED</span>.updated_at;                      <span class="cmt">-- EXCLUDED = 新たに挿入しようとした値</span>
 
-<span class="cmt">-- ② 無視パターン：同じ（cart_id, product_id）が来たら何もしない</span>
+<span class="cmt">-- ② 無視パターン：同じキーが来たら何もしない</span>
 <span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (cart_id, product_id, quantity, updated_at)
 <span class="kw">VALUES</span> (<span class="str">'C001'</span>, <span class="str">'P001'</span>, <span class="num">1</span>, <span class="fn">NOW</span>())
 <span class="kw">ON CONFLICT</span> (cart_id, product_id)
-<span class="kw">DO NOTHING</span>;                         <span class="cmt">-- 【応用】衝突時に何もしない（重複挿入防止のみ）</span>
+<span class="kw">DO NOTHING</span>;  <span class="cmt">-- 衝突時は無視（重複挿入の防止）</span>
 
-<span class="cmt">-- ③ 上書きパターン：新しい数量で強制上書き（在庫同期などに使う）</span>
+<span class="cmt">-- ③ 上書きパターン：条件付き上書き（楽観的ロック）</span>
 <span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (cart_id, product_id, quantity, updated_at)
 <span class="kw">VALUES</span> (<span class="str">'C001'</span>, <span class="str">'P003'</span>, <span class="num">5</span>, <span class="fn">NOW</span>())
 <span class="kw">ON CONFLICT</span> (cart_id, product_id)
 <span class="kw">DO UPDATE SET</span>
-    quantity   <span class="op">=</span> <span class="kw">EXCLUDED</span>.quantity,   <span class="cmt">-- 既存を無視して新しい値で上書き</span>
+    quantity   <span class="op">=</span> <span class="kw">EXCLUDED</span>.quantity,
     updated_at <span class="op">=</span> <span class="kw">EXCLUDED</span>.updated_at
-<span class="kw">WHERE</span>                                  <span class="cmt">-- 【応用】WHERE句で楽観ロック（古いデータなら上書きしない）</span>
-    <span class="tbl">cart_items</span>.updated_at <span class="op">&lt;</span> <span class="kw">EXCLUDED</span>.updated_at;  <span class="cmt">-- 既存の方が新しければスキップ</span>
+<span class="kw">WHERE</span>  <span class="cmt">-- 既存データより新しいタイムスタンプを持つ場合のみ更新</span>
+    <span class="tbl">cart_items</span>.updated_at <span class="op">&lt;</span> <span class="kw">EXCLUDED</span>.updated_at;
 
-<span class="cmt">-- ④ 複数行をまとめてUPSERT（バッチ更新に使う）</span>
+<span class="cmt">-- ④ 複数行バッチUPSERT</span>
 <span class="kw">INSERT INTO</span> <span class="tbl">cart_items</span> (cart_id, product_id, quantity, updated_at)
 <span class="kw">VALUES</span>
-    (<span class="str">'C001'</span>, <span class="str">'P001'</span>, <span class="num">2</span>, <span class="fn">NOW</span>()),      <span class="cmt">-- 行1</span>
-    (<span class="str">'C001'</span>, <span class="str">'P002'</span>, <span class="num">3</span>, <span class="fn">NOW</span>()),      <span class="cmt">-- 行2（複数行を1クエリでUPSERT）</span>
-    (<span class="str">'C001'</span>, <span class="str">'P004'</span>, <span class="num">1</span>, <span class="fn">NOW</span>())       <span class="cmt">-- 行3（新規挿入）</span>
+    (<span class="str">'C001'</span>, <span class="str">'P001'</span>, <span class="num">2</span>, <span class="fn">NOW</span>()),
+    (<span class="str">'C001'</span>, <span class="str">'P002'</span>, <span class="num">3</span>, <span class="fn">NOW</span>()),
+    (<span class="str">'C001'</span>, <span class="str">'P004'</span>, <span class="num">1</span>, <span class="fn">NOW</span>())
 <span class="kw">ON CONFLICT</span> (cart_id, product_id)
 <span class="kw">DO UPDATE SET</span>
     quantity   <span class="op">=</span> <span class="kw">EXCLUDED</span>.quantity,
@@ -768,75 +955,194 @@ const QS = [
 
 <span class="cmt">/*
   実行順序（①のクエリ）:
-  1. INSERT VALUES を試みる         → 新規行として挿入を試みる
-  2. ON CONFLICT 検出               → (cart_id, product_id) のUNIQUE制約に違反を検知
-  3. DO UPDATE SET                  → 既存行を更新（quantity加算、updated_at更新）
-  4. 影響行数を返す                 → INSERT=0行, UPDATE=1行（または逆）
+  1. INSERT        → 新規行の挿入を試みる
+  2. ON CONFLICT   → UNIQUE制約違反を検知
+  3. DO UPDATE SET → 既存行の値を更新
+  4. 結果          → 影響行数を返す
 */</span></pre>`,
-  viz: {
-    steps: [
-      { id: "from", badge: "① INSERT VALUES", bc: "badge-blue",
-        label: "INSERT INTO cart_items VALUES ('C001','P001',1,NOW())",
-        desc: "新しい行 (C001, P001, 数量1) を挿入しようとします。INSERT の直前に UNIQUE 制約 (cart_id, product_id) のチェックが行われます。",
-        type: "base",
-        cols: ["cart_id", "product_id", "quantity", "updated_at"],
-        ch: ["col-base", "col-base", "col-base", "col-base"],
-        rows: [
-          { v: ["C001", "P001", 2, "2024-09-01 10:00"] },
-          { v: ["C001", "P002", 1, "2024-09-01 10:05"] }
-        ],
-        cnt: "現在のテーブル（2行）"
-      },
-      { id: "where", badge: "② ON CONFLICT 検出", bc: "badge-orange",
-        label: "ON CONFLICT (cart_id, product_id)",
-        desc: "(C001, P001) は既にテーブルに存在するため UNIQUE 制約に違反します。INSERT を中止し DO UPDATE に切り替えます。EXCLUDED は「挿入しようとした行」を指す仮想テーブルです。",
-        type: "eval",
-        cols: ["cart_id", "product_id", "既存 quantity", "EXCLUDED.quantity"],
-        ch: ["col-eval", "col-eval", "", "col-eval"],
-        rows: [
-          { v: ["C001", "P001", "2 (既存)", "1 (EXCLUDED)"], cc: ["val-pass", "val-pass", "", "val-pass"] },
-          { v: ["C001", "P002", "1 (既存)", "—"],            cc: ["", "", "", "val-dimmed"] }
-        ],
-        cnt: "CONFLICT 検出: 1件 → DO UPDATE へ"
-      },
-      { id: "select", badge: "③ DO UPDATE SET", bc: "badge-green",
-        label: "quantity = cart_items.quantity + EXCLUDED.quantity",
-        desc: "既存の quantity(2) に EXCLUDED の quantity(1) を加算して 3 にします。updated_at も NOW() で更新されます。アトミックな操作のため並行リクエストでも安全です。",
-        type: "select",
-        cols: ["cart_id", "product_id", "quantity", "updated_at"],
-        ch: ["", "", "col-select", "col-select"],
-        rows: [
-          { v: ["C001", "P001", "3（2+1）", "2024-09-01 11:00"], cc: ["", "", "val-pass", "val-pass"] },
-          { v: ["C001", "P002", 1,          "2024-09-01 10:05"] }
-        ],
-        cnt: "結果: P001 quantity 2→3（アトミック更新）"
-      }
-    ],
-    sql: [
-      { t: "INSERT INTO ", k: "sql-kw", h: "from" },
-      { t: "cart_items\n", k: "", h: "from" },
-      { t: "  (cart_id, product_id, quantity, updated_at)\n", k: "", h: "from" },
-      { t: "VALUES ", k: "sql-kw", h: "from" },
-      { t: "('C001', 'P001', 1, NOW())\n", k: "", h: "from" },
-      { t: "ON CONFLICT ", k: "sql-kw", h: "where" },
-      { t: "(cart_id, product_id)\n", k: "", h: "where" },
-      { t: "DO UPDATE SET\n", k: "sql-kw", h: "where" },
-      { t: "  quantity   = cart_items.quantity\n", k: "", h: "select" },
-      { t: "             + ", k: "", h: "select" },
-      { t: "EXCLUDED", k: "sql-kw", h: "select" },
-      { t: ".quantity,\n", k: "", h: "select" },
-      { t: "  updated_at = ", k: "", h: "select" },
-      { t: "EXCLUDED", k: "sql-kw", h: "select" },
-      { t: ".updated_at;", k: "", h: "select" }
-    ]
-  },
+  viz: [
+    {
+      steps: [
+        { id: "from", badge: "① INSERT VALUES — テーブルの現状", bc: "badge-blue",
+          label: "INSERT INTO cart_items VALUES ('C001','P001',1,NOW()) を試みる",
+          desc: "新しい行 (C001, P001, 数量1) を挿入しようとします。INSERT の直前に UNIQUE 制約 (cart_id, product_id) のチェックが行われます。この時点のテーブルには既に (C001, P001) が存在しているため、衝突が検出されます。",
+          type: "base",
+          cols: ["cart_id", "product_id", "quantity", "updated_at"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: ["C001", "P001", 2, "2024-09-01 10:00"] },
+            { v: ["C001", "P002", 1, "2024-09-01 10:05"] }
+          ],
+          cnt: "現在のテーブル（2行）— (C001,P001) はすでに存在"
+        },
+        { id: "where", badge: "② ON CONFLICT 検出 — 衝突判定", bc: "badge-orange",
+          label: "ON CONFLICT (cart_id, product_id) — UNIQUE制約違反を検出してDO UPDATEへ",
+          desc: "(C001, P001) は既にテーブルに存在するため UNIQUE 制約に違反します。INSERT を中止し DO UPDATE に切り替えます。EXCLUDED は「挿入しようとしたが弾かれた行」を指す仮想テーブルで、新しい値（数量1）を参照するために使います。",
+          type: "eval",
+          cols: ["cart_id", "product_id", "既存 quantity", "EXCLUDED.quantity（新）"],
+          ch: ["col-eval", "col-eval", "", "col-eval"],
+          rows: [
+            { v: ["C001", "P001", "2（既存）", "1（EXCLUDED）"], cc: ["val-pass", "val-pass", "", "val-pass"] },
+            { v: ["C001", "P002", "1（既存）", "— 対象外"],     cc: ["", "", "", "val-dimmed"] }
+          ],
+          cnt: "CONFLICT 検出: 1件 → DO UPDATE へ切り替え（アトミックに実行）"
+        },
+        { id: "select", badge: "③ DO UPDATE SET — 更新後の状態", bc: "badge-green",
+          label: "quantity = cart_items.quantity + EXCLUDED.quantity → 2+1=3",
+          desc: "既存の quantity(2) に EXCLUDED の quantity(1) を加算して 3 にします。updated_at も NOW() で更新されます。SELECT → INSERT/UPDATE の3ステップ方式と違い、UPSERT はアトミックな1操作なので並行リクエストでもデータ整合性が保たれます（TOCTOU競合が発生しない）。",
+          type: "select",
+          cols: ["cart_id", "product_id", "quantity", "updated_at"],
+          ch: ["", "", "col-select", "col-select"],
+          rows: [
+            { v: ["C001", "P001", "3（2+1 加算）", "2024-09-01 11:00"], cc: ["", "", "val-pass", "val-pass"] },
+            { v: ["C001", "P002", 1,               "2024-09-01 10:05"] }
+          ],
+          cnt: "結果: P001 quantity 2→3（アトミックに更新・並行安全）"
+        }
+      ],
+      sql: [
+        { t: "INSERT INTO ", k: "sql-kw", h: "from" },
+        { t: "cart_items\n", k: "", h: "from" },
+        { t: "  (cart_id, product_id, quantity, updated_at)\n", k: "", h: "from" },
+        { t: "VALUES ", k: "sql-kw", h: "from" },
+        { t: "('C001', 'P001', 1, NOW())\n", k: "", h: "from" },
+        { t: "ON CONFLICT ", k: "sql-kw", h: "where" },
+        { t: "(cart_id, product_id)\n", k: "", h: "where" },
+        { t: "DO UPDATE SET\n", k: "sql-kw", h: "where" },
+        { t: "  quantity   = cart_items.quantity\n", k: "", h: "select" },
+        { t: "             + ", k: "", h: "select" },
+        { t: "EXCLUDED", k: "sql-kw", h: "select" },
+        { t: ".quantity,\n", k: "", h: "select" },
+        { t: "  updated_at = ", k: "", h: "select" },
+        { t: "EXCLUDED", k: "sql-kw", h: "select" },
+        { t: ".updated_at;", k: "", h: "select" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① バッチINSERT前のテーブル", bc: "badge-blue",
+          label: "複数行 VALUES をまとめて送る — DB往復1回でN行をUPSERT",
+          desc: "バッチ処理でよくある「N行をループで1件ずつ UPSERT」はDB往復がN回発生します。複数行を1つの VALUES リストにまとめてUPSERTすることでDB往復を1回に削減できます。ここでは P001・P002・P004 の3行を1クエリで送るケースを示します。",
+          type: "base",
+          cols: ["cart_id", "product_id", "quantity", "updated_at"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: ["C001", "P001", 2, "2024-09-01 10:00"] },
+            { v: ["C001", "P002", 1, "2024-09-01 10:05"] }
+          ],
+          cnt: "バッチ前のテーブル（2行）— P004 はまだ存在しない"
+        },
+        { id: "where", badge: "② ON CONFLICT 判定（各行を個別に評価）", bc: "badge-orange",
+          label: "P001・P002 は衝突（DO UPDATE）、P004 は新規（INSERT）",
+          desc: "VALUES リストの各行が独立して UNIQUE 制約チェックされます。P001（既存）と P002（既存）は衝突してDO UPDATEが実行され、P004（未存在）は衝突なしでそのままINSERTされます。1クエリで INSERT と UPDATE が混在することがUPSERTの最大の強みです。",
+          type: "eval",
+          cols: ["product_id", "送信量(EXCLUDED)", "既存量", "判定", "処理"],
+          ch: ["col-eval", "col-eval", "", "col-eval", ""],
+          rows: [
+            { v: ["P001", "2（新）", "2（既存）", "CONFLICT", "DO UPDATE → 上書き"], cc: ["val-pass", "val-pass", "", "val-fail", ""] },
+            { v: ["P002", "3（新）", "1（既存）", "CONFLICT", "DO UPDATE → 上書き"], cc: ["val-pass", "val-pass", "", "val-fail", ""] },
+            { v: ["P004", "1（新）", "— なし",   "NO CONFLICT", "INSERT → 新規追加"], cc: ["val-pass", "val-pass", "", "val-pass", ""] }
+          ],
+          cnt: "3行送信 → 2行UPDATE + 1行INSERT（DB往復1回）"
+        },
+        { id: "select", badge: "③ バッチUPSERT後のテーブル", bc: "badge-green",
+          label: "1クエリで P001・P002 が更新、P004 が新規追加された状態",
+          desc: "P001 は 2→2（上書き）、P002 は 1→3（上書き）、P004 が新規挿入されました。ループで1件ずつ送れば3往復かかるところを1往復で完了しています。1000〜5000行をまとめてUPSERTするチャンク設計が実務ベストプラクティスです（Q10バッチチャンク処理と組み合わせると効果的）。",
+          type: "select",
+          cols: ["cart_id", "product_id", "quantity", "updated_at"],
+          ch: ["", "", "col-select", "col-select"],
+          rows: [
+            { v: ["C001", "P001", "2（上書き）", "2024-09-01 11:00"], cc: ["", "", "val-pass", "val-pass"] },
+            { v: ["C001", "P002", "3（1→3）",   "2024-09-01 11:00"], cc: ["", "", "val-pass", "val-pass"] },
+            { v: ["C001", "P004", "1（新規）",   "2024-09-01 11:00"], cc: ["", "", "val-pass", "val-pass"] }
+          ],
+          cnt: "結果: DB往復1回で 2行UPDATE + 1行INSERT 完了"
+        }
+      ],
+      sql: [
+        { t: "INSERT INTO ", k: "sql-kw", h: "from" },
+        { t: "cart_items\n", k: "", h: "from" },
+        { t: "  (cart_id, product_id, quantity, updated_at)\n", k: "", h: "from" },
+        { t: "VALUES\n", k: "sql-kw", h: "from" },
+        { t: "  ('C001','P001',2,NOW()),\n", k: "", h: "where" },
+        { t: "  ('C001','P002',3,NOW()),\n", k: "", h: "where" },
+        { t: "  ('C001','P004',1,NOW())\n",  k: "", h: "where" },
+        { t: "ON CONFLICT ", k: "sql-kw", h: "where" },
+        { t: "(cart_id, product_id)\n", k: "", h: "where" },
+        { t: "DO UPDATE SET\n", k: "sql-kw", h: "select" },
+        { t: "  quantity   = ", k: "", h: "select" },
+        { t: "EXCLUDED", k: "sql-kw", h: "select" },
+        { t: ".quantity,\n", k: "", h: "select" },
+        { t: "  updated_at = ", k: "", h: "select" },
+        { t: "EXCLUDED", k: "sql-kw", h: "select" },
+        { t: ".updated_at;", k: "", h: "select" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① DO NOTHING（無視パターン）", bc: "badge-blue",
+          label: "ON CONFLICT DO NOTHING — 重複時は何もしない",
+          desc: "すでに (C001, P001) が存在する場合、DO NOTHING を指定するとエラーにならず、単にINSERTがスキップされます。重複の可能性がある初期データ投入や、初回アクセス時のレコード作成などで重宝します。",
+          type: "base",
+          cols: ["処理", "対象データ", "衝突判定", "結果"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: ["INSERT 試行", "(C001, P001, qty=1)", "CONFLICT（既存あり）", "スキップ（影響行数0）"] }
+          ],
+          cnt: "DO NOTHING: 既存レコードは変更されず維持される"
+        },
+        { id: "where", badge: "② 楽観的ロック（新しいデータで上書き）", bc: "badge-orange",
+          label: "WHERE cart_items.updated_at < EXCLUDED.updated_at",
+          desc: "外部システムからのデータ同期などでは、到着順序が前後する可能性があります。DO UPDATE SET の後に WHERE 句をつけることで、「既存データより新しいタイムスタンプを持つ場合のみ更新する」という楽観的ロック（冪等性保証）が実現できます。",
+          type: "eval",
+          cols: ["既存 updated_at", "送信 updated_at", "WHERE 評価", "結果"],
+          ch: ["col-eval", "col-eval", "", "col-eval"],
+          rows: [
+            { v: ["10:00", "11:00（新しい）", "10:00 < 11:00 → true", "✓ DO UPDATE 実行"], cc: ["", "", "", "val-pass"] }
+          ],
+          cnt: "新しいデータが来た場合: 更新される"
+        },
+        { id: "select", badge: "③ 楽観的ロック（古いデータをスキップ）", bc: "badge-green",
+          label: "順序逆転（古いデータが遅れて到着した場合）",
+          desc: "ネットワークの遅延などで、古いタイムスタンプのデータが後から到着した場合です。WHERE 条件が false になるため、DO UPDATE は実行されず、既存の新しいデータが保護されます。これがUPSERTにおける「安全な上書き」のベストプラクティスです。",
+          type: "eval",
+          cols: ["既存 updated_at", "送信 updated_at", "WHERE 評価", "結果"],
+          ch: ["col-eval", "col-eval", "", "col-eval"],
+          rows: [
+            { v: ["11:00", "10:30（古い）", "11:00 < 10:30 → false", "✗ 更新スキップ"], cc: ["", "", "", "val-fail"] }
+          ],
+          cnt: "古いデータが遅れて来た場合: 更新されず保護される"
+        }
+      ],
+      sql: [
+        { t: "INSERT INTO ", k: "sql-kw", h: "from" },
+        { t: "cart_items (cart_id, product_id, quantity, updated_at)\n", k: "", h: "from" },
+        { t: "VALUES ", k: "sql-kw", h: "from" },
+        { t: "('C001', 'P001', 5, '2024-09-01 10:30')\n", k: "", h: "from" },
+        { t: "ON CONFLICT ", k: "sql-kw", h: "where select" },
+        { t: "(cart_id, product_id)\n", k: "", h: "where select" },
+        { t: "DO UPDATE SET\n", k: "sql-kw", h: "where select" },
+        { t: "  quantity   = ", k: "", h: "where select" },
+        { t: "EXCLUDED", k: "sql-kw", h: "where select" },
+        { t: ".quantity,\n", k: "", h: "where select" },
+        { t: "  updated_at = ", k: "", h: "where select" },
+        { t: "EXCLUDED", k: "sql-kw", h: "where select" },
+        { t: ".updated_at\n", k: "", h: "where select" },
+        { t: "WHERE ", k: "sql-kw", h: "where select" },
+        { t: "cart_items.updated_at < ", k: "", h: "where select" },
+        { t: "EXCLUDED", k: "sql-kw", h: "where select" },
+        { t: ".updated_at;", k: "", h: "where select" }
+      ]
+    }
+  ],
   explain: `
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>UPSERT の ON CONFLICT は「挿入しようとしたがUNIQUE制約に違反した場合に何をするか」を指定します。<code>EXCLUDED</code> は「INSERTしようとしたが弾かれた行」を指す仮想テーブル名で、新しい値を参照するために使います。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ON CONFLICT の対象制約を明示する：</strong><code>ON CONFLICT ON CONSTRAINT constraint_name</code> のように制約名で指定することもできます。テーブルにUNIQUE制約が複数ある場合は、どの制約で衝突を判定するかを列名または制約名で明示してください。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>RETURNING句で更新結果を取得する：</strong><code>INSERT ... ON CONFLICT ... RETURNING *</code> を追加すると、INSERT/UPDATEいずれの場合でも最終的な行の状態を返します。「UPSERTした結果のIDや updated_at を返したい」APIに便利です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>EXCLUDED は「弾かれた行」を指す仮想テーブル：</strong>ON CONFLICT は「挿入しようとしたがUNIQUE制約に違反した場合に何をするか」を指定します。<code>EXCLUDED</code> は「INSERTしようとしたが弾かれた行」を指す仮想テーブル名で、DO UPDATE SET の右辺で新しい値を参照するために使います。<code>cart_items.quantity</code>（既存値）と <code>EXCLUDED.quantity</code>（新規値）の使い分けが鍵です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>多行UPSERTでDB往復を1回に削減（ビジュアライザ②で確認）：</strong>ビジュアライザ②で示したように、複数行を VALUES リストにまとめると1クエリで INSERT と UPDATE が混在実行されます。ループで1件ずつ送る場合のN往復が1往復に削減され、スループットが大幅に向上します。1000〜5000行をまとめるチャンク設計が実務ベストプラクティスです。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>RETURNING句でUPSERT結果を返す：</strong><code>INSERT ... ON CONFLICT ... RETURNING *</code> を追加すると、INSERT/UPDATEいずれの場合でも最終的な行の状態を返します。「UPSERTした結果の ID や updated_at をAPIレスポンスで返したい」場面に便利で、追加のSELECTが不要になります。</div></div>
+<div class="insight-row"><span class="insight-icon">📐</span><div class="insight-body"><strong>ON CONFLICT の対象制約を明示する：</strong><code>ON CONFLICT ON CONSTRAINT constraint_name</code> のように制約名でも指定できます。テーブルにUNIQUE制約が複数ある場合は、どの制約で衝突を判定するかを列名または制約名で必ず明示してください。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
@@ -902,35 +1208,35 @@ const QS = [
 </table></div>`,
   answer: `<pre><span class="cmt">-- ① 購入実績のあるユーザー（3方式の比較）</span>
 
-<span class="cmt">-- [EXISTS版] 相関サブクエリ（1件見つかれば即停止 → 大テーブル向き）</span>
+<span class="cmt">-- [EXISTS版] 相関サブクエリ（1件見つかれば即停止するため大テーブル向き）</span>
 <span class="kw">SELECT</span> u.user_id, u.name
 <span class="kw">FROM</span>   <span class="tbl">users</span> u
-<span class="kw">WHERE</span>  <span class="kw">EXISTS</span> (                    <span class="cmt">-- 【超基礎】サブクエリが1行以上返ればtrue</span>
-    <span class="kw">SELECT</span> <span class="num">1</span>                        <span class="cmt">-- 【超基礎】SELECT 1 は存在確認なので値は不要</span>
+<span class="kw">WHERE</span>  <span class="kw">EXISTS</span> (
+    <span class="kw">SELECT</span> <span class="num">1</span>
     <span class="kw">FROM</span>   <span class="tbl">orders</span> o
-    <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id    <span class="cmt">-- 【超基礎】外側のuと内側のoを結合する相関条件</span>
+    <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id  <span class="cmt">-- 外側のuと内側のoを結ぶ相関条件</span>
 );
 
-<span class="cmt">-- [IN版] サブクエリ結果リストで絞り込む</span>
+<span class="cmt">-- [IN版] サブクエリの結果リストによる絞り込み</span>
 <span class="kw">SELECT</span> user_id, name
 <span class="kw">FROM</span>   <span class="tbl">users</span>
-<span class="kw">WHERE</span>  user_id <span class="kw">IN</span> (               <span class="cmt">-- 【超基礎】サブクエリの結果セットに含まれればtrue</span>
-    <span class="kw">SELECT</span> <span class="kw">DISTINCT</span> user_id        <span class="cmt">-- 【応用】DISTINCTでIN句の重複を排除（オプティマイザが自動でやる場合も）</span>
+<span class="kw">WHERE</span>  user_id <span class="kw">IN</span> (
+    <span class="kw">SELECT DISTINCT</span> user_id       <span class="cmt">-- 重複を排除したリストを作成</span>
     <span class="kw">FROM</span>   <span class="tbl">orders</span>
 );
 
-<span class="cmt">-- [JOIN版] INNER JOIN + DISTINCT（結合後に重複を除去）</span>
-<span class="kw">SELECT DISTINCT</span> u.user_id, u.name  <span class="cmt">-- 【超基礎】同一ユーザーが複数回一致するためDISTINCTで重複除去</span>
-<span class="kw">FROM</span>   <span class="tbl">users</span>  u
-<span class="kw">JOIN</span>   <span class="tbl">orders</span> o <span class="kw">ON</span> o.user_id <span class="op">=</span> u.user_id;  <span class="cmt">-- 【超基礎】結合するとorder件数分だけ行が増える</span>
+<span class="cmt">-- [JOIN版] INNER JOIN + DISTINCT（結合による重複行を排除）</span>
+<span class="kw">SELECT DISTINCT</span> u.user_id, u.name
+<span class="kw">FROM</span>   <span class="tbl">users</span> u
+<span class="kw">JOIN</span>   <span class="tbl">orders</span> o <span class="kw">ON</span> o.user_id <span class="op">=</span> u.user_id;
 
-<span class="cmt">-- ② 購入実績のないユーザー（NOT EXISTS が安全・推奨）</span>
+<span class="cmt">-- ② 購入実績のないユーザー（NULL安全なNOT EXISTSを推奨）</span>
 <span class="kw">SELECT</span> u.user_id, u.name
 <span class="kw">FROM</span>   <span class="tbl">users</span> u
-<span class="kw">WHERE</span>  <span class="kw">NOT EXISTS</span> (                 <span class="cmt">-- 【超基礎】サブクエリが0行ならtrue（NOT IN とは違いNULL安全）</span>
+<span class="kw">WHERE</span>  <span class="kw">NOT EXISTS</span> (
     <span class="kw">SELECT</span> <span class="num">1</span>
     <span class="kw">FROM</span>   <span class="tbl">orders</span> o
-    <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id    <span class="cmt">-- NULLがあってもUNKNOWNにならずに安全に動作</span>
+    <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id  <span class="cmt">-- orders側にNULLがあっても安全に動作</span>
 );
 
 <span class="cmt">-- ③ 直近30日に購入したユーザーのメール（EXISTS + 日付条件）</span>
@@ -939,18 +1245,16 @@ const QS = [
 <span class="kw">WHERE</span>  <span class="kw">EXISTS</span> (
     <span class="kw">SELECT</span> <span class="num">1</span>
     <span class="kw">FROM</span>   <span class="tbl">orders</span> o
-    <span class="kw">WHERE</span>  o.user_id   <span class="op">=</span> u.user_id              <span class="cmt">-- 相関条件</span>
-      <span class="kw">AND</span>  o.created_at <span class="op">&gt;=</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'30 days'</span>  <span class="cmt">-- 【超基礎】INTERVALで相対日付を指定</span>
+    <span class="kw">WHERE</span>  o.user_id <span class="op">=</span> u.user_id
+      <span class="kw">AND</span>  o.created_at <span class="op">&gt;=</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'30 days'</span>
 );
 
 <span class="cmt">/*
   実行順序（① EXISTS版）:
-  1. FROM users u                 → usersテーブルを全行スキャン
-  2. EXISTS (SELECT 1 FROM orders WHERE o.user_id = u.user_id)
-                                  → 各userに対してordersをインデックス検索
-                                  → 1件でも見つかれば即STOP（Short-circuit）
-  3. WHERE EXISTS → true の行のみ  → 購入ありユーザーを絞り込む
-  4. SELECT 列を返す
+  1. FROM    → usersテーブルをスキャン
+  2. EXISTS  → 各userに対してordersを検索（1件見つかれば即停止）
+  3. WHERE   → EXISTSがtrueの行に絞り込む
+  4. SELECT  → 結果を返す
 */</span></pre>`,
   viz: [
     {
@@ -1026,6 +1330,62 @@ const QS = [
     },
     {
       steps: [
+        { id: "sub", badge: "① IN サブクエリの実行（内部リスト作成）", bc: "badge-blue",
+          label: "SELECT DISTINCT user_id FROM orders",
+          desc: "IN句を用いる場合、論理的には「まずサブクエリが実行されて結果リストが作成される」という動きになります（実際はオプティマイザがSemi-Joinに変換することが多いですが、概念として重要です）。ordersテーブルから購入実績のあるuser_idのリストを作ります。",
+          type: "base",
+          cols: ["orders 全件", "DISTINCT 後（IN リスト）"],
+          ch: ["col-base", "col-eval"],
+          rows: [
+            { v: ["U001 (1回目), U001 (2回目), U003", "['U001', 'U003']"] }
+          ],
+          cnt: "サブクエリ結果: 2件のリスト"
+        },
+        { id: "where", badge: "② IN 句によるフィルタリング", bc: "badge-orange",
+          label: "WHERE user_id IN ('U001', 'U003')",
+          desc: "作成されたリストに対して、users テーブルの各行が「リスト内に含まれているか」を評価します。U001 と U003 は含まれているため true となり、U002 は含まれていないため false になります。",
+          type: "eval",
+          cols: ["user_id", "IN リストに含まれるか?", "結果"],
+          ch: ["col-eval", "", "col-eval"],
+          rows: [
+            { v: ["U001", "含まれる", "✓ true"], cc: ["val-pass", "", "val-pass"] },
+            { c: "row-dimmed", v: ["U002", "含まれない", "✗ false"], cc: ["val-fail", "", "val-fail"] },
+            { v: ["U003", "含まれる", "✓ true"], cc: ["val-pass", "", "val-pass"] }
+          ],
+          cnt: "IN 評価: U001✓ U002✗ U003✓"
+        },
+        { id: "select", badge: "③ SELECT", bc: "badge-green",
+          label: "SELECT user_id, name",
+          desc: "IN 句で true となった行のみが出力されます。EXISTS と結果は同じですが、「リストを作ってから比較する」というメンタルモデルが IN の特徴です。ただし、リストに NULL が混入すると NOT IN で致命的なバグが起きる点に注意が必要です。",
+          type: "select",
+          cols: ["user_id", "name"],
+          ch: ["col-select", "col-select"],
+          rows: [
+            { v: ["U001", "田中"] },
+            { v: ["U003", "佐藤"] }
+          ],
+          cnt: "結果: 2行 × 2列（購入あり）"
+        }
+      ],
+      sql: [
+        { t: "SELECT ", k: "sql-kw", h: "select" },
+        { t: "user_id, name\n", k: "", h: "select" },
+        { t: "FROM   ", k: "sql-kw", h: "where" },
+        { t: "users\n", k: "", h: "where" },
+        { t: "WHERE  ", k: "sql-kw", h: "where" },
+        { t: "user_id ", k: "", h: "where" },
+        { t: "IN", k: "sql-kw", h: "where" },
+        { t: " (\n", k: "", h: "where" },
+        { t: "  SELECT ", k: "sql-kw", h: "sub" },
+        { t: "DISTINCT ", k: "sql-kw", h: "sub" },
+        { t: "user_id\n", k: "", h: "sub" },
+        { t: "  FROM   ", k: "sql-kw", h: "sub" },
+        { t: "orders\n", k: "", h: "sub" },
+        { t: ");", k: "", h: "where" }
+      ]
+    },
+    {
+      steps: [
         { id: "from", badge: "① FROM users", bc: "badge-blue",
           label: "FROM users u（購入なし検索）",
           desc: "NOT EXISTS で「購入実績のないユーザー」を抽出します。NOT IN と違い、orders に NULL が含まれていても安全に動作します。",
@@ -1041,7 +1401,7 @@ const QS = [
         },
         { id: "sub", badge: "② NOT EXISTS 評価", bc: "badge-orange",
           label: "NOT EXISTS (SELECT 1 FROM orders WHERE o.user_id = u.user_id)",
-          desc: "orders に1件も存在しない場合（NOT EXISTS = true）のみ通過します。NOT IN と異なり、orders の NULL 値によって全件0件になるバグが起きません。",
+          desc: "各ユーザーについて orders をインデックス検索します。orders に1件も存在しない場合のみ NOT EXISTS = true になります。NOT IN と異なり、orders の user_id 列に NULL が混在していても全件0件になるバグが起きません。",
           type: "eval",
           cols: ["user_id", "orders に存在?", "NOT EXISTS 結果"],
           ch: ["col-eval", "", "col-eval"],
@@ -1052,7 +1412,20 @@ const QS = [
           ],
           cnt: "NOT EXISTS true: U002 のみ"
         },
-        { id: "select", badge: "③ SELECT", bc: "badge-green",
+        { id: "where", badge: "③ WHERE NOT EXISTS フィルタ", bc: "badge-orange",
+          label: "WHERE NOT EXISTS → true の行（U002）のみ通過",
+          desc: "NOT EXISTS が true の行（U002）のみ残り、false の行（U001, U003）は除外されます。「購入なし」というネガティブな条件の確認には NOT EXISTS が最も安全で直感的です。",
+          type: "eval",
+          cols: ["user_id", "name", "email"],
+          ch: ["col-eval", "", ""],
+          rows: [
+            { c: "row-dimmed", v: ["U001", "田中", "tanaka@ex.com"], cc: ["val-fail", "", ""] },
+            { v: ["U002", "鈴木", "suzuki@ex.com"],                   cc: ["val-pass", "", ""] },
+            { c: "row-dimmed", v: ["U003", "佐藤", "sato@ex.com"],   cc: ["val-fail", "", ""] }
+          ],
+          cnt: "3行 → 1行（NOT EXISTS true の行のみ通過）"
+        },
+        { id: "select", badge: "④ SELECT", bc: "badge-green",
           label: "SELECT u.user_id, u.name（購入なし）",
           desc: "NOT EXISTS が true の U002 のみ結果に残ります。",
           type: "select",
@@ -1080,15 +1453,83 @@ const QS = [
         { t: "o.user_id = u.user_id\n", k: "", h: "sub" },
         { t: ");", k: "", h: "where" }
       ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① FROM users JOIN orders", bc: "badge-blue",
+          label: "FROM users u INNER JOIN orders o ON o.user_id = u.user_id",
+          desc: "INNER JOIN は users と orders を結合します。各 orders 行は、マッチする users 行と 1対1 でペアになります。U001 は orders に2件あるため JOIN 後に 2行に増殖します。U002 は orders に0件のため JOIN 後に消えます。",
+          type: "base",
+          join: true,
+          left: {
+            label: "users (3行)",
+            cols: ["user_id", "name"],
+            ch: ["col-base", "col-base"],
+            rows: [
+              { v: ["U001", "田中"] },
+              { v: ["U002", "鈴木"] },
+              { v: ["U003", "佐藤"] }
+            ]
+          },
+          right: {
+            label: "orders (3行)",
+            cols: ["order_id", "user_id"],
+            ch: ["col-base", "col-base"],
+            rows: [
+              { v: [1, "U001"] },
+              { v: [2, "U001"] },
+              { v: [3, "U003"] }
+            ]
+          },
+          cnt: "JOIN 前: users 3行、orders 3行"
+        },
+        { id: "join", badge: "② JOIN 結果（U001 が2行に増殖）", bc: "badge-orange",
+          label: "INNER JOIN 後: U001 が2行に重複",
+          desc: "U001 は orders に2件（order_id=1, 2）あるため、JOIN 後に2行になります。U002 は0件のため消えます。このまま SELECT するとU001 が2回返る「重複問題」が発生します。2行目の U001（取り消し線）が DISTINCT で除去される対象です。",
+          type: "eval",
+          cols: ["u.user_id", "u.name", "o.order_id"],
+          ch: ["col-eval", "", ""],
+          rows: [
+            { v: ["U001", "田中", 1], cc: ["val-pass", "", ""] },
+            { v: ["U001", "田中", 2], cc: ["val-fail", "", ""] },
+            { v: ["U003", "佐藤", 3], cc: ["val-pass", "", ""] }
+          ],
+          cnt: "JOIN 結果: 3行（U001 が2行 → 重複！）"
+        },
+        { id: "select", badge: "③ SELECT DISTINCT（重複除去）", bc: "badge-green",
+          label: "SELECT DISTINCT u.user_id, u.name",
+          desc: "DISTINCT により重複行を除去します。U001 の2行が1行にまとめられ、EXISTS/IN と同じ結果が得られます。JOIN 方式ではこの DISTINCT が必須です。EXISTS/IN ならば DISTINCT 不要・かつ早期終了するため大テーブルで有利です。",
+          type: "select",
+          cols: ["user_id", "name"],
+          ch: ["col-select", "col-select"],
+          rows: [
+            { v: ["U001", "田中"] },
+            { v: ["U003", "佐藤"] }
+          ],
+          cnt: "結果: 2行（DISTINCT で重複除去済み）"
+        }
+      ],
+      sql: [
+        { t: "SELECT ", k: "sql-kw", h: "select" },
+        { t: "DISTINCT ", k: "sql-kw", h: "select" },
+        { t: "u.user_id, u.name\n", k: "", h: "select" },
+        { t: "FROM   ", k: "sql-kw", h: "from" },
+        { t: "users  u\n", k: "", h: "from" },
+        { t: "JOIN   ", k: "sql-kw", h: "join" },
+        { t: "orders o ", k: "", h: "join" },
+        { t: "ON ", k: "sql-kw", h: "join" },
+        { t: "o.user_id = u.user_id;", k: "", h: "join" }
+      ]
     }
   ],
   explain: `
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>EXISTSの <code>SELECT 1</code> は「値は何でも良い」という意味です。EXISTSはサブクエリが「1行以上存在するか」だけを見るため、SELECTの中身は関係なく慣例的に <code>SELECT 1</code> が使われます。<code>SELECT *</code> でも動作は同じですが、パフォーマンス上も <code>SELECT 1</code> が推奨されます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>EXISTS の SELECT 1 は「存在するかどうかだけ」を問う：</strong>EXISTSはサブクエリが「1行以上存在するか」だけを評価します。SELECT の中身（1 でも * でも列名でも）は結果に影響せず、慣例的に <code>SELECT 1</code> が使われます。1件見つかった時点でスキャンを即停止（Short-circuit）するため、大きいテーブルで特に有効です。</div></div>
+<div class="insight-row"><span class="insight-icon">🚫</span><div class="insight-body"><strong>NOT IN の NULL罠（ビジュアライザ③で確認）：</strong>ビジュアライザ③で示したように、NOT EXISTS は orders に NULL が含まれていても安全に「購入なし」を判定できます。NOT IN を使うと orders.user_id に NULL が1件でもあれば WHERE 条件が UNKNOWN 扱いになり、<em>全件0件</em>という致命的なバグになります。「存在しない」を確認する用途では常に NOT EXISTS を選んでください。</div></div>
 <div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>Semi-Join最適化：</strong>PostgreSQLは EXISTS / IN を内部的に「Semi-Join」という結合戦略に変換して実行計画を立てることが多いです。EXISTSとINは記述スタイルの違いはありますが、最近のオプティマイザはほぼ同等のプランを生成します。意味の明確さで選ぶなら「存在確認」にはEXISTS、「リストに含まれる」にはINが読みやすいです。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>JOINで追加列も取得する：</strong>「購入ありユーザーの名前と最新注文日を同時に返す」など、条件確認と同時に追加データを取得したい場合はJOINが最適です。EXISTSやINでは存在確認のみしか行えず、サブクエリ内の値を SELECT に持ち出すことができません。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>JOINで追加列も取得する（ビジュアライザ④で確認）：</strong>ビジュアライザ④で示したように、INNER JOIN は orders の件数分だけ行を増殖させるため DISTINCT が必須です。一方、「購入ありユーザーの最新注文日も同時に取得したい」など<strong>サブクエリ内の値を SELECT に持ち出したい場合は JOIN が唯一の選択肢</strong>です。EXISTS/IN は存在確認のみで、サブクエリ内の値を外部クエリに渡すことはできません。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
@@ -1139,33 +1580,33 @@ PostgreSQLで <code>EXPLAIN SELECT ... WHERE EXISTS (...)</code> を実行する
 <tr class="tr-hi4"><td>...</td><td>...</td><td>...</td><td>...</td></tr>
 <tr class="tr-hi2"><td>3000</td><td class="tc-g">1000</td><td class="tc-g">0</td><td>0.10s</td></tr>
 </table></div>`,
-  answer: `<pre><span class="cmt">-- ① インデックスの確認（チャンク処理でも毎回使われる）</span>
+  answer: `<pre><span class="cmt">-- ① インデックスの確認（チャンク処理の高速化に必須）</span>
 <span class="kw">CREATE INDEX</span> idx_logs_created_at
-    <span class="kw">ON</span> <span class="tbl">logs</span> (created_at);   <span class="cmt">-- 日付絞り込みをインデックスで高速化</span>
+    <span class="kw">ON</span> <span class="tbl">logs</span> (created_at);
 
-<span class="cmt">-- ② 対象件数の事前確認（作業量の把握）</span>
-<span class="kw">SELECT</span> <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> target_count  <span class="cmt">-- 【超基礎】削除予定件数を事前に確認する</span>
+<span class="cmt">-- ② 対象件数の事前確認</span>
+<span class="kw">SELECT</span> <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> target_count
 <span class="kw">FROM</span>   <span class="tbl">logs</span>
 <span class="kw">WHERE</span>  created_at <span class="op">&lt;</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'90 days'</span>;
 
-<span class="cmt">-- ③ チャンク削除クエリ（アプリ側ループから繰り返し実行する）</span>
-<span class="kw">DELETE FROM</span> <span class="tbl">logs</span>               <span class="cmt">-- 【超基礎】対象テーブルから削除</span>
-<span class="kw">WHERE</span>  log_id <span class="kw">IN</span> (             <span class="cmt">-- 【応用】削除対象のIDをサブクエリで取得</span>
+<span class="cmt">-- ③ チャンク削除クエリ（アプリケーション側からループ実行）</span>
+<span class="kw">DELETE FROM</span> <span class="tbl">logs</span>
+<span class="kw">WHERE</span>  log_id <span class="kw">IN</span> (
     <span class="kw">SELECT</span> log_id
     <span class="kw">FROM</span>   <span class="tbl">logs</span>
-    <span class="kw">WHERE</span>  created_at <span class="op">&lt;</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'90 days'</span>   <span class="cmt">-- 90日以上前</span>
-    <span class="kw">ORDER BY</span> log_id              <span class="cmt">-- 【応用】IDの小さい順に削除（ページの断片化を最小化）</span>
-    <span class="kw">LIMIT</span>  <span class="num">1000</span>                  <span class="cmt">-- 【超基礎】1チャンクの件数上限（1000件ずつ処理）</span>
+    <span class="kw">WHERE</span>  created_at <span class="op">&lt;</span> <span class="fn">NOW</span>() <span class="op">-</span> <span class="kw">INTERVAL</span> <span class="str">'90 days'</span>
+    <span class="kw">ORDER BY</span> log_id  <span class="cmt">-- ID順に削除し、ページの断片化を防止</span>
+    <span class="kw">LIMIT</span>  <span class="num">1000</span>      <span class="cmt">-- 1チャンクの上限を1000件に制限</span>
 );
-<span class="cmt">-- ※ アプリ側でaffected_rows=0になるまでループ実行し、各ループ後に100ms sleep</span>
+<span class="cmt">-- ※ アプリ側で影響行数(affected_rows)が0になるまで実行し、間にsleepを入れる</span>
 
-<span class="cmt">-- ④ PostgreSQL DO ブロックによるチャンク削除（DB内で完結させる場合）</span>
-<span class="kw">DO</span> $$                           <span class="cmt">-- 【応用】PostgreSQLの無名PL/pgSQL関数ブロック</span>
+<span class="cmt">-- ④ PostgreSQL DO ブロックによるチャンク削除（DB内で完結する場合）</span>
+<span class="kw">DO</span> $$
 <span class="kw">DECLARE</span>
-    deleted_count <span class="kw">INT</span>;          <span class="cmt">-- 削除件数を保持する変数</span>
-    total_deleted <span class="kw">INT</span> <span class="op">:=</span> <span class="num">0</span>;     <span class="cmt">-- 累計削除件数</span>
+    deleted_count <span class="kw">INT</span>;
+    total_deleted <span class="kw">INT</span> <span class="op">:=</span> <span class="num">0</span>;
 <span class="kw">BEGIN</span>
-    <span class="kw">LOOP</span>                        <span class="cmt">-- 【超基礎】無限ループ（条件でEXIT）</span>
+    <span class="kw">LOOP</span>
         <span class="kw">DELETE FROM</span> <span class="tbl">logs</span>
         <span class="kw">WHERE</span>  log_id <span class="kw">IN</span> (
             <span class="kw">SELECT</span> log_id <span class="kw">FROM</span> <span class="tbl">logs</span>
@@ -1174,13 +1615,13 @@ PostgreSQLで <code>EXPLAIN SELECT ... WHERE EXISTS (...)</code> を実行する
             <span class="kw">LIMIT</span>  <span class="num">1000</span>
         );
 
-        <span class="fn">GET DIAGNOSTICS</span> deleted_count <span class="op">=</span> <span class="fn">ROW_COUNT</span>;  <span class="cmt">-- 直前のDMLの影響行数を取得</span>
+        <span class="fn">GET DIAGNOSTICS</span> deleted_count <span class="op">=</span> <span class="fn">ROW_COUNT</span>;  <span class="cmt">-- 直前の削除件数を取得</span>
         total_deleted <span class="op">:=</span> total_deleted <span class="op">+</span> deleted_count;
 
-        <span class="fn">RAISE NOTICE</span> <span class="str">'削除: % 件（累計: % 件）'</span>, deleted_count, total_deleted;  <span class="cmt">-- ログ出力</span>
+        <span class="fn">RAISE NOTICE</span> <span class="str">'削除: % 件（累計: % 件）'</span>, deleted_count, total_deleted;
 
-        <span class="kw">EXIT WHEN</span> deleted_count <span class="op">=</span> <span class="num">0</span>;    <span class="cmt">-- 削除件数が0になったらループ終了</span>
-        <span class="fn">PERFORM</span> <span class="fn">pg_sleep</span>(<span class="num">0.1</span>);        <span class="cmt">-- 【応用】0.1秒スリープ（DB負荷を分散）</span>
+        <span class="kw">EXIT WHEN</span> deleted_count <span class="op">=</span> <span class="num">0</span>;  <span class="cmt">-- 削除対象がなくなればループ終了</span>
+        <span class="fn">PERFORM</span> <span class="fn">pg_sleep</span>(<span class="num">0.1</span>);        <span class="cmt">-- 0.1秒スリープしてロックと負荷を解放</span>
     <span class="kw">END LOOP</span>;
 
     <span class="fn">RAISE NOTICE</span> <span class="str">'完了: 合計 % 件を削除しました'</span>, total_deleted;
@@ -1188,100 +1629,179 @@ PostgreSQLで <code>EXPLAIN SELECT ... WHERE EXISTS (...)</code> を実行する
 $$;
 
 <span class="cmt">-- ⑤ チャンク削除後のVACUUM（dead tupleの回収）</span>
-<span class="kw">VACUUM ANALYZE</span> <span class="tbl">logs</span>;            <span class="cmt">-- 【応用】大量削除後はVACUUMでdead tupleを回収・統計更新</span>
+<span class="kw">VACUUM ANALYZE</span> <span class="tbl">logs</span>;
 
 <span class="cmt">/*
   実行順序（③のチャンク削除）:
-  1. サブクエリ: FROM logs WHERE created_at < 90日前 ORDER BY log_id LIMIT 1000
-                              → インデックスで対象範囲を特定し、IDの小さい1000件取得
-  2. DELETE FROM logs WHERE log_id IN (上記の1000件)
-                              → 1000件のみにロックをかけて削除（短時間で完了）
-  3. COMMIT                   → 1チャンクごとにコミット（ロック即解放）
-  4. アプリ側: 100ms sleep → 次のチャンクを実行 → 影響行数=0になるまで繰り返す
+  1. サブクエリ → インデックスで対象範囲を特定し、IDの小さい1000件を取得
+  2. DELETE     → 1000件のみをロックして削除
+  3. COMMIT     → 1チャンクごとにコミットしてロックを即時解放
+  4. ループ     → 100ms sleep後、影響行数=0になるまで繰り返す
 */</span></pre>`,
-  viz: {
-    steps: [
-      { id: "from", badge: "① FROM logs", bc: "badge-blue",
-        label: "FROM logs (500万件)",
-        desc: "logs テーブルには500万行あります。90日以上前のログ300万件が削除対象です。created_at インデックスを使って絞り込みます。",
-        type: "base",
-        cols: ["log_id", "user_id", "action", "created_at"],
-        ch: ["col-base", "col-base", "col-base", "col-base"],
-        rows: [
-          { v: [1, "U001", "login",    "2024-01-01 ← 古い"] },
-          { v: [2, "U002", "purchase", "2024-02-15 ← 古い"] },
-          { v: [3, "U001", "logout",   "2024-09-01 ← 最近"] }
-        ],
-        cnt: "全 500万行（代表サンプル）"
-      },
-      { id: "sub", badge: "② サブクエリ（対象1000件取得）", bc: "badge-orange",
-        label: "SELECT log_id WHERE created_at < NOW()-90days ORDER BY log_id LIMIT 1000",
-        desc: "削除対象の log_id を最大1000件取り出します。ORDER BY log_id + LIMIT でIDの小さい順に取得し、ページの断片化を最小化します。",
-        type: "eval",
-        cols: ["log_id", "user_id", "action", "created_at"],
-        ch: ["col-eval", "", "", "col-eval"],
-        rows: [
-          { v: [1, "U001", "login",    "2024-01-01"], cc: ["val-pass", "", "", "val-fail"] },
-          { v: [2, "U002", "purchase", "2024-02-15"], cc: ["val-pass", "", "", "val-fail"] },
-          { c: "row-dimmed", v: [3, "U001", "logout", "2024-09-01"], cc: ["", "", "", "val-pass"] }
-        ],
-        cnt: "対象: 最大1000件取得（LIMIT 1000）"
-      },
-      { id: "where", badge: "③ DELETE（1チャンク）", bc: "badge-orange",
-        label: "DELETE FROM logs WHERE log_id IN (...1000件...)",
-        desc: "1000件にのみロックをかけて削除します。0.1〜0.2秒で完了後すぐに COMMIT してロックを解放します。残りの対象行に対してこの処理を繰り返します（×3000回）。",
-        type: "eval",
-        cols: ["log_id", "user_id", "action", "created_at"],
-        ch: ["", "", "", "col-eval"],
-        rows: [
-          { c: "row-dimmed", v: [1, "U001", "login",    "削除済み"],      cc: ["", "", "", "val-fail"] },
-          { c: "row-dimmed", v: [2, "U002", "purchase", "削除済み"],      cc: ["", "", "", "val-fail"] },
-          { v: [3, "U001", "logout",   "2024-09-01（保持）"], cc: ["", "", "", "val-pass"] }
-        ],
-        cnt: "1チャンク: 1000件削除（ロック 0.1〜0.2秒）"
-      },
-      { id: "select", badge: "④ VACUUM ANALYZE", bc: "badge-green",
-        label: "VACUUM ANALYZE logs",
-        desc: "DELETE は行を dead tuple（不可視状態）にするだけでディスク容量はすぐ回収されません。VACUUM ANALYZE を実行して dead tuple を回収し統計情報を更新します。全チャンク完了後に一度実行してください。",
-        type: "select",
-        cols: ["状態", "live tuples", "dead tuples"],
-        ch: ["", "col-select", "col-select"],
-        rows: [
-          { v: ["チャンク削除後",  "200万行", "300万の dead tuple"], cc: ["", "",          "val-fail"] },
-          { v: ["VACUUM 後",      "200万行", "0（回収完了）"],        cc: ["", "val-pass", "val-pass"] }
-        ],
-        cnt: "dead tuple 300万 → 0（VACUUM 完了）"
-      }
-    ],
-    sql: [
-      { t: "DELETE FROM ", k: "sql-kw", h: "where" },
-      { t: "logs\n", k: "", h: "where" },
-      { t: "WHERE  ", k: "sql-kw", h: "where" },
-      { t: "log_id ", k: "", h: "where" },
-      { t: "IN", k: "sql-kw", h: "where" },
-      { t: " (\n", k: "", h: "where" },
-      { t: "  SELECT ", k: "sql-kw", h: "sub" },
-      { t: "log_id\n", k: "", h: "sub" },
-      { t: "  FROM   ", k: "sql-kw", h: "sub" },
-      { t: "logs\n", k: "", h: "sub" },
-      { t: "  WHERE  ", k: "sql-kw", h: "sub" },
-      { t: "created_at < ", k: "", h: "sub" },
-      { t: "NOW()", k: "sql-kw", h: "sub" },
-      { t: " - INTERVAL '90 days'\n", k: "", h: "sub" },
-      { t: "  ORDER BY ", k: "sql-kw", h: "sub" },
-      { t: "log_id\n", k: "", h: "sub" },
-      { t: "  LIMIT  ", k: "sql-kw", h: "sub" },
-      { t: "1000\n", k: "", h: "sub" },
-      { t: ");", k: "", h: "where" }
-    ]
-  },
+  viz: [
+    {
+      steps: [
+        { id: "from", badge: "① FROM logs（全500万件）", bc: "badge-blue",
+          label: "FROM logs — 削除前のテーブル状態と削除対象の特定",
+          desc: "logs テーブルには500万行あります。90日以上前のログ300万件が削除対象です。全件を1クエリで DELETE すると300万行を一括ロックしてロールバックログも300万行分膨張します。created_at インデックスを使って対象を絞り込み、LIMIT 1000 でチャンクに分割することがポイントです。",
+          type: "base",
+          cols: ["log_id", "user_id", "action", "created_at"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: [1, "U001", "login",    "2024-01-01 ← 90日以上前"] },
+            { v: [2, "U002", "purchase", "2024-02-15 ← 90日以上前"] },
+            { v: [3, "U001", "logout",   "2024-09-01 ← 最近（保持）"] }
+          ],
+          cnt: "全 500万行 — うち 300万行が削除対象（90日以上前）"
+        },
+        { id: "sub", badge: "② サブクエリ — 1チャンク分の ID を取得", bc: "badge-orange",
+          label: "SELECT log_id WHERE created_at < 90日前 ORDER BY log_id LIMIT 1000",
+          desc: "削除対象の log_id を ORDER BY log_id + LIMIT 1000 で小さいIDから順に最大1000件取り出します。ORDER BY log_id を付けることでページの物理的断片化を最小化し、連続するページを順番に処理できます。このサブクエリは毎チャンク実行されますが created_at インデックスのおかげで高速です。",
+          type: "eval",
+          cols: ["log_id", "user_id", "action", "created_at"],
+          ch: ["col-eval", "", "", "col-eval"],
+          rows: [
+            { v: [1, "U001", "login",    "2024-01-01"], cc: ["val-pass", "", "", "val-fail"] },
+            { v: [2, "U002", "purchase", "2024-02-15"], cc: ["val-pass", "", "", "val-fail"] },
+            { c: "row-dimmed", v: [3, "U001", "logout", "2024-09-01（対象外）"], cc: ["", "", "", "val-pass"] }
+          ],
+          cnt: "1チャンク分: 最大 1000 件の log_id を取得（LIMIT 1000）"
+        },
+        { id: "where", badge: "③ DELETE（1チャンク）→ COMMIT → sleep", bc: "badge-orange",
+          label: "DELETE WHERE log_id IN (...) → COMMIT → 100ms sleep → 次チャンクへ",
+          desc: "1000件にのみ行ロックをかけて削除します。0.1〜0.2秒で完了後すぐに COMMIT してロックを解放します（他のトランザクションへの影響はわずか0.2秒以内）。その後 pg_sleep(0.1) で100ms 待機してから次のチャンクを実行します。このループを affected_rows=0 になるまで繰り返します（×3000回）。",
+          type: "eval",
+          cols: ["log_id", "user_id", "action", "created_at"],
+          ch: ["", "", "", "col-eval"],
+          rows: [
+            { c: "row-dimmed", v: [1, "U001", "login",    "削除済み（dead tuple）"], cc: ["", "", "", "val-fail"] },
+            { c: "row-dimmed", v: [2, "U002", "purchase", "削除済み（dead tuple）"], cc: ["", "", "", "val-fail"] },
+            { v: [3, "U001", "logout",   "2024-09-01（保持）"],                      cc: ["", "", "", "val-pass"] }
+          ],
+          cnt: "1チャンク: 1000件削除 COMMIT（ロック保持 約0.1〜0.2秒）→ 100ms sleep"
+        },
+        { id: "select", badge: "④ VACUUM ANALYZE（全チャンク完了後）", bc: "badge-green",
+          label: "VACUUM ANALYZE logs — dead tuple を回収して統計情報を更新",
+          desc: "DELETE は行を dead tuple（不可視状態）にするだけで、ディスク容量はすぐ回収されません。全チャンク完了後に VACUUM ANALYZE を一度実行して dead tuple を回収し、統計情報を更新します。これにより次回の実行計画がより正確になります。",
+          type: "select",
+          cols: ["状態", "live tuples", "dead tuples"],
+          ch: ["", "col-select", "col-select"],
+          rows: [
+            { v: ["チャンク削除後",  "200万行", "300万の dead tuple"], cc: ["", "",          "val-fail"] },
+            { v: ["VACUUM 後",      "200万行", "0（回収完了）"],        cc: ["", "val-pass", "val-pass"] }
+          ],
+          cnt: "VACUUM ANALYZE 後: dead tuple 300万 → 0、統計情報も最新化"
+        }
+      ],
+      sql: [
+        { t: "DELETE FROM ", k: "sql-kw", h: "where" },
+        { t: "logs\n", k: "", h: "where" },
+        { t: "WHERE  ", k: "sql-kw", h: "where" },
+        { t: "log_id ", k: "", h: "where" },
+        { t: "IN", k: "sql-kw", h: "where" },
+        { t: " (\n", k: "", h: "where" },
+        { t: "  SELECT ", k: "sql-kw", h: "sub" },
+        { t: "log_id\n", k: "", h: "sub" },
+        { t: "  FROM   ", k: "sql-kw", h: "sub" },
+        { t: "logs\n", k: "", h: "sub" },
+        { t: "  WHERE  ", k: "sql-kw", h: "sub" },
+        { t: "created_at < ", k: "", h: "sub" },
+        { t: "NOW()", k: "sql-kw", h: "sub" },
+        { t: " - INTERVAL '90 days'\n", k: "", h: "sub" },
+        { t: "  ORDER BY ", k: "sql-kw", h: "sub" },
+        { t: "log_id\n", k: "", h: "sub" },
+        { t: "  LIMIT  ", k: "sql-kw", h: "sub" },
+        { t: "1000\n", k: "", h: "sub" },
+        { t: ");", k: "", h: "where" }
+      ]
+    },
+    {
+      steps: [
+        { id: "from", badge: "① ループ開始前の状態", bc: "badge-blue",
+          label: "ループ開始前 — 削除対象 300万件、ループカウンタ 0",
+          desc: "バッチループを開始する前の状態です。削除対象は 300万行、累計削除件数は 0、ループカウンタは 0 です。アプリ側ループ（またはDO ブロック）で affected_rows=0 になるまで LIMIT 1000 の DELETE を繰り返します。チャンクごとに独立したトランザクションをコミットする点が、全件1トランザクションとの最大の違いです。",
+          type: "base",
+          cols: ["ループ番号", "このチャンクの削除件数", "累計削除件数", "残り対象件数（推定）"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { v: ["（開始前）", "—", "0", "300万"] }
+          ],
+          cnt: "ループ開始前 — 削除対象 300万件、累計 0件"
+        },
+        { id: "sub", badge: "② チャンク1〜数回（削除進行中）", bc: "badge-orange",
+          label: "チャンク1・2・3… 各1000件ずつ削除 → 毎回 COMMIT + 100ms sleep",
+          desc: "各チャンクは: ① サブクエリで上位1000件の log_id を取得 → ② DELETE WHERE log_id IN (...) を実行 → ③ COMMIT（ロック即解放）→ ④ pg_sleep(0.1) → 次のチャンクへ、という流れです。ロックの保持時間は 0.1〜0.2秒に抑えられ、他のトランザクションへの影響が最小化されます。",
+          type: "eval",
+          cols: ["ループ番号", "このチャンクの削除件数", "累計削除件数", "残り対象件数（推定）"],
+          ch: ["col-eval", "col-eval", "col-eval", "col-eval"],
+          rows: [
+            { v: ["1",   "1,000", "1,000",   "2,999,000"], cc: ["val-pass", "val-pass", "val-pass", ""] },
+            { v: ["2",   "1,000", "2,000",   "2,998,000"], cc: ["val-pass", "val-pass", "val-pass", ""] },
+            { v: ["3",   "1,000", "3,000",   "2,997,000"], cc: ["val-pass", "val-pass", "val-pass", ""] },
+            { v: ["...", "...",   "...",      "..."],        cc: ["", "", "", ""] }
+          ],
+          cnt: "各チャンク: DELETE 1000件 COMMIT → 100ms sleep → 繰り返し（×3000回）"
+        },
+        { id: "where", badge: "③ 最終チャンク（affected_rows=0 で終了）", bc: "badge-orange",
+          label: "affected_rows が 0 になったらループを終了",
+          desc: "全3000チャンク完了後、次の DELETE を試みると対象行が0件になります。affected_rows=0 を検出してループを終了します。合計削除件数は 300万件、ループ回数は 3000回です。1つのトランザクションで行っていれば長時間のロックが続いていましたが、チャンク分割により各ロック時間は最大 0.2秒に抑えられました。",
+          type: "eval",
+          cols: ["ループ番号", "このチャンクの削除件数", "累計削除件数", "残り対象件数（推定）"],
+          ch: ["col-eval", "col-eval", "col-eval", "col-eval"],
+          rows: [
+            { v: ["2,999", "1,000", "2,999,000", "1,000"],   cc: ["val-pass", "val-pass", "val-pass", ""] },
+            { v: ["3,000", "1,000", "3,000,000", "0"],        cc: ["val-pass", "val-pass", "val-pass", "val-pass"] },
+            { v: ["3,001", "0（終了）", "3,000,000", "0"],    cc: ["", "val-pass", "val-pass", "val-pass"] }
+          ],
+          cnt: "ループ終了: affected_rows=0 検出 → 合計 300万件削除完了"
+        },
+        { id: "select", badge: "④ 全チャンク完了後 VACUUM ANALYZE", bc: "badge-green",
+          label: "VACUUM ANALYZE logs — dead tuple 回収 + 統計情報更新",
+          desc: "全チャンク完了後に VACUUM ANALYZE を一度実行します。300万の dead tuple を回収してディスク領域を再利用可能にし、統計情報を更新して次回クエリの実行計画を最適化します。autovacuum が追い付く環境では省略できますが、大量削除後は明示的に実行することを推奨します。",
+          type: "select",
+          cols: ["フェーズ", "live tuples", "dead tuples", "ディスク容量"],
+          ch: ["", "col-select", "col-select", "col-select"],
+          rows: [
+            { v: ["チャンク完了直後", "200万", "300万（未回収）", "変化なし（dead tupleが占有）"], cc: ["", "", "val-fail", "val-fail"] },
+            { v: ["VACUUM 後",        "200万", "0（回収完了）",   "削減（領域再利用可能）"],       cc: ["", "val-pass", "val-pass", "val-pass"] }
+          ],
+          cnt: "VACUUM ANALYZE 完了 — dead tuple 回収・統計更新・バッチ全工程終了"
+        }
+      ],
+      sql: [
+        { t: "DO $$\n",              k: "sql-kw", h: "from" },
+        { t: "DECLARE\n",            k: "sql-kw", h: "from" },
+        { t: "  deleted_count INT;\n", k: "", h: "from" },
+        { t: "  total_deleted INT := 0;\n", k: "", h: "from" },
+        { t: "BEGIN\n",              k: "sql-kw", h: "sub" },
+        { t: "  LOOP\n",             k: "sql-kw", h: "sub" },
+        { t: "    DELETE FROM logs WHERE log_id IN (\n", k: "", h: "sub" },
+        { t: "      SELECT log_id FROM logs\n", k: "", h: "sub" },
+        { t: "      WHERE created_at < ", k: "", h: "sub" },
+        { t: "NOW()", k: "sql-kw", h: "sub" },
+        { t: " - INTERVAL '90 days'\n", k: "", h: "sub" },
+        { t: "      ORDER BY log_id LIMIT 1000);\n", k: "", h: "sub" },
+        { t: "    GET DIAGNOSTICS ", k: "sql-kw", h: "where" },
+        { t: "deleted_count = ROW_COUNT;\n", k: "", h: "where" },
+        { t: "    EXIT WHEN ", k: "sql-kw", h: "where" },
+        { t: "deleted_count = 0;\n", k: "", h: "where" },
+        { t: "    PERFORM ", k: "sql-kw", h: "where" },
+        { t: "pg_sleep(0.1);\n", k: "", h: "where" },
+        { t: "  END LOOP;\n",        k: "sql-kw", h: "where" },
+        { t: "END;\n$$;\n",          k: "sql-kw", h: "where" },
+        { t: "VACUUM ANALYZE ", k: "sql-kw", h: "select" },
+        { t: "logs;",               k: "", h: "select" }
+      ]
+    }
+  ],
   explain: `
 
 <div class="insight-box">
 <div class="insight-title">💡 LEARNING POINTS</div>
-<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：</strong>PostgreSQLのDELETEは行を「dead tuple（不可視状態）」にするだけで、ディスク容量はすぐには回収されません。VACUUMを実行して初めてディスク領域が再利用可能になります。大量削除後は必ず <code>VACUUM ANALYZE</code> を実行してください。</div></div>
-<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>pg_sleepでレプリケーション遅延を監視しながら実行：</strong>バッチ実行中にレプリカの遅延を監視するには <code>SELECT pg_wal_lsn_diff(sent_lsn, replay_lsn) FROM pg_stat_replication</code> を別セッションで確認します。遅延が増え始めたらsleep時間を長くするか一時停止します。</div></div>
-<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>パーティショニングによる根本解決：</strong>ログなど「定期的に古いデータを削除する」テーブルにはパーティショニングが根本解決になります。月次・日次パーティションを作成しておくと、古いパーティションを <code>DROP TABLE</code> で瞬時に削除できます（ロック・VACUUM不要）。設計段階でパーティショニングを検討することが重要です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>DELETE は「論理削除」で、ディスク解放は VACUUM が担う：</strong>PostgreSQLの DELETE は行を「dead tuple（不可視状態）」にするだけで、ディスク容量はすぐ回収されません。VACUUM を実行して初めてディスク領域が再利用可能になります。ビジュアライザ①のステップ④・②のステップ④で before/after を確認してください。大量削除後は必ず <code>VACUUM ANALYZE</code> を実行します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>チャンクごとに独立したトランザクションをCOMMIT（ビジュアライザ②で確認）：</strong>全チャンクを1つのトランザクションに収めると、全 300万行のロックと UNDO が最後まで保持されてしまいます。ビジュアライザ②で示したように、1チャンク = 1コミットにすることで各ロック保持時間を 0.1〜0.2秒に抑え、他のトランザクションへの影響を最小化します。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>レプリケーション遅延の監視：</strong>バッチ実行中にレプリカの遅延を監視するには <code>SELECT pg_wal_lsn_diff(sent_lsn, replay_lsn) FROM pg_stat_replication</code> を別セッションで確認します。遅延が増え始めたら sleep 時間を長くするか一時停止します。スタンバイへの切り替えが不可能になる前に対処することが重要です。</div></div>
+<div class="insight-row"><span class="insight-icon">📐</span><div class="insight-body"><strong>パーティショニングによる根本解決：</strong>ログなど「定期的に古いデータを削除する」テーブルにはパーティショニングが根本解決になります。月次・日次パーティションにしておくと、古いパーティションを <code>DROP TABLE</code> で瞬時に削除できます（ロック・dead tuple・VACUUM 不要）。設計段階でパーティショニングを検討することが重要です。</div></div>
 </div>
 <div class="anti-box">
 <div class="anti-title">⚠️ ANTI-PATTERNS</div>
