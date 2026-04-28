@@ -477,110 +477,152 @@ const QS = [
 <tr class="tr-hi2"><td>Worker-3</td><td>id=3（ロック取得）</td><td class="tc-g">競合なし</td></tr>
 </table></div>`,
   answer: `<pre><span class="cmt">-- ① FOR UPDATE SKIP LOCKED を使ったジョブキュー（競合なし・スケーラブル）</span>
-<span class="kw">BEGIN</span>;   <span class="cmt">-- 【超基礎】トランザクション開始（FOR UPDATEはトランザクション内で使う）</span>
+<span class="kw">BEGIN</span>;   <span class="cmt">-- トランザクション開始</span>
 
 <span class="kw">WITH</span> next_task <span class="kw">AS</span> (
     <span class="kw">SELECT</span> id, job_type, payload
     <span class="kw">FROM</span>   <span class="tbl">tasks</span>
-    <span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'pending'</span>         <span class="cmt">-- 未処理タスクだけを対象にする</span>
-    <span class="kw">ORDER BY</span> created_at               <span class="cmt">-- FIFO（先入れ先出し）で処理順を保証</span>
-    <span class="kw">LIMIT</span>  <span class="num">1</span>                          <span class="cmt">-- 1件だけ取得（1ワーカー = 1タスク）</span>
-    <span class="kw">FOR UPDATE SKIP LOCKED</span>           <span class="cmt">-- 他ワーカーがロック中の行はスキップして次の行へ</span>
+    <span class="kw">WHERE</span>  status <span class="op">=</span> <span class="str">'pending'</span>         <span class="cmt">-- 未処理タスクを対象</span>
+    <span class="kw">ORDER BY</span> created_at               <span class="cmt">-- 先入れ先出し(FIFO)</span>
+    <span class="kw">LIMIT</span>  <span class="num">1</span>                          <span class="cmt">-- 1件のみ取得</span>
+    <span class="kw">FOR UPDATE SKIP LOCKED</span>            <span class="cmt">-- ロック中の行はスキップして次を試す</span>
 )
 <span class="kw">UPDATE</span> <span class="tbl">tasks</span>
-<span class="kw">SET</span>    status     <span class="op">=</span> <span class="str">'processing'</span>,   <span class="cmt">-- ステータスを「処理中」に変更</span>
-       updated_at <span class="op">=</span> <span class="fn">NOW</span>()           <span class="cmt">-- 更新日時を記録</span>
-<span class="kw">WHERE</span>  id <span class="op">=</span> (SELECT id <span class="kw">FROM</span> next_task)  <span class="cmt">-- CTEで取得した行だけを更新</span>
-<span class="kw">RETURNING</span> id, job_type, payload;    <span class="cmt">-- 更新した行の内容をアプリに返す</span>
+<span class="kw">SET</span>    status     <span class="op">=</span> <span class="str">'processing'</span>,     <span class="cmt">-- ステータスを「処理中」に変更</span>
+       updated_at <span class="op">=</span> <span class="fn">NOW</span>()             <span class="cmt">-- 更新日時を記録</span>
+<span class="kw">WHERE</span>  id <span class="op">=</span> (SELECT id <span class="kw">FROM</span> next_task) <span class="cmt">-- 取得した行のみを更新</span>
+<span class="kw">RETURNING</span> id, job_type, payload;      <span class="cmt">-- 更新内容をアプリに返す</span>
 
-<span class="kw">COMMIT</span>;   <span class="cmt">-- コミット時にロック解放。他のワーカーがこのタスクを取得できなくなる</span>
+<span class="kw">COMMIT</span>;   <span class="cmt">-- ロック解放・変更確定</span>
 
-<span class="cmt">-- ② デッドロックを防ぐ原則：複数テーブルをロックする順序を統一する</span>
-<span class="cmt">-- ❌ NG: デッドロックが発生するパターン</span>
-<span class="cmt">-- TX-A: tasks(id=1)をロック → inventories(id=10)をロック待ち</span>
-<span class="cmt">-- TX-B: inventories(id=10)をロック → tasks(id=1)をロック待ち → 永遠に待つ</span>
-
-<span class="cmt">-- ✅ OK: ロック取得順序をアプリ全体で統一する（tasks → inventories の順なら安全）</span>
+<span class="cmt">-- ② デッドロックを防ぐ原則：複数テーブルのロック順序統一</span>
+<span class="cmt">-- ❌ NG: TX-A(tasks→inv), TX-B(inv→tasks) のように順序が交差するとデッドロック</span>
+<span class="cmt">-- ✅ OK: アプリ全体でロック取得順序を統一する（例: 常に tasks → inventories の順）</span>
 <span class="kw">BEGIN</span>;
-<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">tasks</span>       <span class="kw">WHERE</span> id <span class="op">=</span> <span class="num">1</span> <span class="kw">FOR UPDATE</span>;  <span class="cmt">-- 必ず tasks を先にロック</span>
-<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">inventories</span> <span class="kw">WHERE</span> id <span class="op">=</span> <span class="num">10</span> <span class="kw">FOR UPDATE</span>; <span class="cmt">-- 次に inventories をロック</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">tasks</span>       <span class="kw">WHERE</span> id <span class="op">=</span> <span class="num">1</span>  <span class="kw">FOR UPDATE</span>;
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">inventories</span> <span class="kw">WHERE</span> id <span class="op">=</span> <span class="num">10</span> <span class="kw">FOR UPDATE</span>;
 <span class="kw">COMMIT</span>;
 
-<span class="cmt">-- ③ 楽観的ロック（競合が少ない場合の代替手法）</span>
-<span class="cmt">-- version列を使い「自分が読んだ時点のversionと同じなら更新する」</span>
+<span class="cmt">-- ③ 楽観的ロック（競合が少ない場合）</span>
 <span class="kw">UPDATE</span> <span class="tbl">tasks</span>
 <span class="kw">SET</span>    status  <span class="op">=</span> <span class="str">'processing'</span>,
-       version <span class="op">=</span> version <span class="op">+</span> <span class="num">1</span>       <span class="cmt">-- バージョンをインクリメント</span>
+       version <span class="op">=</span> version <span class="op">+</span> <span class="num">1</span>
 <span class="kw">WHERE</span>  id      <span class="op">=</span> <span class="num">1</span>
-  <span class="kw">AND</span>  version <span class="op">=</span> <span class="num">3</span>;                <span class="cmt">-- アプリが読んだ時のversionと一致する場合のみ更新</span>
-<span class="cmt">-- UPDATEの影響行数が0 = 他者が更新済み → アプリでリトライ</span>
+  <span class="kw">AND</span>  version <span class="op">=</span> <span class="num">3</span>;                <span class="cmt">-- 取得時と同じversionの場合のみ更新</span>
+<span class="cmt">-- ※ 更新件数が0件なら他者が更新済みと判定し、リトライする</span>
 
 <span class="cmt">/*
-  実行順序（SKIP LOCKEDキュー取得）:
-  1. BEGIN                          → トランザクション開始
-  2. CTE（next_task）               → pending行を1件選択・FOR UPDATE SKIPLOCKEDでロック試行
-     SKIP LOCKED                    → ロック中の行は飛ばして次の行を試す
-  3. UPDATE tasks SET status=...    → CTEで取得した行のstatusを変更
-  4. RETURNING                      → 更新した行をアプリに返す
-  5. COMMIT                         → ロック解放・変更確定
+  実行順序:
+  1. BEGIN           → トランザクション開始
+  2. CTE (next_task) → 未処理行を1件 FOR UPDATE SKIP LOCKED でロック試行
+  3. UPDATE          → ロックした行を processing に変更
+  4. RETURNING       → 更新した行をアプリに返す
+  5. COMMIT          → 変更を確定しロックを解放
 */</span></pre>`,
-  viz: {
-    steps: [
-      {
-        id: "step1", badge: "1", bc: "badge-blue",
-        label: "初期状態とロック状況（Worker-1が処理中）",
-        desc: "tasksテーブルには未処理(pending)のジョブが3件あります。現在Worker-1が id=1 をロックして処理中（コミット前）だと仮定します。",
-        type: "base",
-        cols: ["id", "job_type", "status", "ロック状態"],
-        ch: ["col-base", "col-base", "col-base", "col-base"],
-        rows: [
-          { c: "row-grp-1", v: ["1", "email", "pending", "🔒 Worker-1 がロック中"], cc: ["val-dimmed","val-dimmed","val-dimmed","val-fail"] },
-          { c: "", v: ["2", "report", "pending", "未ロック"], cc: ["","","","val-pass"] },
-          { c: "", v: ["3", "email", "pending", "未ロック"], cc: ["","","","val-pass"] }
-        ]
-      },
-      {
-        id: "step2", badge: "2", bc: "badge-orange",
-        label: "CTE (next_task) でのタスク取得 (SKIP LOCKED)",
-        desc: "Worker-2 が未処理タスクを取得します。ORDER BY created_at LIMIT 1 に従い id=1 を狙いますが、SKIP LOCKED によりロック中の行をスキップし、次の id=2 を取得してロックします。",
-        type: "eval",
-        cols: ["id", "job_type", "status", "評価結果"],
-        ch: ["col-base", "col-base", "col-base", "col-eval"],
-        rows: [
-          { c: "row-dimmed", v: ["1", "email", "pending", "スキップ (他ワーカーがロック中)"], cc: ["","","","val-fail"] },
-          { c: "row-grp-2", v: ["2", "report", "pending", "取得・ロック成功"], cc: ["","","","val-pass"] },
-          { c: "row-dimmed", v: ["3", "email", "pending", "評価対象外 (LIMIT 1で終了)"], cc: ["","","","val-dimmed"] }
-        ]
-      },
-      {
-        id: "step3", badge: "3", bc: "badge-green",
-        label: "UPDATE と RETURNING",
-        desc: "取得した id=2 のタスクを処理中(processing)に更新し、アプリに返します。待機することなく安全にタスクを取得できました。",
-        type: "select",
-        cols: ["id", "job_type", "status", "updated_at"],
-        ch: ["col-select", "col-select", "col-select", "col-select"],
-        rows: [
-          { c: "row-grp-1", v: ["1", "email", "pending", "-"], cc: ["val-dimmed","val-dimmed","val-dimmed",""] },
-          { c: "row-grp-2", v: ["2", "report", "processing", "2024-06-15 10:00:05"], cc: ["val-pass","val-pass","val-pass","val-pass"] },
-          { c: "row-dimmed", v: ["3", "email", "pending", "-"], cc: ["","","",""] }
-        ]
-      }
-    ],
-    sql: [
-      { t: "BEGIN;\n\n", k: "sql-kw", h: "step1" },
-      { t: "WITH next_task AS (\n", k: "sql-kw", h: "step2" },
-      { t: "    SELECT id, job_type, payload\n", k: "", h: "step2" },
-      { t: "    FROM tasks\n", k: "sql-kw", h: "step1 step2" },
-      { t: "    WHERE status = 'pending'\n", k: "sql-kw", h: "step2" },
-      { t: "    ORDER BY created_at\n    LIMIT 1\n", k: "sql-kw", h: "step2" },
-      { t: "    FOR UPDATE SKIP LOCKED\n", k: "sql-kw", h: "step2" },
-      { t: ")\nUPDATE tasks\n", k: "sql-kw", h: "step3" },
-      { t: "SET status = 'processing', updated_at = NOW()\n", k: "", h: "step3" },
-      { t: "WHERE id = (SELECT id FROM next_task)\n", k: "sql-kw", h: "step3" },
-      { t: "RETURNING id, job_type, payload;\n\n", k: "sql-kw", h: "step3" },
-      { t: "COMMIT;\n", k: "sql-kw", h: "step3" }
-    ]
-  },
+  viz: [
+    {
+      steps: [
+        {
+          id: "step1", badge: "1", bc: "badge-blue",
+          label: "初期状態とロック状況（Worker-1が処理中）",
+          desc: "tasksテーブルには未処理(pending)のジョブが3件あります。現在Worker-1が id=1 をロックして処理中（コミット前）だと仮定します。",
+          type: "base",
+          cols: ["id", "job_type", "status", "ロック状態"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { c: "row-grp-1", v: ["1", "email", "pending", "🔒 Worker-1 がロック中"], cc: ["val-dimmed","val-dimmed","val-dimmed","val-fail"] },
+            { c: "", v: ["2", "report", "pending", "未ロック"], cc: ["","","","val-pass"] },
+            { c: "", v: ["3", "email", "pending", "未ロック"], cc: ["","","","val-pass"] }
+          ]
+        },
+        {
+          id: "step2", badge: "2", bc: "badge-orange",
+          label: "CTE (next_task) でのタスク取得 (SKIP LOCKED)",
+          desc: "Worker-2 が未処理タスクを取得します。ORDER BY created_at LIMIT 1 に従い id=1 を狙いますが、SKIP LOCKED によりロック中の行をスキップし、次の id=2 を取得してロックします。",
+          type: "eval",
+          cols: ["id", "job_type", "status", "評価結果"],
+          ch: ["col-base", "col-base", "col-base", "col-eval"],
+          rows: [
+            { c: "row-dimmed", v: ["1", "email", "pending", "スキップ (他ワーカーがロック中)"], cc: ["","","","val-fail"] },
+            { c: "row-grp-2", v: ["2", "report", "pending", "取得・ロック成功"], cc: ["","","","val-pass"] },
+            { c: "row-dimmed", v: ["3", "email", "pending", "評価対象外 (LIMIT 1で終了)"], cc: ["","","","val-dimmed"] }
+          ]
+        },
+        {
+          id: "step3", badge: "3", bc: "badge-green",
+          label: "UPDATE と RETURNING",
+          desc: "取得した id=2 のタスクを処理中(processing)に更新し、アプリに返します。待機することなく安全にタスクを取得できました。",
+          type: "select",
+          cols: ["id", "job_type", "status", "updated_at"],
+          ch: ["col-select", "col-select", "col-select", "col-select"],
+          rows: [
+            { c: "row-grp-1", v: ["1", "email", "pending", "-"], cc: ["val-dimmed","val-dimmed","val-dimmed",""] },
+            { c: "row-grp-2", v: ["2", "report", "processing", "2024-06-15 10:00:05"], cc: ["val-pass","val-pass","val-pass","val-pass"] },
+            { c: "row-dimmed", v: ["3", "email", "pending", "-"], cc: ["","","",""] }
+          ]
+        }
+      ],
+      sql: [
+        { t: "BEGIN;\n\n", k: "sql-kw", h: "step1" },
+        { t: "WITH next_task AS (\n", k: "sql-kw", h: "step2" },
+        { t: "    SELECT id, job_type, payload\n", k: "", h: "step2" },
+        { t: "    FROM tasks\n", k: "sql-kw", h: "step1 step2" },
+        { t: "    WHERE status = 'pending'\n", k: "sql-kw", h: "step2" },
+        { t: "    ORDER BY created_at\n    LIMIT 1\n", k: "sql-kw", h: "step2" },
+        { t: "    FOR UPDATE SKIP LOCKED\n", k: "sql-kw", h: "step2" },
+        { t: ")\nUPDATE tasks\n", k: "sql-kw", h: "step3" },
+        { t: "SET status = 'processing', updated_at = NOW()\n", k: "", h: "step3" },
+        { t: "WHERE id = (SELECT id FROM next_task)\n", k: "sql-kw", h: "step3" },
+        { t: "RETURNING id, job_type, payload;\n\n", k: "sql-kw", h: "step3" },
+        { t: "COMMIT;\n", k: "sql-kw", h: "step3" }
+      ]
+    },
+    {
+      steps: [
+        {
+          id: "step1", badge: "1", bc: "badge-blue",
+          label: "初期取得 (SELECT)",
+          desc: "アプリがタスクを取得します。この時、現在のversion（3）を記録しておきます。",
+          type: "base",
+          cols: ["id", "status", "version", "アプリ側の認識"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { c: "row-grp-1", v: ["1", "pending", "3", "取得時点: version=3"] }
+          ]
+        },
+        {
+          id: "step2", badge: "2", bc: "badge-orange",
+          label: "他トランザクションによる更新 (競合発生)",
+          desc: "アプリが処理を行っている間に、別のワーカーが同じタスクを更新し、versionが4に上がりました。",
+          type: "eval",
+          cols: ["id", "status", "version", "他ワーカーの処理"],
+          ch: ["col-base", "col-base", "col-eval", "col-eval"],
+          rows: [
+            { c: "row-grp-2", v: ["1", "processing", "4", "先に更新完了 (version 3 → 4)"], cc: ["","","val-pass","val-pass"] }
+          ]
+        },
+        {
+          id: "step3", badge: "3", bc: "badge-green",
+          label: "楽観的ロックによる UPDATE 試行",
+          desc: "アプリが「version=3」を条件に更新を試みますが、実際のDBはversion=4になっているため、更新件数は0件となります。これにより重複処理を防ぎます。",
+          type: "select",
+          cols: ["id", "status", "version", "UPDATE WHERE version=3 の結果"],
+          ch: ["col-select", "col-select", "col-eval", "col-select"],
+          rows: [
+            { c: "row-dimmed", v: ["1", "processing", "4", "条件不一致 (更新件数 0件)"], cc: ["","","val-fail","val-fail"] }
+          ]
+        }
+      ],
+      sql: [
+        { t: "-- ③ 楽観的ロック（競合が少ない場合）\n", k: "cmt", h: "step1 step2 step3" },
+        { t: "UPDATE tasks\n", k: "sql-kw", h: "step3" },
+        { t: "SET    status  = 'processing',\n       version = version + 1\n", k: "", h: "step3" },
+        { t: "WHERE  id      = 1\n", k: "sql-kw", h: "step3" },
+        { t: "  AND  version = 3; ", k: "sql-kw", h: "step1 step2 step3" },
+        { t: "  -- 取得時と同じversionの場合のみ更新\n", k: "cmt", h: "step3" }
+      ]
+    }
+  ],
   explain: `
 <div class="data-section">
   <div class="data-label">FOR UPDATE vs SKIP LOCKED / デッドロックの防止</div>
@@ -647,105 +689,147 @@ const QS = [
 <tr class="tr-hi2"><td>COPY コマンド</td><td class="tc-g">5〜10分</td><td>最速。COMMITは1回</td></tr>
 <tr class="tr-hi2"><td>COPY + INDEX無効化 + UNLOGGED</td><td class="tc-g">2〜3分</td><td>最高速（クラッシュ時リスクあり）</td></tr>
 </table></div>`,
-  answer: `<pre><span class="cmt">-- ═══ 戦略1: バッチINSERT（アプリ側で1000件まとめてINSERT）═══</span>
-<span class="kw">BEGIN</span>;   <span class="cmt">-- 【超基礎】トランザクション開始（COMMITを500万回→5000回に削減）</span>
+  answer: `<pre><span class="cmt">-- ═══ 戦略1: バッチINSERT（1000件まとめてINSERT）═══</span>
+<span class="kw">BEGIN</span>;   <span class="cmt">-- トランザクション開始</span>
 <span class="kw">INSERT INTO</span> <span class="tbl">event_logs</span> (user_id, action, amount, logged_at)
 <span class="kw">VALUES</span>
-    (<span class="str">'U001'</span>, <span class="str">'purchase'</span>, <span class="num">3000</span>, <span class="str">'2024-06-15 10:00:00'</span>),  <span class="cmt">-- 1件目</span>
-    (<span class="str">'U002'</span>, <span class="str">'login'</span>,    <span class="kw">NULL</span>,  <span class="str">'2024-06-15 10:00:01'</span>),  <span class="cmt">-- 2件目</span>
-    <span class="cmt">-- … （1000件まとめてVALUESに列挙）</span>
-    (<span class="str">'U999'</span>, <span class="str">'logout'</span>,   <span class="kw">NULL</span>,  <span class="str">'2024-06-15 10:00:59'</span>);  <span class="cmt">-- 1000件目</span>
-<span class="kw">COMMIT</span>;
-<span class="cmt">-- アプリ（Python/Node.js等）でこれを5000回繰り返す（5000回のCOMMIT）</span>
+    (<span class="str">'U001'</span>, <span class="str">'purchase'</span>, <span class="num">3000</span>, <span class="str">'2024-06-15 10:00:00'</span>),
+    (<span class="str">'U002'</span>, <span class="str">'login'</span>,    <span class="kw">NULL</span>, <span class="str">'2024-06-15 10:00:01'</span>),
+    <span class="cmt">-- … (中略: アプリ側でまとめてVALUESを生成) …</span>
+    (<span class="str">'U999'</span>, <span class="str">'logout'</span>,   <span class="kw">NULL</span>, <span class="str">'2024-06-15 10:00:59'</span>);
+<span class="kw">COMMIT</span>;  <span class="cmt">-- COMMIT回数を激減させる</span>
 
 <span class="cmt">-- ═══ 戦略2: COPY コマンド（CSVから直接投入・最速）═══</span>
-<span class="cmt">-- ① INDEXを一時的に削除（投入中のINDEX更新コストを排除）</span>
-<span class="kw">DROP INDEX</span> idx_event_logs_user_id;   <span class="cmt">-- 投入後に再作成する</span>
+<span class="cmt">-- ① インデックスを一時削除（投入時の更新オーバーヘッドをゼロに）</span>
+<span class="kw">DROP INDEX</span> idx_event_logs_user_id;
 <span class="kw">DROP INDEX</span> idx_event_logs_logged_at;
 
-<span class="cmt">-- ② COPYで一括投入（1回のトランザクションで全500万件を処理）</span>
+<span class="cmt">-- ② COPYで一括投入（1トランザクションでWAL最適化される）</span>
 <span class="kw">COPY</span> <span class="tbl">event_logs</span> (user_id, action, amount, logged_at)
-<span class="kw">FROM</span>  <span class="str">'/tmp/event_logs_20240615.csv'</span>  <span class="cmt">-- DBサーバー上のCSVファイルパス</span>
-<span class="kw">WITH</span> (
-    FORMAT  CSV,                       <span class="cmt">-- CSV形式を指定</span>
-    HEADER  <span class="kw">TRUE</span>,                     <span class="cmt">-- 1行目はヘッダとして無視する</span>
-    NULL    <span class="str">''</span>,                        <span class="cmt">-- 空文字をNULLとして扱う</span>
-    ENCODING <span class="str">'UTF8'</span>                   <span class="cmt">-- 文字コードを指定</span>
-);
+<span class="kw">FROM</span>  <span class="str">'/tmp/event_logs_20240615.csv'</span>
+<span class="kw">WITH</span> (FORMAT CSV, HEADER <span class="kw">TRUE</span>, NULL <span class="str">''</span>, ENCODING <span class="str">'UTF8'</span>);
 
-<span class="cmt">-- ③ INDEXを再作成（CONCURRENTLY: テーブルロックなしで作成）</span>
-<span class="kw">CREATE INDEX CONCURRENTLY</span> idx_event_logs_user_id
-    <span class="kw">ON</span> <span class="tbl">event_logs</span> (user_id);         <span class="cmt">-- 同時アクセスを止めずにINDEX構築</span>
-<span class="kw">CREATE INDEX CONCURRENTLY</span> idx_event_logs_logged_at
-    <span class="kw">ON</span> <span class="tbl">event_logs</span> (logged_at);
+<span class="cmt">-- ③ インデックスを再作成（CONCURRENTLYで稼働中の参照ブロックを回避）</span>
+<span class="kw">CREATE INDEX CONCURRENTLY</span> idx_event_logs_user_id <span class="kw">ON</span> <span class="tbl">event_logs</span> (user_id);
+<span class="kw">CREATE INDEX CONCURRENTLY</span> idx_event_logs_logged_at <span class="kw">ON</span> <span class="tbl">event_logs</span> (logged_at);
 
 <span class="cmt">-- ═══ 戦略3: UNLOGGED TABLE（WAL書き込みなし・最高速・クラッシュリスクあり）═══</span>
-<span class="kw">CREATE UNLOGGED TABLE</span> <span class="tbl">event_logs_staging</span> (  <span class="cmt">-- WALログに書かない → 速いがクラッシュでデータ消失</span>
-    <span class="kw">LIKE</span> <span class="tbl">event_logs</span>                          <span class="cmt">-- event_logsと同じ列定義をコピー</span>
-);
-<span class="cmt">-- UNLOGGEDテーブルにCOPYで高速投入 → 加工・検証 → 本番テーブルに INSERT SELECT</span>
+<span class="kw">CREATE UNLOGGED TABLE</span> <span class="tbl">event_logs_staging</span> (<span class="kw">LIKE</span> <span class="tbl">event_logs</span>);
+
+<span class="cmt">-- ステージングにCOPYで高速投入後、バリデーションして本番テーブルへ移行</span>
 <span class="kw">INSERT INTO</span> <span class="tbl">event_logs</span>
 <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">event_logs_staging</span>
-<span class="kw">WHERE</span> amount <span class="op">IS NOT NULL</span>              <span class="cmt">-- バリデーション後に本番へ移す</span>
+<span class="kw">WHERE</span> amount <span class="op">IS NOT NULL</span>
   <span class="kw">AND</span> logged_at <span class="op">&gt;</span> <span class="str">'2024-01-01'</span>;
 
 <span class="cmt">/*
-  ETLパイプラインの実行順序:
-  1. INDEXを削除（DROP INDEX）
-  2. COPY でCSV全件投入（1トランザクション・WAL最適化）
-  3. ANALYZE event_logs（統計情報を更新・オプティマイザが正確な計画を立てられるように）
-  4. INDEXをCREATE INDEX CONCURRENTLYで再作成（本番アクセスをブロックしない）
+  実行順序（バルクINSERT最適化）:
+  1. INDEX削除   → 投入時のBTree更新コストを排除
+  2. COPY       → WAL最適化された一括データロード
+  3. ANALYZE    → データ量変動に伴う統計情報の更新
+  4. INDEX再作成 → 本番アクセスを止めずにバックグラウンドで構築
 */</span></pre>`,
-  viz: {
-    steps: [
-      {
-        id: "step1", badge: "1", bc: "badge-blue",
-        label: "COPYによるステージングテーブルへの高速投入",
-        desc: "CSVファイルからUNLOGGEDテーブル（event_logs_staging）へCOPYコマンドで一括投入します。WAL（トランザクションログ）への書き込みがスキップされるため最速です。",
-        type: "base",
-        cols: ["log_id", "user_id", "amount", "logged_at", "状態"],
-        ch: ["col-base", "col-base", "col-base", "col-base", "col-base"],
-        rows: [
-          { c: "", v: ["1", "U001", "3000", "2024-06-15", "投入済 (Staging)"] },
-          { c: "", v: ["2", "U002", "NULL", "2024-06-15", "投入済 (Staging)"] },
-          { c: "", v: ["3", "U003", "1500", "2023-12-31", "投入済 (Staging)"] }
-        ]
-      },
-      {
-        id: "step2", badge: "2", bc: "badge-orange",
-        label: "クレンジング条件の評価 (SELECT WHERE)",
-        desc: "ステージングテーブルから本番テーブルへ移す際、amount IS NOT NULL や logged_at の条件で不正データをフィルタリングします。",
-        type: "eval",
-        cols: ["log_id", "user_id", "amount", "logged_at", "評価結果"],
-        ch: ["col-base", "col-base", "col-eval", "col-eval", "col-eval"],
-        rows: [
-          { c: "", v: ["1", "U001", "3000", "2024-06-15", "条件クリア"], cc: ["","","","","val-pass"] },
-          { c: "row-dimmed", v: ["2", "U002", "NULL", "2024-06-15", "除外 (amount IS NULL)"], cc: ["","","val-fail","","val-fail"] },
-          { c: "row-dimmed", v: ["3", "U003", "1500", "2023-12-31", "除外 (古い日付)"], cc: ["","","","val-fail","val-fail"] }
-        ]
-      },
-      {
-        id: "step3", badge: "3", bc: "badge-green",
-        label: "本番テーブルへの一括 INSERT",
-        desc: "クレンジングされた安全なデータだけが、通常の（WALに記録される）本番テーブルにまとめてINSERTされます。",
-        type: "select",
-        cols: ["log_id", "user_id", "amount", "logged_at", "投入先"],
-        ch: ["col-select", "col-select", "col-select", "col-select", "col-select"],
-        rows: [
-          { c: "row-grp-2", v: ["1", "U001", "3000", "2024-06-15", "event_logs (本番)"], cc: ["val-pass","val-pass","val-pass","val-pass","val-pass"] }
-        ]
-      }
-    ],
-    sql: [
-      { t: "-- 1. Stagingテーブルへ最速でロード\n", k: "cmt", h: "step1" },
-      { t: "CREATE UNLOGGED TABLE event_logs_staging (LIKE event_logs);\n", k: "sql-kw", h: "step1" },
-      { t: "COPY event_logs_staging FROM '/tmp/logs.csv';\n\n", k: "sql-kw", h: "step1" },
-      { t: "-- 2. クレンジングしながら本番テーブルへ一括挿入\n", k: "cmt", h: "step2 step3" },
-      { t: "INSERT INTO event_logs\n", k: "sql-kw", h: "step3" },
-      { t: "SELECT * FROM event_logs_staging\n", k: "sql-kw", h: "step2 step3" },
-      { t: "WHERE amount IS NOT NULL AND logged_at > '2024-01-01';\n", k: "sql-kw", h: "step2" }
-    ]
-  },
+  viz: [
+    {
+      steps: [
+        {
+          id: "step1", badge: "1", bc: "badge-blue",
+          label: "INDEXの削除 (Drop Index)",
+          desc: "大量データ投入時のB-Treeインデックス更新オーバーヘッドをゼロにするため、事前に関連インデックスを削除します。",
+          type: "eval",
+          cols: ["テーブル", "インデックス名", "状態", "投入時のオーバーヘッド"],
+          ch: ["col-base", "col-base", "col-eval", "col-base"],
+          rows: [
+            { c: "row-dimmed", v: ["event_logs", "idx_event_logs_user_id", "削除済 🗑️", "なし"], cc: ["","","val-fail","val-pass"] },
+            { c: "row-dimmed", v: ["event_logs", "idx_event_logs_logged_at", "削除済 🗑️", "なし"], cc: ["","","val-fail","val-pass"] }
+          ]
+        },
+        {
+          id: "step2", badge: "2", bc: "badge-orange",
+          label: "COPY コマンドによる高速バルク投入",
+          desc: "INDEXがない状態でCOPYを実行します。1行ごとの制約チェックやB-Tree更新が不要なため、ディスクの限界速度で書き込めます。",
+          type: "base",
+          cols: ["処理", "投入件数", "トランザクション", "WAL書き込み"],
+          ch: ["col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { c: "row-grp-2", v: ["COPY event_logs FROM ...", "5,000,000 件", "1回のみ", "バルク最適化"] }
+          ]
+        },
+        {
+          id: "step3", badge: "3", bc: "badge-green",
+          label: "INDEXの再構築 (CREATE INDEX CONCURRENTLY)",
+          desc: "データ投入後にインデックスをまとめて再作成します。CONCURRENTLYを付けることで、本番の参照クエリをブロックせずにバックグラウンドで構築できます。",
+          type: "select",
+          cols: ["テーブル", "インデックス名", "状態", "本番参照への影響"],
+          ch: ["col-select", "col-select", "col-eval", "col-select"],
+          rows: [
+            { c: "row-grp-1", v: ["event_logs", "idx_event_logs_user_id", "再構築完了 ✅", "ブロックなし"], cc: ["","","val-pass","val-pass"] },
+            { c: "row-grp-1", v: ["event_logs", "idx_event_logs_logged_at", "再構築完了 ✅", "ブロックなし"], cc: ["","","val-pass","val-pass"] }
+          ]
+        }
+      ],
+      sql: [
+        { t: "-- ① インデックスを一時削除\n", k: "cmt", h: "step1" },
+        { t: "DROP INDEX idx_event_logs_user_id;\n", k: "sql-kw", h: "step1" },
+        { t: "DROP INDEX idx_event_logs_logged_at;\n\n", k: "sql-kw", h: "step1" },
+        { t: "-- ② COPYで一括投入\n", k: "cmt", h: "step2" },
+        { t: "COPY event_logs (user_id, action, amount, logged_at)\n", k: "sql-kw", h: "step2" },
+        { t: "FROM '/tmp/event_logs_20240615.csv' WITH (FORMAT CSV);\n\n", k: "sql-kw", h: "step2" },
+        { t: "-- ③ インデックスを再作成 (本番影響を回避)\n", k: "cmt", h: "step3" },
+        { t: "CREATE INDEX CONCURRENTLY idx_event_logs_user_id ON event_logs (user_id);\n", k: "sql-kw", h: "step3" }
+      ]
+    },
+    {
+      steps: [
+        {
+          id: "step1", badge: "1", bc: "badge-blue",
+          label: "COPYによるステージングテーブルへの高速投入",
+          desc: "CSVファイルからUNLOGGEDテーブル（event_logs_staging）へCOPYコマンドで一括投入します。WAL（トランザクションログ）への書き込みがスキップされるため最速です。",
+          type: "base",
+          cols: ["log_id", "user_id", "amount", "logged_at", "状態"],
+          ch: ["col-base", "col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { c: "", v: ["1", "U001", "3000", "2024-06-15", "投入済 (Staging)"] },
+            { c: "", v: ["2", "U002", "NULL", "2024-06-15", "投入済 (Staging)"] },
+            { c: "", v: ["3", "U003", "1500", "2023-12-31", "投入済 (Staging)"] }
+          ]
+        },
+        {
+          id: "step2", badge: "2", bc: "badge-orange",
+          label: "クレンジング条件の評価 (SELECT WHERE)",
+          desc: "ステージングテーブルから本番テーブルへ移す際、amount IS NOT NULL や logged_at の条件で不正データをフィルタリングします。",
+          type: "eval",
+          cols: ["log_id", "user_id", "amount", "logged_at", "評価結果"],
+          ch: ["col-base", "col-base", "col-eval", "col-eval", "col-eval"],
+          rows: [
+            { c: "", v: ["1", "U001", "3000", "2024-06-15", "条件クリア"], cc: ["","","","","val-pass"] },
+            { c: "row-dimmed", v: ["2", "U002", "NULL", "2024-06-15", "除外 (amount IS NULL)"], cc: ["","","val-fail","","val-fail"] },
+            { c: "row-dimmed", v: ["3", "U003", "1500", "2023-12-31", "除外 (古い日付)"], cc: ["","","","val-fail","val-fail"] }
+          ]
+        },
+        {
+          id: "step3", badge: "3", bc: "badge-green",
+          label: "本番テーブルへの一括 INSERT",
+          desc: "クレンジングされた安全なデータだけが、通常の（WALに記録される）本番テーブルにまとめてINSERTされます。",
+          type: "select",
+          cols: ["log_id", "user_id", "amount", "logged_at", "投入先"],
+          ch: ["col-select", "col-select", "col-select", "col-select", "col-select"],
+          rows: [
+            { c: "row-grp-2", v: ["1", "U001", "3000", "2024-06-15", "event_logs (本番)"], cc: ["val-pass","val-pass","val-pass","val-pass","val-pass"] }
+          ]
+        }
+      ],
+      sql: [
+        { t: "-- 1. Stagingテーブルへ最速でロード\n", k: "cmt", h: "step1" },
+        { t: "CREATE UNLOGGED TABLE event_logs_staging (LIKE event_logs);\n", k: "sql-kw", h: "step1" },
+        { t: "COPY event_logs_staging FROM '/tmp/logs.csv';\n\n", k: "sql-kw", h: "step1" },
+        { t: "-- 2. クレンジングしながら本番テーブルへ一括挿入\n", k: "cmt", h: "step2 step3" },
+        { t: "INSERT INTO event_logs\n", k: "sql-kw", h: "step3" },
+        { t: "SELECT * FROM event_logs_staging\n", k: "sql-kw", h: "step2 step3" },
+        { t: "WHERE amount IS NOT NULL AND logged_at > '2024-01-01';\n", k: "sql-kw", h: "step2" }
+      ]
+    }
+  ],
   explain: `
 <div class="data-section">
   <div class="data-label">INSERT 1件ずつ vs バッチINSERT vs COPY のオーバーヘッド比較</div>
@@ -785,7 +869,7 @@ const QS = [
   title: "統計情報とANALYZE — オプティマイザが誤った実行計画を選ぶ原因と対策",
   tags: [["r","ANALYZE"],["r","n_distinct"],["o","統計情報"],["g","オプティマイザ"]],
   premise: `<p>PostgreSQLのオプティマイザは<em>統計情報</em>をもとに実行計画を決定します。統計情報が古くなると「実際は100万件あるのに10件と推定してNestedLoopを選ぶ」のような<em>誤選択</em>が発生し、突然クエリが遅くなります。</p>
-<pre><span class="cmt">-- 統計情報を手初動で更新する</span>
+<pre><span class="cmt">-- 統計情報を手動で更新する</span>
 <span class="kw">ANALYZE</span> <span class="tbl">orders</span>;                     <span class="cmt">-- 指定テーブルの統計を更新</span>
 <span class="kw">ANALYZE</span>;                              <span class="cmt">-- 全テーブルの統計を更新</span>
 
@@ -813,58 +897,37 @@ const QS = [
 <tr class="tr-hi"><td>rows推定が大きく乖離</td><td>ANALYZEが未実施（大量INSERT後）</td><td class="tc-g">ANALYZE events を即実行</td></tr>
 <tr class="tr-hi4"><td>event_typeの分布が偏っている</td><td>most_common_freqsのサンプルが古い</td><td class="tc-y">statistics_target を上げる</td></tr>
 </table></div>`,
-  answer: `<pre><span class="cmt">-- ① まず統計情報の現状を確認する</span>
-<span class="kw">SELECT</span>
-    schemaname,
-    tablename,
-    last_analyze,                          <span class="cmt">-- 最後に ANALYZE が実行された日時</span>
-    last_autoanalyze,                      <span class="cmt">-- autovacuumによる最終ANALYZE日時</span>
-    n_live_tup,                            <span class="cmt">-- 現在の行数（生きている行）</span>
-    n_dead_tup,                            <span class="cmt">-- 削除済みで未回収の行数（VACUUMが必要なサイン）</span>
-    n_mod_since_analyze                    <span class="cmt">-- ANALYZE後に変更された行数（大きければ統計が古い）</span>
-<span class="kw">FROM</span>  pg_stat_user_tables
-<span class="kw">WHERE</span> relname <span class="op">=</span> <span class="str">'events'</span>;
+  answer: `<pre><span class="cmt">-- ① 統計情報の現状を確認する（最終ANALYZE日時や変更行数）</span>
+<span class="kw">SELECT</span> schemaname, tablename, last_analyze, last_autoanalyze,
+       n_live_tup, n_dead_tup, n_mod_since_analyze
+<span class="kw">FROM</span>   pg_stat_user_tables
+<span class="kw">WHERE</span>  relname <span class="op">=</span> <span class="str">'events'</span>;
 
-<span class="cmt">-- ② 統計情報を即時更新する（手動ANALYZE）</span>
-<span class="kw">ANALYZE</span> <span class="tbl">events</span>;                          <span class="cmt">-- eventsテーブルの統計を今すぐ更新</span>
-<span class="cmt">-- これだけでオプティマイザの推定精度が改善し実行計画が変わることが多い</span>
+<span class="cmt">-- ② 統計情報を手動で即時更新（これだけでオプティマイザの推定が直ることも多い）</span>
+<span class="kw">ANALYZE</span> <span class="tbl">events</span>;
 
-<span class="cmt">-- ③ 統計サンプル数を増やして精度を上げる（偏りが強い列向け）</span>
-<span class="kw">ALTER TABLE</span> <span class="tbl">events</span>
-    <span class="kw">ALTER COLUMN</span> event_type
-    <span class="kw">SET STATISTICS</span> <span class="num">500</span>;                   <span class="cmt">-- デフォルト100 → 500に増やす（最大10000）</span>
-<span class="cmt">-- 値が多様だったり分布が偏っている列はサンプル数を増やすと推定精度が上がる</span>
-<span class="kw">ANALYZE</span> <span class="tbl">events</span>;                          <span class="cmt">-- 設定変更後は再度ANALYZEを実行する</span>
+<span class="cmt">-- ③ 偏りが強い列の統計サンプル数を増やして精度を上げる</span>
+<span class="kw">ALTER TABLE</span> <span class="tbl">events</span> <span class="kw">ALTER COLUMN</span> event_type <span class="kw">SET STATISTICS</span> <span class="num">500</span>;  <span class="cmt">-- デフォルト100</span>
+<span class="kw">ANALYZE</span> <span class="tbl">events</span>;  <span class="cmt">-- 設定変更後は再度ANALYZEを実行</span>
 
-<span class="cmt">-- ④ n_distinct が実態と違う場合は手動で上書きする</span>
-<span class="cmt">-- 例: event_typeは実際は20種類あるのに5と推定されている場合</span>
-<span class="kw">ALTER TABLE</span> <span class="tbl">events</span>
-    <span class="kw">ALTER COLUMN</span> event_type
-    <span class="kw">SET</span> (n_distinct <span class="op">=</span> <span class="num">20</span>);               <span class="cmt">-- 実際の種類数を明示的に指定（オプティマイザのヒント）</span>
+<span class="cmt">-- ④ n_distinct が実態と乖離している場合は手動で上書き（明示的なヒント）</span>
+<span class="kw">ALTER TABLE</span> <span class="tbl">events</span> <span class="kw">ALTER COLUMN</span> event_type <span class="kw">SET</span> (n_distinct <span class="op">=</span> <span class="num">20</span>);
 <span class="kw">ANALYZE</span> <span class="tbl">events</span>;
 
 <span class="cmt">-- ⑤ autovacuumの閾値を下げる（大量更新テーブル向け）</span>
-<span class="kw">ALTER TABLE</span> <span class="tbl">events</span>
-    <span class="kw">SET</span> (autovacuum_analyze_scale_factor <span class="op">=</span> <span class="num">0.01</span>);  <span class="cmt">-- デフォルト0.2(20%) → 1%の変更でANALYZEを発動</span>
+<span class="kw">ALTER TABLE</span> <span class="tbl">events</span> <span class="kw">SET</span> (autovacuum_analyze_scale_factor <span class="op">=</span> <span class="num">0.01</span>); <span class="cmt">-- 1%の変更で発動</span>
 
-<span class="cmt">-- ⑥ 統計情報の確認（ANALYZE後に偏りを確認）</span>
-<span class="kw">SELECT</span>
-    attname          <span class="kw">AS</span> col,
-    n_distinct,                                   <span class="cmt">-- 負数は比率: -0.95 = 全行の95%が一意</span>
-    most_common_vals,                             <span class="cmt">-- 最頻出の値のリスト</span>
-    most_common_freqs,                            <span class="cmt">-- 各最頻出値の出現割合</span>
-    histogram_bounds                              <span class="cmt">-- ヒストグラム（値の分布境界）</span>
+<span class="cmt">-- ⑥ 統計情報の詳細確認</span>
+<span class="kw">SELECT</span> attname <span class="kw">AS</span> col, n_distinct, most_common_vals, most_common_freqs
 <span class="kw">FROM</span>   pg_stats
-<span class="kw">WHERE</span>  tablename <span class="op">=</span> <span class="str">'events'</span>
-  <span class="kw">AND</span>  attname   <span class="op">=</span> <span class="str">'event_type'</span>;
+<span class="kw">WHERE</span>  tablename <span class="op">=</span> <span class="str">'events'</span> <span class="kw">AND</span> attname <span class="op">=</span> <span class="str">'event_type'</span>;
 
 <span class="cmt">/*
   実行順序（統計情報の確認と改善）:
-  1. pg_stat_user_tables で最終ANALYZE日時と変更行数を確認
-  2. ANALYZE でサンプリングして pg_stats を更新
-  3. EXPLAIN ANALYZE でオプティマイザの推定が改善されたか確認
-  4. 推定がまだ悪ければ SET STATISTICS で精度を上げる
-  5. n_distinct が実態と乖離すれば明示的に上書き
+  1. pg_stat_user_tables → 古い統計情報（大量更新）がないか確認
+  2. ANALYZE             → 基本の統計情報を更新
+  3. EXPLAIN ANALYZE     → オプティマイザの推定精度（actual vs planned）を確認
+  4. SET STATISTICS      → 推定がずれる列の精度を個別に改善し、再ANALYZE
 */</span></pre>`,
   viz: {
     steps: [
@@ -903,6 +966,18 @@ const QS = [
           { c: "row-grp-1", v: ["実際のテーブルデータ", "500,000 行", "5,000 行 (1%)"] },
           { c: "row-grp-2", v: ["pg_stats (高精度化後)", "500,000 行", "5,050 行と推定 (記録成功)"], cc: ["","val-pass","val-pass"] }
         ]
+      },
+      {
+        id: "step4", badge: "4", bc: "badge-orange",
+        label: "n_distinct の手動設定による推定値の補正",
+        desc: "イベントタイプが20種類しかないことがアプリの仕様上確定している場合、n_distinct=20 と手動で設定することで、オプティマイザの推定精度を完全に固定できます。",
+        type: "eval",
+        cols: ["情報ソース", "推定ユニーク値数", "event_type='click'の推定精度"],
+        ch: ["col-base", "col-eval", "col-select"],
+        rows: [
+          { c: "row-grp-1", v: ["pg_stats (変更前)", "約 512 種類 (サンプリングによるブレ)", "ブレが生じる"], cc: ["","val-fail",""] },
+          { c: "row-grp-2", v: ["pg_stats (n_distinct=20 設定後)", "20 種類 (固定)", "安定して高精度 ✅"], cc: ["","val-pass","val-pass"] }
+        ]
       }
     ],
     sql: [
@@ -912,7 +987,9 @@ const QS = [
       { t: "ANALYZE events;\n\n", k: "sql-kw", h: "step2" },
       { t: "-- サンプル数を増やして精度を上げる\n", k: "cmt", h: "step3" },
       { t: "ALTER TABLE events ALTER COLUMN event_type SET STATISTICS 500;\n", k: "sql-kw", h: "step3" },
-      { t: "ANALYZE events;\n", k: "sql-kw", h: "step3" }
+      { t: "ANALYZE events;\n\n", k: "sql-kw", h: "step3" },
+      { t: "-- ④ n_distinct が実態と乖離している場合は手動で上書き\n", k: "cmt", h: "step4" },
+      { t: "ALTER TABLE events ALTER COLUMN event_type SET (n_distinct = 20);\n", k: "sql-kw", h: "step4" }
     ]
   },
   explain: `
@@ -952,7 +1029,7 @@ const QS = [
   num: 9,
   title: "部分インデックス（Partial Index） — WHERE付きINDEXで必要な行だけをインデックス化する",
   tags: [["r","Partial Index"],["r","WHERE付きINDEX"],["o","インデックスサイズ削減"],["g","選択的クエリ"]],
-  premise: `<p><strong>部分インデックス（Partial Index）</strong>は <code>WHERE</code> 句を付きのインデックスで、<em>条件に一致する行だけ</em>をインデックスに格納します。全行をインデックス化する通常のインデックスと比べて、<em>サイズが小さく・更新コストが低く・キャッシュヒット率が高い</em>という3つのメリットがあります。</p>
+  premise: `<p><strong>部分インデックス（Partial Index）</strong>は <code>WHERE</code> 句付きのインデックスで、<em>条件に一致する行だけ</em>をインデックスに格納します。全行をインデックス化する通常のインデックスと比べて、<em>サイズが小さく・更新コストが低く・キャッシュヒット率が高い</em>という3つのメリットがあります。</p>
 <pre><span class="cmt">-- 部分インデックスの作成構文</span>
 <span class="kw">CREATE INDEX</span> idx_orders_pending
     <span class="kw">ON</span> <span class="tbl">orders</span> (created_at)             <span class="cmt">-- インデックスのキー列</span>
@@ -984,115 +1061,155 @@ const QS = [
 <tr><td>キャッシュヒット率</td><td class="tc-r">低（メモリに乗りにくい）</td><td class="tc-g">高（小さいのでメモリに常駐）</td></tr>
 <tr><td>UPDATE(既読化)コスト</td><td class="tc-r">全INDEX更新が必要</td><td class="tc-g">is_read=falseの行だけ更新</td></tr>
 </table></div>`,
-  answer: `<pre><span class="cmt">-- ① 通常のINDEX（全行対象）との比較のために定義</span>
-<span class="cmt">-- ❌ 非効率: 1億行全体にINDEXを作る（is_read=true の9900万行は不要なのに格納される）</span>
+  answer: `<pre><span class="cmt">-- ❌ 非効率: 1億行全体をインデックス化（99%の既読行は検索しないのに格納される）</span>
 <span class="kw">CREATE INDEX</span> idx_notif_user_isread_bad
-    <span class="kw">ON</span> <span class="tbl">notifications</span> (user_id, is_read, created_at);   <span class="cmt">-- 全1億行がINDEXに入る</span>
+    <span class="kw">ON</span> <span class="tbl">notifications</span> (user_id, is_read, created_at);
 
-<span class="cmt">-- ② 部分インデックス（未読行だけを対象）</span>
-<span class="kw">CREATE INDEX</span> idx_notif_unread                         <span class="cmt">-- インデックス名（unreadと明示）</span>
-    <span class="kw">ON</span> <span class="tbl">notifications</span> (user_id, created_at <span class="kw">DESC</span>)       <span class="cmt">-- ユーザー×日付（新しい順）でインデックス化</span>
-    <span class="kw">WHERE</span> is_read <span class="op">=</span> <span class="kw">FALSE</span>;                             <span class="cmt">-- 未読行のみ（100万行だけがINDEXに入る）</span>
-<span class="cmt">-- 結果: 1/100のサイズで同等の速度が出る</span>
+<span class="cmt">-- ✅ 効率的: 部分インデックス（未読行の100万行のみを格納、サイズが1/100に）</span>
+<span class="kw">CREATE INDEX</span> idx_notif_unread
+    <span class="kw">ON</span> <span class="tbl">notifications</span> (user_id, created_at <span class="kw">DESC</span>)
+    <span class="kw">WHERE</span> is_read <span class="op">=</span> <span class="kw">FALSE</span>;  <span class="cmt">-- 検索条件となる状態を指定</span>
 
-<span class="cmt">-- ③ 部分インデックスが効くクエリ（WHERE に is_read=FALSE が必要）</span>
-<span class="kw">SELECT</span>
-    id,
-    message,
-    created_at
-<span class="kw">FROM</span>  <span class="tbl">notifications</span>
-<span class="kw">WHERE</span> user_id  <span class="op">=</span> <span class="str">'U001'</span>               <span class="cmt">-- インデックスの第1列で絞り込む</span>
-  <span class="kw">AND</span> is_read  <span class="op">=</span> <span class="kw">FALSE</span>               <span class="cmt">-- 部分インデックスの条件と一致 → このINDEXが選ばれる</span>
-<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>             <span class="cmt">-- インデックスのソート順と一致 → ソート不要</span>
-<span class="kw">LIMIT</span> 20;                             <span class="cmt">-- 最新20件だけ取得</span>
-
-<span class="cmt">-- ④ 既読化（is_read=true に更新）するとインデックスから削除される</span>
-<span class="kw">UPDATE</span> <span class="tbl">notifications</span>
-<span class="kw">SET</span>    is_read  <span class="op">=</span> <span class="kw">TRUE</span>,              <span class="cmt">-- 既読にすると部分INDEXの対象外になる → 自動でINDEXから除去</span>
-       read_at  <span class="op">=</span> <span class="fn">NOW</span>()
+<span class="cmt">-- ① 部分インデックスが効くクエリ</span>
+<span class="kw">SELECT</span> id, message, created_at
+<span class="kw">FROM</span>   <span class="tbl">notifications</span>
 <span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span>
-  <span class="kw">AND</span>  is_read <span class="op">=</span> <span class="kw">FALSE</span>;
+  <span class="kw">AND</span>  is_read <span class="op">=</span> <span class="kw">FALSE</span>        <span class="cmt">-- インデックスのWHERE条件との一致が必須</span>
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  <span class="num">20</span>;
 
-<span class="cmt">-- ⑤ ユニーク制約にも部分インデックスが使える</span>
-<span class="cmt">-- 例: 1ユーザー1種類の招待コードは「未使用状態」でのみユニーク制約をかける</span>
+<span class="cmt">-- ② 既読化時の動作</span>
+<span class="kw">UPDATE</span> <span class="tbl">notifications</span>
+<span class="kw">SET</span>    is_read <span class="op">=</span> <span class="kw">TRUE</span>,
+       read_at <span class="op">=</span> <span class="fn">NOW</span>()
+<span class="kw">WHERE</span>  user_id <span class="op">=</span> <span class="str">'U001'</span> <span class="kw">AND</span> is_read <span class="op">=</span> <span class="kw">FALSE</span>;
+<span class="cmt">-- → is_read=TRUE になると部分インデックスの条件から外れ、自動削除される</span>
+
+<span class="cmt">-- ③ ユニーク制約への応用（未使用コードのみユニーク）</span>
 <span class="kw">CREATE UNIQUE INDEX</span> idx_invite_unique_unused
     <span class="kw">ON</span> <span class="tbl">invitations</span> (user_id, code)
-    <span class="kw">WHERE</span> used <span class="op">=</span> <span class="kw">FALSE</span>;              <span class="cmt">-- 未使用の招待コードはuser_id+codeでユニーク</span>
+    <span class="kw">WHERE</span> used <span class="op">=</span> <span class="kw">FALSE</span>;
 
 <span class="cmt">/*
   実行順序（未読通知取得クエリ）:
-  1. FROM notifications               → テーブル参照
-  2. Index Scan on idx_notif_unread   → user_id='U001' かつ is_read=FALSE でINDEX検索
-                                        （部分INDEXなので100万行の空間のみ探索）
-  3. LIMIT 20                         → 20件取得したら即終了
-  4. ORDER BY created_at DESC         → INDEXのソート順と一致するためソート処理不要
-  5. SELECT id, message, created_at   → 列を返す
+  1. FROM             → テーブル参照
+  2. Index Scan       → idx_notif_unread を使用（100万行の空間のみ探索）
+  3. ORDER BY / LIMIT → インデックスのソート順を利用して上位20件を取得
+  4. SELECT           → 列を返す
 */</span></pre>`,
-  viz: {
-    steps: [
-      {
-        id: "step1", badge: "1", bc: "badge-blue",
-        label: "テーブル全体のデータ分布",
-        desc: "テーブルには既読(is_read=true)のデータが99%を占め、未読(false)はごく一部(1%)しかありません。",
-        type: "base",
-        cols: ["id", "user_id", "message", "is_read", "状態"],
-        ch: ["col-base", "col-base", "col-base", "col-base", "col-base"],
-        rows: [
-          { c: "row-dimmed", v: ["1", "U001", "こんにちは", "true", "既読 (99%)"] },
-          { c: "", v: ["2", "U001", "重要なお知らせ", "false", "未読 (1%)"] },
-          { c: "row-dimmed", v: ["3", "U002", "アップデート", "true", "既読 (99%)"] },
-          { c: "", v: ["4", "U003", "クーポン配布", "false", "未読 (1%)"] }
-        ]
-      },
-      {
-        id: "step2", badge: "2", bc: "badge-orange",
-        label: "部分インデックスの構築 (WHERE is_read = FALSE)",
-        desc: "部分インデックスを作成すると、WHERE条件に一致する「未読の行」だけがインデックスに格納されます。インデックスサイズは1/100になります。",
-        type: "eval",
-        cols: ["id", "user_id", "is_read", "部分インデックスへの格納"],
-        ch: ["col-base", "col-base", "col-eval", "col-eval"],
-        rows: [
-          { c: "row-dimmed", v: ["1", "U001", "true", "除外 (格納されない)"], cc: ["","","","val-fail"] },
-          { c: "row-grp-2", v: ["2", "U001", "false", "格納される ✅"], cc: ["","","","val-pass"] },
-          { c: "row-dimmed", v: ["3", "U002", "true", "除外 (格納されない)"], cc: ["","","","val-fail"] },
-          { c: "row-grp-2", v: ["4", "U003", "false", "格納される ✅"], cc: ["","","","val-pass"] }
-        ]
-      },
-      {
-        id: "step3", badge: "3", bc: "badge-green",
-        label: "部分インデックスを使用した高速な検索",
-        desc: "is_read = FALSE の条件を指定した検索では、1億行のテーブルではなく100万行の部分インデックスがスキャンされ、超高速に結果が返ります。",
-        type: "select",
-        cols: ["id", "user_id", "is_read", "インデックス内の状態"],
-        ch: ["col-select", "col-select", "col-eval", "col-select"],
-        rows: [
-          { c: "row-grp-2", v: ["2", "U001", "false", "インデックスから即座に発見 🔍"], cc: ["val-pass","val-pass","val-pass","val-pass"] },
-          { c: "row-dimmed", v: ["4", "U003", "false", "今回は検索対象外"], cc: ["","","",""] }
-        ]
-      },
-      {
-        id: "step4", badge: "4", bc: "badge-blue",
-        label: "データの更新と自動メンテナンス",
-        desc: "未読データが既読(TRUE)にUPDATEされると、部分インデックスの条件(FALSE)を満たさなくなるため、自動的にインデックスから削除されます。",
-        type: "base",
-        cols: ["id", "user_id", "is_read (更新後)", "インデックス内の状態"],
-        ch: ["col-base", "col-base", "col-eval", "col-base"],
-        rows: [
-          { c: "row-dimmed", v: ["2", "U001", "true に UPDATE", "インデックスから自動削除 🗑️"], cc: ["val-dimmed","val-dimmed","val-dimmed","val-fail"] },
-          { c: "row-grp-2", v: ["4", "U003", "false のまま", "インデックスに残る ✅"], cc: ["","","","val-pass"] }
-        ]
-      }
-    ],
-    sql: [
-      { t: "-- テーブルには1億行 (99%が既読)\n", k: "cmt", h: "step1" },
-      { t: "CREATE INDEX idx_notif_unread ON notifications (user_id)\n", k: "sql-kw", h: "step2" },
-      { t: "WHERE is_read = FALSE;\n\n", k: "sql-kw", h: "step2" },
-      { t: "-- 未読のみを検索 (部分インデックスを使用)\n", k: "cmt", h: "step3" },
-      { t: "SELECT id, message FROM notifications\nWHERE user_id = 'U001' AND is_read = FALSE;\n\n", k: "sql-kw", h: "step3" },
-      { t: "-- 既読に更新するとインデックスから自動削除される\n", k: "cmt", h: "step4" },
-      { t: "UPDATE notifications SET is_read = TRUE WHERE id = 2;\n", k: "sql-kw", h: "step4" }
-    ]
-  },
+  viz: [
+    {
+      steps: [
+        {
+          id: "step1", badge: "1", bc: "badge-blue",
+          label: "テーブル全体のデータ分布",
+          desc: "テーブルには既読(is_read=true)のデータが99%を占め、未読(false)はごく一部(1%)しかありません。",
+          type: "base",
+          cols: ["id", "user_id", "message", "is_read", "状態"],
+          ch: ["col-base", "col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { c: "row-dimmed", v: ["1", "U001", "こんにちは", "true", "既読 (99%)"] },
+            { c: "", v: ["2", "U001", "重要なお知らせ", "false", "未読 (1%)"] },
+            { c: "row-dimmed", v: ["3", "U002", "アップデート", "true", "既読 (99%)"] },
+            { c: "", v: ["4", "U003", "クーポン配布", "false", "未読 (1%)"] }
+          ]
+        },
+        {
+          id: "step2", badge: "2", bc: "badge-orange",
+          label: "部分インデックスの構築 (WHERE is_read = FALSE)",
+          desc: "部分インデックスを作成すると、WHERE条件に一致する「未読の行」だけがインデックスに格納されます。インデックスサイズは1/100になります。",
+          type: "eval",
+          cols: ["id", "user_id", "is_read", "部分インデックスへの格納"],
+          ch: ["col-base", "col-base", "col-eval", "col-eval"],
+          rows: [
+            { c: "row-dimmed", v: ["1", "U001", "true", "除外 (格納されない)"], cc: ["","","","val-fail"] },
+            { c: "row-grp-2", v: ["2", "U001", "false", "格納される ✅"], cc: ["","","","val-pass"] },
+            { c: "row-dimmed", v: ["3", "U002", "true", "除外 (格納されない)"], cc: ["","","","val-fail"] },
+            { c: "row-grp-2", v: ["4", "U003", "false", "格納される ✅"], cc: ["","","","val-pass"] }
+          ]
+        },
+        {
+          id: "step3", badge: "3", bc: "badge-green",
+          label: "部分インデックスを使用した高速な検索",
+          desc: "is_read = FALSE の条件を指定した検索では、1億行のテーブルではなく100万行の部分インデックスがスキャンされ、超高速に結果が返ります。",
+          type: "select",
+          cols: ["id", "user_id", "is_read", "インデックス内の状態"],
+          ch: ["col-select", "col-select", "col-eval", "col-select"],
+          rows: [
+            { c: "row-grp-2", v: ["2", "U001", "false", "インデックスから即座に発見 🔍"], cc: ["val-pass","val-pass","val-pass","val-pass"] },
+            { c: "row-dimmed", v: ["4", "U003", "false", "今回は検索対象外"], cc: ["","","",""] }
+          ]
+        },
+        {
+          id: "step4", badge: "4", bc: "badge-orange",
+          label: "データの更新と自動メンテナンス",
+          desc: "未読データが既読(TRUE)にUPDATEされると、部分インデックスの条件(FALSE)を満たさなくなるため、自動的にインデックスから削除されます。",
+          type: "eval",
+          cols: ["id", "user_id", "is_read (更新後)", "インデックス内の状態"],
+          ch: ["col-base", "col-base", "col-eval", "col-eval"],
+          rows: [
+            { c: "row-dimmed", v: ["2", "U001", "true に UPDATE", "インデックスから自動削除 🗑️"], cc: ["val-dimmed","val-dimmed","val-dimmed","val-fail"] },
+            { c: "row-grp-2", v: ["4", "U003", "false のまま", "インデックスに残る ✅"], cc: ["","","","val-pass"] }
+          ]
+        }
+      ],
+      sql: [
+        { t: "-- テーブルには1億行 (99%が既読)\n", k: "cmt", h: "step1" },
+        { t: "CREATE INDEX idx_notif_unread ON notifications (user_id)\n", k: "sql-kw", h: "step2" },
+        { t: "WHERE is_read = FALSE;\n\n", k: "sql-kw", h: "step2" },
+        { t: "-- 未読のみを検索 (部分インデックスを使用)\n", k: "cmt", h: "step3" },
+        { t: "SELECT id, message FROM notifications\nWHERE user_id = 'U001' AND is_read = FALSE;\n\n", k: "sql-kw", h: "step3" },
+        { t: "-- 既読に更新するとインデックスから自動削除される\n", k: "cmt", h: "step4" },
+        { t: "UPDATE notifications SET is_read = TRUE WHERE id = 2;\n", k: "sql-kw", h: "step4" }
+      ]
+    },
+    {
+      steps: [
+        {
+          id: "step1", badge: "1", bc: "badge-blue",
+          label: "招待コードテーブルの初期状態",
+          desc: "ユーザーごとに招待コードを発行します。既に使われたコード（used=TRUE）は何度でも履歴として残せますが、未使用のコードは重複してはいけません。",
+          type: "base",
+          cols: ["id", "user_id", "code", "used", "状態"],
+          ch: ["col-base", "col-base", "col-base", "col-base", "col-base"],
+          rows: [
+            { c: "row-dimmed", v: ["1", "U001", "XYZ999", "TRUE", "使用済み (制約対象外)"] },
+            { c: "row-grp-1", v: ["2", "U001", "ABC123", "FALSE", "未使用 (制約対象 ✅)"] }
+          ]
+        },
+        {
+          id: "step2", badge: "2", bc: "badge-orange",
+          label: "使用済みコードの重複INSERT (許可される)",
+          desc: "既に使用されたコード（XYZ999）と同じコードをINSERTします。used=TRUE なので部分UNIQUEインデックスの対象外となり、正常に登録されます。",
+          type: "eval",
+          cols: ["id", "user_id", "code", "used", "結果"],
+          ch: ["col-base", "col-base", "col-base", "col-eval", "col-select"],
+          rows: [
+            { c: "row-dimmed", v: ["1", "U001", "XYZ999", "TRUE", "既存レコード"], cc: ["","","","",""] },
+            { c: "row-grp-2", v: ["3", "U001", "XYZ999", "TRUE", "INSERT 成功 ✅"], cc: ["","","","val-dimmed","val-pass"] }
+          ]
+        },
+        {
+          id: "step3", badge: "3", bc: "badge-green",
+          label: "未使用コードの重複INSERT (ブロックされる)",
+          desc: "現在未使用のコード（ABC123）と同じコードを unused の状態でINSERTしようとすると、部分UNIQUEインデックスに引っかかりエラーになります。",
+          type: "select",
+          cols: ["id", "user_id", "code", "used", "結果"],
+          ch: ["col-base", "col-base", "col-base", "col-eval", "col-select"],
+          rows: [
+            { c: "row-grp-1", v: ["2", "U001", "ABC123", "FALSE", "既存の未使用コード"], cc: ["","","","",""] },
+            { c: "row-grp-2", v: ["-", "U001", "ABC123", "FALSE", "UNIQUE違反でエラー ❌"], cc: ["","","","val-pass","val-fail"] }
+          ]
+        }
+      ],
+      sql: [
+        { t: "-- ③ ユニーク制約への応用（未使用コードのみユニーク）\n", k: "cmt", h: "step1 step2 step3" },
+        { t: "CREATE UNIQUE INDEX idx_invite_unique_unused\n", k: "sql-kw", h: "step1 step2 step3" },
+        { t: "    ON invitations (user_id, code)\n", k: "sql-kw", h: "step1 step2 step3" },
+        { t: "    WHERE used = FALSE;\n", k: "sql-kw", h: "step1 step2 step3" }
+      ]
+    }
+  ],
   explain: `
 <div class="data-section">
   <div class="data-label">部分INDEXが有効 / 無効なクエリの判定</div>
@@ -1157,110 +1274,137 @@ Rails等のORMでよく使われる論理削除パターン（<code>deleted_at I
 <tr class="tr-hi2"><td>8並列</td><td class="tc-g">約2.5分</td><td class="tc-g">50%（8/16）</td></tr>
 <tr class="tr-hi2"><td>16並列（最大）</td><td class="tc-g">約1.3分</td><td class="tc-g">100%（注意）</td></tr>
 </table></div>`,
-  answer: `<pre><span class="cmt">-- ① パラレルクエリが発動しているか確認する（EXPLAIN の Gather ノードに注目）</span>
+  answer: `<pre><span class="cmt">-- ① パラレルクエリが発動しているか確認する（Gatherノードに注目）</span>
 <span class="kw">EXPLAIN</span> (<span class="fn">ANALYZE</span>, <span class="fn">BUFFERS</span>)
-<span class="kw">SELECT</span>
-    <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, sold_at) <span class="kw">AS</span> month,  <span class="cmt">-- 月単位に切り捨て</span>
-    <span class="fn">SUM</span>(amount)                 <span class="kw">AS</span> total,   <span class="cmt">-- 月次合計</span>
-    <span class="fn">COUNT</span>(<span class="op">*</span>)                   <span class="kw">AS</span> cnt      <span class="cmt">-- 月次件数</span>
-<span class="kw">FROM</span>     <span class="tbl">sales</span>
+<span class="kw">SELECT</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, sold_at) <span class="kw">AS</span> month,
+       <span class="fn">SUM</span>(amount)                  <span class="kw">AS</span> total,
+       <span class="fn">COUNT</span>(<span class="op">*</span>)                     <span class="kw">AS</span> cnt
+<span class="kw">FROM</span>   <span class="tbl">sales</span>
 <span class="kw">GROUP BY</span> <span class="fn">DATE_TRUNC</span>(<span class="str">'month'</span>, sold_at)
 <span class="kw">ORDER BY</span> month;
-<span class="cmt">-- 【並列化されているEXPLAIN出力のイメージ】
--- Finalize GroupAggregate  (actual time=120000..120005)
---   -> Gather  (actual time=119900..120000 workers planned=2 workers launched=2)
---         -> Partial GroupAggregate  (actual time=115000..119800)
---               -> Parallel Seq Scan on sales  ← これが並列スキャン
---                    Workers Planned: 2
---                    Workers Launched: 2</span>
+<span class="cmt">-- 【実行計画イメージ】
+-- -> Gather (workers planned=2)
+--      -> Partial GroupAggregate  (各ワーカーで部分集計)
+--           -> Parallel Seq Scan  (各ワーカーで並列スキャン)</span>
 
-<span class="cmt">-- ② 並列度をセッションレベルで引き上げる</span>
-<span class="kw">SET</span> max_parallel_workers_per_gather <span class="op">=</span> <span class="num">8</span>;   <span class="cmt">-- このセッションで8並列まで許可（デフォルト2）</span>
-<span class="kw">SET</span> work_mem <span class="op">=</span> <span class="str">'512MB'</span>;                    <span class="cmt">-- 各ワーカーがHashAggで使えるメモリ</span>
-<span class="cmt">-- 注意: 8ワーカー × 512MB = 4GB のメモリが消費される</span>
+<span class="cmt">-- ② セッションレベルでの並列度引き上げ</span>
+<span class="kw">SET</span> max_parallel_workers_per_gather <span class="op">=</span> <span class="num">8</span>;   <span class="cmt">-- 1クエリあたり最大8並列（デフォルト2）</span>
+<span class="kw">SET</span> work_mem <span class="op">=</span> <span class="str">'512MB'</span>;                    <span class="cmt">-- 各ワーカーのメモリ上限 (8 * 512MB = 4GB消費)</span>
 
-<span class="cmt">-- ③ テーブルレベルで並列スキャンを積極化する</span>
-<span class="kw">ALTER TABLE</span> <span class="tbl">sales</span>
-    <span class="kw">SET</span> (parallel_workers <span class="op">=</span> <span class="num">8</span>);           <span class="cmt">-- このテーブルに対して8並列を推奨（ヒント）</span>
+<span class="cmt">-- ③ テーブルレベルの並列設定（オプティマイザへのヒント）</span>
+<span class="kw">ALTER TABLE</span> <span class="tbl">sales</span> <span class="kw">SET</span> (parallel_workers <span class="op">=</span> <span class="num">8</span>);
 
-<span class="cmt">-- ④ サーバーレベルの設定変更（postgresql.conf または ALTER SYSTEM）</span>
-<span class="kw">ALTER SYSTEM SET</span> max_parallel_workers             <span class="op">=</span> <span class="num">12</span>; <span class="cmt">-- 全体の最大並列ワーカー数を12に増加</span>
-<span class="kw">ALTER SYSTEM SET</span> max_parallel_workers_per_gather  <span class="op">=</span> <span class="num">8</span>;  <span class="cmt">-- 1クエリあたり最大8並列</span>
-<span class="kw">ALTER SYSTEM SET</span> min_parallel_table_scan_size     <span class="op">=</span> <span class="str">'64MB'</span>; <span class="cmt">-- 64MB以上で並列発動（感度UP）</span>
-<span class="cmt">-- 変更後はSELECT pg_reload_conf(); で設定を反映（再起動不要）</span>
+<span class="cmt">-- ④ サーバー全体の並列設定（ALTER SYSTEM）</span>
+<span class="kw">ALTER SYSTEM SET</span> max_parallel_workers <span class="op">=</span> <span class="num">12</span>;             <span class="cmt">-- 全体ワーカー数</span>
+<span class="kw">ALTER SYSTEM SET</span> max_parallel_workers_per_gather <span class="op">=</span> <span class="num">8</span>;   <span class="cmt">-- クエリごとの最大ワーカー数</span>
+<span class="kw">ALTER SYSTEM SET</span> min_parallel_table_scan_size <span class="op">=</span> <span class="str">'64MB'</span>; <span class="cmt">-- 並列スキャン発動の閾値</span>
+<span class="cmt">-- 変更後は SELECT pg_reload_conf(); で反映</span>
 
-<span class="cmt">-- ⑤ 並列化できないケースを理解する</span>
-<span class="cmt">-- ❌ LIMIT: 上位N件で止まれるためリードワーカーに処理が集中</span>
-<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">sales</span> <span class="kw">ORDER BY</span> amount <span class="kw">DESC</span> <span class="kw">LIMIT</span> <span class="num">10</span>;  <span class="cmt">-- 並列Seq Scan後にGatherでソートするため効果小</span>
-
-<span class="cmt">-- ❌ FOR UPDATE: 行ロックは並列化不可</span>
-<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">sales</span> <span class="kw">WHERE</span> id <span class="op">=</span> <span class="num">1</span> <span class="kw">FOR UPDATE</span>; <span class="cmt">-- ロックは1ワーカーで処理</span>
-
-<span class="cmt">-- ✅ 並列化が効果的なケース</span>
-<span class="cmt">-- 大規模集計（SUM/COUNT/AVG）、全件スキャン後のフィルタ、大規模JOIN</span>
-<span class="kw">SELECT</span> <span class="fn">AVG</span>(amount), <span class="fn">MAX</span>(amount), <span class="fn">MIN</span>(amount) <span class="kw">FROM</span> <span class="tbl">sales</span>;  <span class="cmt">-- ✅ 全件集計は並列効果大</span>
+<span class="cmt">-- ⑤ 並列化できない（または効果が薄い）ケース</span>
+<span class="cmt">-- ❌ LIMIT: リードワーカーに処理が集中するため効果小</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">sales</span> <span class="kw">ORDER BY</span> amount <span class="kw">DESC LIMIT</span> <span class="num">10</span>;
+<span class="cmt">-- ❌ FOR UPDATE: 行ロック処理は単一ワーカーで実行</span>
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">sales</span> <span class="kw">WHERE</span> id <span class="op">=</span> <span class="num">1</span> <span class="kw">FOR UPDATE</span>;
+<span class="cmt">-- ✅ 並列化が効果的: 全件スキャン、大規模集計</span>
+<span class="kw">SELECT</span> <span class="fn">AVG</span>(amount), <span class="fn">MAX</span>(amount) <span class="kw">FROM</span> <span class="tbl">sales</span>;
 
 <span class="cmt">/*
   実行順序（並列集計クエリ）:
-  1. Parallel Seq Scan（各ワーカー）→ salesの担当範囲をスキャン（8ワーカーで分担）
-  2. Partial GroupAggregate（各ワーカー）→ 担当分のGROUP BY集計を行う（部分集計）
-  3. Gather（リードプロセス）→ 各ワーカーの部分集計結果を収集
-  4. Finalize GroupAggregate → 部分集計を最終集計（全ワーカーの結果をマージ）
-  5. ORDER BY month          → 最終ソート
-  6. SELECT 列を返す
+  1. Parallel Seq Scan    → 各ワーカーが担当範囲をスキャン
+  2. Partial Aggregate    → 各ワーカーが担当分の部分集計を実行
+  3. Gather               → リードプロセスが全ワーカーの部分集計結果を収集
+  4. Finalize Aggregate   → 部分集計をマージして最終集計
+  5. ORDER BY / SELECT    → 最終ソートし、結果を返す
 */</span></pre>`,
-  viz: {
-    steps: [
-      {
-        id: "step1", badge: "1", bc: "badge-blue",
-        label: "テーブルデータの並列スキャン (Parallel Seq Scan)",
-        desc: "巨大なsalesテーブルを、複数のワーカープロセス（CPUコア）が自動的に分担して並列に読み込みます。",
-        type: "base",
-        cols: ["ワーカー", "担当データ範囲", "スキャンする行数"],
-        ch: ["col-base", "col-base", "col-base"],
-        rows: [
-          { c: "row-grp-1", v: ["Worker-1", "Block 0 〜 1000", "約1.25億行"] },
-          { c: "row-grp-2", v: ["Worker-2", "Block 1001 〜 2000", "約1.25億行"] },
-          { c: "row-grp-3", v: ["Worker-3", "Block 2001 〜 3000", "約1.25億行"] },
-          { c: "", v: ["Worker-4", "Block 3001 〜 4000", "約1.25億行"] }
-        ]
-      },
-      {
-        id: "step2", badge: "2", bc: "badge-orange",
-        label: "各ワーカーによる部分集計 (Partial Aggregate)",
-        desc: "各ワーカーは自分がスキャンしたデータ「だけ」で GROUP BY を行い、月別の部分的な SUM を計算します。これにより転送データ量が激減します。",
-        type: "eval",
-        cols: ["ワーカー", "month", "SUM(amount) (部分)", "COUNT (部分)"],
-        ch: ["col-base", "col-base", "col-eval", "col-eval"],
-        rows: [
-          { c: "row-grp-1", v: ["Worker-1", "2024-01", "1,500,000", "30,000"], cc: ["","","val-pass","val-pass"] },
-          { c: "row-grp-2", v: ["Worker-2", "2024-01", "2,000,000", "40,000"], cc: ["","","val-pass","val-pass"] },
-          { c: "row-grp-1", v: ["Worker-1", "2024-02", "1,800,000", "35,000"], cc: ["","","val-pass","val-pass"] },
-          { c: "row-dimmed", v: ["...", "...", "...", "..."], cc: ["","","",""] }
-        ]
-      },
-      {
-        id: "step3", badge: "3", bc: "badge-green",
-        label: "Gather と最終集計 (Finalize Aggregate)",
-        desc: "リードプロセスは全ワーカーから送られてきた部分集計を受け取り（Gather）、同じ月のデータを足し合わせて最終的な結果を算出します。",
-        type: "select",
-        cols: ["month", "total (最終SUM)", "cnt (最終COUNT)", "処理プロセス"],
-        ch: ["col-select", "col-select", "col-select", "col-base"],
-        rows: [
-          { c: "row-grp-2", v: ["2024-01", "3,500,000 (150万+200万+...)", "70,000", "Leader プロセス"], cc: ["val-pass","val-pass","val-pass",""] },
-          { c: "row-grp-2", v: ["2024-02", "1,800,000 (+他ワーカー分)", "35,000", "Leader プロセス"], cc: ["val-pass","val-pass","val-pass",""] }
-        ]
-      }
-    ],
-    sql: [
-      { t: "SELECT\n", k: "sql-kw", h: "step3" },
-      { t: "    DATE_TRUNC('month', sold_at) AS month,\n", k: "", h: "step2 step3" },
-      { t: "    SUM(amount) AS total,\n", k: "sql-kw", h: "step2 step3" },
-      { t: "    COUNT(*) AS cnt\n", k: "sql-kw", h: "step2 step3" },
-      { t: "FROM sales\n", k: "sql-kw", h: "step1" },
-      { t: "GROUP BY DATE_TRUNC('month', sold_at);\n", k: "sql-kw", h: "step2 step3" }
-    ]
-  },
+  viz: [
+    {
+      steps: [
+        {
+          id: "step1", badge: "1", bc: "badge-blue",
+          label: "テーブルデータの並列スキャン (Parallel Seq Scan)",
+          desc: "巨大なsalesテーブルを、複数のワーカープロセス（CPUコア）が自動的に分担して並列に読み込みます。",
+          type: "base",
+          cols: ["ワーカー", "担当データ範囲", "スキャンする行数"],
+          ch: ["col-base", "col-base", "col-base"],
+          rows: [
+            { c: "row-grp-1", v: ["Worker-1", "Block 0 〜 1000", "約1.25億行"] },
+            { c: "row-grp-2", v: ["Worker-2", "Block 1001 〜 2000", "約1.25億行"] },
+            { c: "row-grp-3", v: ["Worker-3", "Block 2001 〜 3000", "約1.25億行"] },
+            { c: "", v: ["Worker-4", "Block 3001 〜 4000", "約1.25億行"] }
+          ]
+        },
+        {
+          id: "step2", badge: "2", bc: "badge-orange",
+          label: "各ワーカーによる部分集計 (Partial Aggregate)",
+          desc: "各ワーカーは自分がスキャンしたデータ「だけ」で GROUP BY を行い、月別の部分的な SUM を計算します。これにより転送データ量が激減します。",
+          type: "group",
+          cols: ["ワーカー", "month", "SUM(amount) (部分)", "COUNT (部分)"],
+          ch: ["col-base", "col-eval", "col-eval", "col-eval"],
+          rows: [
+            { c: "row-grp-1", v: ["Worker-1", "2024-01", "1,500,000", "30,000"], cc: ["","","val-pass","val-pass"] },
+            { c: "row-grp-2", v: ["Worker-2", "2024-01", "2,000,000", "40,000"], cc: ["","","val-pass","val-pass"] },
+            { c: "row-grp-1", v: ["Worker-1", "2024-02", "1,800,000", "35,000"], cc: ["","","val-pass","val-pass"] },
+            { c: "row-dimmed", v: ["...", "...", "...", "..."], cc: ["","","",""] }
+          ]
+        },
+        {
+          id: "step3", badge: "3", bc: "badge-green",
+          label: "Gather と最終集計 (Finalize Aggregate)",
+          desc: "リードプロセスは全ワーカーから送られてきた部分集計を受け取り（Gather）、同じ月のデータを足し合わせて最終的な結果を算出します。",
+          type: "select",
+          cols: ["month", "total (最終SUM)", "cnt (最終COUNT)", "処理プロセス"],
+          ch: ["col-select", "col-select", "col-select", "col-base"],
+          rows: [
+            { c: "row-grp-2", v: ["2024-01", "3,500,000 (150万+200万+...)", "70,000", "Leader プロセス"], cc: ["val-pass","val-pass","val-pass",""] },
+            { c: "row-grp-2", v: ["2024-02", "1,800,000 (+他ワーカー分)", "35,000", "Leader プロセス"], cc: ["val-pass","val-pass","val-pass",""] }
+          ]
+        }
+      ],
+      sql: [
+        { t: "SELECT\n", k: "sql-kw", h: "step3" },
+        { t: "    DATE_TRUNC('month', sold_at) AS month,\n", k: "", h: "step2 step3" },
+        { t: "    SUM(amount) AS total,\n", k: "sql-kw", h: "step2 step3" },
+        { t: "    COUNT(*) AS cnt\n", k: "sql-kw", h: "step2 step3" },
+        { t: "FROM sales\n", k: "sql-kw", h: "step1" },
+        { t: "GROUP BY DATE_TRUNC('month', sold_at);\n", k: "sql-kw", h: "step2 step3" }
+      ]
+    },
+    {
+      steps: [
+        {
+          id: "step1", badge: "1", bc: "badge-blue",
+          label: "LIMIT 句によるリーダープロセスのボトルネック",
+          desc: "ORDER BY ... LIMIT の場合、各ワーカーが担当範囲のTop-Nを取り出しますが、最終的な順序マージはリーダープロセス（Gather Merge）が単独で行うため、並列効果が低下します。",
+          type: "base",
+          cols: ["プロセス", "実行される処理", "並列度", "効率"],
+          ch: ["col-base", "col-base", "col-eval", "col-select"],
+          rows: [
+            { c: "row-grp-1", v: ["Worker 1..4", "各担当範囲での Seq Scan + Top 10 ソート", "並列 (4)", "高"], cc: ["","","val-pass","val-pass"] },
+            { c: "row-grp-2", v: ["Leader", "各ワーカーから送られた40件をマージソートして10件抽出", "単一 (1)", "低 (ボトルネック)"], cc: ["","","val-fail","val-fail"] }
+          ]
+        },
+        {
+          id: "step2", badge: "2", bc: "badge-orange",
+          label: "FOR UPDATE (行ロック) による並列化の阻害",
+          desc: "トランザクションのロック状態はリーダープロセスでしか管理できないため、FOR UPDATE が付いたクエリは並列化されず、単一プロセスでの実行にフォールバックします。",
+          type: "eval",
+          cols: ["クエリ要素", "ロックの要求", "実行計画の選択", "並列度"],
+          ch: ["col-base", "col-base", "col-eval", "col-select"],
+          rows: [
+            { c: "row-dimmed", v: ["SELECT * FROM sales ...", "なし", "Parallel Seq Scan", "並列 (最大化)"], cc: ["","","val-pass","val-pass"] },
+            { c: "row-grp-2", v: ["... FOR UPDATE", "あり (行ロック)", "単一 Seq Scan にダウングレード", "単一 (1)"], cc: ["","","val-fail","val-fail"] }
+          ]
+        }
+      ],
+      sql: [
+        { t: "-- ⑤ 並列化できない（または効果が薄い）ケース\n", k: "cmt", h: "step1 step2" },
+        { t: "-- ❌ LIMIT: リードワーカーに処理が集中するため効果小\n", k: "cmt", h: "step1" },
+        { t: "SELECT * FROM sales ORDER BY amount DESC LIMIT 10;\n\n", k: "sql-kw", h: "step1" },
+        { t: "-- ❌ FOR UPDATE: 行ロック処理は単一ワーカーで実行\n", k: "cmt", h: "step2" },
+        { t: "SELECT * FROM sales WHERE id = 1 FOR UPDATE;\n", k: "sql-kw", h: "step2" }
+      ]
+    }
+  ],
   explain: `
 <div class="data-section">
   <div class="data-label">並列度とメモリ消費のトレードオフ</div>
