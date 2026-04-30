@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL バッチ処理問題 Q6〜Q10 — CTE・ウィンドウ関数・APIバッチ王道パターン</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw); font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em { color: var(--yellow); }
+  .insight-body code { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code { font-size: 11px; }
+
+  .column-box {
+    background: #111520; border: 1px solid #2a1f45; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px; border-left: 3px solid var(--purple);
+  }
+  .column-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--purple); letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .column-title::before { content: '🏢'; font-size: 12px; }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+
+  .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0; }
+
+  .sql-viz-wrapper {
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    --font-sans: system-ui, -apple-system, sans-serif;
+    --color-bg-base:    #0d1117;
+    --color-bg-panel:   #161b22;
+    --color-border-main:#30363d;
+    --color-border-sub: #21262d;
+    --color-txt-main:   #e6edf3;
+    --color-txt-sub:    #8b949e;
+    --color-txt-muted:  #6e7681;
+    --sql-blue-bg:    rgba(88,166,255,0.15); --sql-blue-txt:   #58a6ff; --sql-blue-bd:   #1f6feb;
+    --sql-orange-bg:  rgba(227,137,59,0.15); --sql-orange-txt: #e3893b; --sql-orange-bd: #7d4e00;
+    --sql-green-bg:   rgba(63,185,80,0.15);  --sql-green-txt:  #3fb950; --sql-green-bd:  #238636;
+    --sql-red-bg:     rgba(248,81,73,0.12);  --sql-red-txt:    #f85149;
+    --sql-grp1-bg: rgba(88,166,255,0.03);
+    --sql-grp2-bg: rgba(88,166,255,0.08);
+    --sql-grp3-bg: rgba(88,166,255,0.14);
+    --sql-grp4-bg: rgba(88,166,255,0.20);
+    --border-radius: 6px;
+    background: var(--color-bg-base);
+    color: var(--color-txt-main);
+    font-family: var(--font-sans);
+    min-height: auto;
+    padding: 1rem;
+  }
+
+  .sv-nav-btn { padding:6px 16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);font-size:11px;background:var(--color-bg-panel);color:var(--color-txt-main);cursor:pointer;transition:all 0.2s; }
+  .sv-nav-btn:disabled { opacity:0.3;cursor:not-allowed; }
+  .sv-nav-btn:not(:disabled):hover { border-color:var(--color-border-main);background:#1f2a38; }
+  .sv-nav-btn:focus-visible,.sv-dot:focus-visible { outline:2px solid var(--sql-blue-txt);outline-offset:2px; }
+
+  .sv-dot { height:6px;border:none;background:var(--color-border-sub);border-radius:3px;cursor:pointer;padding:0;transition:width 0.3s cubic-bezier(0.4,0,0.2,1),background 0.3s;flex-shrink:0;width:8px; }
+  .sv-dot.done { background:var(--color-border-main); }
+  .sv-dot.active { background:var(--sql-blue-txt);width:24px; }
+
+  .sv-table { border-collapse:collapse;width:100%;font-family:var(--font-mono);font-size:10px; }
+  .sv-table th { padding:6px 12px;font-size:9px;font-weight:600;border:1px solid var(--color-border-sub);text-align:left;transition:all 0.3s ease;white-space:nowrap; }
+  .sv-table td { padding:6px 12px;border:1px solid var(--color-border-sub);white-space:nowrap;background:var(--color-bg-base);color:var(--color-txt-main);transition:background 0.3s ease,opacity 0.3s ease; }
+
+  .sv-table th.col-base   { background:var(--sql-blue-bg);   color:var(--sql-blue-txt); }
+  .sv-table th.col-eval   { background:var(--sql-orange-bg); color:var(--sql-orange-txt); }
+  .sv-table th.col-select { background:var(--sql-green-bg);  color:var(--sql-green-txt); }
+
+  .sv-table tr.row-dimmed td { background:transparent;opacity:0.28; }
+  .sv-table tr.row-grp-1 td { background:var(--sql-grp1-bg); }
+  .sv-table tr.row-grp-2 td { background:var(--sql-grp2-bg); }
+  .sv-table tr.row-grp-3 td { background:var(--sql-grp3-bg); }
+  .sv-table tr.row-grp-4 td { background:var(--sql-grp4-bg); }
+
+  .sv-table td.val-pass   { background:var(--sql-green-bg) !important;border-left:2px solid var(--sql-green-txt);color:var(--sql-green-txt);font-weight:600; }
+  .sv-table td.val-fail   { background:var(--sql-red-bg) !important;border-left:2px solid var(--sql-red-txt);color:var(--sql-red-txt);text-decoration:line-through;opacity:0.7; }
+  .sv-table td.val-dimmed { background:transparent !important;opacity:0.2;color:var(--color-txt-muted); }
+
+  .sql-kw { color:var(--sql-blue-txt);font-weight:600; }
+  .sql-hl-from,.sql-hl-join,.sql-hl-where,.sql-hl-group,.sql-hl-having,.sql-hl-agg,.sql-hl-select,.sql-hl-sub,.sql-hl-recur1,.sql-hl-recur2,.sql-hl-wf_first,.sql-hl-wf_last {
+    border-radius:3px;padding:2px 4px;color:var(--sql-orange-txt);
+  }
+  .sql-hl-from,.sql-hl-join { background:var(--sql-blue-bg); }
+  .sql-hl-where,.sql-hl-group,.sql-hl-having,.sql-hl-agg,.sql-hl-sub,.sql-hl-recur1,.sql-hl-recur2,.sql-hl-wf_first,.sql-hl-wf_last { background:var(--sql-orange-bg); }
+  .sql-hl-select { background:var(--sql-green-bg); }
+
+  .sv-badge { display:inline-block;padding:2px 8px;border-radius:12px;font-size:9px;font-weight:600;letter-spacing:0.02em; }
+  .badge-blue   { background:var(--sql-blue-bg);   color:var(--sql-blue-txt);   border:1px solid var(--sql-blue-bd); }
+  .badge-orange { background:var(--sql-orange-bg); color:var(--sql-orange-txt); border:1px solid var(--sql-orange-bd); }
+  .badge-green  { background:var(--sql-green-bg);  color:var(--sql-green-txt);  border:1px solid var(--sql-green-bd); }
+
+  @keyframes sv-fade-in { from { opacity:0;transform:translateY(4px); } to { opacity:1;transform:none; } }
+  .sv-animate { animation:sv-fade-in 0.3s ease forwards; }
+
+  .tbl-label { font-size:9px;font-weight:500;color:var(--color-txt-sub);margin-bottom:6px; }
+
+  .sv-mobile-collapse summary::-webkit-details-marker { display:none; }
+  .sv-mobile-collapse summary { list-style:none; }
+  .sv-collapse-icon { transition:transform 0.2s ease;display:inline-block; }
+  .sv-mobile-collapse[open] .sv-collapse-icon { transform:rotate(180deg); }
+
+  @media (min-width:641px) {
+    .sv-mobile-collapse > summary { pointer-events:none; }
+    .sv-collapse-icon { display:none !important; }
+  }
+  @media (max-width:640px) {
+    .sv-sidebar { flex:1 1 100% !important;min-width:100% !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">Q6 - Q10</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">APIバッチ処理で学ぶ SQL 王道 Q6〜Q10（CTE・ウィンドウ関数・累計・ピボット・再帰編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★★ 中〜上級</span>
+      <span class="htag">バッチ処理王道</span>
+      <span class="htag">API実務</span>
+      <span class="htag">PostgreSQL/BigQuery対応</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+function initVisualizer(root, data) {
+  let currentStepIndex = 0;
+
+  function getLegendHTML(type) {
+    const mk = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dim =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const passFail =
+      `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:9px;">✓ 通過 / 値設定</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:9px;">✗ 除外 / 条件不一致</span></div>
+      </div>`;
+    if (type === "base")   return mk("blue",   "データ取得・結合対象") + dim;
+    if (type === "eval")   return mk("orange", "評価対象の列・キー")   + dim + passFail;
+    if (type === "group")  return mk("orange", "グループ化キー・集計対象") +
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;">
+        <div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div>
+        <div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div>
+        <div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div>
+      </div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === "select") return mk("green",  "出力対象の列") + dim;
+    return "";
+  }
+
+  function renderSQL(step) {
+    return data.sql.map(t => {
+      const isMatch = t.h && t.h.split(" ").includes(step.id);
+      const cls = `${t.k || ""} ${isMatch ? `sql-hl-${step.id}` : ""}`.trim();
+      return `<span class="${cls}">${t.t}</span>`;
+    }).join("");
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:8px 10px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:10px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:9px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:11px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>`;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ""}">${col}</th>`).join("");
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ""}">${val}</td>`).join("");
+      return `<tr class="${r.c || ""}">${tds}</tr>`;
+    }).join("");
+    const labelHtml = label ? `<div class="tbl-label">▸ ${label}</div>` : "";
+    return `<div style="flex:1;min-width:260px;">${labelHtml}<div style="overflow-x:auto;"><table class="sv-table">${thead ? `<thead><tr>${thead}</tr></thead>` : ""}<tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+          ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
+          <div style="display:flex;align-items:center;font-size:20px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+          ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+        </div>`;
+    }
+    return buildTable("", step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? "active" : (i < currentStepIndex ? "done" : "");
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}へ"></button>`;
+    }).join("");
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:10px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? "disabled" : ""}>← Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? "disabled" : ""}>Next →</button>
+      </div>`;
+  }
+
+  root.innerHTML = `<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+    <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+      <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+      <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:10px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+      <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+        <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+          <span>LEGEND (現在のステップ)</span>
+          <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+        </summary>
+        <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:10px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+      </details>
+    </div>
+    <div style="flex:1;min-width:300px;">
+      <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+      <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+      <div class="sv-tarea sv-animate"></div>
+      <div class="sv-rowcount" style="font-size:10px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+    </div>
+  </div>`;
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML = renderSQL(step);
+    root.querySelector('.sv-legend').innerHTML = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = window.innerWidth > 640);
+  }
+
+  root.__viz = {
+    next:  () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev:  () => { if (currentStepIndex > 0)                    { currentStepIndex--; renderAll(); } },
+    goTo: i => { if (i >= 0 && i < data.steps.length)          { currentStepIndex = i; renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'prev') root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+}
+
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q6  複数CTE連結 — ユーザーRFMセグメント分類バッチ
+══════════════════════════════════════════════════ */
+{
+  num: 6,
+  title: "複数CTE連結 — RFMスコアでユーザーをセグメント分類するバッチ",
+  tags: [["r","複数CTE"],["r","WITH"],["g","RFM"],["p","セグメント分類"]],
+  premise: `<p><strong>複数のCTEをカンマ区切りで列挙</strong>すると、後のCTEが前のCTEを参照できるパイプライン構造を作れます。複雑なバッチ処理を「ステップ名付きの処理列」として整理できます。</p>
+<pre><span class="kw">WITH</span>
+<span class="tbl">step1</span> <span class="kw">AS</span> (
+  <span class="kw">SELECT</span> user_id, <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> order_count
+  <span class="kw">FROM</span> <span class="tbl">orders</span>
+  <span class="kw">GROUP BY</span> user_id
+),
+<span class="tbl">step2</span> <span class="kw">AS</span> (               <span class="cmt">-- step1 を参照できる</span>
+  <span class="kw">SELECT</span> <span class="op">*</span>,
+    <span class="kw">CASE WHEN</span> order_count <span class="op">>=</span> <span class="num">5</span> <span class="kw">THEN</span> <span class="str">'優良'</span> <span class="kw">ELSE</span> <span class="str">'一般'</span> <span class="kw">END</span> <span class="kw">AS</span> segment
+  <span class="kw">FROM</span> <span class="tbl">step1</span>
+)
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">step2</span>;</pre>
+<div class="callout"><strong>RFMとは：</strong>Recency（最終購買日）・Frequency（購買頻度）・Monetary（購買金額）の3指標でユーザーをスコアリングする手法。マーケティングのバッチ処理で非常に頻出です。</div>`,
+  question: `<p>以下の <code>orders</code> テーブルから、各ユーザーの <em>R（最終購買からの日数）・F（購買回数）・M（購買金額合計）</em> を計算し、それぞれのスコア（1〜3）を付けて最終セグメントを分類してください。</p>
+<p>基準日：2024-05-01。R: 30日以内=3, 60日以内=2, それ以外=1。F: 3回以上=3, 2回=2, 1回=1。M: 100000以上=3, 50000以上=2, それ以外=1。<br>最終セグメントは合計スコア（total_score）が 8以上で「VIP」、6以上で「優良」、それ以外を「一般」とすること。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>order_date</th><th>amount</th></tr>
+        <tr><td>1</td><td>U01</td><td>2024-04-20</td><td>50000</td></tr>
+        <tr><td>2</td><td>U01</td><td>2024-04-28</td><td>70000</td></tr>
+        <tr><td>3</td><td>U01</td><td>2024-04-30</td><td>30000</td></tr>
+        <tr><td>4</td><td>U02</td><td>2024-03-10</td><td>120000</td></tr>
+        <tr><td>5</td><td>U02</td><td>2024-03-25</td><td>40000</td></tr>
+        <tr><td>6</td><td>U03</td><td>2024-01-15</td><td>30000</td></tr>
+        <tr><td>7</td><td>U04</td><td>2024-04-25</td><td>200000</td></tr>
+        <tr><td>8</td><td>U04</td><td>2024-04-29</td><td>150000</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th class="tc-hi">r_score</th><th class="tc-g">f_score</th><th class="tc-y">m_score</th><th class="tc-p">total_score</th><th>segment</th></tr>
+<tr class="tr-hi"><td>U01</td><td class="tc-hi">3</td><td class="tc-g">3</td><td class="tc-y">3</td><td class="tc-p">9</td><td class="tc-g">VIP</td></tr>
+<tr class="tr-hi2"><td>U04</td><td class="tc-hi">3</td><td class="tc-g">2</td><td class="tc-y">3</td><td class="tc-p">8</td><td class="tc-g">VIP</td></tr>
+<tr><td>U02</td><td class="tc-hi">2</td><td class="tc-g">2</td><td class="tc-y">3</td><td class="tc-p">7</td><td class="tc-o">優良</td></tr>
+<tr class="tr-dim"><td>U03</td><td class="tc-hi">1</td><td class="tc-g">1</td><td class="tc-y">1</td><td class="tc-p">3</td><td class="tc-r">一般</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- 複数CTEの定義（カンマ区切り）</span>
+<span class="kw">WITH</span>
+
+<span class="cmt">-- ① ユーザーごとの生集計（R/F/Mの元データを計算）</span>
+<span class="tbl">rfm_raw</span> <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    user_id,
+    <span class="str">'2024-05-01'</span><span class="op">::</span><span class="fn">date</span> <span class="op">-</span> <span class="fn">MAX</span>(order_date) <span class="kw">AS</span> recency_days, <span class="cmt">-- R: 基準日 - 最新購買日</span>
+    <span class="fn">COUNT</span>(<span class="op">*</span>)                             <span class="kw">AS</span> frequency,    <span class="cmt">-- F: 購買回数</span>
+    <span class="fn">SUM</span>(amount)                          <span class="kw">AS</span> monetary      <span class="cmt">-- M: 購買金額合計</span>
+  <span class="kw">FROM</span> <span class="tbl">orders</span>
+  <span class="kw">GROUP BY</span> user_id
+),
+
+<span class="cmt">-- ② 各指標をスコア（1〜3）に変換</span>
+<span class="tbl">rfm_scored</span> <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    user_id,
+    <span class="kw">CASE</span> <span class="kw">WHEN</span> recency_days <span class="op"><=</span> <span class="num">30</span> <span class="kw">THEN</span> <span class="num">3</span>
+         <span class="kw">WHEN</span> recency_days <span class="op"><=</span> <span class="num">60</span> <span class="kw">THEN</span> <span class="num">2</span> <span class="kw">ELSE</span> <span class="num">1</span> <span class="kw">END</span> <span class="kw">AS</span> r_score, <span class="cmt">-- 日数が少ないほど高得点</span>
+    <span class="kw">CASE</span> <span class="kw">WHEN</span> frequency <span class="op">>=</span> <span class="num">3</span> <span class="kw">THEN</span> <span class="num">3</span>
+         <span class="kw">WHEN</span> frequency <span class="op">=</span>  <span class="num">2</span> <span class="kw">THEN</span> <span class="num">2</span> <span class="kw">ELSE</span> <span class="num">1</span> <span class="kw">END</span> <span class="kw">AS</span> f_score, <span class="cmt">-- 回数が多いほど高得点</span>
+    <span class="kw">CASE</span> <span class="kw">WHEN</span> monetary <span class="op">>=</span> <span class="num">100000</span> <span class="kw">THEN</span> <span class="num">3</span>
+         <span class="kw">WHEN</span> monetary <span class="op">>=</span>  <span class="num">50000</span> <span class="kw">THEN</span> <span class="num">2</span> <span class="kw">ELSE</span> <span class="num">1</span> <span class="kw">END</span> <span class="kw">AS</span> m_score  <span class="cmt">-- 金額が大きいほど高得点</span>
+  <span class="kw">FROM</span> <span class="tbl">rfm_raw</span>  <span class="cmt">-- 前のCTEを参照</span>
+)
+
+<span class="cmt">-- ③ 合計スコアでセグメント分類</span>
+<span class="kw">SELECT</span>
+  user_id,
+  r_score, f_score, m_score,
+  r_score <span class="op">+</span> f_score <span class="op">+</span> m_score <span class="kw">AS</span> total_score,
+  <span class="kw">CASE</span> <span class="kw">WHEN</span> r_score <span class="op">+</span> f_score <span class="op">+</span> m_score <span class="op">>=</span> <span class="num">8</span> <span class="kw">THEN</span> <span class="str">'VIP'</span>
+       <span class="kw">WHEN</span> r_score <span class="op">+</span> f_score <span class="op">+</span> m_score <span class="op">>=</span> <span class="num">6</span> <span class="kw">THEN</span> <span class="str">'優良'</span>
+       <span class="kw">ELSE</span> <span class="str">'一般'</span> <span class="kw">END</span> <span class="kw">AS</span> segment
+<span class="kw">FROM</span> <span class="tbl">rfm_scored</span>
+<span class="kw">ORDER BY</span> total_score <span class="kw">DESC</span>;
+
+<span class="cmt">/*
+  【実行順序】
+  1. rfm_raw    : ordersから読み込み、ユーザー毎に集計
+  2. rfm_scored : rfm_rawの結果を参照し、スコア化
+  3. 本体       : rfm_scoredの結果を参照し、合計スコア・セグメントを算出して並び替え
+
+  ★ 超基礎: WITH句で複数CTEを定義する場合、CTE間に「, (カンマ)」が必要です（最後は不要）。
+*/</span></pre>`,
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CTEの命名が鍵：</strong><code>rfm_raw</code>（生データ）→<code>rfm_scored</code>（スコア化）のように処理ステップを名前で表現すると、SQLを見るだけで「何をしているか」がわかります。バッチ処理のコードレビューで非常に有効です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>日付の引き算：</strong>PostgreSQLでは <code>DATE型 - DATE型</code> で日数の差（整数）が返ります。<code>'2024-05-01'::date - MAX(order_date)</code> で「基準日から最終購買日までの日数」が計算できます。BigQueryでは <code>DATE_DIFF('2024-05-01', MAX(order_date), DAY)</code> を使います。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTEの逆順参照：</strong>後で定義したCTEを前のCTEから参照することはできません。必ず「使われる側を先に定義」してください。循環参照も（再帰CTEを除いて）不可です。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">顧客のスコアリング（RFM分析）はCRM（顧客関係管理）の要です。実務ではこのセグメント結果を、夜間バッチでMA（マーケティングオートメーション）ツールに連携し、「VIPには限定先行オファー」「Rが低く離反しそうなユーザーには引き止めクーポン」といった自動施策のトリガーデータとして日々活用されます。</div>
+</div>
+`,
+  viz: {
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM orders",
+        desc: "ordersテーブル（8行）を読み込みます。この後user_idごとにグループ化されます。",
+        type: "base",
+        cols: ["order_id", "user_id", "order_date", "amount"],
+        ch: ["col-base", "col-base", "col-base", "col-base"],
+        rows: [
+          { c: "row-grp-1", v: [1, "U01", "2024-04-20", "50,000"] },
+          { c: "row-grp-1", v: [2, "U01", "2024-04-28", "70,000"] },
+          { c: "row-grp-1", v: [3, "U01", "2024-04-30", "30,000"] },
+          { c: "row-grp-2", v: [4, "U02", "2024-03-10", "120,000"] },
+          { c: "row-grp-2", v: [5, "U02", "2024-03-25", "40,000"] },
+          { c: "row-grp-3", v: [6, "U03", "2024-01-15", "30,000"] },
+          { v: [7, "U04", "2024-04-25", "200,000"] },
+          { v: [8, "U04", "2024-04-29", "150,000"] }
+        ],
+        cnt: "全8行 読込"
+      },
+      {
+        id: "group", badge: "② CTE① rfm_raw", bc: "badge-orange",
+        label: "GROUP BY user_id",
+        desc: "user_idごとに集計します。recency_days=基準日-最新購買日、frequency=購買回数、monetary=金額合計。",
+        type: "group",
+        cols: ["user_id", "recency_days", "frequency", "monetary"],
+        ch: ["col-eval", "col-eval", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U01", "1日",   3, "150,000"] },
+          { c: "row-grp-2", v: ["U02", "37日",  2, "160,000"] },
+          { c: "row-grp-3", v: ["U03", "106日", 1,  "30,000"] },
+          {                  v: ["U04", "2日",   2, "350,000"] }
+        ],
+        cnt: "8行 → 4行"
+      },
+      {
+        id: "agg", badge: "③ CTE② rfm_scored", bc: "badge-orange",
+        label: "CASE WHEN (スコア化)",
+        desc: "各指標を1〜3のスコアに変換します。日数は少ないほど、回数・金額は多いほど高得点（3）になります。",
+        type: "eval",
+        cols: ["user_id", "日数", "→ r_score", "回数", "→ f_score", "金額", "→ m_score"],
+        ch: ["", "col-base", "col-eval", "col-base", "col-eval", "col-base", "col-eval"],
+        rows: [
+          { v: ["U01", "1日",   "3", "3", "3", "150,000", "3"], cc: ["", "", "val-pass", "", "val-pass", "", "val-pass"] },
+          { v: ["U02", "37日",  "2", "2", "2", "160,000", "3"], cc: ["", "", "val-pass", "", "val-pass", "", "val-pass"] },
+          { v: ["U03", "106日", "1", "1", "1",  "30,000", "1"], cc: ["", "", "val-fail", "", "val-fail", "", "val-fail"] },
+          { v: ["U04", "2日",   "3", "2", "2", "350,000", "3"], cc: ["", "", "val-pass", "", "val-pass", "", "val-pass"] }
+        ],
+        cnt: "4行（スコア変換）"
+      },
+      {
+        id: "select", badge: "④ SELECT", bc: "badge-green",
+        label: "合計スコアでセグメント決定",
+        desc: "スコアを合計してセグメントを決定します。8以上→VIP、6以上→優良、それ以外→一般。ORDER BY total_score DESCで降順出力します。",
+        type: "select",
+        cols: ["user_id", "r_score", "f_score", "m_score", "total_score", "segment"],
+        ch: ["col-select", "col-select", "col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["U01", 3, 3, 3, 9, "VIP"] },
+          { v: ["U04", 3, 2, 3, 8, "VIP"] },
+          { v: ["U02", 2, 2, 3, 7, "優良"] },
+          { c: "row-dimmed", v: ["U03", 1, 1, 1, 3, "一般"] }
+        ],
+        cnt: "結果: 4行 × 6列"
+      }
+    ],
+    sql: [
+      { t: "-- 複数CTEの定義（カンマ区切り）\nWITH\n\n", k: "cmt", h: "" },
+      { t: "-- ① ユーザーごとの生集計\n", k: "cmt", h: "" },
+      { t: "rfm_raw", k: "", h: "from group agg" }, { t: " AS (\n", k: "sql-kw", h: "from group" },
+      { t: "  SELECT\n    user_id,\n", k: "sql-kw", h: "group" },
+      { t: "    '2024-05-01'::date - MAX(order_date) AS recency_days,\n    COUNT(*) AS frequency,\n    SUM(amount) AS monetary\n", k: "", h: "group" },
+      { t: "  FROM ", k: "sql-kw", h: "from group" }, { t: "orders\n", k: "", h: "from group" },
+      { t: "  GROUP BY ", k: "sql-kw", h: "group" }, { t: "user_id\n", k: "", h: "group" },
+      { t: "),\n\n", k: "", h: "from group" },
+      { t: "-- ② 各指標をスコアに変換\n", k: "cmt", h: "" },
+      { t: "rfm_scored", k: "", h: "agg select" }, { t: " AS (\n", k: "sql-kw", h: "agg" },
+      { t: "  SELECT\n    user_id,\n    CASE WHEN recency_days <= 30 THEN 3\n         WHEN recency_days <= 60 THEN 2 ELSE 1 END AS r_score,\n    CASE WHEN frequency >= 3 THEN 3\n         WHEN frequency =  2 THEN 2 ELSE 1 END AS f_score,\n    CASE WHEN monetary >= 100000 THEN 3\n         WHEN monetary >=  50000 THEN 2 ELSE 1 END AS m_score\n", k: "", h: "agg" },
+      { t: "  FROM ", k: "sql-kw", h: "agg" }, { t: "rfm_raw\n", k: "", h: "agg" },
+      { t: ")\n\n", k: "", h: "agg" },
+      { t: "-- ③ 合計スコアでセグメント分類\n", k: "cmt", h: "" },
+      { t: "SELECT\n  user_id,\n  r_score, f_score, m_score,\n  r_score + f_score + m_score AS total_score,\n  CASE WHEN r_score + f_score + m_score >= 8 THEN 'VIP'\n       WHEN r_score + f_score + m_score >= 6 THEN '優良'\n       ELSE '一般' END AS segment\n", k: "", h: "select" },
+      { t: "FROM ", k: "sql-kw", h: "select" }, { t: "rfm_scored\n", k: "", h: "select" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "total_score DESC;", k: "", h: "select" }
+    ]
+  }
+},
+
+/* ══════════════════════════════════════════════════
+   Q7  DENSE_RANK — 同率を考慮したランキングAPI
+══════════════════════════════════════════════════ */
+{
+  num: 7,
+  title: "DENSE_RANK() — 同率を考慮したランキングと上位グループ抽出",
+  tags: [["r","DENSE_RANK"],["r","ウィンドウ関数"],["g","同率対応"],["o","ランキングAPI"]],
+  premise: `<p>同率スコアがある場合に「3位タイまで全員表示したい」という要件では <strong>DENSE_RANK()</strong> が適切です。ROW_NUMBERとの違いを押さえましょう。</p>
+<pre><span class="kw">SELECT</span> player, score,
+  <span class="fn">ROW_NUMBER</span>()  <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> score <span class="kw">DESC</span>) <span class="kw">AS</span> rn,    <span class="cmt">-- 同率でも強制的に連番</span>
+  <span class="fn">RANK</span>()        <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> score <span class="kw">DESC</span>) <span class="kw">AS</span> rnk,   <span class="cmt">-- 同率=同順位、次をスキップ</span>
+  <span class="fn">DENSE_RANK</span>()  <span class="kw">OVER</span> (<span class="kw">ORDER BY</span> score <span class="kw">DESC</span>) <span class="kw">AS</span> dr;    <span class="cmt">-- 同率=同順位、番号は飛ばさない</span></pre>
+<div class="callout warn"><strong>使い分け：</strong>「上位N件（件数固定）」→ ROW_NUMBER。「上位N位タイ全員」→ DENSE_RANK。「ランキング表示でスキップあり」→ RANK。APIの要件に合わせて使い分けてください。</div>`,
+  question: `<p>以下の <code>game_scores</code> テーブルから、ゲームごとにDENSE_RANKを使った順位を付け、3位以内の全プレイヤーを返してください。同率は同順位で全員表示すること。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ game_scores</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>game_id</th><th>player_name</th><th>score</th></tr>
+        <tr><td>G01</td><td>Alice</td><td>9500</td></tr>
+        <tr><td>G01</td><td>Bob</td><td>8200</td></tr>
+        <tr><td>G01</td><td>Carol</td><td>8200</td></tr>
+        <tr><td>G01</td><td>Dave</td><td>7800</td></tr>
+        <tr><td>G01</td><td>Eve</td><td>7100</td></tr>
+        <tr><td>G02</td><td>Frank</td><td>6000</td></tr>
+        <tr><td>G02</td><td>Grace</td><td>6000</td></tr>
+        <tr><td>G02</td><td>Hank</td><td>5500</td></tr>
+        <tr><td>G02</td><td>Iris</td><td>4800</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>game_id</th><th>player_name</th><th class="tc-g">score</th><th class="tc-hi">rank</th></tr>
+<tr class="tr-hi2"><td>G01</td><td>Alice</td><td class="tc-g">9500</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi"><td>G01</td><td>Bob</td><td class="tc-g">8200</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi"><td>G01</td><td>Carol</td><td class="tc-g">8200</td><td class="tc-hi">2</td></tr>
+<tr><td>G01</td><td>Dave</td><td class="tc-g">7800</td><td class="tc-hi">3</td></tr>
+<tr class="tr-hi2"><td>G02</td><td>Frank</td><td class="tc-g">6000</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi2"><td>G02</td><td>Grace</td><td class="tc-g">6000</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi"><td>G02</td><td>Hank</td><td class="tc-g">5500</td><td class="tc-hi">2</td></tr>
+<tr><td>G02</td><td>Iris</td><td class="tc-g">4800</td><td class="tc-hi">3</td></tr>
+</table></div>
+<p style="font-size:12px;color:var(--dim);margin-top:6px;">※ G01のEve(7100)はDENSE_RANK=4なので除外</p>`,
+  answer: `<pre><span class="kw">WITH</span> <span class="tbl">ranked_scores</span> <span class="kw">AS</span> (
+  <span class="cmt">-- ① ゲームごとにDENSE_RANKで順位を付ける</span>
+  <span class="kw">SELECT</span>
+    game_id,
+    player_name,
+    score,
+    <span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> game_id    <span class="cmt">-- ゲーム単位でグループ化</span>
+      <span class="kw">ORDER BY</span> score <span class="kw">DESC</span>     <span class="cmt">-- スコア降順で順位付け</span>
+    ) <span class="kw">AS</span> rank
+  <span class="kw">FROM</span> <span class="tbl">game_scores</span>
+)
+
+<span class="cmt">-- ② 3位以内のプレイヤーを抽出</span>
+<span class="kw">SELECT</span>
+  game_id,
+  player_name,
+  score,
+  rank
+<span class="kw">FROM</span> <span class="tbl">ranked_scores</span>
+<span class="kw">WHERE</span> rank <span class="op"><=</span> <span class="num">3</span>               <span class="cmt">-- 同率を含め上位3位までを抽出</span>
+<span class="kw">ORDER BY</span> game_id, rank, score <span class="kw">DESC</span>;
+
+<span class="cmt">/*
+  【実行順序】
+  1. CTE内: game_scoresを読み込み、ゲーム別・スコア順にDENSE_RANKを計算
+  2. 本体: CTEを読み込み、rank <= 3 でフィルタリング
+  3. 本体: 結果を指定キー順に並び替え
+
+  ★ 超基礎: ウィンドウ関数内のORDER BYは「順位付けの基準」、
+    最後のORDER BYは「出力結果の見た目の並び順」です。
+*/</span></pre>`,
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>DENSE_RANKを選ぶ基準：</strong>「3位タイが3人いたら全員表示、4位は除外」という要件には DENSE_RANK が最適です。RANK を使うと Bob/Carol が2位タイの後に Dave が「4位」になってしまい、<code>WHERE rank &lt;= 3</code> では Dave が除外されます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PARTITION BY の省略：</strong>全データを通した総合ランキングが欲しい場合は PARTITION BY を書かずに <code>DENSE_RANK() OVER (ORDER BY score DESC)</code> とします。ゲーム別や商品カテゴリ別など「グループ内ランキング」は PARTITION BY を使います。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同率を考慮せずROW_NUMBERで上位N件を取る：</strong>「同率2位が2人いるのに1人しか表示されない」という問題が発生します。要件が「上位N位タイ全員」なら必ず DENSE_RANK か RANK を使ってください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">ソーシャルゲームのランキング報酬配布バッチでは DENSE_RANK が必須です。同率スコアのユーザーが複数いる場合、「一方は報酬がもらえてもう一方はもらえない」という事態は深刻なクレームに繋がります。業務要件として「同率の扱いをどうするか（連番か、スキップか、同順位か）」は実装前に必ずステークホルダーと確認すべきポイントです。</div>
+</div>
+`,
+  viz: {
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM game_scores",
+        desc: "game_scoresテーブル（9行）を読み込みます。G01は5名、G02は4名。Bob/CarolとFrank/Graceは同点です。",
+        type: "base",
+        cols: ["game_id", "player_name", "score"],
+        ch: ["col-base", "col-base", "col-base"],
+        rows: [
+          { c: "row-grp-1", v: ["G01", "Alice", "9,500"] },
+          { c: "row-grp-1", v: ["G01", "Bob",   "8,200"] },
+          { c: "row-grp-1", v: ["G01", "Carol", "8,200"] },
+          { c: "row-grp-1", v: ["G01", "Dave",  "7,800"] },
+          { c: "row-grp-1", v: ["G01", "Eve",   "7,100"] },
+          { c: "row-grp-2", v: ["G02", "Frank", "6,000"] },
+          { c: "row-grp-2", v: ["G02", "Grace", "6,000"] },
+          { c: "row-grp-2", v: ["G02", "Hank",  "5,500"] },
+          { c: "row-grp-2", v: ["G02", "Iris",  "4,800"] }
+        ],
+        cnt: "全9行 読込"
+      },
+      {
+        id: "agg", badge: "② DENSE_RANK()", bc: "badge-orange",
+        label: "PARTITION BY game_id ORDER BY score DESC",
+        desc: "ゲームごとに順位付けします。BobとCarolが同点2位で、次のDaveは3位（番号を飛ばさない）になります。",
+        type: "eval",
+        cols: ["game_id", "player_name", "score", "DENSE_RANK"],
+        ch: ["col-eval", "", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["G01", "Alice", "9,500", 1], cc: ["", "", "", "val-pass"] },
+          { c: "row-grp-1", v: ["G01", "Bob",   "8,200", 2], cc: ["", "", "", "val-pass"] },
+          { c: "row-grp-1", v: ["G01", "Carol", "8,200", 2], cc: ["", "", "", "val-pass"] },
+          { c: "row-grp-1", v: ["G01", "Dave",  "7,800", 3], cc: ["", "", "", "val-pass"] },
+          { c: "row-grp-1", v: ["G01", "Eve",   "7,100", 4], cc: ["", "", "", "val-pass"] },
+          { c: "row-grp-2", v: ["G02", "Frank", "6,000", 1], cc: ["", "", "", "val-pass"] },
+          { c: "row-grp-2", v: ["G02", "Grace", "6,000", 1], cc: ["", "", "", "val-pass"] },
+          { c: "row-grp-2", v: ["G02", "Hank",  "5,500", 2], cc: ["", "", "", "val-pass"] },
+          { c: "row-grp-2", v: ["G02", "Iris",  "4,800", 3], cc: ["", "", "", "val-pass"] }
+        ],
+        cnt: "9行（順位付き）"
+      },
+      {
+        id: "where", badge: "③ WHERE", bc: "badge-orange",
+        label: "WHERE rank <= 3",
+        desc: "DENSE_RANKが3以下の行のみ抽出します。G01のEve（rank=4）が除外されます。",
+        type: "eval",
+        cols: ["game_id", "player_name", "score", "DENSE_RANK"],
+        ch: ["", "", "", "col-eval"],
+        rows: [
+          { v: ["G01", "Alice", "9,500", 1], cc: ["", "", "", "val-pass"] },
+          { v: ["G01", "Bob",   "8,200", 2], cc: ["", "", "", "val-pass"] },
+          { v: ["G01", "Carol", "8,200", 2], cc: ["", "", "", "val-pass"] },
+          { v: ["G01", "Dave",  "7,800", 3], cc: ["", "", "", "val-pass"] },
+          { c: "row-dimmed", v: ["G01", "Eve", "7,100", 4], cc: ["", "", "", "val-fail"] },
+          { v: ["G02", "Frank", "6,000", 1], cc: ["", "", "", "val-pass"] },
+          { v: ["G02", "Grace", "6,000", 1], cc: ["", "", "", "val-pass"] },
+          { v: ["G02", "Hank",  "5,500", 2], cc: ["", "", "", "val-pass"] },
+          { v: ["G02", "Iris",  "4,800", 3], cc: ["", "", "", "val-pass"] }
+        ],
+        cnt: "9行 → 8行（Eve除外）"
+      },
+      {
+        id: "select", badge: "④ SELECT", bc: "badge-green",
+        label: "結果の出力",
+        desc: "同率2位のBob/Carolを含め、各ゲームの上位3位タイまでのプレイヤーが出力されます。",
+        type: "select",
+        cols: ["game_id", "player_name", "score", "rank"],
+        ch: ["col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["G01", "Alice", "9,500", 1] },
+          { v: ["G01", "Bob",   "8,200", 2] },
+          { v: ["G01", "Carol", "8,200", 2] },
+          { v: ["G01", "Dave",  "7,800", 3] },
+          { v: ["G02", "Frank", "6,000", 1] },
+          { v: ["G02", "Grace", "6,000", 1] },
+          { v: ["G02", "Hank",  "5,500", 2] },
+          { v: ["G02", "Iris",  "4,800", 3] }
+        ],
+        cnt: "結果: 8行 × 4列"
+      }
+    ],
+    sql: [
+      { t: "WITH ", k: "sql-kw", h: "from agg where select" },
+      { t: "ranked_scores", k: "", h: "agg where select" }, { t: " AS (\n", k: "sql-kw", h: "agg" },
+      { t: "  SELECT\n    game_id,\n    player_name,\n    score,\n", k: "", h: "agg" },
+      { t: "    DENSE_RANK()", k: "", h: "agg" }, { t: " OVER", k: "sql-kw", h: "agg" },
+      { t: " (\n      PARTITION BY ", k: "sql-kw", h: "agg" }, { t: "game_id\n", k: "", h: "agg" },
+      { t: "      ORDER BY ", k: "sql-kw", h: "agg" }, { t: "score DESC\n    ) AS rank\n", k: "", h: "agg" },
+      { t: "  FROM ", k: "sql-kw", h: "from" }, { t: "game_scores\n", k: "", h: "from" },
+      { t: ")\n\n", k: "", h: "agg" },
+      { t: "SELECT\n  game_id,\n  player_name,\n  score,\n  rank\n", k: "", h: "select" },
+      { t: "FROM ", k: "sql-kw", h: "select" }, { t: "ranked_scores\n", k: "", h: "select" },
+      { t: "WHERE ", k: "sql-kw", h: "where" }, { t: "rank <= 3\n", k: "", h: "where" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "game_id, rank, score DESC;", k: "", h: "select" }
+    ]
+  }
+},
+
+/* ══════════════════════════════════════════════════
+   Q8  LEFT JOIN + COALESCE — 欠損補完バッチ
+══════════════════════════════════════════════════ */
+{
+  num: 8,
+  title: "LEFT JOIN + COALESCE — 売上ゼロ月を含めた完全な月別レポートを作る",
+  tags: [["r","LEFT JOIN"],["r","COALESCE"],["g","欠損補完"],["o","バッチレポート"]],
+  premise: `<p>売上がない月のデータは <code>orders</code> テーブルに存在しません。しかし「売上0円の月も含めた月次レポート」が必要な場合があります。<strong>LEFT JOIN + COALESCE</strong> が王道パターンです。</p>
+<pre><span class="kw">SELECT</span>
+  m.month,
+  <span class="fn">COALESCE</span>(s.total_sales, <span class="num">0</span>) <span class="kw">AS</span> total_sales  <span class="cmt">-- NULLなら0に置き換える</span>
+<span class="kw">FROM</span>       <span class="tbl">months</span>        m        <span class="cmt">-- 全月リスト（マスタ）</span>
+<span class="kw">LEFT JOIN</span>  <span class="tbl">sales_summary</span> s        <span class="cmt">-- 売上あり月のみ存在（NULLになる月あり）</span>
+        <span class="kw">ON</span> m.month <span class="op">=</span> s.month;    <span class="cmt">-- 月で結合</span></pre>
+<div class="callout warn"><strong>LEFT JOIN vs INNER JOIN：</strong>INNER JOINは両テーブルに一致する行のみ返す（売上ない月が消える）。LEFT JOINは左テーブルの全行を保ちつつ、右テーブルに一致がない場合はNULLを返します。COALESCEでNULLを0に変換するのが売上0補完の定番イディオムです。</div>`,
+  question: `<p>2024年1月〜6月の全月について、月別集計レポートを作成してください。売上がない月は total_sales=0、order_count=0 とすること。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders（売上データ）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>order_month</th><th>amount</th></tr>
+        <tr><td>1</td><td>2024-01</td><td>30000</td></tr>
+        <tr><td>2</td><td>2024-01</td><td>50000</td></tr>
+        <tr><td>3</td><td>2024-03</td><td>80000</td></tr>
+        <tr><td>4</td><td>2024-05</td><td>40000</td></tr>
+        <tr><td>5</td><td>2024-05</td><td>60000</td></tr>
+        <tr><td>6</td><td>2024-06</td><td>90000</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ month_master（月マスタ）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>month</th></tr>
+        <tr><td>2024-01</td></tr>
+        <tr><td>2024-02</td></tr>
+        <tr><td>2024-03</td></tr>
+        <tr><td>2024-04</td></tr>
+        <tr><td>2024-05</td></tr>
+        <tr><td>2024-06</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>month</th><th class="tc-g">total_sales</th><th class="tc-hi">order_count</th></tr>
+<tr><td>2024-01</td><td class="tc-g">80000</td><td class="tc-hi">2</td></tr>
+<tr class="tr-dim"><td>2024-02</td><td class="tc-r">0</td><td class="tc-r">0</td></tr>
+<tr><td>2024-03</td><td class="tc-g">80000</td><td class="tc-hi">1</td></tr>
+<tr class="tr-dim"><td>2024-04</td><td class="tc-r">0</td><td class="tc-r">0</td></tr>
+<tr><td>2024-05</td><td class="tc-g">100000</td><td class="tc-hi">2</td></tr>
+<tr><td>2024-06</td><td class="tc-g">90000</td><td class="tc-hi">1</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+<span class="cmt">-- ① 売上がある月のみを集計</span>
+<span class="tbl">monthly_agg</span> <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    order_month,
+    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> total_sales,
+    <span class="fn">COUNT</span>(<span class="op">*</span>)    <span class="kw">AS</span> order_count
+  <span class="kw">FROM</span> <span class="tbl">orders</span>
+  <span class="kw">GROUP BY</span> order_month
+)
+
+<span class="cmt">-- ② 全月マスタに売上集計を結合（LEFT JOIN）</span>
+<span class="kw">SELECT</span>
+  m.month,
+  <span class="fn">COALESCE</span>(a.total_sales, <span class="num">0</span>) <span class="kw">AS</span> total_sales, <span class="cmt">-- NULLなら0に補完</span>
+  <span class="fn">COALESCE</span>(a.order_count, <span class="num">0</span>) <span class="kw">AS</span> order_count
+<span class="kw">FROM</span> <span class="tbl">month_master</span> m
+<span class="kw">LEFT JOIN</span> <span class="tbl">monthly_agg</span> a
+  <span class="kw">ON</span> m.month <span class="op">=</span> a.order_month                 <span class="cmt">-- 売上がない月は右側がNULLになる</span>
+<span class="kw">ORDER BY</span> m.month;
+
+<span class="cmt">/*
+  【実行順序】
+  1. CTE内: ordersを読み込み、月ごとに集計
+  2. 本体: 全月マスタ(左)に集計結果(右)をLEFT JOIN
+  3. 本体: COALESCEでNULLを0に変換
+  4. 本体: 月順に並び替え
+
+  ★ 超基礎: LEFT JOINは「左側(month_master)の行を必ず残す」結合です。
+    INNER JOINを使うと売上ゼロの月が結果から消えてしまいます。
+*/</span></pre>`,
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>月マスタテーブルを用意するパターン：</strong>実務では <code>month_master</code> のようなマスタテーブルを作るか、<code>generate_series</code>（PostgreSQL）や <code>UNNEST</code>（BigQuery）で動的に月リストを生成します。「存在しないデータを0で埋める」バッチはこのパターンが基本です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>COALESCE の多引数：</strong><code>COALESCE(a, b, c)</code> は左から順に評価してNULLでない最初の値を返します。<code>COALESCE(a.total_sales, 0)</code> は「total_sales がNULLなら0を返す」という意味です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INNER JOINで「0件月が消える」バグ：</strong>売上のない月を含めてレポートしたいのにINNER JOINを使うと、その月のデータが結果から消えます。「全期間で集計」「欠損なし」が要件なら必ずLEFT JOINを使ってください。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>NULLを0に変換し忘れる：</strong>LEFT JOIN後のNULLを変換せずに集計すると、SUM(NULL)やNULLを加算した結果がNULLになり、APIが意図しないNULLを返すことがあります。COALESCE で必ずデフォルト値を設定してください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">「売上ゼロの月（レコード自体が存在しない月）」をそのままAPIに返すと、フロントエンド側で折れ線グラフを描画する際に日付が飛んでしまい、表示バグの原因になります。バックエンドAPIの責務として、カレンダーマスタ（全日付を持ったテーブル）とLEFT JOINし、歯抜けのない連続した時系列データに補完して提供することが求められます。</div>
+</div>
+`,
+  viz: {
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM orders",
+        desc: "売上データ（ordersテーブル）を読み込みます。この時点では売上のない2月や4月のデータは存在しません。",
+        type: "base",
+        cols: ["order_id", "order_month", "amount"],
+        ch: ["col-base", "col-base", "col-base"],
+        rows: [
+          { c: "row-grp-1", v: [1, "2024-01", "30,000"] },
+          { c: "row-grp-1", v: [2, "2024-01", "50,000"] },
+          { c: "row-grp-2", v: [3, "2024-03", "80,000"] },
+          { c: "row-grp-3", v: [4, "2024-05", "40,000"] },
+          { c: "row-grp-3", v: [5, "2024-05", "60,000"] },
+          { c: "row-grp-4", v: [6, "2024-06", "90,000"] }
+        ],
+        cnt: "全6行 読込"
+      },
+      {
+        id: "group", badge: "② CTE: monthly_agg", bc: "badge-orange",
+        label: "売上データの集計",
+        desc: "ordersテーブルを月ごとに集計します。",
+        type: "group",
+        cols: ["order_month", "total_sales", "order_count"],
+        ch: ["col-eval", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["2024-01", "80,000",  2] },
+          { c: "row-grp-2", v: ["2024-03", "80,000",  1] },
+          { c: "row-grp-3", v: ["2024-05", "100,000", 2] },
+          { c: "row-grp-4", v: ["2024-06", "90,000",  1] }
+        ],
+        cnt: "売上あり: 4ヶ月"
+      },
+      {
+        id: "join", badge: "③ LEFT JOIN", bc: "badge-orange",
+        label: "全月マスタ × 売上データ",
+        desc: "全月マスタ（左）に集計した売上データ（右）を結合します。一致しない2月・4月は右側がNULLになります。",
+        type: "eval", join: true,
+        left: {
+          label: "month_master (m)",
+          cols: ["month"], ch: ["col-eval"],
+          rows: [
+            { v: ["2024-01"], cc: ["val-pass"] },
+            { v: ["2024-02"], cc: ["val-fail"] },
+            { v: ["2024-03"], cc: ["val-pass"] },
+            { v: ["2024-04"], cc: ["val-fail"] },
+            { v: ["2024-05"], cc: ["val-pass"] },
+            { v: ["2024-06"], cc: ["val-pass"] }
+          ]
+        },
+        right: {
+          label: "monthly_agg (a)",
+          cols: ["order_month", "total_sales", "order_count"], ch: ["col-eval"],
+          rows: [
+            { v: ["2024-01", "80,000",  2], cc: ["val-pass"] },
+            { c: "row-dimmed", v: ["—", "NULL", "NULL"], cc: ["val-fail"] },
+            { v: ["2024-03", "80,000",  1], cc: ["val-pass"] },
+            { c: "row-dimmed", v: ["—", "NULL", "NULL"], cc: ["val-fail"] },
+            { v: ["2024-05", "100,000", 2], cc: ["val-pass"] },
+            { v: ["2024-06", "90,000",  1], cc: ["val-pass"] }
+          ]
+        },
+        cnt: "全6ヶ月保持（2月・4月はNULL）"
+      },
+      {
+        id: "agg", badge: "④ COALESCE", bc: "badge-orange",
+        label: "NULL を 0 に変換",
+        desc: "COALESCE関数により、売上がない月のNULLを0に置き換えます。",
+        type: "eval",
+        cols: ["month", "total_sales (元)", "→ 変換後", "order_count (元)", "→ 変換後"],
+        ch: ["", "", "col-eval", "", "col-eval"],
+        rows: [
+          { v: ["2024-01", "80,000", "80,000", 2, 2] },
+          { v: ["2024-02", "NULL",   "0",      "NULL", 0], cc: ["", "val-fail", "val-pass", "val-fail", "val-pass"] },
+          { v: ["2024-03", "80,000", "80,000", 1, 1] },
+          { v: ["2024-04", "NULL",   "0",      "NULL", 0], cc: ["", "val-fail", "val-pass", "val-fail", "val-pass"] },
+          { v: ["2024-05", "100,000","100,000",2, 2] },
+          { v: ["2024-06", "90,000", "90,000", 1, 1] }
+        ],
+        cnt: "NULL → 0 に補完（全6ヶ月）"
+      },
+      {
+        id: "select", badge: "⑤ SELECT", bc: "badge-green",
+        label: "完全な月次レポートの完成",
+        desc: "売上ゼロの月も含めた完全な6ヶ月分のレポートを出力します。2月・4月は0で埋まり、APIが歯抜けのないデータを返せるようになります。",
+        type: "select",
+        cols: ["month", "total_sales", "order_count"],
+        ch: ["col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["2024-01", "80,000",  2] },
+          { v: ["2024-02", 0,         0] },
+          { v: ["2024-03", "80,000",  1] },
+          { v: ["2024-04", 0,         0] },
+          { v: ["2024-05", "100,000", 2] },
+          { v: ["2024-06", "90,000",  1] }
+        ],
+        cnt: "結果: 6行 × 3列"
+      }
+    ],
+    sql: [
+      { t: "WITH\n", k: "sql-kw", h: "from group join agg select" },
+      { t: "-- ① 売上がある月のみを集計\n", k: "cmt", h: "" },
+      { t: "monthly_agg", k: "", h: "from group join agg" }, { t: " AS (\n", k: "sql-kw", h: "from group" },
+      { t: "  SELECT\n    order_month,\n    SUM(amount) AS total_sales,\n    COUNT(*) AS order_count\n", k: "", h: "group" },
+      { t: "  FROM ", k: "sql-kw", h: "from group" }, { t: "orders\n", k: "", h: "from group" },
+      { t: "  GROUP BY ", k: "sql-kw", h: "group" }, { t: "order_month\n", k: "", h: "group" },
+      { t: ")\n\n", k: "", h: "from group" },
+      { t: "-- ② 全月マスタに売上集計を結合\n", k: "cmt", h: "" },
+      { t: "SELECT\n  m.month,\n", k: "", h: "select" },
+      { t: "  COALESCE(a.total_sales, 0) AS total_sales,\n", k: "", h: "agg select" },
+      { t: "  COALESCE(a.order_count, 0) AS order_count\n", k: "", h: "agg select" },
+      { t: "FROM ", k: "sql-kw", h: "join" }, { t: "month_master m\n", k: "", h: "join" },
+      { t: "LEFT JOIN ", k: "sql-kw", h: "join" }, { t: "monthly_agg a\n", k: "", h: "join" },
+      { t: "  ON ", k: "sql-kw", h: "join" }, { t: "m.month = a.order_month\n", k: "", h: "join" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "m.month;", k: "", h: "select" }
+    ]
+  }
+},
+
+/* ══════════════════════════════════════════════════
+   Q9  FIRST_VALUE / LAST_VALUE — 初回・最終購買分析
+══════════════════════════════════════════════════ */
+{
+  num: 9,
+  title: "FIRST_VALUE() / LAST_VALUE() — 初回購買と最終購買を同じ行に並べる",
+  tags: [["r","FIRST_VALUE"],["r","LAST_VALUE"],["g","初回/最終"],["o","購買分析"]],
+  premise: `<p><strong>FIRST_VALUE() / LAST_VALUE()</strong> は、ウィンドウの最初・最後の行の値を取得します。「各ユーザーの初回購買商品と最終購買商品を同じ行に表示する」などの購買履歴分析に使います。</p>
+<pre><span class="fn">FIRST_VALUE</span>(product) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> user_id          <span class="cmt">-- ユーザーごとに独立</span>
+  <span class="kw">ORDER BY</span>     order_date        <span class="cmt">-- 日付昇順 → 最初の行が初回購買</span>
+) <span class="kw">AS</span> first_product
+
+<span class="fn">LAST_VALUE</span>(product) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> user_id
+  <span class="kw">ORDER BY</span>     order_date
+  <span class="kw">ROWS BETWEEN</span> <span class="kw">UNBOUNDED PRECEDING</span> <span class="kw">AND</span> <span class="kw">UNBOUNDED FOLLOWING</span> <span class="cmt">-- 全行を見る※重要</span>
+) <span class="kw">AS</span> last_product</pre>
+<div class="callout danger"><strong>LAST_VALUE の落とし穴：</strong>ROWS BETWEEN を省略すると「現在行まで」がデフォルトになり、最後の行以外では最新値が取れません。<code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> で「全行」を明示してください。</div>`,
+  question: `<p>以下の <code>purchase_history</code> テーブルから、各ユーザーごとに初回購買日・初回購買商品・最終購買日・最終購買商品を1行で取得してください。ユーザーごとに1行だけ返すこと。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ purchase_history</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>user_id</th><th>order_date</th><th>product</th></tr>
+        <tr><td>U01</td><td>2024-01-10</td><td>りんご</td></tr>
+        <tr><td>U01</td><td>2024-02-20</td><td>バナナ</td></tr>
+        <tr><td>U01</td><td>2024-04-05</td><td>みかん</td></tr>
+        <tr><td>U02</td><td>2024-01-15</td><td>緑茶</td></tr>
+        <tr><td>U02</td><td>2024-03-30</td><td>コーヒー</td></tr>
+        <tr><td>U03</td><td>2024-02-01</td><td>水</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>user_id</th><th class="tc-hi">first_date</th><th class="tc-g">first_product</th><th class="tc-y">last_date</th><th class="tc-p">last_product</th></tr>
+<tr><td>U01</td><td class="tc-hi">2024-01-10</td><td class="tc-g">りんご</td><td class="tc-y">2024-04-05</td><td class="tc-p">みかん</td></tr>
+<tr><td>U02</td><td class="tc-hi">2024-01-15</td><td class="tc-g">緑茶</td><td class="tc-y">2024-03-30</td><td class="tc-p">コーヒー</td></tr>
+<tr><td>U03</td><td class="tc-hi">2024-02-01</td><td class="tc-g">水</td><td class="tc-y">2024-02-01</td><td class="tc-p">水</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span> <span class="tbl">purchase_ranked</span> <span class="kw">AS</span> (
+  <span class="cmt">-- ① 各行に初回購買・最終購買の情報を付加</span>
+  <span class="kw">SELECT</span>
+    user_id,
+    order_date,
+    product,
+    <span class="cmt">-- 初回購買情報</span>
+    <span class="fn">FIRST_VALUE</span>(order_date) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> user_id
+      <span class="kw">ORDER BY</span> order_date
+    ) <span class="kw">AS</span> first_date,
+    <span class="fn">FIRST_VALUE</span>(product) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> user_id
+      <span class="kw">ORDER BY</span> order_date
+    ) <span class="kw">AS</span> first_product,
+    <span class="cmt">-- 最終購買情報（ROWS BETWEENで全行を対象にする）</span>
+    <span class="fn">LAST_VALUE</span>(order_date) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> user_id
+      <span class="kw">ORDER BY</span> order_date
+      <span class="kw">ROWS BETWEEN</span> <span class="kw">UNBOUNDED PRECEDING</span> <span class="kw">AND</span> <span class="kw">UNBOUNDED FOLLOWING</span>
+    ) <span class="kw">AS</span> last_date,
+    <span class="fn">LAST_VALUE</span>(product) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> user_id
+      <span class="kw">ORDER BY</span> order_date
+      <span class="kw">ROWS BETWEEN</span> <span class="kw">UNBOUNDED PRECEDING</span> <span class="kw">AND</span> <span class="kw">UNBOUNDED FOLLOWING</span>
+    ) <span class="kw">AS</span> last_product
+  <span class="kw">FROM</span> <span class="tbl">purchase_history</span>
+)
+
+<span class="cmt">-- ② ユーザーごとに1行だけ抽出</span>
+<span class="kw">SELECT DISTINCT</span>
+  user_id,
+  first_date,
+  first_product,
+  last_date,
+  last_product
+<span class="kw">FROM</span> <span class="tbl">purchase_ranked</span>
+<span class="kw">ORDER BY</span> user_id;
+
+<span class="cmt">/*
+  【実行順序】
+  1. CTE内: purchase_historyを読み込み
+  2. CTE内: 各行に対してFIRST/LAST_VALUEを計算し情報を付加
+  3. 本体: CTEを読み込み、重複する行をDISTINCTで1行に圧縮
+  4. 本体: ユーザーID順に並び替え
+
+  ★ 超基礎: DISTINCTは集計(SUM等)を伴わずに「重複排除」だけを行いたい場合に便利です。
+*/</span></pre>`,
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>FIRST_VALUE の代替：</strong><code>MIN(order_date) OVER (PARTITION BY user_id)</code> でも初回日付は取れます。ただし初回日付の商品名も同時に取りたい場合は、<code>FIRST_VALUE</code> を使うか、CTEでROW_NUMBER=1の行だけ取るパターンを使ってください。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>SELECT DISTINCT vs GROUP BY：</strong>今回のように「全列が同じ重複行を1行に圧縮したい」だけなら DISTINCT が簡潔です。一方、集計（SUM/COUNT）を伴う圧縮には GROUP BY を使います。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LAST_VALUE に ROWS BETWEEN を付け忘れる：</strong>デフォルトのフレームは <code>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code> です。つまり「現在行が最後の行」になり、最終行以外では正しい最終値が取れません。LAST_VALUE を使う場合は必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> を明示してください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">「ユーザーの初回購入商品と最新購入商品を並べて比較する」ことで、LTV（顧客生涯価値）の高いユーザーの行動パターンを分析します。例えば「お試しセット（初回）」から「定期便（最新）」へ移行したユーザーのコンバージョン率を測るためのデータマートを作る際、この FIRST_VALUE / LAST_VALUE の組み合わせがそのまま活用されます。</div>
+</div>
+`,
+  viz: {
+    steps: [
+      {
+        id: "from", badge: "① FROM", bc: "badge-blue",
+        label: "FROM purchase_history",
+        desc: "purchase_historyテーブル（6行）を読み込みます。U01は3回、U02は2回、U03は1回の購買履歴があります。",
+        type: "base",
+        cols: ["user_id", "order_date", "product"],
+        ch: ["col-base", "col-base", "col-base"],
+        rows: [
+          { c: "row-grp-1", v: ["U01", "2024-01-10", "りんご"] },
+          { c: "row-grp-1", v: ["U01", "2024-02-20", "バナナ"] },
+          { c: "row-grp-1", v: ["U01", "2024-04-05", "みかん"] },
+          { c: "row-grp-2", v: ["U02", "2024-01-15", "緑茶"] },
+          { c: "row-grp-2", v: ["U02", "2024-03-30", "コーヒー"] },
+          { c: "row-grp-3", v: ["U03", "2024-02-01", "水"] }
+        ],
+        cnt: "全6行 読込"
+      },
+      {
+        id: "wf_first", badge: "② FIRST_VALUE", bc: "badge-orange",
+        label: "初回購買情報の取得",
+        desc: "PARTITION BY user_id ORDER BY order_date により、各ユーザーの最初の行（初回購買）の値が取得され、グループ内の全行に付与されます。",
+        type: "group",
+        cols: ["user_id", "order_date", "product", "first_date", "first_product"],
+        ch: ["col-eval", "", "", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U01", "2024-01-10", "りんご",   "2024-01-10", "りんご"] },
+          { c: "row-grp-1", v: ["U01", "2024-02-20", "バナナ",   "2024-01-10", "りんご"] },
+          { c: "row-grp-1", v: ["U01", "2024-04-05", "みかん",   "2024-01-10", "りんご"] },
+          { c: "row-grp-2", v: ["U02", "2024-01-15", "緑茶",     "2024-01-15", "緑茶"] },
+          { c: "row-grp-2", v: ["U02", "2024-03-30", "コーヒー", "2024-01-15", "緑茶"] },
+          { c: "row-grp-3", v: ["U03", "2024-02-01", "水",       "2024-02-01", "水"] }
+        ],
+        cnt: "6行（初回情報付き）"
+      },
+      {
+        id: "wf_last", badge: "③ LAST_VALUE", bc: "badge-orange",
+        label: "最終購買情報の取得",
+        desc: "ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING を指定することで、各ユーザーの「全行」を対象に最後の行（最終購買）の値が付与されます。",
+        type: "group",
+        cols: ["user_id", "order_date", "product", "first_date", "first_product", "last_date", "last_product"],
+        ch: ["col-eval", "", "", "", "", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-grp-1", v: ["U01", "2024-01-10", "りんご",   "2024-01-10", "りんご",   "2024-04-05", "みかん"] },
+          { c: "row-grp-1", v: ["U01", "2024-02-20", "バナナ",   "2024-01-10", "りんご",   "2024-04-05", "みかん"] },
+          { c: "row-grp-1", v: ["U01", "2024-04-05", "みかん",   "2024-01-10", "りんご",   "2024-04-05", "みかん"] },
+          { c: "row-grp-2", v: ["U02", "2024-01-15", "緑茶",     "2024-01-15", "緑茶",     "2024-03-30", "コーヒー"] },
+          { c: "row-grp-2", v: ["U02", "2024-03-30", "コーヒー", "2024-01-15", "緑茶",     "2024-03-30", "コーヒー"] },
+          { c: "row-grp-3", v: ["U03", "2024-02-01", "水",       "2024-02-01", "水",       "2024-02-01", "水"] }
+        ],
+        cnt: "6行（初回・最終情報付き）"
+      },
+      {
+        id: "select", badge: "④ SELECT DISTINCT", bc: "badge-green",
+        label: "重複行の排除 (DISTINCT)",
+        desc: "同一ユーザーの行は全列が同じ値になるため、DISTINCTで1ユーザー1行に圧縮されます。",
+        type: "select",
+        cols: ["user_id", "first_date", "first_product", "last_date", "last_product"],
+        ch: ["col-select", "col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: ["U01", "2024-01-10", "りんご",   "2024-04-05", "みかん"] },
+          { v: ["U02", "2024-01-15", "緑茶",     "2024-03-30", "コーヒー"] },
+          { v: ["U03", "2024-02-01", "水",       "2024-02-01", "水"] }
+        ],
+        cnt: "6行 → 3行（1ユーザー1行）"
+      }
+    ],
+    sql: [
+      { t: "WITH ", k: "sql-kw", h: "from wf_first wf_last select" },
+      { t: "purchase_ranked", k: "", h: "wf_first wf_last select" }, { t: " AS (\n", k: "sql-kw", h: "wf_first wf_last" },
+      { t: "  SELECT\n    user_id,\n    order_date,\n    product,\n", k: "", h: "wf_first wf_last" },
+      { t: "    FIRST_VALUE(order_date) OVER (\n      PARTITION BY user_id\n      ORDER BY order_date\n    ) AS first_date,\n", k: "", h: "wf_first" },
+      { t: "    FIRST_VALUE(product) OVER (\n      PARTITION BY user_id\n      ORDER BY order_date\n    ) AS first_product,\n", k: "", h: "wf_first" },
+      { t: "    LAST_VALUE(order_date) OVER (\n      PARTITION BY user_id\n      ORDER BY order_date\n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING\n    ) AS last_date,\n", k: "", h: "wf_last" },
+      { t: "    LAST_VALUE(product) OVER (\n      PARTITION BY user_id\n      ORDER BY order_date\n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING\n    ) AS last_product\n", k: "", h: "wf_last" },
+      { t: "  FROM ", k: "sql-kw", h: "from" }, { t: "purchase_history\n", k: "", h: "from" },
+      { t: ")\n\n", k: "", h: "wf_first wf_last" },
+      { t: "SELECT DISTINCT\n", k: "sql-kw", h: "select" },
+      { t: "  user_id,\n  first_date,\n  first_product,\n  last_date,\n  last_product\n", k: "", h: "select" },
+      { t: "FROM ", k: "sql-kw", h: "select" }, { t: "purchase_ranked\n", k: "", h: "select" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "user_id;", k: "", h: "select" }
+    ]
+  }
+},
+
+/* ══════════════════════════════════════════════════
+   Q10 再帰CTE — 階層データ展開バッチ
+══════════════════════════════════════════════════ */
+{
+  num: 10,
+  title: "再帰CTE (RECURSIVE) — 階層カテゴリを全レベル展開するバッチ",
+  tags: [["r","RECURSIVE"],["r","再帰CTE"],["g","階層構造"],["p","ツリー展開"]],
+  premise: `<p><strong>再帰CTE（WITH RECURSIVE）</strong>は自己参照するクエリです。「カテゴリツリー」「組織図」「コメントスレッド」など、<em>階層構造（親子関係）</em>を持つデータを展開する際に使います。</p>
+<pre><span class="kw">WITH RECURSIVE</span> <span class="tbl">tree</span> <span class="kw">AS</span> (
+
+  <span class="cmt">-- アンカー部: 最初の行（ルートノード）を取得</span>
+  <span class="kw">SELECT</span> id, parent_id, name, <span class="num">0</span> <span class="kw">AS</span> depth
+  <span class="kw">FROM</span>   <span class="tbl">categories</span>
+  <span class="kw">WHERE</span>  parent_id <span class="kw">IS NULL</span>          <span class="cmt">-- 親なし = ルート</span>
+
+  <span class="kw">UNION ALL</span>                          <span class="cmt">-- アンカーと再帰部をつなぐ（重複除去しない）</span>
+
+  <span class="cmt">-- 再帰部: 前のステップの結果を参照して子を取得</span>
+  <span class="kw">SELECT</span> c.id, c.parent_id, c.name, t.depth <span class="op">+</span> <span class="num">1</span>
+  <span class="kw">FROM</span>       <span class="tbl">categories</span> c
+  <span class="kw">INNER JOIN</span> <span class="tbl">tree</span>       t  <span class="cmt">-- 前のステップの tree を参照（再帰）</span>
+          <span class="kw">ON</span> c.parent_id <span class="op">=</span> t.id
+)
+<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> <span class="tbl">tree</span>;</pre>
+<div class="callout warn"><strong>再帰の終了条件：</strong>再帰部で新たな行が生まれなくなった時点で再帰が終了します。循環参照（A→B→A...）があると無限ループになるため、実務では depth の上限チェックを設けることを推奨します。</div>`,
+  question: `<p>以下の <code>categories</code> テーブルは「商品カテゴリ」の親子関係を持ちます。<em>再帰CTEを使って全階層を展開し</em>、各カテゴリの depth（深さ）と階層パス（path、例：電化製品 > スマートフォン > Android）を表示してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ categories</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>id</th><th>parent_id</th><th>name</th></tr>
+        <tr><td>1</td><td>NULL</td><td>電化製品</td></tr>
+        <tr><td>2</td><td>1</td><td>スマートフォン</td></tr>
+        <tr><td>3</td><td>1</td><td>パソコン</td></tr>
+        <tr><td>4</td><td>2</td><td>Android</td></tr>
+        <tr><td>5</td><td>2</td><td>iPhone</td></tr>
+        <tr><td>6</td><td>3</td><td>ノートPC</td></tr>
+        <tr><td>7</td><td>3</td><td>デスクトップ</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>id</th><th>name</th><th class="tc-hi">depth</th><th class="tc-g">path</th></tr>
+<tr class="tr-hi4"><td>1</td><td>電化製品</td><td class="tc-hi">0</td><td class="tc-g">電化製品</td></tr>
+<tr class="tr-hi"><td>2</td><td>スマートフォン</td><td class="tc-hi">1</td><td class="tc-g">電化製品 &gt; スマートフォン</td></tr>
+<tr class="tr-hi"><td>3</td><td>パソコン</td><td class="tc-hi">1</td><td class="tc-g">電化製品 &gt; パソコン</td></tr>
+<tr class="tr-hi2"><td>4</td><td>Android</td><td class="tc-hi">2</td><td class="tc-g">電化製品 &gt; スマートフォン &gt; Android</td></tr>
+<tr class="tr-hi2"><td>5</td><td>iPhone</td><td class="tc-hi">2</td><td class="tc-g">電化製品 &gt; スマートフォン &gt; iPhone</td></tr>
+<tr class="tr-hi2"><td>6</td><td>ノートPC</td><td class="tc-hi">2</td><td class="tc-g">電化製品 &gt; パソコン &gt; ノートPC</td></tr>
+<tr class="tr-hi2"><td>7</td><td>デスクトップ</td><td class="tc-hi">2</td><td class="tc-g">電化製品 &gt; パソコン &gt; デスクトップ</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH RECURSIVE</span> <span class="tbl">category_tree</span> <span class="kw">AS</span> (
+  <span class="cmt">-- ═══ アンカー部: ルートノードを取得 ═══</span>
+  <span class="kw">SELECT</span>
+    id,
+    parent_id,
+    name,
+    <span class="num">0</span>    <span class="kw">AS</span> depth,
+    name <span class="kw">AS</span> path
+  <span class="kw">FROM</span> <span class="tbl">categories</span>
+  <span class="kw">WHERE</span> parent_id <span class="kw">IS NULL</span>
+
+  <span class="kw">UNION ALL</span>
+
+  <span class="cmt">-- ═══ 再帰部: 親から子を繰り返し取得 ═══</span>
+  <span class="kw">SELECT</span>
+    c.id,
+    c.parent_id,
+    c.name,
+    t.depth <span class="op">+</span> <span class="num">1</span>,                   <span class="cmt">-- 階層を1つ深くする</span>
+    t.path <span class="op">||</span> <span class="str">' > '</span> <span class="op">||</span> c.name      <span class="cmt">-- 親のパスに自分の名前を追加</span>
+  <span class="kw">FROM</span> <span class="tbl">categories</span> c
+  <span class="kw">INNER JOIN</span> <span class="tbl">category_tree</span> t
+    <span class="kw">ON</span> c.parent_id <span class="op">=</span> t.id          <span class="cmt">-- 子のparent_idと親のidを結合</span>
+)
+
+<span class="cmt">-- 再帰完了後、全結果を出力</span>
+<span class="kw">SELECT</span>
+  id,
+  name,
+  depth,
+  path
+<span class="kw">FROM</span> <span class="tbl">category_tree</span>
+<span class="kw">ORDER BY</span> path;
+
+<span class="cmt">/*
+  【実行順序（再帰CTEの特殊フロー）】
+  1. アンカー部: parent_id IS NULL のルート行を取得（初期結果セット）
+  2. 再帰①: ルート行を親(t)とし、子(c)をINNER JOINで取得。UNION ALLで結果セットに追加
+  3. 再帰②: 新たに取得した子を親とし、さらにその子を取得して追加
+  4. 終了条件: 子が見つからなくなった（0行になった）時点で再帰が終了
+  5. 本体: 蓄積された全行を出力し並び替え
+*/</span></pre>`,
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>再帰CTEの実務例：</strong>カテゴリツリーのほか、組織図（上司→部下の連鎖）・コメントスレッド・BOM（部品表）・ルーティング（グラフの経路探索）など、<em>「親が子を持ち、子がさらに子を持つ」データ構造</em>すべてに再帰CTEが適用できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>depth の上限チェック：</strong>実務では <code>WHERE t.depth &lt; 10</code> などの上限を再帰部に加えて無限ループを防ぎます。また、循環参照チェック（path に既に現れているidが来たら停止）も追加することが多いです。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>UNION（重複除去あり）を使う：</strong>再帰部では <code>UNION ALL</code> を使ってください。<code>UNION</code>（重複除去）を使うとパフォーマンスが悪化し、一部のDBでは再帰が正しく動かないことがあります。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>循環参照データで深さ制限なしで実行する：</strong>データに循環（A→B→A）があると再帰が終了せず、タイムアウトやエラーになります。本番データを扱う場合は必ず <code>depth &lt; 最大階層数</code> の上限を設けてください。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">PRACTICAL COLUMN — 実務での活用シーン</div>
+<div class="column-body">ECサイトの「パンくずリスト」の生成や、人事システムの「指定した本部長の配下にいる全社員リストの抽出」などで利用します。階層の深さが固定ではない（3階層のものもあれば10階層のものもある）ツリー構造のデータをSQLだけで一発取得するには、実質的に再帰CTE一択となります。</div>
+</div>
+`,
+  viz: {
+    steps: [
+      {
+        id: "from", badge: "① アンカー部", bc: "badge-blue",
+        label: "ルートノードの取得 (depth=0)",
+        desc: "parent_id が NULL の行（電化製品）を取得します。これが階層展開の起点となります。",
+        type: "base",
+        cols: ["id", "parent_id", "name", "depth", "path"],
+        ch: ["col-base", "col-base", "col-base", "col-eval", "col-eval"],
+        rows: [
+          { v: [1, "NULL", "電化製品", 0, "電化製品"], cc: ["", "", "", "val-pass", "val-pass"] }
+        ],
+        cnt: "アンカー部: 1行"
+      },
+      {
+        id: "recur1", badge: "② 再帰①", bc: "badge-orange",
+        label: "子カテゴリの取得 (depth=1)",
+        desc: "ルート（id=1）を親として子を検索し、スマートフォン(2)とパソコン(3)を追加します。",
+        type: "eval",
+        cols: ["id", "parent_id", "name", "depth", "path"],
+        ch: ["", "", "col-eval", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-dimmed", v: [1, "NULL", "電化製品",     0, "電化製品"] },
+          { v: [2, 1, "スマートフォン", 1, "電化製品 > スマートフォン"], cc: ["", "", "val-pass", "val-pass", "val-pass"] },
+          { v: [3, 1, "パソコン",       1, "電化製品 > パソコン"],       cc: ["", "", "val-pass", "val-pass", "val-pass"] }
+        ],
+        cnt: "累計: 3行（2行追加）"
+      },
+      {
+        id: "recur2", badge: "③ 再帰②", bc: "badge-orange",
+        label: "孫カテゴリの取得 (depth=2)",
+        desc: "前ステップで追加された(2,3)を親として子を検索し、4行を追加します。次の再帰で子が見つからず終了します。",
+        type: "eval",
+        cols: ["id", "parent_id", "name", "depth", "path"],
+        ch: ["", "", "col-eval", "col-eval", "col-eval"],
+        rows: [
+          { c: "row-dimmed", v: [1, "NULL", "電化製品",      0, "電化製品"] },
+          { c: "row-dimmed", v: [2, 1, "スマートフォン", 1, "電化製品 > スマートフォン"] },
+          { c: "row-dimmed", v: [3, 1, "パソコン",       1, "電化製品 > パソコン"] },
+          { v: [4, 2, "Android",     2, "電化製品 > スマートフォン > Android"],     cc: ["", "", "val-pass", "val-pass", "val-pass"] },
+          { v: [5, 2, "iPhone",      2, "電化製品 > スマートフォン > iPhone"],      cc: ["", "", "val-pass", "val-pass", "val-pass"] },
+          { v: [6, 3, "ノートPC",    2, "電化製品 > パソコン > ノートPC"],          cc: ["", "", "val-pass", "val-pass", "val-pass"] },
+          { v: [7, 3, "デスクトップ", 2, "電化製品 > パソコン > デスクトップ"],     cc: ["", "", "val-pass", "val-pass", "val-pass"] }
+        ],
+        cnt: "累計: 7行（4行追加・再帰終了）"
+      },
+      {
+        id: "select", badge: "④ SELECT", bc: "badge-green",
+        label: "蓄積された全階層の出力",
+        desc: "再帰で蓄積された全7行をORDER BY pathで出力します。再帰CTEはアンカー部→再帰①→再帰②の順に行を蓄積し、最後の本体SELECTで全て取り出します。",
+        type: "select",
+        cols: ["id", "name", "depth", "path"],
+        ch: ["col-select", "col-select", "col-select", "col-select"],
+        rows: [
+          { v: [1, "電化製品",      0, "電化製品"] },
+          { v: [2, "スマートフォン", 1, "電化製品 > スマートフォン"] },
+          { v: [3, "パソコン",       1, "電化製品 > パソコン"] },
+          { v: [4, "Android",       2, "電化製品 > スマートフォン > Android"] },
+          { v: [5, "iPhone",        2, "電化製品 > スマートフォン > iPhone"] },
+          { v: [6, "ノートPC",      2, "電化製品 > パソコン > ノートPC"] },
+          { v: [7, "デスクトップ",   2, "電化製品 > パソコン > デスクトップ"] }
+        ],
+        cnt: "結果: 7行 × 4列"
+      }
+    ],
+    sql: [
+      { t: "WITH RECURSIVE ", k: "sql-kw", h: "from recur1 recur2 select" },
+      { t: "category_tree", k: "", h: "from recur1 recur2 select" }, { t: " AS (\n", k: "sql-kw", h: "from" },
+      { t: "  -- ═══ アンカー部: ルートノードを取得 ═══\n", k: "cmt", h: "" },
+      { t: "  SELECT\n    id,\n    parent_id,\n    name,\n    0    AS depth,\n    name AS path\n", k: "", h: "from" },
+      { t: "  FROM ", k: "sql-kw", h: "from" }, { t: "categories\n", k: "", h: "from" },
+      { t: "  WHERE ", k: "sql-kw", h: "from" }, { t: "parent_id IS NULL\n\n", k: "", h: "from" },
+      { t: "  UNION ALL\n\n", k: "sql-kw", h: "recur1 recur2" },
+      { t: "  -- ═══ 再帰部: 親から子を繰り返し取得 ═══\n", k: "cmt", h: "" },
+      { t: "  SELECT\n    c.id,\n    c.parent_id,\n    c.name,\n    t.depth + 1,\n    t.path || ' > ' || c.name\n", k: "", h: "recur1 recur2" },
+      { t: "  FROM ", k: "sql-kw", h: "recur1 recur2" }, { t: "categories c\n", k: "", h: "recur1 recur2" },
+      { t: "  INNER JOIN ", k: "sql-kw", h: "recur1 recur2" }, { t: "category_tree t\n", k: "", h: "recur1 recur2" },
+      { t: "    ON ", k: "sql-kw", h: "recur1 recur2" }, { t: "c.parent_id = t.id\n", k: "", h: "recur1 recur2" },
+      { t: ")\n\n", k: "", h: "from recur1 recur2" },
+      { t: "-- 再帰完了後、全結果を出力\n", k: "cmt", h: "" },
+      { t: "SELECT\n  id,\n  name,\n  depth,\n  path\n", k: "", h: "select" },
+      { t: "FROM ", k: "sql-kw", h: "select" }, { t: "category_tree\n", k: "", h: "select" },
+      { t: "ORDER BY ", k: "sql-kw", h: "select" }, { t: "path;", k: "", h: "select" }
+    ]
+  }
+}
+
+]; // QS end
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / 10</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','PREMISE','前提知識',q.premise)}
+      ${acc('❓','pill-green','QUESTION','問題',q.question)}
+      ${acc('📊','pill-orange','OUTPUT','期待出力',q.output)}
+      ${acc('✅','pill-red','ANSWER','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','EXPLAIN','解説（テーブル変化・ポイント）',
+        (Array.isArray(q.viz)
+          ? q.viz.map((_, vIdx) => `<div class="sql-viz-wrapper" id="viz-${i}-${vIdx}" tabindex="-1" style="margin-bottom:24px;"></div>`).join('')
+          : `<div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1"></div>`
+        ) + q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  QS.forEach((q, i) => {
+    if (q.viz) {
+      if (Array.isArray(q.viz)) {
+        q.viz.forEach((v, vIdx) => initVisualizer(document.getElementById(`viz-${i}-${vIdx}`), v));
+      } else {
+        initVisualizer(document.getElementById('viz-' + i), q.viz);
+      }
+    }
+  });
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !wasMobile);
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !isMobile);
+  }
+});
+</script>
+</body>
+</html>
