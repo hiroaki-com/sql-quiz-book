@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL応用文法5選 — API・バッチ処理で理解する実践パターン（応用編 vol.3）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--purple); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--purple); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--purple); border-bottom-color: var(--purple); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--purple); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--purple); transition: width 0.2s; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw); font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+  .tr-hi  td { background: #0e1e33 !important; }
+  .tr-hi2 td { background: #0e1e0e !important; }
+  .tr-hi3 td { background: #1e1433 !important; }
+  .tr-hi4 td { background: #1e1a0a !important; }
+  .tr-dim td { opacity: 0.4; }
+  .tc-hi { color: var(--accent) !important; font-weight: 700; }
+  .tc-g  { color: var(--green)  !important; font-weight: 700; }
+  .tc-p  { color: var(--purple) !important; font-weight: 700; }
+  .tc-y  { color: var(--yellow) !important; font-weight: 700; }
+  .tc-o  { color: var(--orange) !important; font-weight: 700; }
+  .tc-r  { color: var(--red)    !important; font-weight: 700; }
+  .null  { color: var(--dim)    !important; font-style: italic; }
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em { color: var(--yellow); }
+  .insight-body code { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code { font-size: 11px; }
+
+  .column-box {
+    background: #0d1520; border: 1px solid #1c3550; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+    border-left: 3px solid var(--fn);
+  }
+  .column-title {
+    font-size: 11px; font-weight: 700; color: var(--fn); letter-spacing: 0.5px;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--fn); }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--purple); color: var(--purple); background: #160f2a; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+
+  /* ── SQL Step Visualizer ── */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+  }
+  .sql-viz-wrapper {
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    --font-sans: system-ui, -apple-system, sans-serif;
+    --color-bg-base:    #0d1117;
+    --color-bg-panel:   #161b22;
+    --color-border-main:#30363d;
+    --color-border-sub: #21262d;
+    --color-txt-main:   #e6edf3;
+    --color-txt-sub:    #8b949e;
+    --color-txt-muted:  #6e7681;
+    --sql-blue-bg:    rgba(88, 166, 255, 0.15);  --sql-blue-txt:   #58a6ff;  --sql-blue-bd:    #1f6feb;
+    --sql-orange-bg:  rgba(227, 137, 59, 0.15);  --sql-orange-txt: #e3893b;  --sql-orange-bd:  #7d4e00;
+    --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
+    --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
+    --sql-grp1-bg: rgba(88, 166, 255, 0.03);
+    --sql-grp2-bg: rgba(88, 166, 255, 0.08);
+    --sql-grp3-bg: rgba(88, 166, 255, 0.14);
+    --border-radius: 6px;
+    background: var(--color-bg-base);
+    color: var(--color-txt-main);
+    font-family: var(--font-sans);
+    min-height: auto;
+    padding: 1.5rem;
+  }
+  .sv-nav-btn { padding: 6px 16px; border: 1px solid var(--color-border-sub); border-radius: var(--border-radius); font-size: 11px; background: var(--color-bg-panel); color: var(--color-txt-main); cursor: pointer; transition: all 0.2s; }
+  .sv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sv-nav-btn:not(:disabled):hover { border-color: var(--color-border-main); background: #1f2a38; }
+  .sv-nav-btn:focus-visible, .sv-dot:focus-visible { outline: 2px solid var(--sql-blue-txt); outline-offset: 2px; }
+  .sv-dot { height: 6px; border: none; background: var(--color-border-sub); border-radius: 3px; cursor: pointer; padding: 0; transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s; flex-shrink: 0; width: 8px; }
+  .sv-dot.done { background: var(--color-border-main); }
+  .sv-dot.active { background: var(--sql-blue-txt); width: 24px; }
+  .sv-table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 10px; }
+  .sv-table th { padding: 6px 12px; font-size: 9px; font-weight: 600; border: 1px solid var(--color-border-sub); text-align: left; transition: all 0.3s ease; white-space: nowrap; }
+  .sv-table td { padding: 6px 12px; border: 1px solid var(--color-border-sub); white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main); transition: background 0.3s ease, opacity 0.3s ease; }
+  .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
+  .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
+  .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+  .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
+  .sv-table tr.row-grp-1 td { background: var(--sql-grp1-bg); }
+  .sv-table tr.row-grp-2 td { background: var(--sql-grp2-bg); }
+  .sv-table tr.row-grp-3 td { background: var(--sql-grp3-bg); }
+  .sv-table td.val-pass   { background: var(--sql-green-bg) !important; border-left: 2px solid var(--sql-green-txt); color: var(--sql-green-txt); font-weight: 600; }
+  .sv-table td.val-fail   { background: var(--sql-red-bg) !important; border-left: 2px solid var(--sql-red-txt); color: var(--sql-red-txt); text-decoration: line-through; opacity: 0.7; }
+  .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
+  .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
+  .sql-hl-from, .sql-hl-cte1, .sql-hl-cte2, .sql-hl-join, .sql-hl-where, .sql-hl-group, .sql-hl-eval, .sql-hl-window, .sql-hl-lag, .sql-hl-sub, .sql-hl-anchor, .sql-hl-rec, .sql-hl-rec2, .sql-hl-first_val {
+    border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt); background: var(--sql-orange-bg);
+  }
+  .sql-hl-from, .sql-hl-join { background: var(--sql-blue-bg); color: var(--sql-blue-txt); }
+  .sql-hl-select { border-radius: 3px; padding: 2px 4px; color: var(--sql-green-txt); background: var(--sql-green-bg); }
+  .sv-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: 600; letter-spacing: 0.02em; }
+  .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
+  .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
+  .badge-green  { background: var(--sql-green-bg);  color: var(--sql-green-txt);  border: 1px solid var(--sql-green-bd); }
+  @keyframes sv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sv-animate { animation: sv-fade-in 0.3s ease forwards; }
+  .tbl-label { font-size: 9px; font-weight: 500; color: var(--color-txt-sub); margin-bottom: 6px; }
+  .sv-mobile-collapse summary::-webkit-details-marker { display: none; }
+  .sv-mobile-collapse summary { list-style: none; }
+  .sv-collapse-icon { transition: transform 0.2s ease; display: inline-block; }
+  .sv-mobile-collapse[open] .sv-collapse-icon { transform: rotate(180deg); }
+  @media (min-width: 641px) {
+    .sv-mobile-collapse > summary { pointer-events: none; }
+    .sv-collapse-icon { display: none !important; }
+  }
+  @media (max-width: 640px) {
+    .sv-sidebar { flex: 1 1 100% !important; min-width: 100% !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">PRAC</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">WebApp API・バッチ処理で学ぶ SQL 応用文法5選 vol.3（相関サブクエリ/CTE/条件付き集計/LAG・LEAD/再帰CTE編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★ 中級〜上級</span>
+      <span class="htag">API前提</span>
+      <span class="htag">バッチ処理</span>
+      <span class="htag">PostgreSQL対応</span>
+      <span class="htag">vol.3 応用編</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+function initVisualizer(root, data) {
+  let currentStepIndex = 0;
+
+  function getLegendHTML(type) {
+    const mkLegend = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dimLegend =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const passFail =
+      `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:9px;">✓ 通過/合致</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:9px;">✗ 除外/不合致</span></div>
+      </div>`;
+    if (type === 'base')   return mkLegend('blue', 'データ取得・結合対象') + dimLegend;
+    if (type === 'eval')   return mkLegend('orange', '評価・判定対象') + dimLegend + passFail;
+    if (type === 'group')  return mkLegend('orange', 'グループ化・ウィンドウ形成') +
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === 'select') return mkLegend('green', '出力・集約結果') + dimLegend;
+    return '';
+  }
+
+  function renderSQL(d, stepId) {
+    return d.sql.map(t => {
+      const isMatch = t.h && t.h.split(' ').includes(stepId);
+      const cls = `${t.k || ''} ${isMatch ? `sql-hl-${stepId}` : ''}`.trim();
+      return `<span class="${cls}">${t.t}</span>`;
+    }).join('');
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:8px 10px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:10px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);background:transparent;padding:0;border-radius:0;">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:9px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:11px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>`;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ''}">${col}</th>`).join('');
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ''}">${val}</td>`).join('');
+      return `<tr class="${r.c || ''}">${tds}</tr>`;
+    }).join('');
+    const labelHtml = label ? `<div class="tbl-label">▸ ${label}</div>` : '';
+    return `<div style="flex:1;min-width:260px;">${labelHtml}<div style="overflow-x:auto;"><table class="sv-table"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+        ${buildTable(step.left.label, step.left.cols, step.left.rows, step.left.ch)}
+        <div style="display:flex;align-items:center;font-size:20px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+        ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+      </div>`;
+    }
+    return buildTable('', step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? 'active' : (i < currentStepIndex ? 'done' : '');
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}"></button>`;
+    }).join('');
+    return `<div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:10px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? 'disabled' : ''}>← Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? 'disabled' : ''}>Next →</button>
+      </div>`;
+  }
+
+  root.innerHTML = `<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+    <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+      <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+      <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:10px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+      <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+        <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+          <span>LEGEND (現在のステップ)</span>
+          <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+        </summary>
+        <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:10px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+      </details>
+    </div>
+    <div style="flex:1;min-width:300px;">
+      <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+      <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+      <div class="sv-tarea sv-animate"></div>
+      <div class="sv-rowcount" style="font-size:10px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+    </div>
+  </div>`;
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML = renderSQL(data, step.id);
+    root.querySelector('.sv-legend').innerHTML = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = window.innerWidth > 640);
+  }
+
+  root.__viz = {
+    next:  () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev:  () => { if (currentStepIndex > 0) { currentStepIndex--; renderAll(); } },
+    goTo:  i  => { if (i >= 0 && i < data.steps.length) { currentStepIndex = i; renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if (a === 'prev') root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+}
+
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  相関サブクエリ — 最新レコード取得パターン
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "相関サブクエリ — 各ユーザーの「最新注文」だけを取得する",
+  tags: [["r","相関サブクエリ"],["fn","MAX"],["g","最新レコード"],["o","注文API"]],
+  premise: `<p><strong>相関サブクエリ（Correlated Subquery）</strong>とは、外側のクエリの列を内側のサブクエリが参照するサブクエリです。外側の行ごとにサブクエリが評価されるため、「この行と同じ条件で絞ったときの最大値・最小値」という処理に向いています。</p>
+<pre><span class="kw">SELECT</span> *
+<span class="kw">FROM</span>   <span class="tbl">orders</span> o1
+<span class="kw">WHERE</span>  o1.ordered_at <span class="op">=</span> (
+  <span class="kw">SELECT</span> <span class="fn">MAX</span>(o2.ordered_at)       <span class="cmt">-- 内側のクエリが外側の o1.user_id を参照 → 相関サブクエリ</span>
+  <span class="kw">FROM</span>   <span class="tbl">orders</span> o2
+  <span class="kw">WHERE</span>  o2.user_id <span class="op">=</span> o1.user_id  <span class="cmt">-- ← ここが「相関」の核心。外側の行ごとに評価される</span>
+);</pre>
+<div class="callout"><strong>ポイント：</strong>相関サブクエリは外側の行数 × サブクエリの実行回数になるため、大量データでは <code>ROW_NUMBER()</code> ウィンドウ関数を使った書き方が高速な場合があります。ただし可読性が高いため少量データや素直な要件には適しています。</div>
+<p>「各ユーザーの直近ログイン」「各商品の最後の価格変更」など、グループ内の最新行取得は API・バッチ処理で最頻出のパターンの一つです。</p>`,
+  question: `<p><code>orders</code> テーブルから、<em>各ユーザー（user_id）の最新注文（ordered_at が最大）の行</em>を取得してください。同一ユーザーの複数注文が存在する場合、最新の1行だけ返すこと。結果は user_id 昇順で並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ orders</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>order_id</th><th>user_id</th><th>amount</th><th>ordered_at</th></tr>
+        <tr><td>1001</td><td>U01</td><td>3200</td><td>2024-03-10</td></tr>
+        <tr><td>1002</td><td>U01</td><td>1500</td><td>2024-05-20</td></tr>
+        <tr><td>1003</td><td>U02</td><td>8000</td><td>2024-04-01</td></tr>
+        <tr><td>1004</td><td>U02</td><td>2100</td><td>2024-06-15</td></tr>
+        <tr><td>1005</td><td>U03</td><td>500</td><td>2024-02-28</td></tr>
+        <tr><td>1006</td><td>U01</td><td>4700</td><td>2024-06-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>各ユーザーの最新注文 1 行（user_id 昇順）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>order_id</th><th>user_id</th><th>amount</th><th class="tc-hi">ordered_at</th></tr>
+<tr class="tr-hi"><td>1006</td><td>U01</td><td>4700</td><td class="tc-hi">2024-06-01</td></tr>
+<tr class="tr-hi"><td>1004</td><td>U02</td><td>2100</td><td class="tc-hi">2024-06-15</td></tr>
+<tr class="tr-hi"><td>1005</td><td>U03</td><td>500</td><td class="tc-hi">2024-02-28</td></tr>
+</table></div>`,
+  answer: `<pre><span class="cmt">-- 相関サブクエリで各ユーザーの最新注文を取得</span>
+<span class="kw">SELECT</span>
+  o1.order_id,
+  o1.user_id,
+  o1.amount,
+  o1.ordered_at
+<span class="kw">FROM</span> <span class="tbl">orders</span> o1                       <span class="cmt">-- 外側のクエリ (o1)</span>
+<span class="kw">WHERE</span> o1.ordered_at <span class="op">=</span> (
+  <span class="kw">SELECT</span> <span class="fn">MAX</span>(o2.ordered_at)          <span class="cmt">-- 同じ user_id 内の最新日付を取得</span>
+  <span class="kw">FROM</span> <span class="tbl">orders</span> o2
+  <span class="kw">WHERE</span> o2.user_id <span class="op">=</span> o1.user_id      <span class="cmt">-- 外側の行(o1)の user_id と紐付け（相関）</span>
+)
+<span class="kw">ORDER BY</span> o1.user_id;                 <span class="cmt">-- ユーザーIDで昇順ソート</span>
+
+<span class="cmt">/*
+  実行順序（相関サブクエリ）:
+  1. FROM orders o1             → o1の各行を評価対象とする
+  2. WHERE o1.ordered_at = ...  → 各行ごとにサブクエリを実行して比較
+     a. FROM orders o2          → 内側のテーブル
+     b. WHERE o2.user_id = o1.user_id → 外側の行と同じユーザーに絞る
+     c. MAX(o2.ordered_at)      → 該当ユーザーの最大日付を返す
+     → 返された最大値と o1.ordered_at が一致する行だけを残す
+  3. SELECT                     → 必要な列を出力
+  4. ORDER BY                   → 指定列でソート
+*/</span></pre>`,
+  viz: [
+    {
+      title: "解法1：相関サブクエリによる評価プロセス",
+      steps: [
+        { id: 'from', badge: '① FROM orders o1', bc: 'badge-blue',
+          label: 'FROM orders o1',
+          desc: 'orders テーブル全体（6行）を読み込みます。o1 はエイリアスです。外側クエリはこの6行を1行ずつ順番に評価します。',
+          type: 'base',
+          cols: ['order_id','user_id','amount','ordered_at'],
+          ch:   ['col-base','col-base','col-base','col-base'],
+          rows: [
+            { v: [1001,'U01',3200,'2024-03-10'] },
+            { v: [1002,'U01',1500,'2024-05-20'] },
+            { v: [1003,'U02',8000,'2024-04-01'] },
+            { v: [1004,'U02',2100,'2024-06-15'] },
+            { v: [1005,'U03', 500,'2024-02-28'] },
+            { v: [1006,'U01',4700,'2024-06-01'] }
+          ], cnt: '全 6行 読込' },
+
+        { id: 'sub', badge: '② 相関サブクエリ評価と判定', bc: 'badge-orange',
+          label: 'WHERE o1.ordered_at = (SELECT MAX(...) WHERE o2.user_id = o1.user_id)',
+          desc: '外側の各行ごとに、自身と同じ user_id を持つ全行から MAX(ordered_at) を計算し、それと自身の ordered_at を比較して判定します。',
+          type: 'eval',
+          cols: ['外側 o1.user_id','o1.ordered_at','サブクエリ MAX(o2.ordered_at)','判定'],
+          ch:   ['','col-eval','col-eval','col-eval'],
+          rows: [
+            { c: 'row-dimmed', v: ['U01','2024-03-10','2024-06-01','✗ 除外'], cc: ['','','','val-fail'] },
+            { c: 'row-dimmed', v: ['U01','2024-05-20','2024-06-01','✗ 除外'], cc: ['','','','val-fail'] },
+            { c: 'row-dimmed', v: ['U02','2024-04-01','2024-06-15','✗ 除外'], cc: ['','','','val-fail'] },
+            { v: ['U02','2024-06-15','2024-06-15','✓ 通過'], cc: ['','','','val-pass'] },
+            { v: ['U03','2024-02-28','2024-02-28','✓ 通過'], cc: ['','','','val-pass'] },
+            { v: ['U01','2024-06-01','2024-06-01','✓ 通過'], cc: ['','','','val-pass'] }
+          ], cnt: '6行中 3行が通過' },
+
+        { id: 'where', badge: '③ WHERE 適用後の状態', bc: 'badge-orange',
+          label: '絞り込み直後のデータ（ソート前）',
+          desc: '判定を通過した「最新注文」の3行だけが残ります。',
+          type: 'base',
+          cols: ['order_id','user_id','amount','ordered_at'],
+          ch:   ['col-base','col-base','col-base','col-base'],
+          rows: [
+            { v: [1004,'U02',2100,'2024-06-15'] },
+            { v: [1005,'U03', 500,'2024-02-28'] },
+            { v: [1006,'U01',4700,'2024-06-01'] }
+          ], cnt: '6行 → 3行に絞り込み' },
+
+        { id: 'select', badge: '④ SELECT + ORDER BY', bc: 'badge-green',
+          label: 'SELECT o1.* ORDER BY o1.user_id',
+          desc: '絞り込まれた3行を user_id 昇順で並び替えて出力します。各ユーザーの最新注文のみが返ります。',
+          type: 'select',
+          cols: ['order_id','user_id','amount','ordered_at'],
+          ch:   ['col-select','col-select','col-select','col-select'],
+          rows: [
+            { v: [1006,'U01',4700,'2024-06-01'] },
+            { v: [1004,'U02',2100,'2024-06-15'] },
+            { v: [1005,'U03', 500,'2024-02-28'] }
+          ], cnt: '結果: 3行 × 4列' }
+      ],
+      sql: [
+        { t: 'SELECT\n',                          k: 'sql-kw', h: 'select' },
+        { t: '  o1.order_id, o1.user_id,\n  o1.amount, o1.ordered_at\n', k: '', h: 'select' },
+        { t: 'FROM ',                              k: 'sql-kw', h: 'from'   },
+        { t: 'orders o1\n',                        k: '',       h: 'from'   },
+        { t: 'WHERE ',                             k: 'sql-kw', h: 'sub where'  },
+        { t: 'o1.ordered_at = (\n',                k: '',       h: 'sub where'  },
+        { t: '  SELECT ',                          k: 'sql-kw', h: 'sub'    },
+        { t: 'MAX(o2.ordered_at)\n',               k: '',       h: 'sub'    },
+        { t: '  FROM ',                            k: 'sql-kw', h: 'sub'    },
+        { t: 'orders o2\n',                        k: '',       h: 'sub'    },
+        { t: '  WHERE ',                           k: 'sql-kw', h: 'sub'    },
+        { t: 'o2.user_id = o1.user_id\n',          k: '',       h: 'sub'    },
+        { t: ')\n',                                k: '',       h: 'sub where'  },
+        { t: 'ORDER BY ',                          k: 'sql-kw', h: 'select' },
+        { t: 'o1.user_id;',                        k: '',       h: 'select' }
+      ]
+    },
+    {
+      title: "解法2：ROW_NUMBER() を用いた代替パターン",
+      steps: [
+        { id: 'from', badge: '① FROM orders', bc: 'badge-blue', label: 'FROM orders', desc: '全データを読み込みます。', type: 'base', cols: ['order_id','user_id','ordered_at'], ch: ['col-base','col-base','col-base'], rows: [
+            {v:[1001,'U01','2024-03-10']}, {v:[1002,'U01','2024-05-20']}, {v:[1003,'U02','2024-04-01']}, {v:[1004,'U02','2024-06-15']}, {v:[1005,'U03','2024-02-28']}, {v:[1006,'U01','2024-06-01']}
+        ] },
+        { id: 'window', badge: '② ウィンドウ関数 (ROW_NUMBER)', bc: 'badge-orange', label: 'OVER (PARTITION BY user_id ORDER BY ordered_at DESC)', desc: 'user_idごとにグループ化し、日付の新しい順に連番 (rn) を振ります。', type: 'group', cols: ['order_id','user_id','ordered_at','rn'], ch: ['col-eval','col-eval','col-eval','col-eval'], rows: [
+            { c: 'row-grp-1', v: [1006,'U01','2024-06-01',1], cc: ['','','','val-pass'] },
+            { c: 'row-grp-1', v: [1002,'U01','2024-05-20',2] },
+            { c: 'row-grp-1', v: [1001,'U01','2024-03-10',3] },
+            { c: 'row-grp-2', v: [1004,'U02','2024-06-15',1], cc: ['','','','val-pass'] },
+            { c: 'row-grp-2', v: [1003,'U02','2024-04-01',2] },
+            { c: 'row-grp-3', v: [1005,'U03','2024-02-28',1], cc: ['','','','val-pass'] }
+        ] },
+        { id: 'where', badge: '③ メインクエリで WHERE rn = 1', bc: 'badge-orange', label: 'WHERE rn = 1', desc: '連番が1の行（= 最新の注文）だけを抽出します。相関サブクエリと異なり1回のソートで済むため大量データで高速です。', type: 'eval', cols: ['order_id','user_id','ordered_at','rn'], ch: ['col-base','col-base','col-base','col-eval'], rows: [
+            { c: 'row-grp-1', v: [1006,'U01','2024-06-01',1], cc: ['','','','val-pass'] },
+            { c: 'row-dimmed', v: [1002,'U01','2024-05-20',2], cc: ['','','','val-fail'] },
+            { c: 'row-dimmed', v: [1001,'U01','2024-03-10',3], cc: ['','','','val-fail'] },
+            { c: 'row-grp-2', v: [1004,'U02','2024-06-15',1], cc: ['','','','val-pass'] },
+            { c: 'row-dimmed', v: [1003,'U02','2024-04-01',2], cc: ['','','','val-fail'] },
+            { c: 'row-grp-3', v: [1005,'U03','2024-02-28',1], cc: ['','','','val-pass'] }
+        ] },
+        { id: 'select', badge: '④ SELECT', bc: 'badge-green', label: 'SELECT order_id, user_id, ordered_at', desc: '作業用の rn 列を除外し、必要な列だけを出力します。', type: 'select', cols: ['order_id','user_id','ordered_at'], ch: ['col-select','col-select','col-select'], rows: [
+            { v: [1006,'U01','2024-06-01'] },
+            { v: [1004,'U02','2024-06-15'] },
+            { v: [1005,'U03','2024-02-28'] }
+        ] }
+      ],
+      sql: [
+        { t: 'WITH ranked AS (\n  SELECT\n    order_id, user_id, ordered_at,\n    ', k: '' },
+        { t: 'ROW_NUMBER() ', k: 'sql-kw', h: 'window' },
+        { t: 'OVER', k: 'sql-kw', h: 'window' },
+        { t: ' (', k: '', h: 'window' },
+        { t: 'PARTITION BY ', k: 'sql-kw', h: 'window' },
+        { t: 'user_id ', k: '', h: 'window' },
+        { t: 'ORDER BY ', k: 'sql-kw', h: 'window' },
+        { t: 'ordered_at ', k: '', h: 'window' },
+        { t: 'DESC', k: 'sql-kw', h: 'window' },
+        { t: ') ', k: '', h: 'window' },
+        { t: 'AS ', k: 'sql-kw', h: 'window' },
+        { t: 'rn\n  ', k: '', h: 'window' },
+        { t: 'FROM ', k: 'sql-kw', h: 'from' },
+        { t: 'orders\n)\n', k: '', h: 'from' },
+        { t: 'SELECT ', k: 'sql-kw', h: 'select' },
+        { t: 'order_id, user_id, ordered_at\n', k: '', h: 'select' },
+        { t: 'FROM ', k: 'sql-kw', h: 'where select' },
+        { t: 'ranked\n', k: '', h: 'where select' },
+        { t: 'WHERE ', k: 'sql-kw', h: 'where' },
+        { t: 'rn = 1;', k: '', h: 'where' }
+      ]
+    }
+  ],
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：テーブルエイリアスとは：</strong><code>FROM orders o1</code> の <code>o1</code> はテーブルの別名（エイリアス）です。同じテーブルを2回参照するときや長いテーブル名を短縮するときに使います。<code>AS o1</code> と書いても同じですが <code>AS</code> は省略可能です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>相関サブクエリの識別方法：</strong>サブクエリ内に外側テーブルの列名（今回は <code>o1.user_id</code>）が登場していれば相関サブクエリです。外側の行ごとに実行されるため、行数 × サブクエリコストの計算量になります。EXPLAINで "SubPlan" と表示されたら相関サブクエリです。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>ROW_NUMBER() 代替パターン：</strong><code>WITH ranked AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY ordered_at DESC) rn FROM orders) SELECT * FROM ranked WHERE rn = 1;</code> と書くと「各 user_id の中で ordered_at が最大の行に rn=1 を割り当てる」ので同日時重複も安全に1行に絞れます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>EXISTS vs IN vs 相関サブクエリ：</strong>「存在確認」には EXISTS、「値リスト照合」には IN、「グループ内最大値取得」には相関サブクエリ（またはウィンドウ関数）が向いています。それぞれ目的に応じて使い分けることが実務の基本です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同日時の最新行が複数ある場合を考慮しない：</strong><code>MAX(ordered_at)</code> での絞り込みは、同じ日時の注文が2件以上あると2件とも返ってしまう。「必ず1行」が要件の場合は ROW_NUMBER() を使うこと。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>大量テーブルへの無条件な相関サブクエリ適用：</strong>数百万行のテーブルに相関サブクエリを使うと、行数 × インデックスを使えないサブクエリのコストで極端に遅くなることがある。まず EXPLAIN ANALYZE でプランを確認し、必要に応じてウィンドウ関数や JOIN に書き換えること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：「最新レコード取得」はAPIの頻出パターン</div>
+<div class="column-body">
+「ユーザーの最終ログイン日時」「商品の最新価格」「注文の最新ステータス」など、<strong>グループ内の最新行を返すAPIエンドポイント</strong>は実務で非常に多く登場します。このパターンを知っておくだけでバックエンド実装の品質が大きく変わります。さらに <code>updated_at</code> や <code>created_at</code> にインデックスを貼っておくことで、サブクエリ内の MAX 計算を高速化できます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  WITH句（CTE） — 複雑なクエリを分割して読みやすくする
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "WITH句（CTE） — 月次売上レポートを段階的に組み立てる",
+  tags: [["r","WITH / CTE"],["fn","SUM / AVG"],["g","売上レポート"],["o","バッチ集計"]],
+  premise: `<p><strong>WITH句（CTE：Common Table Expression）</strong>は、クエリの中で一時的な名前付き結果セットを定義できる構文です。複雑なサブクエリをネストして書く代わりに、処理を「段階的なブロック」として切り出せるため、可読性と保守性が大幅に向上します。</p>
+<pre><span class="kw">WITH</span>
+  <span class="tbl">cte_name1</span> <span class="kw">AS</span> (              <span class="cmt">-- 第1ブロック：最初の一時テーブルを定義</span>
+    <span class="kw">SELECT</span> ... <span class="kw">FROM</span> <span class="tbl">some_table</span>
+  ),
+  <span class="tbl">cte_name2</span> <span class="kw">AS</span> (              <span class="cmt">-- 第2ブロック：cte_name1 を参照できる</span>
+    <span class="kw">SELECT</span> ... <span class="kw">FROM</span> <span class="tbl">cte_name1</span>
+  )
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">cte_name2</span>;       <span class="cmt">-- 最後のSELECTが実際の出力</span></pre>
+<div class="callout ok"><strong>使いどき：</strong>①深くネストしたサブクエリを平坦化したいとき、②同じサブクエリを複数回参照したいとき（<code>MATERIALIZED</code>オプションで一度だけ計算させられる）、③再帰クエリを書くとき（Q5参照）。</div>`,
+  question: `<p><code>sales</code> テーブルから、<em>月別・商品カテゴリ別の売上合計と月次全体平均に対する比率（%）</em>を取得してください。CTE を使って「月別カテゴリ集計」→「月別合計」→「比率計算」の3段階で組み立てること。結果は月・カテゴリ昇順で並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sales</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>sale_id</th><th>category</th><th>amount</th><th>sold_at</th></tr>
+        <tr><td>1</td><td>food</td><td>3000</td><td>2024-05-03</td></tr>
+        <tr><td>2</td><td>drink</td><td>1500</td><td>2024-05-10</td></tr>
+        <tr><td>3</td><td>food</td><td>2000</td><td>2024-05-20</td></tr>
+        <tr><td>4</td><td>drink</td><td>2500</td><td>2024-06-05</td></tr>
+        <tr><td>5</td><td>food</td><td>4000</td><td>2024-06-12</td></tr>
+        <tr><td>6</td><td>drink</td><td>1000</td><td>2024-06-20</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>月別・カテゴリ別売上と月次合計比率：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th class="tc-hi">month</th><th class="tc-g">category</th><th>cat_total</th><th class="tc-p">month_total</th><th class="tc-y">ratio_pct</th></tr>
+<tr class="tr-hi"><td class="tc-hi">2024-05</td><td class="tc-g">drink</td><td>1500</td><td class="tc-p">6500</td><td class="tc-y">23.08</td></tr>
+<tr class="tr-hi"><td class="tc-hi">2024-05</td><td class="tc-g">food</td><td>5000</td><td class="tc-p">6500</td><td class="tc-y">76.92</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024-06</td><td class="tc-g">drink</td><td>3500</td><td class="tc-p">7500</td><td class="tc-y">46.67</td></tr>
+<tr class="tr-hi2"><td class="tc-hi">2024-06</td><td class="tc-g">food</td><td>4000</td><td class="tc-p">7500</td><td class="tc-y">53.33</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+  <span class="cmt">-- ① 月別・カテゴリ別の売上合計を計算する</span>
+  <span class="tbl">cat_monthly</span> <span class="kw">AS</span> (
+    <span class="kw">SELECT</span>
+      <span class="fn">TO_CHAR</span>(sold_at, <span class="str">'YYYY-MM'</span>) <span class="kw">AS</span> month,
+      category,
+      <span class="fn">SUM</span>(amount) <span class="kw">AS</span> cat_total
+    <span class="kw">FROM</span> <span class="tbl">sales</span>
+    <span class="kw">GROUP BY</span> <span class="fn">TO_CHAR</span>(sold_at, <span class="str">'YYYY-MM'</span>), category
+  ),
+
+  <span class="cmt">-- ② 月別の全カテゴリ合計（① を再利用）</span>
+  <span class="tbl">month_total</span> <span class="kw">AS</span> (
+    <span class="kw">SELECT</span>
+      month,
+      <span class="fn">SUM</span>(cat_total) <span class="kw">AS</span> month_total
+    <span class="kw">FROM</span> <span class="tbl">cat_monthly</span>                       <span class="cmt">-- CTE ① を参照</span>
+    <span class="kw">GROUP BY</span> month
+  )
+
+<span class="cmt">-- ③ 最終SELECT：① と ② を JOIN して比率を計算</span>
+<span class="kw">SELECT</span>
+  cm.month,
+  cm.category,
+  cm.cat_total,
+  mt.month_total,
+  <span class="fn">ROUND</span>(
+    cm.cat_total<span class="op">::</span><span class="kw">NUMERIC</span> <span class="op">/</span> mt.month_total <span class="op">*</span> <span class="num">100</span>, <span class="num">2</span>
+  ) <span class="kw">AS</span> ratio_pct                               <span class="cmt">-- ::NUMERIC にキャストして小数点を出す</span>
+<span class="kw">FROM</span> <span class="tbl">cat_monthly</span> cm
+<span class="kw">JOIN</span> <span class="tbl">month_total</span> mt <span class="kw">ON</span> cm.month <span class="op">=</span> mt.month  <span class="cmt">-- 月をキーに CTE ① と ② を結合</span>
+<span class="kw">ORDER BY</span> cm.month, cm.category;
+
+<span class="cmt">/*
+  実行順序（WITH句）:
+  1. CTE cat_monthly     → salesを月×カテゴリでグループ化して集計（4行）
+  2. CTE month_total     → cat_monthlyを月でグループ化して集計（2行）
+  3. FROM / JOIN         → CTE①と②を月(month)をキーにして結合
+  4. SELECT (ROUND)      → 結合結果から比率を計算
+  5. ORDER BY            → 月・カテゴリ順にソート
+*/</span></pre>`,
+  viz: [
+    {
+      title: "解法：CTEを用いた段階的な集計プロセス",
+      steps: [
+        { id: 'from', badge: '① FROM sales', bc: 'badge-blue',
+          label: 'FROM sales',
+          desc: 'sales テーブル全体（6行）を読み込みます。sold_at を月単位で集計するための元データです。',
+          type: 'base',
+          cols: ['sale_id','category','amount','sold_at'],
+          ch:   ['col-base','col-base','col-base','col-base'],
+          rows: [
+            { v: [1,'food',  3000,'2024-05-03'] },
+            { v: [2,'drink', 1500,'2024-05-10'] },
+            { v: [3,'food',  2000,'2024-05-20'] },
+            { v: [4,'drink', 2500,'2024-06-05'] },
+            { v: [5,'food',  4000,'2024-06-12'] },
+            { v: [6,'drink', 1000,'2024-06-20'] }
+          ], cnt: '全 6行 読込' },
+
+        { id: 'cte1', badge: '② CTE① cat_monthly', bc: 'badge-orange',
+          label: 'GROUP BY TO_CHAR(sold_at,\'YYYY-MM\'), category',
+          desc: '月×カテゴリの組み合わせでグループ化し、それぞれの amount を合計して4行の中間テーブルを作成します。',
+          type: 'group',
+          cols: ['month','category','cat_total'],
+          ch:   ['col-eval','col-eval','col-eval'],
+          rows: [
+            { c: 'row-grp-1', v: ['2024-05','food',  5000] },
+            { c: 'row-grp-2', v: ['2024-05','drink', 1500] },
+            { c: 'row-grp-1', v: ['2024-06','food',  4000] },
+            { c: 'row-grp-3', v: ['2024-06','drink', 3500] }
+          ], cnt: '6行 → 4行に集約（CTE①完成）' },
+
+        { id: 'cte2', badge: '③ CTE② month_total', bc: 'badge-orange',
+          label: 'GROUP BY month',
+          desc: 'CTE① の cat_monthly を再利用し、月ごとに cat_total を合算して2行の中間テーブルを作成します。',
+          type: 'group',
+          cols: ['month','month_total'],
+          ch:   ['col-eval','col-eval'],
+          rows: [
+            { c: 'row-grp-1', v: ['2024-05',6500] },
+            { c: 'row-grp-2', v: ['2024-06',7500] }
+          ], cnt: '4行 → 2行に集約（CTE②完成）' },
+
+        { id: 'join', badge: '④ JOIN', bc: 'badge-blue',
+          label: 'FROM cat_monthly cm JOIN month_total mt ON cm.month = mt.month',
+          desc: 'CTE① と CTE② を月 (month) をキーにして結合し、横並びのデータを作ります。',
+          type: 'base', join: true,
+          left: { label: 'cat_monthly', cols: ['month','category','cat_total'], ch: ['col-eval','col-base','col-base'],
+                  rows: [ {v:['2024-05','drink',1500]}, {v:['2024-05','food',5000]}, {v:['2024-06','drink',3500]}, {v:['2024-06','food',4000]} ] },
+          right: { label: 'month_total', cols: ['month','month_total'], ch: ['col-eval','col-base'],
+                   rows: [ {v:['2024-05',6500]}, {v:['2024-06',7500]} ] },
+          cnt: '結合キー: month' },
+
+        { id: 'select', badge: '⑤ SELECT + 比率計算', bc: 'badge-green',
+          label: 'ROUND(cat_total / month_total * 100, 2) AS ratio_pct',
+          desc: '結合されたデータから比率を計算し、最終出力を作成します。',
+          type: 'select',
+          cols: ['month','category','cat_total','month_total','ratio_pct'],
+          ch:   ['col-select','col-select','col-select','col-select','col-select'],
+          rows: [
+            { c: 'row-grp-1', v: ['2024-05','drink',1500,6500,'23.08'] },
+            { c: 'row-grp-1', v: ['2024-05','food', 5000,6500,'76.92'] },
+            { c: 'row-grp-2', v: ['2024-06','drink',3500,7500,'46.67'] },
+            { c: 'row-grp-2', v: ['2024-06','food', 4000,7500,'53.33'] }
+          ], cnt: '結果: 4行 × 5列' }
+      ],
+      sql: [
+        { t: 'WITH\n',                                   k: 'sql-kw', h: 'from'   },
+        { t: '  cat_monthly ',                           k: '',       h: 'cte1' },
+        { t: 'AS',                                       k: 'sql-kw', h: 'cte1' },
+        { t: ' (\n    ',                                 k: '',       h: 'cte1' },
+        { t: 'SELECT ',                                  k: 'sql-kw', h: 'cte1' },
+        { t: 'TO_CHAR(sold_at,\'YYYY-MM\') ',            k: '',       h: 'cte1' },
+        { t: 'AS',                                       k: 'sql-kw', h: 'cte1' },
+        { t: ' month, category,\n           SUM(amount) ', k: '',     h: 'cte1' },
+        { t: 'AS',                                       k: 'sql-kw', h: 'cte1' },
+        { t: ' cat_total\n    ',                         k: '',       h: 'cte1' },
+        { t: 'FROM ',                                    k: 'sql-kw', h: 'from cte1'   },
+        { t: 'sales\n    ',                              k: '',       h: 'from cte1'   },
+        { t: 'GROUP BY ',                                k: 'sql-kw', h: 'cte1' },
+        { t: 'TO_CHAR(sold_at,\'YYYY-MM\'), category\n  ),\n\n', k: '', h: 'cte1' },
+        { t: '  month_total ',                           k: '',       h: 'cte2' },
+        { t: 'AS',                                       k: 'sql-kw', h: 'cte2' },
+        { t: ' (\n    ',                                 k: '',       h: 'cte2' },
+        { t: 'SELECT ',                                  k: 'sql-kw', h: 'cte2' },
+        { t: 'month, SUM(cat_total) ',                   k: '',       h: 'cte2' },
+        { t: 'AS',                                       k: 'sql-kw', h: 'cte2' },
+        { t: ' month_total\n    ',                       k: '',       h: 'cte2' },
+        { t: 'FROM ',                                    k: 'sql-kw', h: 'cte2' },
+        { t: 'cat_monthly\n    ',                        k: '',       h: 'cte2' },
+        { t: 'GROUP BY ',                                k: 'sql-kw', h: 'cte2' },
+        { t: 'month\n  )\n\n',                           k: '',       h: 'cte2' },
+        { t: 'SELECT ',                                  k: 'sql-kw', h: 'select' },
+        { t: 'cm.month, cm.category, cm.cat_total,\n       mt.month_total, ROUND(...) ', k: '', h: 'select' },
+        { t: 'AS',                                       k: 'sql-kw', h: 'select' },
+        { t: ' ratio_pct\n',                             k: '',       h: 'select' },
+        { t: 'FROM ',                                    k: 'sql-kw', h: 'join select' },
+        { t: 'cat_monthly cm\n',                         k: '',       h: 'join select' },
+        { t: 'JOIN ',                                    k: 'sql-kw', h: 'join' },
+        { t: 'month_total mt ',                          k: '',       h: 'join' },
+        { t: 'ON',                                       k: 'sql-kw', h: 'join' },
+        { t: ' cm.month = mt.month\n',                   k: '',       h: 'join' },
+        { t: 'ORDER BY ',                                k: 'sql-kw', h: 'select' },
+        { t: 'cm.month, cm.category;',                   k: '',       h: 'select' }
+      ]
+    }
+  ],
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：GROUP BY と SUM の関係：</strong><code>GROUP BY</code> は指定した列の値が同じ行をひとまとめにします。<code>SUM(amount)</code> はその固まりの中の amount を合計します。<code>GROUP BY</code> に書いた列と集計関数だけが <code>SELECT</code> に書けます（他の列は書けません）。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CTE は「処理の名前付き中間テーブル」：</strong>CTE に名前を付けると、あとの CTE や最終 SELECT でそのまま使えます。同じ集計を2回書く必要がなくなり、クエリが「処理の流れを読むドキュメント」のようになります。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>::NUMERIC キャストとゼロ除算：</strong>PostgreSQL で整数 ÷ 整数は結果も整数になります（例: 3 / 2 = 1）。<code>::NUMERIC</code> で浮動小数点に変換すると正確な比率が得られます。また <code>NULLIF(month_total, 0)</code> でゼロ除算を防げます。</div></div>
+<div class="insight-row"><span class="insight-icon">💡</span><div class="insight-body"><strong>CTEを使わない別解（ウィンドウ関数）：</strong> <code>SUM(SUM(amount)) OVER (PARTITION BY month)</code> のように集約関数とウィンドウ関数を組み合わせると、中間テーブルを作らずに「各カテゴリの合計」と「月全体の合計」を同時に取得できます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>MATERIALIZED ヒント：</strong>PostgreSQL 12 以降では <code>WITH cte AS MATERIALIZED (...)</code> と書くと CTE が必ず一度だけ物理的に計算されます（デフォルトはプランナが判断）。同じ CTE を複数回参照するときにパフォーマンスの予測が立てやすくなります。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>サブクエリを深くネストしすぎる：</strong>同じことを CTE なしで書くと <code>SELECT ... FROM (SELECT ... FROM (SELECT ... FROM sales) ...) ...</code> のように3重・4重ネストになり、どのサブクエリが何を返すのかほぼ追えなくなる。CTE は保守コストを劇的に下げる。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CTE 内で必要以上の列を SELECT する：</strong>CTE で <code>SELECT *</code> を使うと不要な列も中間結果に含まれ、データ量が増える。後で使う列だけを明示的に書くこと。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：バッチ集計レポートと CTE 設計</div>
+<div class="column-body">
+月次・週次の売上レポートをバッチで生成するとき、<strong>CTE を使って処理を「生データ取得 → 集計 → 加工 → 出力」の4ブロックに整理する</strong>と、SQL の変更要求（「比率だけじゃなく前月比も欲しい」等）に素早く対応できます。また CTE は可読性が高いため、レビューでSQLのロジックを説明しやすくなるという副次効果もあります。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  CASE WHEN + 条件付き集計 — ピボット集計と FILTER
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "CASE WHEN + 条件付き集計 — 在庫状況のピボット集計と FILTER 句",
+  tags: [["r","CASE WHEN"],["fn","SUM / FILTER"],["g","ピボット集計"],["o","在庫API"]],
+  premise: `<p><strong>CASE WHEN</strong> は SQL の条件分岐式です。集計関数の内部に組み込むことで、「特定条件を満たす行だけを集計する」いわゆる <em>条件付き集計（ピボット集計）</em> が実現できます。PostgreSQL では <code>FILTER (WHERE ...)</code> という専用の構文も使えます。</p>
+<pre><span class="cmt">-- CASE WHEN を使った条件付き集計（標準SQL）</span>
+<span class="fn">SUM</span>(<span class="kw">CASE WHEN</span> status <span class="op">=</span> <span class="str">'active'</span> <span class="kw">THEN</span> amount <span class="kw">ELSE</span> <span class="num">0</span> <span class="kw">END</span>) <span class="kw">AS</span> active_sum
+
+<span class="cmt">-- FILTER 句を使った条件付き集計（PostgreSQL）</span>
+<span class="fn">SUM</span>(amount) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> status <span class="op">=</span> <span class="str">'active'</span>) <span class="kw">AS</span> active_sum</pre>
+<div class="callout"><strong>ピボット集計とは：</strong>行方向のデータを列方向に展開して、1行で複数のカテゴリの集計値を並べて見せること。Excelのピボットテーブルをイメージしてください。「行をカテゴリ別に分けてGROUP BY」ではなく「1行に複数カテゴリの合計を横並び」にする点が特徴です。</div>`,
+  question: `<p><code>inventory</code> テーブルから、<em>各倉庫（warehouse）ごとに「在庫あり（quantity > 0）の商品数」「在庫切れ（quantity = 0）の商品数」「全商品数」を1行にまとめた</em>ピボット集計を取得してください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ inventory</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>item_id</th><th>warehouse</th><th>quantity</th></tr>
+        <tr><td>A01</td><td>東京</td><td>50</td></tr>
+        <tr><td>A02</td><td>東京</td><td>0</td></tr>
+        <tr><td>A03</td><td>東京</td><td>20</td></tr>
+        <tr><td>B01</td><td>大阪</td><td>0</td></tr>
+        <tr><td>B02</td><td>大阪</td><td>0</td></tr>
+        <tr><td>B03</td><td>大阪</td><td>15</td></tr>
+        <tr><td>C01</td><td>福岡</td><td>100</td></tr>
+        <tr><td>C02</td><td>福岡</td><td>30</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>倉庫別 在庫状況サマリー：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>warehouse</th><th class="tc-g">in_stock</th><th class="tc-r">out_of_stock</th><th class="tc-hi">total_items</th></tr>
+<tr class="tr-hi2"><td>東京</td><td class="tc-g">2</td><td class="tc-r">1</td><td class="tc-hi">3</td></tr>
+<tr class="tr-hi4"><td>大阪</td><td class="tc-g">1</td><td class="tc-r">2</td><td class="tc-hi">3</td></tr>
+<tr class="tr-hi3"><td>福岡</td><td class="tc-g">2</td><td class="tc-r">0</td><td class="tc-hi">2</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  warehouse,
+
+  <span class="cmt">-- ① CASE WHEN を使った条件付き集計（標準SQL）</span>
+  <span class="fn">COUNT</span>(<span class="kw">CASE WHEN</span> quantity <span class="op">></span> <span class="num">0</span> <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">END</span>) <span class="kw">AS</span> in_stock,
+  <span class="cmt">-- 条件が真のとき 1 を返し、偽のとき NULL を返す → COUNTはNULLを数えない</span>
+
+  <span class="cmt">-- ② FILTER 句を使った条件付き集計（PostgreSQL拡張）</span>
+  <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> quantity <span class="op">=</span> <span class="num">0</span>) <span class="kw">AS</span> out_of_stock,
+  <span class="cmt">-- quantity = 0 の行だけを COUNT(*) の対象にする</span>
+
+  <span class="fn">COUNT</span>(<span class="op">*</span>) <span class="kw">AS</span> total_items             <span class="cmt">-- 全件カウント</span>
+
+<span class="kw">FROM</span> <span class="tbl">inventory</span>
+<span class="kw">GROUP BY</span> warehouse                    <span class="cmt">-- 倉庫ごとにグループ化</span>
+<span class="kw">ORDER BY</span> warehouse;                   <span class="cmt">-- 倉庫名昇順ソート</span>
+
+<span class="cmt">/*
+  実行順序:
+  1. FROM inventory      → 対象テーブルを読み込む
+  2. GROUP BY warehouse  → 倉庫ごとにグループ化（3グループ）
+  3. COUNT(CASE WHEN...) → 各グループ内で quantity > 0 の行のみカウント
+  4. COUNT(*) FILTER...  → 各グループ内で quantity = 0 の行のみカウント
+  5. COUNT(*)            → グループ内の全行数をカウント
+  6. SELECT              → 1グループ＝1行として出力
+  7. ORDER BY            → 倉庫名昇順でソート
+*/</span></pre>`,
+  viz: [
+    {
+      title: "解法：CASE WHEN / FILTER を用いたピボット集計プロセス",
+      steps: [
+        { id: 'from', badge: '① FROM inventory', bc: 'badge-blue',
+          label: 'FROM inventory',
+          desc: 'inventory テーブル全体（8行）を読み込みます。warehouse と quantity の値が集計の基になります。',
+          type: 'base',
+          cols: ['item_id','warehouse','quantity'],
+          ch:   ['col-base','col-base','col-base'],
+          rows: [
+            { v: ['A01','東京', 50] },
+            { v: ['A02','東京',  0] },
+            { v: ['A03','東京', 20] },
+            { v: ['B01','大阪',  0] },
+            { v: ['B02','大阪',  0] },
+            { v: ['B03','大阪', 15] },
+            { v: ['C01','福岡',100] },
+            { v: ['C02','福岡', 30] }
+          ], cnt: '全 8行 読込' },
+
+        { id: 'group', badge: '② GROUP BY warehouse', bc: 'badge-orange',
+          label: 'GROUP BY warehouse',
+          desc: '倉庫ごとに行をグループ化します。同色の行が同じ倉庫グループです。次のステップで各グループ内を CASE WHEN で仕分けます。',
+          type: 'group',
+          cols: ['item_id','warehouse','quantity'],
+          ch:   ['','col-eval','col-eval'],
+          rows: [
+            { c: 'row-grp-1', v: ['A01','東京', 50] },
+            { c: 'row-grp-1', v: ['A02','東京',  0] },
+            { c: 'row-grp-1', v: ['A03','東京', 20] },
+            { c: 'row-grp-2', v: ['B01','大阪',  0] },
+            { c: 'row-grp-2', v: ['B02','大阪',  0] },
+            { c: 'row-grp-2', v: ['B03','大阪', 15] },
+            { c: 'row-grp-3', v: ['C01','福岡',100] },
+            { c: 'row-grp-3', v: ['C02','福岡', 30] }
+          ], cnt: '3グループに分類' },
+
+        { id: 'eval', badge: '③ CASE WHEN / FILTER 評価', bc: 'badge-orange',
+          label: '条件に合致する行を判定する',
+          desc: '各行を条件で評価します。quantity > 0 なら in_stock のカウント対象、= 0 なら out_of_stock の対象になります。',
+          type: 'eval',
+          cols: ['warehouse','item_id','quantity','→ in_stock (qty>0)','→ out_of_stock (qty=0)'],
+          ch:   ['','','col-eval','col-eval','col-eval'],
+          rows: [
+            { c: 'row-grp-1', v: ['東京','A01', 50,'1 ✓','NULL'], cc: ['','','','val-pass','val-dimmed'] },
+            { c: 'row-grp-1', v: ['東京','A02',  0,'NULL','1 ✓'], cc: ['','','','val-dimmed','val-pass'] },
+            { c: 'row-grp-1', v: ['東京','A03', 20,'1 ✓','NULL'], cc: ['','','','val-pass','val-dimmed'] },
+            { c: 'row-grp-2', v: ['大阪','B01',  0,'NULL','1 ✓'], cc: ['','','','val-dimmed','val-pass'] },
+            { c: 'row-grp-2', v: ['大阪','B02',  0,'NULL','1 ✓'], cc: ['','','','val-dimmed','val-pass'] },
+            { c: 'row-grp-2', v: ['大阪','B03', 15,'1 ✓','NULL'], cc: ['','','','val-pass','val-dimmed'] },
+            { c: 'row-grp-3', v: ['福岡','C01',100,'1 ✓','NULL'], cc: ['','','','val-pass','val-dimmed'] },
+            { c: 'row-grp-3', v: ['福岡','C02', 30,'1 ✓','NULL'], cc: ['','','','val-pass','val-dimmed'] }
+          ], cnt: '各行のカウント対象を判定' },
+
+        { id: 'select', badge: '④ SELECT（ピボット集計）', bc: 'badge-green',
+          label: 'SELECT warehouse, in_stock, out_of_stock, total_items',
+          desc: '各倉庫グループ内で対象行をカウントし、1行に集約して横並びで出力します。これがピボット集計の最終形です。',
+          type: 'select',
+          cols: ['warehouse','in_stock','out_of_stock','total_items'],
+          ch:   ['col-select','col-select','col-select','col-select'],
+          rows: [
+            { v: ['東京',2,1,3] },
+            { v: ['大阪',1,2,3] },
+            { v: ['福岡',2,0,2] }
+          ], cnt: '結果: 3行 × 4列' }
+      ],
+      sql: [
+        { t: 'SELECT\n  ',                                  k: 'sql-kw', h: 'select' },
+        { t: 'warehouse,\n  ',                              k: '',       h: 'group select' },
+        { t: 'COUNT',                                       k: '',       h: 'eval select' },
+        { t: '(',                                           k: '',       h: 'eval select' },
+        { t: 'CASE WHEN ',                                  k: 'sql-kw', h: 'eval' },
+        { t: 'quantity > 0 ',                               k: '',       h: 'eval' },
+        { t: 'THEN ',                                       k: 'sql-kw', h: 'eval' },
+        { t: '1 ',                                          k: '',       h: 'eval' },
+        { t: 'END',                                         k: 'sql-kw', h: 'eval' },
+        { t: ') ',                                          k: '',       h: 'eval select' },
+        { t: 'AS ',                                         k: 'sql-kw', h: 'eval select' },
+        { t: 'in_stock,\n  ',                               k: '',       h: 'eval select' },
+        { t: 'COUNT',                                       k: '',       h: 'eval select' },
+        { t: '(*) ',                                        k: '',       h: 'eval select' },
+        { t: 'FILTER',                                      k: 'sql-kw', h: 'eval' },
+        { t: ' (',                                          k: '',       h: 'eval' },
+        { t: 'WHERE ',                                      k: 'sql-kw', h: 'eval' },
+        { t: 'quantity = 0) ',                              k: '',       h: 'eval' },
+        { t: 'AS ',                                         k: 'sql-kw', h: 'eval select' },
+        { t: 'out_of_stock,\n  ',                           k: '',       h: 'eval select' },
+        { t: 'COUNT',                                       k: '',       h: 'select' },
+        { t: '(*) ',                                        k: '',       h: 'select' },
+        { t: 'AS ',                                         k: 'sql-kw', h: 'select' },
+        { t: 'total_items\n',                               k: '',       h: 'select' },
+        { t: 'FROM ',                                       k: 'sql-kw', h: 'from'   },
+        { t: 'inventory\n',                                 k: '',       h: 'from'   },
+        { t: 'GROUP BY ',                                   k: 'sql-kw', h: 'group'  },
+        { t: 'warehouse\n',                                 k: '',       h: 'group'  },
+        { t: 'ORDER BY ',                                   k: 'sql-kw', h: 'select' },
+        { t: 'warehouse;',                                  k: '',       h: 'select' }
+      ]
+    }
+  ],
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：CASE WHEN の構造：</strong><code>CASE WHEN 条件 THEN 値 ELSE デフォルト値 END</code> が基本構文です。ELSE を省略するとマッチしなかった行は NULL になります。COUNT は NULL を無視するため、「THEN 1、ELSE なし」パターンで「条件を満たす行数だけカウント」が実現できます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>ピボット集計の使いどき：</strong>「縦持ちのカテゴリデータを横持ちのレポートに変換する」場面が典型例。「各月の成功・失敗件数を1行に」「各倉庫の在庫あり・なし件数を1行に」など、行を減らして列を増やす集計が必要なときに使います。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>SUM(CASE WHEN ... THEN amount END) パターン：</strong>COUNT だけでなく SUM にも適用できます。<code>SUM(CASE WHEN category = 'food' THEN amount ELSE 0 END)</code> で「food カテゴリの売上合計のみ」を同じ行の他カテゴリ合計と並べられます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>ウィンドウ関数との組み合わせ：</strong><code>COUNT(*) FILTER (WHERE qty &gt; 0) OVER (PARTITION BY warehouse)</code> のように FILTER は集計ウィンドウ関数とも組み合わせられます。グループ集計と行レベル処理を同時に行う高度な用法です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>CASE WHEN の ELSE 0 と ELSE NULL の混同：</strong>SUM での条件付き集計では <code>ELSE 0</code> でも <code>ELSE 省略（NULL）</code> でも通常は同じ結果になりますが、AVG では違います。<code>AVG(CASE WHEN qty &gt; 0 THEN qty ELSE 0 END)</code> はゼロ行も平均に含まれますが、<code>AVG(CASE WHEN qty &gt; 0 THEN qty END)</code> は在庫ありの行だけで平均を計算します。意図を明確にすること。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>WHERE と CASE WHEN の役割を混同する：</strong>「在庫ありの行だけを残す」なら WHERE で十分。CASE WHEN は「残しつつ値を変える・分岐集計する」ときに使うものです。不要に CASE WHEN を使うと可読性が下がります。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：在庫アラートAPIへの応用</div>
+<div class="column-body">
+在庫管理システムのAPIでは「在庫切れ商品が多い倉庫にアラートを飛ばす」バッチが典型的なユースケースです。このクエリのように<strong>倉庫ごとの在庫状況を1回のSQLで集計</strong>してアプリケーション側に返すことで、N+1問題（倉庫ごとに別々にクエリを投げる）を避けられます。さらに <code>HAVING out_of_stock &gt; 0</code> を加えれば在庫切れがある倉庫だけに絞れます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  ウィンドウ関数 LAG/LEAD — 前月比の計算
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "LAG / LEAD — 前月比・前行比の計算でトレンドを可視化する",
+  tags: [["r","LAG / LEAD"],["fn","OVER PARTITION BY"],["g","前月比"],["o","売上分析"]],
+  premise: `<p><strong>LAG(列, n)</strong> はウィンドウ関数で、現在行から n 行前の値を返します。<strong>LEAD(列, n)</strong> は逆に n 行後の値を返します。GROUP BY して行を集約することなく「前の行との差分」を同じ行に付与できるのが最大の特徴です。</p>
+<pre><span class="fn">LAG</span>(col, <span class="num">1</span>, <span class="num">0</span>) <span class="kw">OVER</span> (            <span class="cmt">-- col の 1行前の値。前行がない場合はデフォルト 0</span>
+  <span class="kw">PARTITION BY</span> group_col         <span class="cmt">-- グループ内で独立した順序を保つ</span>
+  <span class="kw">ORDER BY</span>     sort_col          <span class="cmt">-- この順序で「前後」を定義する（必須）</span>
+)
+
+<span class="fn">LEAD</span>(col, <span class="num">1</span>) <span class="kw">OVER</span> (             <span class="cmt">-- col の 1行後の値（次の行）</span>
+  <span class="kw">ORDER BY</span> sort_col
+)</pre>
+<div class="callout warn"><strong>ORDER BY は必須：</strong>ウィンドウ関数で LAG/LEAD を使うときは <code>OVER</code> 句内の <code>ORDER BY</code> が必須です。順序が定まらないと「前の行」が何なのか決まりません。</div>`,
+  question: `<p><code>monthly_sales</code> テーブルから、<em>各商品（product_id）の月別売上と前月売上・前月比（%）</em>を取得してください。前月データがない場合（最初の月）は前月売上は NULL、前月比は NULL で構いません。結果は product_id・month の昇順で並べてください。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ monthly_sales</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>product_id</th><th>month</th><th>revenue</th></tr>
+        <tr><td>P01</td><td>2024-03</td><td>10000</td></tr>
+        <tr><td>P01</td><td>2024-04</td><td>12000</td></tr>
+        <tr><td>P01</td><td>2024-05</td><td>9000</td></tr>
+        <tr><td>P02</td><td>2024-03</td><td>5000</td></tr>
+        <tr><td>P02</td><td>2024-04</td><td>7500</td></tr>
+        <tr><td>P02</td><td>2024-05</td><td>7500</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>前月比付き月別売上（product_id・month 昇順）：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>product_id</th><th>month</th><th>revenue</th><th class="tc-g">prev_revenue</th><th class="tc-y">mom_pct</th></tr>
+<tr class="tr-hi"><td>P01</td><td>2024-03</td><td>10000</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+<tr class="tr-hi"><td>P01</td><td>2024-04</td><td>12000</td><td class="tc-g">10000</td><td class="tc-y">+20.00</td></tr>
+<tr class="tr-hi"><td>P01</td><td>2024-05</td><td>9000</td><td class="tc-g">12000</td><td class="tc-y">-25.00</td></tr>
+<tr class="tr-hi2"><td>P02</td><td>2024-03</td><td>5000</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+<tr class="tr-hi2"><td>P02</td><td>2024-04</td><td>7500</td><td class="tc-g">5000</td><td class="tc-y">+50.00</td></tr>
+<tr class="tr-hi2"><td>P02</td><td>2024-05</td><td>7500</td><td class="tc-g">7500</td><td class="tc-y">0.00</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  product_id,
+  month,
+  revenue,
+
+  <span class="cmt">-- ① 1行前の revenue を取得（商品ごとに月順で並べたときの直前行）</span>
+  <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (
+    <span class="kw">PARTITION BY</span> product_id
+    <span class="kw">ORDER BY</span> month
+  ) <span class="kw">AS</span> prev_revenue,
+
+  <span class="cmt">-- ② 前月比の計算: (今月 - 前月) / 前月 * 100</span>
+  <span class="fn">ROUND</span>(
+    (revenue <span class="op">-</span> <span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> product_id <span class="kw">ORDER BY</span> month))<span class="op">::</span><span class="kw">NUMERIC</span>
+    <span class="op">/</span> <span class="fn">NULLIF</span>(<span class="fn">LAG</span>(revenue, <span class="num">1</span>) <span class="kw">OVER</span> (<span class="kw">PARTITION BY</span> product_id <span class="kw">ORDER BY</span> month), <span class="num">0</span>)
+    <span class="op">*</span> <span class="num">100</span>, <span class="num">2</span>
+  ) <span class="kw">AS</span> mom_pct
+
+<span class="kw">FROM</span> <span class="tbl">monthly_sales</span>
+<span class="kw">ORDER BY</span> product_id, month;
+
+<span class="cmt">/*
+  実行順序（ウィンドウ関数）:
+  1. FROM monthly_sales       → 全行を読み込む
+  2. ウィンドウ関数の評価     → PARTITION BY で product_id ごとに分割
+                              → ORDER BY で月順に並べ、LAG で前行の値を取得
+  3. ROUND(...) 計算          → 取得した前行の値を使って前月比を計算（ゼロ除算は NULLIF で回避）
+  4. SELECT                   → 各行を出力（GROUP BY のように行は集約されない）
+  5. ORDER BY                 → 最終結果をソート
+*/</span></pre>`,
+  viz: [
+    {
+      title: "解法：LAGを用いた前月比の計算プロセス",
+      steps: [
+        { id: 'from', badge: '① FROM monthly_sales', bc: 'badge-blue',
+          label: 'FROM monthly_sales',
+          desc: 'monthly_sales テーブル全体（6行）を読み込みます。',
+          type: 'base',
+          cols: ['product_id','month','revenue'],
+          ch:   ['col-base','col-base','col-base'],
+          rows: [
+            { v: ['P01','2024-03',10000] },
+            { v: ['P01','2024-04',12000] },
+            { v: ['P01','2024-05', 9000] },
+            { v: ['P02','2024-03', 5000] },
+            { v: ['P02','2024-04', 7500] },
+            { v: ['P02','2024-05', 7500] }
+          ], cnt: '全 6行 読込' },
+
+        { id: 'window', badge: '② ウィンドウの形成', bc: 'badge-orange',
+          label: 'OVER (PARTITION BY product_id ORDER BY month)',
+          desc: 'PARTITION BY により、product_id ごとの「ウィンドウ（区画）」が作られ、その中で month 順に並びます。集約はされず行数はそのままです。',
+          type: 'group',
+          cols: ['product_id','month','revenue'],
+          ch:   ['col-eval','col-eval','col-base'],
+          rows: [
+            { c: 'row-grp-1', v: ['P01','2024-03',10000] },
+            { c: 'row-grp-1', v: ['P01','2024-04',12000] },
+            { c: 'row-grp-1', v: ['P01','2024-05', 9000] },
+            { c: 'row-grp-2', v: ['P02','2024-03', 5000] },
+            { c: 'row-grp-2', v: ['P02','2024-04', 7500] },
+            { c: 'row-grp-2', v: ['P02','2024-05', 7500] }
+          ], cnt: '2つのウィンドウに分割' },
+
+        { id: 'lag', badge: '③ LAG — 前月値を付与', bc: 'badge-orange',
+          label: 'LAG(revenue, 1)',
+          desc: 'ウィンドウ内で、各行に1行前の revenue を付与します。パーティション先頭行には前行がないため NULL になります。',
+          type: 'eval',
+          cols: ['product_id','month','revenue','prev_revenue (LAG)'],
+          ch:   ['','','col-eval','col-eval'],
+          rows: [
+            { c: 'row-grp-1', v: ['P01','2024-03',10000,'NULL'], cc: ['','','','val-dimmed'] },
+            { c: 'row-grp-1', v: ['P01','2024-04',12000,10000],  cc: ['','','','val-pass']  },
+            { c: 'row-grp-1', v: ['P01','2024-05', 9000,12000],  cc: ['','','','val-pass']  },
+            { c: 'row-grp-2', v: ['P02','2024-03', 5000,'NULL'], cc: ['','','','val-dimmed'] },
+            { c: 'row-grp-2', v: ['P02','2024-04', 7500, 5000],  cc: ['','','','val-pass']  },
+            { c: 'row-grp-2', v: ['P02','2024-05', 7500, 7500],  cc: ['','','','val-pass']  }
+          ], cnt: '前月値を各行に付与' },
+
+        { id: 'select', badge: '④ SELECT + 前月比計算', bc: 'badge-green',
+          label: 'ROUND((revenue - prev) / NULLIF(prev,0) * 100, 2) AS mom_pct',
+          desc: '前月比 = (今月 - 前月) / 前月 × 100 を計算し出力します。前月が NULL の行は計算結果も NULL になります。',
+          type: 'select',
+          cols: ['product_id','month','revenue','prev_revenue','mom_pct'],
+          ch:   ['col-select','col-select','col-select','col-select','col-select'],
+          rows: [
+            { c: 'row-grp-1', v: ['P01','2024-03',10000,'NULL','NULL'] },
+            { c: 'row-grp-1', v: ['P01','2024-04',12000,10000,'+20.00'] },
+            { c: 'row-grp-1', v: ['P01','2024-05', 9000,12000,'-25.00'] },
+            { c: 'row-grp-2', v: ['P02','2024-03', 5000,'NULL','NULL'] },
+            { c: 'row-grp-2', v: ['P02','2024-04', 7500, 5000,'+50.00'] },
+            { c: 'row-grp-2', v: ['P02','2024-05', 7500, 7500, '0.00'] }
+          ], cnt: '結果: 6行 × 5列' }
+      ],
+      sql: [
+        { t: 'SELECT\n  ',                                 k: 'sql-kw', h: 'select' },
+        { t: 'product_id, month, revenue,\n  ',            k: '',       h: 'select' },
+        { t: 'LAG',                                        k: '',       h: 'lag select'    },
+        { t: '(revenue, 1) ',                              k: '',       h: 'lag select'    },
+        { t: 'OVER',                                       k: 'sql-kw', h: 'window lag select' },
+        { t: ' (\n    ',                                   k: '',       h: 'window lag select' },
+        { t: 'PARTITION BY ',                              k: 'sql-kw', h: 'window lag select' },
+        { t: 'product_id\n    ',                           k: '',       h: 'window lag select' },
+        { t: 'ORDER BY ',                                  k: 'sql-kw', h: 'window lag select' },
+        { t: 'month\n  ) ',                                k: '',       h: 'window lag select' },
+        { t: 'AS ',                                        k: 'sql-kw', h: 'lag select'    },
+        { t: 'prev_revenue,\n\n  ',                        k: '',       h: 'lag select' },
+        { t: 'ROUND',                                      k: '',       h: 'select' },
+        { t: '(\n    ((revenue - ',                        k: '',       h: 'select' },
+        { t: 'LAG',                                        k: '',       h: 'select' },
+        { t: '(revenue, 1) ',                              k: '',       h: 'select' },
+        { t: 'OVER',                                       k: 'sql-kw', h: 'select' },
+        { t: ' (',                                         k: '',       h: 'select' },
+        { t: 'PARTITION BY ',                              k: 'sql-kw', h: 'select' },
+        { t: 'product_id ',                                k: '',       h: 'select' },
+        { t: 'ORDER BY ',                                  k: 'sql-kw', h: 'select' },
+        { t: 'month))::',                                  k: '',       h: 'select' },
+        { t: 'NUMERIC\n',                                  k: 'sql-kw', h: 'select' },
+        { t: '    / ',                                     k: '',       h: 'select' },
+        { t: 'NULLIF',                                     k: '',       h: 'select' },
+        { t: '(',                                          k: '',       h: 'select' },
+        { t: 'LAG',                                        k: '',       h: 'select' },
+        { t: '(revenue, 1) ',                              k: '',       h: 'select' },
+        { t: 'OVER',                                       k: 'sql-kw', h: 'select' },
+        { t: ' (...), 0)\n    * 100, 2\n  ) ',             k: '',       h: 'select' },
+        { t: 'AS ',                                        k: 'sql-kw', h: 'select' },
+        { t: 'mom_pct\n\n',                                k: '',       h: 'select' },
+        { t: 'FROM ',                                      k: 'sql-kw', h: 'from'   },
+        { t: 'monthly_sales\n',                            k: '',       h: 'from'   },
+        { t: 'ORDER BY ',                                  k: 'sql-kw', h: 'select' },
+        { t: 'product_id, month;',                         k: '',       h: 'select' }
+      ]
+    },
+    {
+      title: "発展：FIRST_VALUE() を用いた初月基準の比較パターン",
+      steps: [
+        { id: 'from', badge: '① FROM monthly_sales', bc: 'badge-blue', label: 'FROM monthly_sales', desc: '全データを読み込みます。', type: 'base', cols: ['product_id','month','revenue'], ch: ['col-base','col-base','col-base'], rows: [
+            { v: ['P01','2024-03',10000] }, { v: ['P01','2024-04',12000] }, { v: ['P01','2024-05', 9000] },
+            { v: ['P02','2024-03', 5000] }, { v: ['P02','2024-04', 7500] }, { v: ['P02','2024-05', 7500] }
+        ] },
+        { id: 'window', badge: '② ウィンドウの形成と並び替え', bc: 'badge-orange', label: 'OVER (PARTITION BY product_id ORDER BY month)', desc: '商品ごとのウィンドウを作成し、月順に並べます。', type: 'group', cols: ['product_id','month','revenue'], ch: ['col-eval','col-eval','col-base'], rows: [
+            { c: 'row-grp-1', v: ['P01','2024-03',10000] }, { c: 'row-grp-1', v: ['P01','2024-04',12000] }, { c: 'row-grp-1', v: ['P01','2024-05', 9000] },
+            { c: 'row-grp-2', v: ['P02','2024-03', 5000] }, { c: 'row-grp-2', v: ['P02','2024-04', 7500] }, { c: 'row-grp-2', v: ['P02','2024-05', 7500] }
+        ] },
+        { id: 'first_val', badge: '③ FIRST_VALUE — 初月売上を付与', bc: 'badge-orange', label: 'FIRST_VALUE(revenue)', desc: '各パーティションの先頭行（最も古い月）の売上を、その商品の全行に固定値として付与します。', type: 'eval', cols: ['product_id','month','revenue','first_revenue'], ch: ['','','col-eval','col-eval'], rows: [
+            { c: 'row-grp-1', v: ['P01','2024-03',10000,10000], cc: ['','','','val-pass'] },
+            { c: 'row-grp-1', v: ['P01','2024-04',12000,10000], cc: ['','','','val-pass'] },
+            { c: 'row-grp-1', v: ['P01','2024-05', 9000,10000], cc: ['','','','val-pass'] },
+            { c: 'row-grp-2', v: ['P02','2024-03', 5000, 5000], cc: ['','','','val-pass'] },
+            { c: 'row-grp-2', v: ['P02','2024-04', 7500, 5000], cc: ['','','','val-pass'] },
+            { c: 'row-grp-2', v: ['P02','2024-05', 7500, 5000], cc: ['','','','val-pass'] }
+        ] },
+        { id: 'select', badge: '④ SELECT + 成長率計算', bc: 'badge-green', label: 'ROUND(revenue / first_revenue * 100, 1) AS growth_pct', desc: '初月を100%としたときの成長率（推移）を計算します。', type: 'select', cols: ['product_id','month','revenue','first_revenue','growth_pct'], ch: ['col-select','col-select','col-select','col-select','col-select'], rows: [
+            { c: 'row-grp-1', v: ['P01','2024-03',10000,10000,'100.0'] },
+            { c: 'row-grp-1', v: ['P01','2024-04',12000,10000,'120.0'] },
+            { c: 'row-grp-1', v: ['P01','2024-05', 9000,10000,'90.0'] },
+            { c: 'row-grp-2', v: ['P02','2024-03', 5000, 5000,'100.0'] },
+            { c: 'row-grp-2', v: ['P02','2024-04', 7500, 5000,'150.0'] },
+            { c: 'row-grp-2', v: ['P02','2024-05', 7500, 5000,'150.0'] }
+        ] }
+      ],
+      sql: [
+        { t: 'SELECT\n  product_id, month, revenue,\n  ', k: '' },
+        { t: 'FIRST_VALUE', k: 'sql-kw', h: 'first_val window' },
+        { t: '(revenue) ', k: '', h: 'first_val window' },
+        { t: 'OVER', k: 'sql-kw', h: 'first_val window' },
+        { t: ' (\n    ', k: '', h: 'first_val window' },
+        { t: 'PARTITION BY ', k: 'sql-kw', h: 'first_val window' },
+        { t: 'product_id\n    ', k: '', h: 'first_val window' },
+        { t: 'ORDER BY ', k: 'sql-kw', h: 'first_val window' },
+        { t: 'month\n  ) ', k: '', h: 'first_val window' },
+        { t: 'AS ', k: 'sql-kw', h: 'first_val' },
+        { t: 'first_revenue,\n  ', k: '', h: 'first_val' },
+        { t: 'ROUND', k: '', h: 'select' },
+        { t: '(revenue::', k: '', h: 'select' },
+        { t: 'NUMERIC', k: 'sql-kw', h: 'select' },
+        { t: ' / ', k: '', h: 'select' },
+        { t: 'FIRST_VALUE', k: 'sql-kw', h: 'select' },
+        { t: '(revenue) ', k: '', h: 'select' },
+        { t: 'OVER', k: 'sql-kw', h: 'select' },
+        { t: ' (...) * 100, 1) ', k: '', h: 'select' },
+        { t: 'AS ', k: 'sql-kw', h: 'select' },
+        { t: 'growth_pct\n', k: '', h: 'select' },
+        { t: 'FROM ', k: 'sql-kw', h: 'from' },
+        { t: 'monthly_sales\n', k: '', h: 'from' },
+        { t: 'ORDER BY ', k: 'sql-kw', h: 'select' },
+        { t: 'product_id, month;', k: '', h: 'select' }
+      ]
+    }
+  ],
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：ウィンドウ関数と GROUP BY の違い：</strong>GROUP BY はグループを「1行に集約」しますが、ウィンドウ関数は行を集約せず「元の行を保ちながら集計値を付与」します。これが最大の違いです。<code>OVER()</code> 句があればウィンドウ関数です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>PARTITION BY は省略可能：</strong>PARTITION BY を省略すると全行が1つのパーティションとして扱われます。例えば全商品合計での前月比なら <code>LAG(revenue,1) OVER (ORDER BY month)</code> でOKです。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>FIRST_VALUE / LAST_VALUE との比較：</strong><code>FIRST_VALUE(revenue) OVER (PARTITION BY product_id ORDER BY month)</code> はパーティション内の最初の行の値（= 最古月の売上）を全行に付与できます。「今月売上 / 初月売上 × 100」のような成長率計算に使えます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>NTILE(n) で分位数分類：</strong><code>NTILE(4) OVER (ORDER BY revenue DESC)</code> で売上上位25%・50%・75%・100%のグループに分けられます。四分位分析やランク付けAPIに便利です。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>OVER 句に ORDER BY を書き忘れる：</strong>LAG/LEAD は「前後」を ORDER BY で定義しないと機能しません。ORDER BY なしの LAG はエラーになるか不定動作になります（DBによる）。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>月の欠損を考慮しない：</strong>4月のデータが抜けている場合、LAG は「3月の前=2月」ではなく「5月の前=3月（前レコード）」を返します。月の連続性が必要な場合は generate_series で月を補完してから LAG を適用すること。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：トレンド分析APIの設計</div>
+<div class="column-body">
+ダッシュボードAPIでは「前月比・前週比の推移グラフ」が定番の機能です。LAG を使うことで<strong>アプリ側での差分計算を不要にし、SQLだけで完結したレスポンスを返せます</strong>。また、LAG の第3引数（デフォルト値）を <code>0</code> にするか <code>NULL</code> のままにするかで「最初の月の前月比をゼロにするか非表示にするか」をSQL側でコントロールできます。
+</div>
+</div>
+`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  再帰CTE — カテゴリ階層の全子孫取得
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "再帰CTE（WITH RECURSIVE） — カテゴリ階層の全子孫を取得する",
+  tags: [["r","WITH RECURSIVE"],["fn","UNION ALL"],["g","階層データ"],["o","カテゴリAPI"]],
+  premise: `<p><strong>WITH RECURSIVE</strong> は、CTE が自分自身を参照する「再帰クエリ」を書くための構文です。階層データ（カテゴリツリー・組織図・部品表）を再帰的にたどるときに使います。</p>
+<pre><span class="kw">WITH RECURSIVE</span> <span class="tbl">cte</span> <span class="kw">AS</span> (
+  <span class="cmt">-- ① アンカー部（再帰の起点。最初に1回だけ実行）</span>
+  <span class="kw">SELECT</span> id, parent_id, name, <span class="num">0</span> <span class="kw">AS</span> depth
+  <span class="kw">FROM</span>   <span class="tbl">categories</span>
+  <span class="kw">WHERE</span>  id <span class="op">=</span> <span class="num">1</span>                  <span class="cmt">-- 起点となる行を1件選ぶ</span>
+
+  <span class="kw">UNION ALL</span>                      <span class="cmt">-- アンカー部と再帰部をつなぐ（重複排除なしで高速）</span>
+
+  <span class="cmt">-- ② 再帰部（cte = 前の反復の結果を参照。結果が0行になるまで繰り返す）</span>
+  <span class="kw">SELECT</span> c.id, c.parent_id, c.name, r.depth <span class="op">+</span> <span class="num">1</span>
+  <span class="kw">FROM</span>   <span class="tbl">categories</span> c
+  <span class="kw">JOIN</span>   <span class="tbl">cte</span>         r <span class="kw">ON</span> c.parent_id <span class="op">=</span> r.id  <span class="cmt">-- 前の反復の id を親IDとして持つ行を取得</span>
+)
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> <span class="tbl">cte</span>;</pre>
+<div class="callout warn"><strong>無限ループ注意：</strong>データに循環参照（A→B→A）があると再帰が止まらなくなります。<code>depth &lt; 10</code> などの上限条件か、<code>path</code> 列を使ったループ検知を必ず入れましょう。</div>`,
+  question: `<p><code>categories</code> テーブルは parent_id で自己参照する階層構造です。<em>category_id = 1 を起点として、その全ての子孫カテゴリ（直接の子だけでなく孫・曾孫も含む）</em>を depth（階層深さ）付きで取得してください。深さは起点を 0 とします。</p>
+<div class="data-section">
+  <div class="data-label">使用テーブル</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ categories</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>category_id</th><th>parent_id</th><th>name</th></tr>
+        <tr><td>1</td><td class="null">NULL</td><td>食品</td></tr>
+        <tr><td>2</td><td>1</td><td>飲料</td></tr>
+        <tr><td>3</td><td>1</td><td>菓子</td></tr>
+        <tr><td>4</td><td>2</td><td>コーヒー</td></tr>
+        <tr><td>5</td><td>2</td><td>ジュース</td></tr>
+        <tr><td>6</td><td>3</td><td>チョコレート</td></tr>
+        <tr><td>7</td><td>10</td><td>雑貨（別ツリー）</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<p>category_id=1（食品）配下の全子孫：</p>
+<div class="tbl-wrap"><table class="vtbl">
+<tr><th>category_id</th><th>parent_id</th><th>name</th><th class="tc-hi">depth</th></tr>
+<tr class="tr-hi"><td>1</td><td class="null">NULL</td><td>食品</td><td class="tc-hi">0</td></tr>
+<tr class="tr-hi2"><td>2</td><td>1</td><td>飲料</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi2"><td>3</td><td>1</td><td>菓子</td><td class="tc-hi">1</td></tr>
+<tr class="tr-hi3"><td>4</td><td>2</td><td>コーヒー</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi3"><td>5</td><td>2</td><td>ジュース</td><td class="tc-hi">2</td></tr>
+<tr class="tr-hi3"><td>6</td><td>3</td><td>チョコレート</td><td class="tc-hi">2</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH RECURSIVE</span> <span class="tbl">category_tree</span> <span class="kw">AS</span> (
+
+  <span class="cmt">-- ① アンカー部：起点となる行（食品 = category_id 1）を取得</span>
+  <span class="kw">SELECT</span>
+    category_id,
+    parent_id,
+    name,
+    <span class="num">0</span> <span class="kw">AS</span> depth                          <span class="cmt">-- 起点の深さを 0 に設定</span>
+  <span class="kw">FROM</span> <span class="tbl">categories</span>
+  <span class="kw">WHERE</span> category_id <span class="op">=</span> <span class="num">1</span>
+
+  <span class="kw">UNION ALL</span>
+
+  <span class="cmt">-- ② 再帰部：前回の結果 (ct) の id を親に持つ行を取得</span>
+  <span class="kw">SELECT</span>
+    c.category_id,
+    c.parent_id,
+    c.name,
+    ct.depth <span class="op">+</span> <span class="num">1</span>                        <span class="cmt">-- 深さを1増やす</span>
+  <span class="kw">FROM</span> <span class="tbl">categories</span> c
+  <span class="kw">JOIN</span> <span class="tbl">category_tree</span> ct <span class="kw">ON</span> c.parent_id <span class="op">=</span> ct.category_id
+  <span class="kw">WHERE</span> ct.depth <span class="op"><</span> <span class="num">10</span>                   <span class="cmt">-- 深さ10で再帰を止める（ループ防止）</span>
+)
+
+<span class="kw">SELECT</span>
+  category_id,
+  parent_id,
+  name,
+  depth
+<span class="kw">FROM</span> <span class="tbl">category_tree</span>
+<span class="kw">ORDER BY</span> depth, category_id;
+
+<span class="cmt">/*
+  実行順序（再帰CTE）:
+  1. アンカー部実行 → id=1 (食品, depth=0) が結果に追加され、再帰の入力となる
+  2. 再帰1回目     → id=1 を親に持つ id=2,3 (飲料, 菓子, depth=1) が見つかり結果に追加
+  3. 再帰2回目     → id=2,3 を親に持つ id=4,5,6 (コーヒー等, depth=2) が見つかり結果に追加
+  4. 再帰3回目     → id=4,5,6 を親に持つ行はないため、0件となり再帰終了
+  5. UNION ALL     → 全ステップの結果を統合
+  6. SELECT        → depth, category_id 順にソートして出力
+*/</span></pre>`,
+  viz: [
+    {
+      title: "解法：再帰CTEによる全子孫取得プロセス",
+      steps: [
+        { id: 'anchor', badge: '① アンカー部（起点）', bc: 'badge-blue',
+          label: 'WHERE category_id = 1 → 食品（depth=0）',
+          desc: 'categories テーブルから起点行（食品 id=1）を1行取得します。これが再帰の出発点です。depth=0 を付与します。',
+          type: 'base',
+          cols: ['category_id','parent_id','name','depth'],
+          ch:   ['col-base','col-base','col-base','col-base'],
+          rows: [
+            { c: 'row-grp-1', v: [1,'NULL','食品',0] }
+          ], cnt: 'アンカー: 1行' },
+
+        { id: 'rec', badge: '② 再帰1回目', bc: 'badge-orange',
+          label: 'JOIN categories ON parent_id = 1 → 飲料・菓子（depth=1）',
+          desc: '前回の結果（食品 id=1）を親に持つ行を取得します。parent_id=1 に一致する「飲料」「菓子」の2行が見つかり、depth=1 を付与します。',
+          type: 'eval',
+          cols: ['category_id','parent_id (探索キー)','name','depth'],
+          ch:   ['','col-eval','','col-eval'],
+          rows: [
+            { c: 'row-grp-2', v: [2,1,'飲料',1], cc: ['','val-pass','','val-pass'] },
+            { c: 'row-grp-2', v: [3,1,'菓子',1], cc: ['','val-pass','','val-pass'] },
+            { c: 'row-dimmed', v: [7,10,'雑貨（別ツリー）','—'], cc: ['','val-fail','',''] }
+          ], cnt: '1回目: 2行追加' },
+
+        { id: 'rec2', badge: '③ 再帰2回目', bc: 'badge-orange',
+          label: 'JOIN categories ON parent_id IN (2, 3) → depth=2',
+          desc: '前回の結果（飲料 id=2・菓子 id=3）を親に持つ行を取得します。コーヒー・ジュース・チョコレートの3行が見つかり、depth=2 を付与します。',
+          type: 'eval',
+          cols: ['category_id','parent_id (探索キー)','name','depth'],
+          ch:   ['','col-eval','','col-eval'],
+          rows: [
+            { c: 'row-grp-3', v: [4,2,'コーヒー',2],     cc: ['','val-pass','','val-pass'] },
+            { c: 'row-grp-3', v: [5,2,'ジュース',2],     cc: ['','val-pass','','val-pass'] },
+            { c: 'row-grp-3', v: [6,3,'チョコレート',2], cc: ['','val-pass','','val-pass'] }
+          ], cnt: '2回目: 3行追加' },
+
+        { id: 'select', badge: '④ UNION ALL + SELECT', bc: 'badge-green',
+          label: 'UNION ALL で全反復を縦積み → ORDER BY depth, category_id',
+          desc: 'アンカー・再帰1回目・2回目の結果を UNION ALL で縦に結合し、depth / category_id 順で出力します。再帰3回目は該当なしで自動終了します。',
+          type: 'select',
+          cols: ['category_id','parent_id','name','depth'],
+          ch:   ['col-select','col-select','col-select','col-select'],
+          rows: [
+            { c: 'row-grp-1', v: [1,'NULL','食品',0] },
+            { c: 'row-grp-2', v: [2,1,'飲料',1] },
+            { c: 'row-grp-2', v: [3,1,'菓子',1] },
+            { c: 'row-grp-3', v: [4,2,'コーヒー',2] },
+            { c: 'row-grp-3', v: [5,2,'ジュース',2] },
+            { c: 'row-grp-3', v: [6,3,'チョコレート',2] }
+          ], cnt: '結果: 6行 × 4列' }
+      ],
+      sql: [
+        { t: 'WITH RECURSIVE ',               k: 'sql-kw', h: 'anchor rec rec2 select' },
+        { t: 'category_tree ',                k: '',       h: 'anchor rec rec2 select' },
+        { t: 'AS',                            k: 'sql-kw', h: 'anchor rec rec2 select' },
+        { t: ' (\n  ',                        k: '',       h: 'anchor rec rec2 select' },
+        { t: 'SELECT\n    ',                  k: 'sql-kw', h: 'anchor' },
+        { t: 'category_id, parent_id, name, 0 ',  k: '', h: 'anchor' },
+        { t: 'AS ',                           k: 'sql-kw', h: 'anchor' },
+        { t: 'depth\n  ',                     k: '',       h: 'anchor' },
+        { t: 'FROM ',                         k: 'sql-kw', h: 'anchor' },
+        { t: 'categories\n  ',                k: '',       h: 'anchor' },
+        { t: 'WHERE ',                        k: 'sql-kw', h: 'anchor' },
+        { t: 'category_id = 1\n\n  ',         k: '',       h: 'anchor' },
+        { t: 'UNION ALL\n\n  ',               k: 'sql-kw', h: 'rec rec2' },
+        { t: 'SELECT\n    ',                  k: 'sql-kw', h: 'rec rec2' },
+        { t: 'c.category_id, c.parent_id, c.name, ct.depth + 1\n  ', k: '', h: 'rec rec2' },
+        { t: 'FROM ',                         k: 'sql-kw', h: 'rec rec2' },
+        { t: 'categories c\n  ',              k: '',       h: 'rec rec2' },
+        { t: 'JOIN ',                         k: 'sql-kw', h: 'rec rec2' },
+        { t: 'category_tree ct ',             k: '',       h: 'rec rec2' },
+        { t: 'ON ',                           k: 'sql-kw', h: 'rec rec2' },
+        { t: 'c.parent_id = ct.category_id\n  ', k: '', h: 'rec rec2' },
+        { t: 'WHERE ',                        k: 'sql-kw', h: 'rec rec2' },
+        { t: 'ct.depth < 10\n)\n\n',          k: '',       h: 'rec rec2' },
+        { t: 'SELECT\n  ',                    k: 'sql-kw', h: 'select' },
+        { t: 'category_id, parent_id, name, depth\n', k: '', h: 'select' },
+        { t: 'FROM ',                         k: 'sql-kw', h: 'select' },
+        { t: 'category_tree\n',               k: '',       h: 'select' },
+        { t: 'ORDER BY ',                     k: 'sql-kw', h: 'select' },
+        { t: 'depth, category_id;',           k: '',       h: 'select' }
+      ]
+    },
+    {
+      title: "応用：再帰CTEで経路（パス）文字列を生成するパターン",
+      steps: [
+        { id: 'anchor', badge: '① アンカー部（起点）', bc: 'badge-blue', label: 'name::TEXT AS path', desc: '起点となる行（食品）を取得し、その名前を経路の初期値とします。', type: 'base', cols: ['category_id','name','path'], ch: ['col-base','col-base','col-base'], rows: [
+            { c: 'row-grp-1', v: [1,'食品','食品'] }
+        ] },
+        { id: 'rec', badge: '② 再帰1回目', bc: 'badge-orange', label: 'ct.path || \' > \' || c.name AS path', desc: '親の経路文字列（ct.path）に自身の名前を連結して新しい経路を作ります。', type: 'eval', cols: ['category_id','name','path'], ch: ['','','col-eval'], rows: [
+            { c: 'row-grp-2', v: [2,'飲料','食品 > 飲料'], cc: ['','','val-pass'] },
+            { c: 'row-grp-2', v: [3,'菓子','食品 > 菓子'], cc: ['','','val-pass'] }
+        ] },
+        { id: 'rec2', badge: '③ 再帰2回目', bc: 'badge-orange', label: '階層が深くなるごとにパスが伸びる', desc: 'さらに子を取得し、親のパスに連結します。', type: 'eval', cols: ['category_id','name','path'], ch: ['','','col-eval'], rows: [
+            { c: 'row-grp-3', v: [4,'コーヒー','食品 > 飲料 > コーヒー'], cc: ['','','val-pass'] },
+            { c: 'row-grp-3', v: [5,'ジュース','食品 > 飲料 > ジュース'], cc: ['','','val-pass'] },
+            { c: 'row-grp-3', v: [6,'チョコレート','食品 > 菓子 > チョコレート'], cc: ['','','val-pass'] }
+        ] },
+        { id: 'select', badge: '④ UNION ALL + SELECT', bc: 'badge-green', label: 'ORDER BY path', desc: '全結果を結合します。パス文字列でソートすると、きれいなツリー順に並びます。', type: 'select', cols: ['category_id','name','path'], ch: ['col-select','col-select','col-select'], rows: [
+            { c: 'row-grp-1', v: [1,'食品','食品'] },
+            { c: 'row-grp-2', v: [2,'飲料','食品 > 飲料'] },
+            { c: 'row-grp-3', v: [4,'コーヒー','食品 > 飲料 > コーヒー'] },
+            { c: 'row-grp-3', v: [5,'ジュース','食品 > 飲料 > ジュース'] },
+            { c: 'row-grp-2', v: [3,'菓子','食品 > 菓子'] },
+            { c: 'row-grp-3', v: [6,'チョコレート','食品 > 菓子 > チョコレート'] }
+        ] }
+      ],
+      sql: [
+        { t: 'WITH RECURSIVE ', k: 'sql-kw', h: 'anchor rec rec2 select' },
+        { t: 'category_tree AS (\n  SELECT\n    category_id, parent_id, name,\n    ', k: '', h: 'anchor rec rec2 select' },
+        { t: 'name::TEXT ', k: 'sql-kw', h: 'anchor' },
+        { t: 'AS ', k: 'sql-kw', h: 'anchor' },
+        { t: 'path\n  FROM categories\n  WHERE category_id = 1\n\n  UNION ALL\n\n  SELECT\n    c.category_id, c.parent_id, c.name,\n    ', k: '', h: 'anchor rec rec2' },
+        { t: 'ct.path || \' > \' || c.name ', k: '', h: 'rec rec2' },
+        { t: 'AS ', k: 'sql-kw', h: 'rec rec2' },
+        { t: 'path\n  FROM categories c\n  JOIN category_tree ct ON c.parent_id = ct.category_id\n)\n', k: '', h: 'rec rec2 select' },
+        { t: 'SELECT ', k: 'sql-kw', h: 'select' },
+        { t: 'category_id, name, path\nFROM category_tree\n', k: '', h: 'select' },
+        { t: 'ORDER BY ', k: 'sql-kw', h: 'select' },
+        { t: 'path;', k: '', h: 'select' }
+      ]
+    }
+  ],
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎：自己参照テーブルとは：</strong>自己参照テーブルは「同じテーブルの行を親として参照する構造」です。<code>parent_id</code> が同テーブルの <code>category_id</code> を指します。組織図・カテゴリツリー・部品表などで広く使われます。NULL の parent_id は「親がいない = ルート」を意味します。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>path 列でループ検知：</strong><code>ARRAY[category_id] AS path</code> から再帰で <code>path || c.category_id</code> と積み上げ、<code>WHERE NOT c.category_id = ANY(ct.path)</code> とすることで循環参照を検出して無限ループを完全に防げます。depth による上限より安全です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>経路（パス）文字列の生成：</strong><code>'食品 > 飲料 > コーヒー'</code> のような経路表示も再帰CTEで作れます。アンカーで <code>name AS path</code>、再帰部で <code>ct.path || ' > ' || c.name AS path</code> と連結していくと各行にフルパスが付きます。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>ltree 拡張：</strong>PostgreSQL には <code>ltree</code> というパス型があり <code>'food.drink.coffee'</code> のような文字列でツリーを表現し、<code>@&gt;</code>（先祖判定）や <code>~</code>（パスパターンマッチ）で高速に階層検索できます。大規模な階層データには ltree のほうが適しています。</div></div>
+</div>
+
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>無限ループへの無防備な実装：</strong>本番データで循環参照（A→B→C→A）が発生すると再帰が止まらず、DBがメモリ/CPU を使い切るまで走り続ける。必ず depth 上限 か path 列によるループ検知を入れること。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>アプリ側の再帰で N+1 クエリを発行する：</strong>アプリケーション側で「子を取得→その子を取得→…」と繰り返すパターンは、深さ×幅の本数のクエリを発行してしまう（N+1問題の再帰版）。WITH RECURSIVE を使えば1クエリで全階層を取得できる。</div></div>
+</div>
+
+<div class="column-box">
+<div class="column-title">☕ 実務コラム：ECサイトのカテゴリAPI設計</div>
+<div class="column-body">
+ECサイトでは「食品 &gt; 飲料 &gt; コーヒー」のようなカテゴリツリーをAPIで返すことが多くあります。<strong>WITH RECURSIVE を使えば「全ツリーを1回のSQLで取得 → アプリ側でツリー構造に組み立て」</strong>という効率的な実装が可能です。逆に「あるカテゴリの全祖先を取得して、パンくずリストを生成する」用途では、起点を末端カテゴリにして parent_id をたどる方向に再帰を書きます。
+</div>
+</div>
+`
+}
+];
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p', fn:'tag-p'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c] || 'tag-r'}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力','期待出力',q.output)}
+      ${acc('✅','pill-red','解答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',
+        (Array.isArray(q.viz)
+          ? q.viz.map((v, vIdx) => `<div style="margin: 16px 0 8px; font-size: 13px; font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 6px;">▼ ${v.title || 'STEP VISUALIZER'}</div><div class="sql-viz-wrapper" id="viz-${i}-${vIdx}" tabindex="-1" style="margin-bottom:24px;"></div>`).join('')
+          : `<div style="margin: 16px 0 8px; font-size: 13px; font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 6px;">▼ STEP VISUALIZER</div><div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1" style="margin-bottom:24px;"></div>`
+        ) + q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  QS.forEach((q, i) => {
+    if (q.viz) {
+      if (Array.isArray(q.viz)) {
+        q.viz.forEach((v, vIdx) => initVisualizer(document.getElementById(`viz-${i}-${vIdx}`), v));
+      } else {
+        initVisualizer(document.getElementById('viz-' + i), q.viz);
+      }
+    }
+  });
+
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !wasMobile);
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !isMobile);
+  }
+});
+</script>
+</body>
+</html>

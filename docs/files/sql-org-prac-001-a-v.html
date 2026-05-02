@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL組織分析5選 — 企業データ × テーブル変化で理解する</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e13;
+    --bg2: #131920;
+    --bg3: #1c2330;
+    --bg4: #263040;
+    --border: #2a3545;
+    --text: #cdd9e5;
+    --dim: #768390;
+    --accent: #4dabf7;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+    --kw: #ff7b72;
+    --fn: #79c0ff;
+    --str: #a5d6ff;
+    --num: #f0c674;
+    --cmt: #6a737d;
+    --tbl: #ffa657;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 15px; line-height: 1.6; }
+  body { min-height: 100vh; }
+
+  .site-header { background: var(--bg2); }
+  .header-inner { padding: 16px; }
+  .header-flex { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .header-badge {
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; font-weight: 700; color: var(--accent); line-height: 1; white-space: nowrap;
+  }
+  .header-text-wrap { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .header-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .htag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--dim); }
+
+  .sticky-tabs { background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+  .tab-row { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .tab-btn {
+    flex-shrink: 0; background: none; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent;
+    color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg3); }
+  .tab-num { margin-right: 5px; }
+  .tab-btn.active .tab-num { color: var(--accent); }
+
+  .prog-wrap { height: 2px; background: var(--bg4); }
+  .prog-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 22px 14px 90px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .q-header { margin-bottom: 18px; }
+  .q-number { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .q-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .q-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+  .tag-r { background: #1a2c44; color: var(--accent); border: 1px solid #1e4070; }
+  .tag-g { background: #162416; color: var(--green); border: 1px solid #1e3a1e; }
+  .tag-o { background: #2e1e0a; color: var(--orange); border: 1px solid #4a2e0a; }
+  .tag-p { background: #1e1433; color: var(--purple); border: 1px solid #3a2060; }
+
+  .acc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  .acc-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .acc-head:hover { background: var(--bg3); }
+  .acc-icon { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+  .acc-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .acc-pill { font-size: 10px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 3px; flex-shrink: 0; }
+  .pill-blue   { background: #112233; color: var(--accent); border: 1px solid #1a3a55; }
+  .pill-green  { background: #0e1f0e; color: var(--green);  border: 1px solid #1a3a1a; }
+  .pill-orange { background: #1e1205; color: var(--orange); border: 1px solid #3a2010; }
+  .pill-red    { background: #1e0a0a; color: var(--red);    border: 1px solid #3a1010; }
+  .pill-purple { background: #160f2a; color: var(--purple); border: 1px solid #3a1a60; }
+  .acc-chevron { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .acc.closed .acc-chevron { transform: rotate(-90deg); }
+  .acc-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+  .acc.closed .acc-body { display: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--accent); font-weight: 600; }
+  em { color: var(--yellow); font-style: normal; font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg4); padding: 1px 5px; border-radius: 3px; color: var(--tbl); }
+
+  pre {
+    background: #060a0f; border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6; margin: 8px 0;
+  }
+  .kw  { color: var(--kw); font-weight: 700; }
+  .fn  { color: var(--fn); }
+  .tbl { color: var(--tbl); }
+  .str { color: var(--str); }
+  .num { color: var(--num); }
+  .cmt { color: var(--cmt); font-style: italic; }
+  .op  { color: var(--orange); }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: #0e1e33;
+    padding: 9px 13px; border-radius: 0 5px 5px 0; margin: 10px 0; font-size: 13px;
+  }
+  .callout.warn   { border-left-color: var(--yellow); background: #1e1a08; }
+  .callout.danger { border-left-color: var(--red);    background: #1e0e0e; }
+  .callout.ok     { border-left-color: var(--green);  background: #0a1e0a; }
+
+  .data-section { margin: 14px 0; }
+  .data-label {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--tbl); letter-spacing: 1px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-label::before { content: ''; display: block; width: 3px; height: 12px; background: var(--tbl); border-radius: 2px; }
+  .data-tables { display: flex; gap: 14px; flex-wrap: wrap; }
+  .data-tbl-wrap { flex: 1; min-width: 220px; }
+  .data-tbl-name { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--orange); margin-bottom: 4px; }
+
+
+
+  .tbl-wrap { overflow-x: auto; margin-bottom: 4px; }
+  table.vtbl {
+    border-collapse: collapse; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; background: #060a0f; border: 1px solid var(--border);
+    border-radius: 4px; min-width: 100%;
+  }
+  table.vtbl th { background: var(--bg3); color: var(--tbl); padding: 5px 11px; border: 1px solid var(--border); text-align: left; white-space: nowrap; font-weight: 600; }
+  table.vtbl td { padding: 4px 11px; border: 1px solid #1c2635; white-space: nowrap; }
+  table.vtbl tr:nth-child(even) td { background: #080c12; }
+  .tr-hi  td { background: #0e1e33 !important; }
+  .tr-hi2 td { background: #0e1e0e !important; }
+  .tr-hi3 td { background: #1e1433 !important; }
+  .tr-hi4 td { background: #1e1a0a !important; }
+  .tr-dim td { opacity: 0.4; }
+  .tc-hi { color: var(--accent) !important; font-weight: 700; }
+  .tc-g  { color: var(--green)  !important; font-weight: 700; }
+  .tc-p  { color: var(--purple) !important; font-weight: 700; }
+  .tc-y  { color: var(--yellow) !important; font-weight: 700; }
+  .tc-o  { color: var(--orange) !important; font-weight: 700; }
+  .tc-r  { color: var(--red)    !important; font-weight: 700; }
+  .null  { color: var(--dim)    !important; font-style: italic; }
+
+
+
+  .exec-box { background: #060a0f; border: 1px solid var(--bg4); border-radius: 6px; padding: 12px 14px; margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+  .exec-title { color: var(--purple); font-size: 10px; letter-spacing: 1px; margin-bottom: 8px; }
+  .exec-row { display: flex; gap: 8px; margin-bottom: 5px; align-items: flex-start; }
+  .exec-n { color: var(--dim); width: 14px; flex-shrink: 0; }
+  .exec-step { color: var(--yellow); min-width: 160px; flex-shrink: 0; }
+  .exec-desc { color: var(--dim); line-height: 1.5; }
+
+  .insight-box {
+    background: #0a1520; border: 1px solid #1a3a55; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .insight-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 1px; margin-bottom: 10px; }
+  .insight-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .insight-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .insight-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .insight-body strong { color: var(--accent); }
+  .insight-body em { color: var(--yellow); }
+  .insight-body code { font-size: 11px; }
+
+  .anti-box {
+    background: #160a0a; border: 1px solid #3a1515; border-radius: 8px;
+    padding: 14px 16px; margin-top: 10px;
+  }
+  .anti-title { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--red); letter-spacing: 1px; margin-bottom: 10px; }
+  .anti-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+  .anti-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .anti-body strong { color: var(--red); }
+  .anti-body code { font-size: 11px; }
+
+  /* 実務想定コラム用CSS */
+  .column-box {
+    background: #0d151c; border: 1px dashed #2a3545; border-radius: 8px;
+    padding: 14px 16px; margin-top: 14px;
+  }
+  .column-title { font-size: 11.5px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .column-title::before { content: '🏢'; font-size: 14px; }
+  .column-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .column-body strong { color: var(--accent); }
+
+  .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; }
+  .nav-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 9px 16px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: #0e1e33; }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-info { font-size: 11px; color: var(--dim); font-family: 'JetBrains Mono', monospace; text-align: center; }
+
+  @media (max-width:520px) {
+    .header-inner { padding: 12px 10px 6px; }
+    .q-title { font-size: 15px; }
+    pre { font-size: 11px; padding: 10px; }
+    table.vtbl { font-size: 10.5px; }
+    .acc-title { font-size: 12px; }
+    .header-badge { font-size: 14px; padding: 5px 8px; }
+    main { padding: 16px 10px 60px; }
+    .data-tables { flex-direction: column; }
+  }
+
+  /* ── SQL Step Visualizer ── */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+  }
+
+  .sql-viz-wrapper {
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    --font-sans: system-ui, -apple-system, sans-serif;
+    --color-bg-base:    #0d1117;
+    --color-bg-panel:   #161b22;
+    --color-border-main:#30363d;
+    --color-border-sub: #21262d;
+    --color-txt-main:   #e6edf3;
+    --color-txt-sub:    #8b949e;
+    --color-txt-muted:  #6e7681;
+    --sql-blue-bg:    rgba(88, 166, 255, 0.15);  --sql-blue-txt:   #58a6ff;  --sql-blue-bd:    #1f6feb;
+    --sql-orange-bg:  rgba(227, 137, 59, 0.15);  --sql-orange-txt: #e3893b;  --sql-orange-bd:  #7d4e00;
+    --sql-green-bg:   rgba(63, 185, 80, 0.15);   --sql-green-txt:  #3fb950;  --sql-green-bd:   #238636;
+    --sql-red-bg:     rgba(248, 81, 73, 0.12);   --sql-red-txt:    #f85149;
+    --sql-grp1-bg: rgba(88, 166, 255, 0.03);
+    --sql-grp2-bg: rgba(88, 166, 255, 0.08);
+    --sql-grp3-bg: rgba(88, 166, 255, 0.14);
+    --border-radius: 6px;
+    background: var(--color-bg-base);
+    color: var(--color-txt-main);
+    font-family: var(--font-sans);
+    min-height: auto;
+    padding: 1.5rem;
+  }
+
+  .sv-tab:focus-visible, .sv-nav-btn:focus-visible, .sv-dot:focus-visible {
+    outline: 2px solid var(--sql-blue-txt); outline-offset: 2px;
+  }
+  .sv-nav-btn {
+    padding: 6px 16px; border: 1px solid var(--color-border-sub);
+    border-radius: var(--border-radius); font-size: 11px;
+    background: var(--color-bg-panel); color: var(--color-txt-main);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .sv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sv-nav-btn:not(:disabled):hover { border-color: var(--color-border-main); background: #1f2a38; }
+  .sv-dot {
+    height: 6px; border: none; background: var(--color-border-sub);
+    border-radius: 3px; cursor: pointer; padding: 0;
+    transition: width 0.3s cubic-bezier(0.4,0,0.2,1), background 0.3s;
+    flex-shrink: 0; width: 8px;
+  }
+  .sv-dot.done   { background: var(--color-border-main); }
+  .sv-dot.active { background: var(--sql-blue-txt); width: 24px; }
+
+  .sv-table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 10px; }
+  .sv-table th {
+    padding: 6px 12px; font-size: 9px; font-weight: 600;
+    border: 1px solid var(--color-border-sub); text-align: left;
+    transition: all 0.3s ease; white-space: nowrap;
+  }
+  .sv-table td {
+    padding: 6px 12px; border: 1px solid var(--color-border-sub);
+    white-space: nowrap; background: var(--color-bg-base); color: var(--color-txt-main);
+    transition: background 0.3s ease, opacity 0.3s ease;
+  }
+  .sv-table th.col-base   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt); }
+  .sv-table th.col-eval   { background: var(--sql-orange-bg); color: var(--sql-orange-txt); }
+  .sv-table th.col-select { background: var(--sql-green-bg);  color: var(--sql-green-txt); }
+  .sv-table tr.row-dimmed td { background: transparent; opacity: 0.28; }
+  .sv-table tr.row-grp-1 td { background: var(--sql-grp1-bg); }
+  .sv-table tr.row-grp-2 td { background: var(--sql-grp2-bg); }
+  .sv-table tr.row-grp-3 td { background: var(--sql-grp3-bg); }
+  .sv-table td.val-pass   { background: var(--sql-green-bg) !important; border-left: 2px solid var(--sql-green-txt); color: var(--sql-green-txt); font-weight: 600; }
+  .sv-table td.val-fail   { background: var(--sql-red-bg)   !important; border-left: 2px solid var(--sql-red-txt);   color: var(--sql-red-txt);   text-decoration: line-through; opacity: 0.7; }
+  .sv-table td.val-dimmed { background: transparent !important; opacity: 0.2; color: var(--color-txt-muted); }
+
+  .sql-kw { color: var(--sql-blue-txt); font-weight: 600; }
+  .sql-hl-from, .sql-hl-from_sales, .sql-hl-join_deps, .sql-hl-join, .sql-hl-where, .sql-hl-group,
+  .sql-hl-having, .sql-hl-agg, .sql-hl-select, .sql-hl-sub, .sql-hl-from_act, .sql-hl-group_act,
+  .sql-hl-join_bud, .sql-hl-calc_var, .sql-hl-case_alert, .sql-hl-where_latest, .sql-hl-case_risk {
+    border-radius: 3px; padding: 2px 4px; color: var(--sql-orange-txt);
+  }
+  .sql-hl-from, .sql-hl-from_sales, .sql-hl-join_deps, .sql-hl-join, .sql-hl-from_act, .sql-hl-join_bud { background: var(--sql-blue-bg); }
+  .sql-hl-where, .sql-hl-where_latest, .sql-hl-group, .sql-hl-group_act, .sql-hl-having, .sql-hl-agg, .sql-hl-sub, .sql-hl-calc_var, .sql-hl-case_alert, .sql-hl-case_risk { background: var(--sql-orange-bg); }
+  .sql-hl-select { background: var(--sql-green-bg); }
+
+  .sv-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: 600; letter-spacing: 0.02em; }
+  .badge-blue   { background: var(--sql-blue-bg);   color: var(--sql-blue-txt);   border: 1px solid var(--sql-blue-bd); }
+  .badge-orange { background: var(--sql-orange-bg); color: var(--sql-orange-txt); border: 1px solid var(--sql-orange-bd); }
+  .badge-green  { background: var(--sql-green-bg);  color: var(--sql-green-txt);  border: 1px solid var(--sql-green-bd); }
+
+  @keyframes sv-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sv-animate { animation: sv-fade-in 0.3s ease forwards; }
+
+  .tbl-label { font-size: 9px; font-weight: 500; color: var(--color-txt-sub); margin-bottom: 6px; }
+
+  .sv-mobile-collapse summary::-webkit-details-marker { display: none; }
+  .sv-mobile-collapse summary { list-style: none; }
+  .sv-collapse-icon { transition: transform 0.2s ease; display: inline-block; }
+  .sv-mobile-collapse[open] .sv-collapse-icon { transform: rotate(180deg); }
+  @media (min-width: 641px) {
+    .sv-mobile-collapse > summary { pointer-events: none; }
+    .sv-collapse-icon { display: none !important; }
+  }
+  @media (max-width: 640px) {
+    .sv-sidebar { flex: 1 1 100% !important; min-width: 100% !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-flex">
+      <div class="header-badge">SQL<br><span style="font-size:10px;opacity:.6">組織5</span></div>
+      <div class="header-text-wrap">
+        <div class="header-title">企業組織データで学ぶ SQL 応用5選（実務BI編）</div>
+      </div>
+    </div>
+    <div class="header-tags">
+      <span class="htag">★★★ 中〜上級</span>
+      <span class="htag">組織分析</span>
+      <span class="htag">HR Analytics</span>
+      <span class="htag">PostgreSQL/BigQuery対応</span>
+    </div>
+  </div>
+</header>
+
+<div class="sticky-tabs">
+  <div class="tab-row" id="tabRow"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+
+function initVisualizer(root, data) {
+  let currentStepIndex = 0;
+
+  root.innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="sv-sidebar" style="flex:0 0 280px;min-width:240px;">
+        <div style="font-size:12px;font-weight:600;color:var(--color-txt-sub);margin-bottom:6px;letter-spacing:0.05em;">SQL QUERY</div>
+        <div class="sv-sqlbox" style="font-family:var(--font-mono);font-size:10px;line-height:1.8;white-space:pre-wrap;overflow-x:hidden;word-break:break-all;background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:16px;"></div>
+        <details class="sv-legend-container sv-mobile-collapse" style="margin-top:16px;border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:12px 14px;background:var(--color-bg-panel);">
+          <summary style="font-size:11px;font-weight:600;color:var(--color-txt-muted);letter-spacing:0.06em;cursor:pointer;outline:none;display:flex;align-items:center;justify-content:space-between;margin:0;">
+            <span>LEGEND (現在のステップ)</span>
+            <span class="sv-collapse-icon" style="font-size:10px;">▼</span>
+          </summary>
+          <div class="sv-legend" style="display:flex;flex-direction:column;gap:8px;font-size:10px;margin-top:12px;border-top:1px dashed var(--color-border-sub);padding-top:12px;"></div>
+        </details>
+      </div>
+      <div style="flex:1;min-width:300px;">
+        <div class="sv-stepinfo" style="margin-bottom:16px;"></div>
+        <div class="sv-ctrls" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;"></div>
+        <div class="sv-tarea sv-animate"></div>
+        <div class="sv-rowcount" style="font-size:10px;font-family:var(--font-mono);color:var(--color-txt-sub);margin-top:8px;text-align:right;"></div>
+      </div>
+    </div>`;
+
+  function getLegendHTML(type) {
+    const mk = (color, text) =>
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:var(--sql-${color}-bg);border:1px solid var(--sql-${color}-bd);border-radius:2px;"></div><span style="color:var(--color-txt-sub)">${text}</span></div>`;
+    const dim =
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="width:16px;height:10px;background:transparent;border:1px dashed var(--color-border-main);border-radius:2px;opacity:0.5;"></div><span style="color:var(--color-txt-muted)">除外・非表示データ</span></div>`;
+    const pf =
+      `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-green-bg);border-left:2px solid var(--sql-green-txt);border-radius:2px;"></div><span style="color:var(--sql-green-txt);font-weight:600;font-size:9px;">✓ 通過</span></div>
+        <div style="display:flex;align-items:center;gap:4px;"><div style="width:16px;height:10px;background:var(--sql-red-bg);border-left:2px solid var(--sql-red-txt);border-radius:2px;"></div><span style="color:var(--sql-red-txt);font-weight:600;font-size:9px;">✗ 除外</span></div>
+      </div>`;
+    if (type === 'base')   return mk('blue',   'データ取得・結合対象') + dim;
+    if (type === 'eval')   return mk('orange', '評価対象の列・キー')   + dim + pf;
+    if (type === 'group')  return mk('orange', 'グループ化キー・集計対象') +
+      `<div style="display:flex;align-items:center;gap:8px;"><div style="display:flex;gap:4px;"><div style="width:14px;height:10px;background:var(--sql-grp1-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp2-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div><div style="width:14px;height:10px;background:var(--sql-grp3-bg);border:1px solid var(--color-border-main);border-radius:2px;"></div></div><span style="color:var(--color-txt-sub)">グループ分類</span></div>`;
+    if (type === 'select') return mk('green',  '出力対象の列') + dim;
+    return '';
+  }
+
+  function renderSQL(d, stepId) {
+    return d.sql.map(t => {
+      const isMatch = t.h && t.h.split(' ').includes(stepId);
+      const cls = `${t.k || ''} ${isMatch ? `sql-hl-${stepId}` : ''}`.trim();
+      return `<span class="${cls}">${t.t}</span>`;
+    }).join('');
+  }
+
+  function renderStepInfo(step) {
+    return `
+      <details class="sv-mobile-collapse" style="background:var(--color-bg-panel);border:1px solid var(--color-border-sub);border-radius:var(--border-radius);padding:8px 10px;">
+        <summary style="cursor:pointer;outline:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:none;margin:0;">
+          <span class="sv-badge ${step.bc}">${step.badge}</span>
+          <code style="font-size:10px;font-weight:700;color:var(--color-txt-main);font-family:var(--font-mono);">${step.label}</code>
+          <span class="sv-collapse-icon" style="margin-left:auto;font-size:9px;color:var(--color-txt-muted);">▼</span>
+        </summary>
+        <div style="margin-top:12px;font-size:11px;line-height:1.5;color:var(--color-txt-sub);border-top:1px dashed var(--color-border-sub);padding-top:12px;">${step.desc}</div>
+      </details>`;
+  }
+
+  function buildTable(label, cols, rows, headerClasses) {
+    const thead = cols.map((col, i) => `<th class="${headerClasses?.[i] || ''}">${col}</th>`).join('');
+    const tbody = rows.map(r => {
+      const tds = r.v.map((val, ci) => `<td class="${r.cc?.[ci] || ''}">${val}</td>`).join('');
+      return `<tr class="${r.c || ''}">${tds}</tr>`;
+    }).join('');
+    const lbl = label ? `<div class="tbl-label">▸ ${label}</div>` : '';
+    return `<div style="flex:1;min-width:260px;">${lbl}<div style="overflow-x:auto;"><table class="sv-table">${thead ? `<thead><tr>${thead}</tr></thead>` : ''}<tbody>${tbody}</tbody></table></div></div>`;
+  }
+
+  function renderTableArea(step) {
+    if (step.join) {
+      return `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+        ${buildTable(step.left.label,  step.left.cols,  step.left.rows,  step.left.ch)}
+        <div style="display:flex;align-items:center;font-size:20px;color:var(--sql-blue-txt);padding-top:28px;">⋈</div>
+        ${buildTable(step.right.label, step.right.cols, step.right.rows, step.right.ch)}
+      </div>`;
+    }
+    return buildTable('', step.cols, step.rows, step.ch);
+  }
+
+  function renderControls(total) {
+    const dots = Array.from({length: total}, (_, i) => {
+      const cls = i === currentStepIndex ? 'active' : (i < currentStepIndex ? 'done' : '');
+      return `<button class="sv-dot ${cls}" data-action="goto" data-idx="${i}" aria-label="ステップ${i+1}"></button>`;
+    }).join('');
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">${dots}</div>
+      <span style="font-size:10px;font-family:var(--font-mono);font-weight:600;color:var(--color-txt-muted);">${currentStepIndex + 1} / ${total}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="sv-nav-btn" data-action="prev" ${currentStepIndex === 0 ? 'disabled' : ''}>← Prev</button>
+        <button class="sv-nav-btn" data-action="next" ${currentStepIndex === total - 1 ? 'disabled' : ''}>Next →</button>
+      </div>`;
+  }
+
+  function renderAll() {
+    const step = data.steps[currentStepIndex];
+    root.querySelector('.sv-sqlbox').innerHTML   = renderSQL(data, step.id);
+    root.querySelector('.sv-legend').innerHTML   = getLegendHTML(step.type);
+    root.querySelector('.sv-stepinfo').innerHTML = renderStepInfo(step);
+    const tarea = root.querySelector('.sv-tarea');
+    tarea.classList.remove('sv-animate');
+    void tarea.offsetWidth;
+    tarea.innerHTML = renderTableArea(step);
+    tarea.classList.add('sv-animate');
+    root.querySelector('.sv-rowcount').textContent = step.cnt || '';
+    root.querySelector('.sv-ctrls').innerHTML      = renderControls(data.steps.length);
+    root.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = window.innerWidth > 640);
+  }
+
+  root.__viz = {
+    next: () => { if (currentStepIndex < data.steps.length - 1) { currentStepIndex++; renderAll(); } },
+    prev: () => { if (currentStepIndex > 0)                     { currentStepIndex--; renderAll(); } },
+    goTo: i  => { if (i >= 0 && i < data.steps.length)         { currentStepIndex = i; renderAll(); } }
+  };
+
+  root.querySelector('.sv-ctrls').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const a = btn.dataset.action;
+    if      (a === 'prev') root.__viz.prev();
+    else if (a === 'next') root.__viz.next();
+    else if (a === 'goto') root.__viz.goTo(Number(btn.dataset.idx));
+  });
+
+  renderAll();
+}
+
+const QS = [
+
+/* ══════════════════════════════════════════════════
+   Q1  DENSE_RANK — 部署内売上ランキング（同率対応）
+══════════════════════════════════════════════════ */
+{
+  num: 1,
+  title: "DENSE_RANK — 部署内売上ランキングを同率考慮で算出",
+  tags: [["r","DENSE_RANK"],["o","PARTITION BY"],["g","CTE"],["p","部署別ランキング"]],
+  premise: `<p><strong>DENSE_RANK()</strong> は同値に同順位を振り、次の順位を飛ばさないウィンドウ関数です。部署別ランキング・社内表彰・昇格候補抽出など、組織分析で頻出します。</p>
+<pre><span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> dept_id          <span class="cmt">-- 部署ごとに独立したウィンドウを作成</span>
+  <span class="kw">ORDER BY</span>    total_sales <span class="kw">DESC</span> <span class="cmt">-- 売上の降順でランク付け（高い方が1位）</span>
+) <span class="kw">AS</span> dept_rank</pre>
+<div class="callout"><strong>3兄弟の違い（同値が2人いるとき）：</strong><br>
+ROW_NUMBER → 1, 2, 3, 4（同値でも必ず別番号）<br>
+RANK       → 1, 1, 3, 4（同率あり・次を飛ばす）<br>
+DENSE_RANK → 1, 1, 2, 3（同率あり・次を飛ばさない）</div>
+<p>組織ランキングでは <em>「3位は何人いるか」を正確に表したい</em> ので DENSE_RANK が最適です。RANK だと「2位が2人いると4位が続く」という直感に反する表示になります。</p>`,
+  question: `<p>employees テーブルと sales_results テーブルを結合し、<em>各部署内での四半期売上ランキング</em>を DENSE_RANK で算出してください。</p>
+<p>各部署の上位3位以内の社員のみを出力し、同率の場合は全員含めます。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employees</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>dept_id</th></tr>
+        <tr><td>1</td><td>田中</td><td>10</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>10</td></tr>
+        <tr><td>3</td><td>山田</td><td>10</td></tr>
+        <tr><td>4</td><td>鈴木</td><td>20</td></tr>
+        <tr><td>5</td><td>高橋</td><td>20</td></tr>
+        <tr><td>6</td><td>木村</td><td>20</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ sales_results</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>quarter</th><th>total_sales</th></tr>
+        <tr><td>1</td><td>2024Q1</td><td>820,000</td></tr>
+        <tr><td>2</td><td>2024Q1</td><td>750,000</td></tr>
+        <tr><td>3</td><td>2024Q1</td><td>750,000</td></tr>
+        <tr><td>4</td><td>2024Q1</td><td>990,000</td></tr>
+        <tr><td>5</td><td>2024Q1</td><td>640,000</td></tr>
+        <tr><td>6</td><td>2024Q1</td><td>880,000</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ departments</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>dept_id</th><th>dept_name</th></tr>
+        <tr><td>10</td><td>営業一部</td></tr>
+        <tr><td>20</td><td>営業二部</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>emp_name</th><th>total_sales</th><th>dept_rank</th></tr>
+<tr><td>営業一部</td><td>田中</td><td>820,000</td><td>1</td></tr>
+<tr><td>営業一部</td><td>佐藤</td><td>750,000</td><td>2</td></tr>
+<tr><td>営業一部</td><td>山田</td><td>750,000</td><td>2</td></tr>
+<tr><td>営業二部</td><td>鈴木</td><td>990,000</td><td>1</td></tr>
+<tr><td>営業二部</td><td>木村</td><td>880,000</td><td>2</td></tr>
+<tr><td>営業二部</td><td>高橋</td><td>640,000</td><td>3</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span> <span class="cmt">-- CTEを開始</span>
+
+<span class="cmt">-- ① 部署内売上ランキングを算出</span>
+ranked <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    d.dept_name,
+    e.emp_name,
+    s.total_sales,
+    <span class="fn">DENSE_RANK</span>() <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> e.dept_id         <span class="cmt">-- 部署ごとに独立してランク付け</span>
+      <span class="kw">ORDER BY</span>    s.total_sales <span class="kw">DESC</span> <span class="cmt">-- 売上降順で順位を付与</span>
+    ) <span class="kw">AS</span> dept_rank
+  <span class="kw">FROM</span>       <span class="tbl">sales_results</span> s
+  <span class="kw">JOIN</span>       <span class="tbl">employees</span>     e  <span class="kw">ON</span> s.emp_id  <span class="op">=</span> e.emp_id   <span class="cmt">-- 社員情報を結合</span>
+  <span class="kw">JOIN</span>       <span class="tbl">departments</span>   d  <span class="kw">ON</span> e.dept_id <span class="op">=</span> d.dept_id  <span class="cmt">-- 部署名を結合</span>
+  <span class="kw">WHERE</span>      s.quarter <span class="op">=</span> <span class="str">'2024Q1'</span>                       <span class="cmt">-- 対象期間で絞り込み</span>
+)
+
+<span class="cmt">-- ② 上位3位以内のみ取得</span>
+<span class="kw">SELECT</span>
+  dept_name,
+  emp_name,
+  total_sales,
+  dept_rank
+<span class="kw">FROM</span>  ranked
+<span class="kw">WHERE</span> dept_rank <span class="op">&lt;=</span> <span class="num">3</span>               <span class="cmt">-- 3位以下（1, 2, 3位）に絞る</span>
+<span class="kw">ORDER BY</span> dept_name, dept_rank;     <span class="cmt">-- 部署名昇順 → 順位昇順に並び替え</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM sales_results JOIN ...  → テーブルを結合
+  2. WHERE quarter = '2024Q1'     → 期間で絞り込み
+  3. DENSE_RANK() OVER(...)       → 部署ごとに売上ランクを付与
+  4. ranked CTE 完成
+  5. WHERE dept_rank <= 3         → 上位3位以内に絞り込み
+  6. ORDER BY ...                 → 結果を並び替え
+*/</span></pre>`,
+    viz: {
+      steps: [
+        { id: 'from_sales', badge: '① FROM / WHERE', bc: 'badge-blue',
+          label: "sales_results WHERE quarter = '2024Q1'",
+          desc: 'まず売上実績テーブルから、対象期間 (2024Q1) のデータのみを抽出します。この時点では社員IDのみで、名前や部署名は不明です。',
+          type: 'base',
+          cols: ['emp_id', 'quarter', 'total_sales'],
+          ch:   ['col-eval', 'col-base', 'col-base'],
+          rows: [
+            { v: [1, '2024Q1', '820,000'] },
+            { v: [2, '2024Q1', '750,000'] },
+            { v: [3, '2024Q1', '750,000'] },
+            { v: [4, '2024Q1', '990,000'] },
+            { v: [5, '2024Q1', '640,000'] },
+            { v: [6, '2024Q1', '880,000'] }
+          ], cnt: '対象期間抽出: 6行' },
+
+        { id: 'join_deps', badge: '② JOIN', bc: 'badge-blue',
+          label: 'JOIN employees ⋈ departments',
+          desc: '社員テーブルと部署テーブルを結合し、社員名や部署名などの関連情報を付与し、誰がどの部署でいくら売り上げたかを一覧化します。',
+          type: 'base',
+          cols: ['dept_id', 'dept_name', 'emp_name', 'total_sales'],
+          ch:   ['col-eval', 'col-base', 'col-base', 'col-base'],
+          rows: [
+            { v: [10, '営業一部', '田中', '820,000'] },
+            { v: [10, '営業一部', '佐藤', '750,000'] },
+            { v: [10, '営業一部', '山田', '750,000'] },
+            { v: [20, '営業二部', '鈴木', '990,000'] },
+            { v: [20, '営業二部', '高橋', '640,000'] },
+            { v: [20, '営業二部', '木村', '880,000'] }
+          ], cnt: '3テーブル結合完了' },
+
+        { id: 'agg', badge: '③ DENSE_RANK()', bc: 'badge-orange',
+          label: 'PARTITION BY dept_id  ORDER BY total_sales DESC',
+          desc: '部署ごとに独立してランク付けします。同額の佐藤と山田は同率2位となり、DENSE_RANK のため次は3位になります。',
+          type: 'group',
+          cols: ['dept_name', 'emp_name', 'total_sales', 'dept_rank', 'ROW_NUMBER比較', 'RANK比較'],
+          ch:   ['col-eval', '', '', 'col-eval'],
+          rows: [
+            { c: 'row-grp-1', v: ['営業一部', '田中', '820,000', 1, 1, 1] },
+            { c: 'row-grp-1', v: ['営業一部', '佐藤', '750,000', '2 ←同率', 2, 2] },
+            { c: 'row-grp-1', v: ['営業一部', '山田', '750,000', '2 ←同率', 3, 2] },
+            { c: 'row-grp-2', v: ['営業二部', '鈴木', '990,000', 1, 1, 1] },
+            { c: 'row-grp-2', v: ['営業二部', '木村', '880,000', 2, 2, 2] },
+            { c: 'row-grp-2', v: ['営業二部', '高橋', '640,000', 3, 3, 3] }
+          ], cnt: '2グループに分類・ランク付与' },
+
+        { id: 'where', badge: '④ WHERE dept_rank ≤ 3', bc: 'badge-orange',
+          label: 'WHERE dept_rank <= 3',
+          desc: 'CTEの結果から、各部署の上位3位以内に絞り込みます。同率2位が2人いても、DENSE_RANKなら3位までの全員が含まれます。',
+          type: 'eval',
+          cols: ['dept_name', 'emp_name', 'total_sales', 'dept_rank'],
+          ch:   ['', '', '', 'col-eval'],
+          rows: [
+            { v: ['営業一部', '田中', '820,000', 1], cc: ['', '', '', 'val-pass'] },
+            { v: ['営業一部', '佐藤', '750,000', 2], cc: ['', '', '', 'val-pass'] },
+            { v: ['営業一部', '山田', '750,000', 2], cc: ['', '', '', 'val-pass'] },
+            { v: ['営業二部', '鈴木', '990,000', 1], cc: ['', '', '', 'val-pass'] },
+            { v: ['営業二部', '木村', '880,000', 2], cc: ['', '', '', 'val-pass'] },
+            { v: ['営業二部', '高橋', '640,000', 3], cc: ['', '', '', 'val-pass'] }
+          ], cnt: '全6行が3位以内 → 6行残る' },
+
+        { id: 'select', badge: '⑤ SELECT / ORDER BY', bc: 'badge-green',
+          label: 'ORDER BY dept_name, dept_rank',
+          desc: '最後に部署名とランク順に並べ替えて結果を出力します。',
+          type: 'select',
+          cols: ['dept_name', 'emp_name', 'total_sales', 'dept_rank'],
+          ch:   ['col-select', 'col-select', 'col-select', 'col-select'],
+          rows: [
+            { v: ['営業一部', '田中', '820,000', 1] },
+            { v: ['営業一部', '佐藤', '750,000', 2] },
+            { v: ['営業一部', '山田', '750,000', 2] },
+            { v: ['営業二部', '鈴木', '990,000', 1] },
+            { v: ['営業二部', '木村', '880,000', 2] },
+            { v: ['営業二部', '高橋', '640,000', 3] }
+          ], cnt: '結果: 6行 × 4列' }
+      ],
+      sql: [
+        { t: 'WITH\n',        k: 'sql-kw', h: 'from_sales'   },
+        { t: 'ranked ',        k: '',       h: 'agg'    },
+        { t: 'AS',             k: 'sql-kw', h: 'agg'    },
+        { t: ' (\n  ',        k: '',       h: 'agg'    },
+        { t: 'SELECT\n',      k: 'sql-kw', h: 'agg'    },
+        { t: '    d.dept_name, e.emp_name, s.total_sales,\n', k: '', h: 'agg' },
+        { t: '    DENSE_RANK() ', k: '',    h: 'agg'    },
+        { t: 'OVER',           k: 'sql-kw', h: 'agg'    },
+        { t: ' (\n      ',    k: '',       h: 'agg'    },
+        { t: 'PARTITION BY',   k: 'sql-kw', h: 'agg'    },
+        { t: ' e.dept_id\n      ', k: '',  h: 'agg'    },
+        { t: 'ORDER BY',       k: 'sql-kw', h: 'agg'    },
+        { t: ' s.total_sales ', k: '',      h: 'agg'    },
+        { t: 'DESC\n',        k: 'sql-kw', h: 'agg'    },
+        { t: '    ) ',         k: '',       h: 'agg'    },
+        { t: 'AS',             k: 'sql-kw', h: 'agg'    },
+        { t: ' dept_rank\n  ', k: '',      h: 'agg'    },
+        { t: 'FROM      ',     k: 'sql-kw', h: 'from_sales'   },
+        { t: 'sales_results s\n  ', k: '', h: 'from_sales'   },
+        { t: 'JOIN      ',     k: 'sql-kw', h: 'join_deps'   },
+        { t: 'employees e ',   k: '',       h: 'join_deps'   },
+        { t: 'ON',             k: 'sql-kw', h: 'join_deps'   },
+        { t: ' s.emp_id = e.emp_id\n  ', k: '', h: 'join_deps' },
+        { t: 'JOIN      ',     k: 'sql-kw', h: 'join_deps'   },
+        { t: 'departments d ', k: '',       h: 'join_deps'   },
+        { t: 'ON',             k: 'sql-kw', h: 'join_deps'   },
+        { t: ' e.dept_id = d.dept_id\n  ', k: '', h: 'join_deps' },
+        { t: 'WHERE     ',     k: 'sql-kw', h: 'from_sales'   },
+        { t: "s.quarter = '2024Q1'\n)\n", k: '', h: 'from_sales' },
+        { t: 'SELECT\n',      k: 'sql-kw', h: 'select' },
+        { t: '  dept_name, emp_name, total_sales, dept_rank\n', k: '', h: 'select' },
+        { t: 'FROM  ',         k: 'sql-kw', h: 'select' },
+        { t: 'ranked\n',      k: '',       h: 'select' },
+        { t: 'WHERE ',         k: 'sql-kw', h: 'where'  },
+        { t: 'dept_rank <= 3\n', k: '',    h: 'where'  },
+        { t: 'ORDER BY ',      k: 'sql-kw', h: 'select' },
+        { t: 'dept_name, dept_rank;', k: '', h: 'select' }
+      ]
+    },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>WITH</code> 句は「共通テーブル式(CTE)」と呼ばれ、長いSQLを小さなブロックに分割して読みやすくする機能です。また <code>JOIN</code> は複数のテーブルを関連キー（<code>ON</code>）でガッチャンコして1つの表にする、SQLの最重要構文です。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>DENSE_RANK を選ぶ判断基準：</strong>「3位タイが2人いるとき4位は存在するか？」→「しない」なら DENSE_RANK。組織の表彰・昇格ランキングでは DENSE_RANK が直感的です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>PARTITION BY の本質：</strong>「各グループで1から振り直す」という指定。省略すると全社員を1つのウィンドウとしてランク付けするため部署内ランキングになりません。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>実務Tips：</strong>「各部署のトップのみ抽出」なら <code>WHERE dept_rank = 1</code>。複数部署の最高成績者を一発で取れます。サブクエリで <code>MAX</code> を使うより可読性・パフォーマンス共に優れます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>同じSELECT内のWHEREでウィンドウ関数の結果を使う：</strong><code>WHERE DENSE_RANK() OVER(...) &lt;= 3</code> はエラー。ウィンドウ関数は WHERE より後に評価されるため、必ずCTEかサブクエリでラップしてから WHERE で絞ります。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>RANK を使って同率を見落とす：</strong>同率3位が2人いると RANK では4位が表示されず「3人未満しか表示されないケース」が生じます。意図を確認してから関数を選ぶこと。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">人事評価や営業成績のダッシュボードでは、「同率タイ」の扱いがクレームに繋がることがあります。DENSE_RANKを使えば、同率2位が複数人いても次の人がちゃんと「3位」になるため、ユーザーの直感に合ったランキング表を提供できます。また、上位N名を抽出する「Top-N分析」でも標準的に使われます。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q2  SELF JOIN — 上司情報を同じテーブルから引く
+══════════════════════════════════════════════════ */
+{
+  num: 2,
+  title: "SELF JOIN — 社員テーブルから上司名を同テーブルで取得",
+  tags: [["r","SELF JOIN"],["o","LEFT JOIN"],["g","階層構造"],["p","組織図API"]],
+  premise: `<p><strong>SELF JOIN</strong> は同じテーブルを2つの別名で結合するテクニックです。employees テーブルの <code>manager_id</code> が同テーブルの <code>emp_id</code> を参照している場合、上司の名前を引くのに使います。</p>
+<pre><span class="kw">FROM</span>      <span class="tbl">employees</span> e         <span class="cmt">-- 本人テーブル（エイリアス e）</span>
+<span class="kw">LEFT JOIN</span> <span class="tbl">employees</span> m          <span class="cmt">-- 同じテーブルを上司として別名 m で参照</span>
+  <span class="kw">ON</span> e.manager_id <span class="op">=</span> m.emp_id  <span class="cmt">-- 本人のmanager_idが上司のemp_idと一致</span></pre>
+<div class="callout warn"><strong>LEFT JOIN を使う理由：</strong>トップ（CEO）は manager_id が NULL のため、INNER JOIN にするとトップが消えてしまいます。組織全員を出したいときは LEFT JOIN が必須です。</div>`,
+  question: `<p>employees テーブルを SELF JOIN して、<em>全社員の情報と直属上司名</em>を一覧表示してください。</p>
+<p>トップ（manager_idがNULL）は manager_name に <code>'— (トップ)'</code> と表示します。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ employees（manager_idが上司のemp_idを指す）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>dept_name</th><th>job_title</th><th>manager_id</th></tr>
+        <tr><td>1</td><td>田中</td><td>経営</td><td>CEO</td><td class="null">NULL</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>営業</td><td>部長</td><td>1</td></tr>
+        <tr><td>3</td><td>山田</td><td>開発</td><td>部長</td><td>1</td></tr>
+        <tr><td>4</td><td>鈴木</td><td>営業</td><td>課長</td><td>2</td></tr>
+        <tr><td>5</td><td>高橋</td><td>開発</td><td>リーダー</td><td>3</td></tr>
+        <tr><td>6</td><td>木村</td><td>営業</td><td>担当</td><td>4</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_id</th><th>emp_name</th><th>dept_name</th><th>job_title</th><th>manager_name</th></tr>
+<tr><td>1</td><td>田中</td><td>経営</td><td>CEO</td><td>— (トップ)</td></tr>
+<tr><td>2</td><td>佐藤</td><td>営業</td><td>部長</td><td>田中</td></tr>
+<tr><td>3</td><td>山田</td><td>開発</td><td>部長</td><td>田中</td></tr>
+<tr><td>4</td><td>鈴木</td><td>営業</td><td>課長</td><td>佐藤</td></tr>
+<tr><td>5</td><td>高橋</td><td>開発</td><td>リーダー</td><td>山田</td></tr>
+<tr><td>6</td><td>木村</td><td>営業</td><td>担当</td><td>鈴木</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">SELECT</span>
+  e.emp_id,
+  e.emp_name,
+  e.dept_name,
+  e.job_title,
+  <span class="cmt">-- NULL（トップ）の場合は代替文字列を返す</span>
+  <span class="fn">COALESCE</span>(m.emp_name, <span class="str">'— (トップ)'</span>) <span class="kw">AS</span> manager_name
+<span class="kw">FROM</span>      <span class="tbl">employees</span> e            <span class="cmt">-- 本人（ベースとなる全社員）</span>
+<span class="kw">LEFT JOIN</span> <span class="tbl">employees</span> m            <span class="cmt">-- 上司（別名 m で自己結合）</span>
+  <span class="kw">ON</span> e.manager_id <span class="op">=</span> m.emp_id     <span class="cmt">-- 本人の manager_id と上司の emp_id を照合</span>
+<span class="kw">ORDER BY</span> e.emp_id;               <span class="cmt">-- 社員ID昇順で出力</span>
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM employees e             → 本人テーブルを読み込み
+  2. LEFT JOIN employees m ON ... → 上司テーブルを左結合（トップも残す）
+  3. COALESCE(...)                → 上司がいない行にデフォルト値を付与
+  4. ORDER BY emp_id              → 社員ID昇順で出力
+*/</span></pre>`,
+    viz: {
+      steps: [
+        { id: 'from', badge: '① FROM / LEFT JOIN', bc: 'badge-blue',
+          label: 'employees e  LEFT JOIN  employees m',
+          desc: '同じ employees テーブルを e (本人) と m (上司) の2つの役割で参照します。LEFT JOIN により、上司がいないトップ（田中）も e 側は残ります。',
+          type: 'base', join: true,
+          left: {
+            label: 'employees e（本人）',
+            cols: ['emp_id', 'emp_name', 'manager_id'],
+            ch:   ['col-base', 'col-base', 'col-base'],
+            rows: [
+              { v: [1, '田中', 'NULL'] },
+              { v: [2, '佐藤', 1] },
+              { v: [3, '山田', 1] },
+              { v: [4, '鈴木', 2] },
+              { v: [5, '高橋', 3] },
+              { v: [6, '木村', 4] }
+            ]
+          },
+          right: {
+            label: 'employees m（上司として参照）',
+            cols: ['emp_id', 'emp_name'],
+            ch:   ['col-base', 'col-base'],
+            rows: [
+              { v: [1, '田中'] },
+              { v: [2, '佐藤'] },
+              { v: [3, '山田'] },
+              { v: [4, '鈴木'] },
+              { v: [5, '高橋'] },
+              { v: [6, '木村'] }
+            ]
+          }, cnt: '本人: 6行 / 上司参照: 6行' },
+
+        { id: 'join', badge: '② ON (結合条件)', bc: 'badge-orange',
+          label: 'ON e.manager_id = m.emp_id',
+          desc: 'e.manager_id と m.emp_id を照合して結合します。トップ（田中）は一致しないため、m側の列はすべて NULL になります。',
+          type: 'eval',
+          cols: ['e.emp_id', 'e.emp_name', 'e.manager_id', '→ ON', 'm.emp_id', 'm.emp_name（上司名）'],
+          ch:   ['', '', 'col-eval', '', 'col-eval', 'col-eval'],
+          rows: [
+            { v: [1, '田中', 'NULL', '一致なし', 'NULL', 'NULL'],
+              cc: ['', '', 'val-dimmed', '', 'val-dimmed', 'val-dimmed'] },
+            { v: [2, '佐藤', 1, '1=1 ✓', 1, '田中'],
+              cc: ['', '', 'val-pass', '', 'val-pass', 'val-pass'] },
+            { v: [3, '山田', 1, '1=1 ✓', 1, '田中'],
+              cc: ['', '', 'val-pass', '', 'val-pass', 'val-pass'] },
+            { v: [4, '鈴木', 2, '2=2 ✓', 2, '佐藤'],
+              cc: ['', '', 'val-pass', '', 'val-pass', 'val-pass'] },
+            { v: [5, '高橋', 3, '3=3 ✓', 3, '山田'],
+              cc: ['', '', 'val-pass', '', 'val-pass', 'val-pass'] },
+            { v: [6, '木村', 4, '4=4 ✓', 4, '鈴木'],
+              cc: ['', '', 'val-pass', '', 'val-pass', 'val-pass'] }
+          ], cnt: '結合成功: 5行 / NULL補完(LEFT): 1行' },
+
+        { id: 'select', badge: '③ SELECT / COALESCE', bc: 'badge-green',
+          label: "COALESCE(m.emp_name, '— (トップ)')",
+          desc: "COALESCE関数で上司名が NULL の箇所を '— (トップ)' に置き換えます。その後、社員ID順に並べ替えます。",
+          type: 'select',
+          cols: ['emp_id', 'emp_name', 'job_title', 'manager_name'],
+          ch:   ['col-select', 'col-select', 'col-select', 'col-select'],
+          rows: [
+            { v: [1, '田中', 'CEO',     '— (トップ)'] },
+            { v: [2, '佐藤', '部長',    '田中'] },
+            { v: [3, '山田', '部長',    '田中'] },
+            { v: [4, '鈴木', '課長',    '佐藤'] },
+            { v: [5, '高橋', 'リーダー','山田'] },
+            { v: [6, '木村', '担当',    '鈴木'] }
+          ], cnt: '結果: 6行 × 4列' }
+      ],
+      sql: [
+        { t: 'SELECT\n',      k: 'sql-kw', h: 'select' },
+        { t: "  e.emp_id, e.emp_name, e.dept_name, e.job_title,\n  COALESCE(m.emp_name, '— (トップ)') ", k: '', h: 'select' },
+        { t: 'AS',             k: 'sql-kw', h: 'select' },
+        { t: ' manager_name\n', k: '',      h: 'select' },
+        { t: 'FROM      ',     k: 'sql-kw', h: 'from'   },
+        { t: 'employees e\n', k: '',        h: 'from'   },
+        { t: 'LEFT JOIN ',     k: 'sql-kw', h: 'from'   },
+        { t: 'employees m\n  ', k: '',      h: 'from'   },
+        { t: 'ON',             k: 'sql-kw', h: 'join'   },
+        { t: ' e.manager_id = m.emp_id\n', k: '', h: 'join' },
+        { t: 'ORDER BY ',      k: 'sql-kw', h: 'select' },
+        { t: 'e.emp_id;',      k: '',        h: 'select' }
+      ]
+    },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong>テーブル名の後ろに付ける <code>e</code> や <code>m</code> は「エイリアス（別名）」と呼びます。これがないと、同じテーブル同士の結合時に「どちらの emp_name か？」が分からずエラーになります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>COALESCE の使い方：</strong><code>COALESCE(a, b)</code> は「aがNULLならbを返す」標準SQL関数。複数引数 <code>COALESCE(a, b, c)</code> で「最初の非NULLを返す」動作も可能です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>階層が深い場合：</strong>「上司の上司」まで取りたいなら SELF JOIN をさらに重ねるか、Q8で学ぶ <em>再帰CTE</em> を使います。SELF JOIN は最大で何階層取るか事前に決まっている場合に向いています。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>INNER JOIN にしてしまう：</strong>CEOのように manager_id が NULL の社員は INNER JOIN だと結合失敗で行ごと消えます。組織全員を出したいときは必ず <strong>LEFT JOIN</strong>。</div></div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>エイリアスなしで曖昧な列参照：</strong>SELF JOINでは必ず <code>e</code> / <code>m</code> のようなエイリアスを付けて全列を修飾します。省略すると「どちらのemp_nameか」が不明でエラーになります。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">このような同一テーブル内で親子関係を持つ設計を「隣接リストモデル（Adjacency List）」と呼びます。従業員名簿やカテゴリ分類などで多用されます。BIツール（Tableau等）にデータを取り込む際は、予めSQL側でSELF JOINを用いて「部門長」「直属上司」などのフラットなカラムを展開しておくと、ユーザーが分析しやすくなります。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q3  予算差異分析
+══════════════════════════════════════════════════ */
+{
+  num: 3,
+  title: "予算差異分析 — 部署別予算消化率と超過アラート",
+  tags: [["r","CTE連鎖"],["o","差異計算"],["g","CASE WHEN"],["p","予算管理BI"]],
+  premise: `<p>予算差異分析（Budget Variance Analysis）は <em>予算額 vs 実績額</em> の乖離をモニタリングするBI分析の王道パターンです。単なる引き算ではなく、<strong>差異率・アラート状態・消化進捗</strong>を一括で取得するクエリ設計が実務では求められます。</p>
+<pre><span class="cmt">-- 差異額（正 = 残あり、負 = 超過）</span>
+budget_amount <span class="op">-</span> actual_amount <span class="kw">AS</span> variance
+
+<span class="cmt">-- 消化率（小数点1桁）</span>
+<span class="fn">ROUND</span>(actual_amount <span class="op">*</span> <span class="num">100.0</span> <span class="op">/</span> <span class="fn">NULLIF</span>(budget_amount, <span class="num">0</span>), <span class="num">1</span>) <span class="kw">AS</span> usage_pct</pre>
+<div class="callout"><code>NULLIF(budget_amount, 0)</code> で予算額が 0 のときのゼロ除算を防ぎます。結果は NULL になるため注意。</div>`,
+  question: `<p>budgets テーブルと actual_expenses テーブルを使い、<em>部署ごとの年間予算消化状況</em>を集計してください。</p>
+<p>消化率が 90% 以上なら <code>'要注意'</code>、100% 超なら <code>'超過'</code>、それ以外は <code>'正常'</code> のアラートを付与します。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ budgets（年間予算）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>dept_id</th><th>dept_name</th><th>fiscal_year</th><th>budget_amount</th></tr>
+        <tr><td>10</td><td>営業部</td><td>2024</td><td>5,000,000</td></tr>
+        <tr><td>20</td><td>開発部</td><td>2024</td><td>8,000,000</td></tr>
+        <tr><td>30</td><td>マーケ部</td><td>2024</td><td>3,000,000</td></tr>
+        <tr><td>40</td><td>総務部</td><td>2024</td><td>2,000,000</td></tr>
+      </table></div>
+    </div>
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ actual_expenses（月次実績）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>dept_id</th><th>expense_month</th><th>amount</th></tr>
+        <tr><td>10</td><td>2024-01</td><td>420,000</td></tr>
+        <tr><td>10</td><td>2024-02</td><td>380,000</td></tr>
+        <tr><td>20</td><td>2024-01</td><td>710,000</td></tr>
+        <tr><td>30</td><td>2024-01</td><td>950,000</td></tr>
+        <tr><td>30</td><td>2024-02</td><td>1,180,000</td></tr>
+        <tr><td>30</td><td>2024-03</td><td>1,050,000</td></tr>
+        <tr><td>...</td><td>...</td><td>...</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>dept_name</th><th>budget_amount</th><th>actual_amount</th><th>variance</th><th>usage_pct</th><th>alert</th></tr>
+<tr><td>開発部</td><td>8,000,000</td><td>5,820,000</td><td>2,180,000</td><td>72.8</td><td>正常</td></tr>
+<tr><td>総務部</td><td>2,000,000</td><td>1,840,000</td><td>160,000</td><td>92.0</td><td>要注意</td></tr>
+<tr><td>営業部</td><td>5,000,000</td><td>4,750,000</td><td>250,000</td><td>95.0</td><td>要注意</td></tr>
+<tr><td>マーケ部</td><td>3,000,000</td><td>3,180,000</td><td>-180,000</td><td>106.0</td><td>超過</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 部署ごとの年間実績合計を集計</span>
+actuals <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    dept_id,
+    <span class="fn">SUM</span>(amount) <span class="kw">AS</span> actual_amount
+  <span class="kw">FROM</span>  <span class="tbl">actual_expenses</span>
+  <span class="kw">WHERE</span> <span class="fn">EXTRACT</span>(<span class="kw">YEAR FROM</span> expense_month) <span class="op">=</span> <span class="num">2024</span>
+  <span class="kw">GROUP BY</span> dept_id
+),
+
+<span class="cmt">-- ② 予算と実績を結合して差異・消化率を計算</span>
+variance_calc <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    b.dept_name,
+    b.budget_amount,
+    <span class="fn">COALESCE</span>(a.actual_amount, <span class="num">0</span>) <span class="kw">AS</span> actual_amount,
+    b.budget_amount <span class="op">-</span> <span class="fn">COALESCE</span>(a.actual_amount, <span class="num">0</span>) <span class="kw">AS</span> variance,  <span class="cmt">-- 差異</span>
+    <span class="fn">ROUND</span>(
+      <span class="fn">COALESCE</span>(a.actual_amount, <span class="num">0</span>) <span class="op">*</span> <span class="num">100.0</span>
+      <span class="op">/</span> <span class="fn">NULLIF</span>(b.budget_amount, <span class="num">0</span>)                               <span class="cmt">-- ゼロ除算を防止</span>
+    , <span class="num">1</span>) <span class="kw">AS</span> usage_pct                                            <span class="cmt">-- 消化率(%)</span>
+  <span class="kw">FROM</span>      <span class="tbl">budgets</span> b
+  <span class="kw">LEFT JOIN</span> actuals a <span class="kw">ON</span> b.dept_id <span class="op">=</span> a.dept_id
+  <span class="kw">WHERE</span>     b.fiscal_year <span class="op">=</span> <span class="num">2024</span>
+)
+
+<span class="cmt">-- ③ アラートを付与して出力</span>
+<span class="kw">SELECT</span>
+  dept_name,
+  budget_amount,
+  actual_amount,
+  variance,
+  usage_pct,
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> usage_pct <span class="op">&gt;</span>  <span class="num">100</span> <span class="kw">THEN</span> <span class="str">'超過'</span>
+    <span class="kw">WHEN</span> usage_pct <span class="op">&gt;=</span>  <span class="num">90</span> <span class="kw">THEN</span> <span class="str">'要注意'</span>
+    <span class="kw">ELSE</span>                       <span class="str">'正常'</span>
+  <span class="kw">END</span> <span class="kw">AS</span> alert
+<span class="kw">FROM</span>  variance_calc
+<span class="kw">ORDER BY</span> usage_pct <span class="kw">DESC</span>;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM actual_expenses WHERE ... → 対象年度の実績を読み込み
+  2. GROUP BY dept_id               → 部署別に合計を算出 (actuals)
+  3. FROM budgets LEFT JOIN actuals → 予算と実績を結合
+  4. variance / usage_pct 計算      → 差異と消化率を算出 (variance_calc)
+  5. CASE usage_pct                 → アラートラベルを付与
+  6. ORDER BY usage_pct DESC        → 消化率の降順に並び替え
+*/</span></pre>`,
+    viz: {
+      steps: [
+        { id: 'from_act', badge: '① FROM / WHERE', bc: 'badge-blue',
+          label: 'actual_expenses WHERE year = 2024',
+          desc: '月次実績テーブルから対象年度のデータを抽出します。同じ部署（dept_id）のデータが複数月にわたって存在します。',
+          type: 'base',
+          cols: ['dept_id', 'expense_month', 'amount'],
+          ch:   ['col-eval', 'col-base', 'col-base'],
+          rows: [
+            { c: 'row-grp-1', v: ['10', '2024-01', '420,000'] },
+            { c: 'row-grp-1', v: ['10', '2024-02', '380,000'] },
+            { c: 'row-grp-1', v: ['10', '...', '3,950,000'] },
+            { c: 'row-grp-2', v: ['20', '2024-01', '710,000'] },
+            { c: 'row-grp-2', v: ['20', '...', '5,110,000'] },
+            { c: 'row-grp-3', v: ['30', '2024-01', '950,000'] },
+            { c: 'row-grp-3', v: ['30', '2024-02', '1,180,000'] },
+            { c: 'row-grp-3', v: ['30', '2024-03', '1,050,000'] },
+            { c: 'row-grp-1', v: ['40', '...', '1,840,000'] }
+          ], cnt: '対象データ抽出' },
+
+        { id: 'group_act', badge: '② GROUP BY / SUM', bc: 'badge-orange',
+          label: 'GROUP BY dept_id  →  actuals CTE',
+          desc: '部署ごとに金額を合計(SUM)し、年間合計額を算出します。複数行あったデータが部署ごとの1行に集約されます。',
+          type: 'group',
+          cols: ['dept_id', 'actual_amount（年間合計）'],
+          ch:   ['col-eval', 'col-eval'],
+          rows: [
+            { c: 'row-grp-1', v: ['10', '4,750,000'] },
+            { c: 'row-grp-2', v: ['20', '5,820,000'] },
+            { c: 'row-grp-3', v: ['30', '3,180,000'] },
+            { c: 'row-grp-1', v: ['40', '1,840,000'] }
+          ], cnt: '月次複数行 → 4グループ（部署別合計）' },
+
+        { id: 'join_bud', badge: '③ LEFT JOIN', bc: 'badge-blue',
+          label: 'budgets LEFT JOIN actuals ON dept_id',
+          desc: '予算テーブルをベースに、先ほど集計した実績 (actuals CTE) を LEFT JOIN して結合します。',
+          type: 'base', join: true,
+          left: {
+            label: 'budgets (予算)',
+            cols: ['dept_id', 'dept_name', 'budget_amount'],
+            ch:   ['col-eval', 'col-base', 'col-base'],
+            rows: [
+              { v: [10, '営業部', '5,000,000'] },
+              { v: [20, '開発部', '8,000,000'] },
+              { v: [30, 'マーケ部', '3,000,000'] },
+              { v: [40, '総務部', '2,000,000'] }
+            ]
+          },
+          right: {
+            label: 'actuals CTE (実績合計)',
+            cols: ['dept_id', 'actual_amount'],
+            ch:   ['col-eval', 'col-base'],
+            rows: [
+              { v: [10, '4,750,000'] },
+              { v: [20, '5,820,000'] },
+              { v: [30, '3,180,000'] },
+              { v: [40, '1,840,000'] }
+            ]
+          }, cnt: '予算と実績を横に結合' },
+
+        { id: 'calc_var', badge: '④ 計算列 (差異・消化率)', bc: 'badge-orange',
+          label: 'variance, usage_pct',
+          desc: '結合した予算額と実績額を用いて、差異 (variance) と消化率 (usage_pct) を計算します。',
+          type: 'eval',
+          cols: ['dept_name', 'budget_amount', 'actual_amount', 'variance', 'usage_pct'],
+          ch:   ['', '', '', 'col-eval', 'col-eval'],
+          rows: [
+            { v: ['営業部',   '5,000,000', '4,750,000', '+250,000',    '95.0'] },
+            { v: ['開発部',   '8,000,000', '5,820,000', '+2,180,000',  '72.8'] },
+            { v: ['マーケ部', '3,000,000', '3,180,000', '-180,000',   '106.0'] },
+            { v: ['総務部',   '2,000,000', '1,840,000', '+160,000',    '92.0'] }
+          ], cnt: 'variance_calc CTE 完成' },
+
+        { id: 'case_alert', badge: '⑤ CASE WHEN', bc: 'badge-orange',
+          label: 'CASE usage_pct > 100 / >= 90',
+          desc: '計算した消化率 (usage_pct) を元にアラートを付与します。CASE式は上から評価されるため、厳しい条件 (>100) から先に記述します。',
+          type: 'eval',
+          cols: ['dept_name', 'usage_pct', 'alert'],
+          ch:   ['', 'col-eval', 'col-eval'],
+          rows: [
+            { v: ['営業部',   '95.0',  '要注意'], cc: ['', 'tc-o', 'tc-o'] },
+            { v: ['開発部',   '72.8',  '正常'],   cc: ['', '', ''] },
+            { v: ['マーケ部', '106.0', '超過'],   cc: ['', 'tc-r', 'tc-r'] },
+            { v: ['総務部',   '92.0',  '要注意'], cc: ['', 'tc-o', 'tc-o'] }
+          ], cnt: 'alert 付与完了（未ソート）' },
+
+        { id: 'select', badge: '⑥ SELECT / ORDER BY', bc: 'badge-green',
+          label: 'ORDER BY usage_pct DESC',
+          desc: '消化率の高い順（超過 → 要注意 → 正常）に並べ替えて結果を出力します。',
+          type: 'select',
+          cols: ['dept_name', 'budget_amount', 'actual_amount', 'variance', 'usage_pct', 'alert'],
+          ch:   ['col-select','col-select','col-select','col-select','col-select','col-select'],
+          rows: [
+            { v: ['マーケ部', '3,000,000', '3,180,000', '-180,000',   '106.0', '超過']   },
+            { v: ['営業部',   '5,000,000', '4,750,000', '+250,000',    '95.0', '要注意'] },
+            { v: ['総務部',   '2,000,000', '1,840,000', '+160,000',    '92.0', '要注意'] },
+            { v: ['開発部',   '8,000,000', '5,820,000', '+2,180,000',  '72.8', '正常']   }
+          ], cnt: '結果: 4行 × 6列' }
+      ],
+      sql: [
+        { t: 'WITH\n',        k: 'sql-kw', h: 'from_act'  },
+        { t: 'actuals ',       k: '',       h: 'group_act'  },
+        { t: 'AS',             k: 'sql-kw', h: 'group_act'  },
+        { t: ' (\n  ',        k: '',       h: 'group_act'  },
+        { t: 'SELECT ',        k: 'sql-kw', h: 'group_act'  },
+        { t: 'dept_id, SUM(amount) ', k: '', h: 'group_act' },
+        { t: 'AS',             k: 'sql-kw', h: 'group_act'  },
+        { t: ' actual_amount\n  ', k: '',   h: 'group_act'  },
+        { t: 'FROM  ',         k: 'sql-kw', h: 'from_act'  },
+        { t: 'actual_expenses\n  ', k: '',  h: 'from_act'  },
+        { t: 'WHERE ',         k: 'sql-kw', h: 'from_act'  },
+        { t: 'EXTRACT(',       k: '',       h: 'from_act'  },
+        { t: 'YEAR FROM',      k: 'sql-kw', h: 'from_act'  },
+        { t: ' expense_month) = 2024\n  ', k: '', h: 'from_act' },
+        { t: 'GROUP BY ',      k: 'sql-kw', h: 'group_act'  },
+        { t: 'dept_id\n),\n', k: '',       h: 'group_act'  },
+        { t: 'variance_calc ', k: '',       h: 'join_bud calc_var'   },
+        { t: 'AS',             k: 'sql-kw', h: 'join_bud calc_var'   },
+        { t: ' (\n  ',        k: '',       h: 'join_bud calc_var'   },
+        { t: 'SELECT\n',      k: 'sql-kw', h: 'join_bud calc_var'   },
+        { t: '    b.dept_name, b.budget_amount,\n', k: '', h: 'join_bud' },
+        { t: '    COALESCE(a.actual_amount, 0) AS actual_amount,\n', k: '', h: 'calc_var' },
+        { t: '    b.budget_amount - COALESCE(a.actual_amount, 0) AS variance,\n', k: '', h: 'calc_var' },
+        { t: '    ROUND(COALESCE(a.actual_amount, 0) * 100.0 / NULLIF(b.budget_amount, 0), 1) AS usage_pct\n  ', k: '', h: 'calc_var' },
+        { t: 'FROM      ',     k: 'sql-kw', h: 'join_bud'   },
+        { t: 'budgets b\n  ', k: '',        h: 'join_bud'   },
+        { t: 'LEFT JOIN ',     k: 'sql-kw', h: 'join_bud'   },
+        { t: 'actuals a ',     k: '',        h: 'join_bud'   },
+        { t: 'ON',             k: 'sql-kw', h: 'join_bud'   },
+        { t: ' b.dept_id = a.dept_id\n  ', k: '', h: 'join_bud' },
+        { t: 'WHERE     ',     k: 'sql-kw', h: 'join_bud'   },
+        { t: 'b.fiscal_year = 2024\n)\n', k: '', h: 'join_bud' },
+        { t: 'SELECT\n  dept_name, budget_amount, actual_amount, variance, usage_pct,\n  ', k: 'sql-kw', h: 'select' },
+        { t: 'CASE\n    ',    k: 'sql-kw', h: 'case_alert' },
+        { t: 'WHEN ',          k: 'sql-kw', h: 'case_alert' },
+        { t: 'usage_pct >  100 ', k: '',     h: 'case_alert' },
+        { t: 'THEN',           k: 'sql-kw', h: 'case_alert' },
+        { t: " '超過'\n    ", k: '',        h: 'case_alert' },
+        { t: 'WHEN ',          k: 'sql-kw', h: 'case_alert' },
+        { t: 'usage_pct >= 90  ', k: '',     h: 'case_alert' },
+        { t: 'THEN',           k: 'sql-kw', h: 'case_alert' },
+        { t: " '要注意'\n    ",k: '',        h: 'case_alert' },
+        { t: 'ELSE',           k: 'sql-kw', h: 'case_alert' },
+        { t: " '正常'\n  ",   k: '',        h: 'case_alert' },
+        { t: 'END',            k: 'sql-kw', h: 'case_alert' },
+        { t: ' ',              k: '',        h: 'case_alert' },
+        { t: 'AS',             k: 'sql-kw', h: 'case_alert' },
+        { t: ' alert\n',      k: '',        h: 'case_alert' },
+        { t: 'FROM  ',         k: 'sql-kw', h: 'select' },
+        { t: 'variance_calc\n', k: '',      h: 'select' },
+        { t: 'ORDER BY ',      k: 'sql-kw', h: 'select' },
+        { t: 'usage_pct ',     k: '',        h: 'select' },
+        { t: 'DESC;',          k: 'sql-kw', h: 'select' }
+      ]
+    },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>GROUP BY</code> は同じ値を持つ行をグループにまとめる構文です。これを書くことで、<code>SUM()</code> が「全体の合計」ではなく「グループ（部署）ごとの合計」になります。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>CASE の条件評価順：</strong>上から順に評価されて最初にTRUEになった条件で止まります。「超過」を先に書かないと106%も「要注意」になってしまいます。<em>より厳しい条件を先に書く</em>のが鉄則です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULLIF の使い方：</strong><code>NULLIF(a, b)</code> は「a = b なら NULL を返す」関数です。ゼロ除算防止の定番パターンです。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>COALESCE を忘れる：</strong>LEFT JOIN で NULL になった actual_amount をそのまま引き算すると <code>budget - NULL = NULL</code> になります。<code>COALESCE(actual_amount, 0)</code> で NULL を 0 に変換してから計算しましょう。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">予算差異（Budget Variance）は、経営企画や部門長が毎日確認する重要指標です。実務では「現時点の消化率」だけでなく、「このペースでいくと期末にいくら着地するか（ローリングフォーキャスト）」を予測するクエリと組み合わせて、ダッシュボードにアラートを点灯させることが多いです。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q4  LAG + CASE — 離職リスク検知
+══════════════════════════════════════════════════ */
+{
+  num: 4,
+  title: "LAG + CASE — 評価スコアの下降トレンドで離職リスクを検知",
+  tags: [["r","LAG"],["o","トレンド判定"],["g","CTE"],["p","HR分析・離職予測"]],
+  premise: `<p>社員の評価スコアが2期連続で下降している場合、離職リスクの指標としてフラグを立てることがHR分析の実務ではよく求められます。<strong>LAG(col, 1) で1期前・LAG(col, 2) で2期前</strong>を引き込み、CASE で比較判定します。</p>
+<pre><span class="fn">LAG</span>(score, <span class="num">1</span>) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> emp_id    <span class="cmt">-- 社員ごとに独立して期前値を計算</span>
+  <span class="kw">ORDER BY</span>    eval_period <span class="cmt">-- 時系列順（古い→新しい）</span>
+) <span class="kw">AS</span> prev1_score          <span class="cmt">-- 1期前のスコア</span></pre>
+<div class="callout warn">最初の1〜2行は十分な過去データがないため LAG の結果が NULL になります。CASE でNULL対処を忘れると意図しない判定になるため注意。</div>`,
+  question: `<p>performance_reviews テーブルを使い、<em>直近3期の評価スコアが連続下降している社員</em>に離職リスクフラグを立ててください。</p>
+<p>条件：今期 &lt; 1期前 かつ 1期前 &lt; 2期前 → <code>'高リスク'</code>、今期 &lt; 1期前のみ → <code>'要観察'</code>、それ以外 → <code>'正常'</code></p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ performance_reviews</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>dept_name</th><th>eval_period</th><th>score</th></tr>
+        <tr><td>1</td><td>田中</td><td>営業部</td><td>2023Q3</td><td>82</td></tr>
+        <tr><td>1</td><td>田中</td><td>営業部</td><td>2023Q4</td><td>78</td></tr>
+        <tr><td>1</td><td>田中</td><td>営業部</td><td>2024Q1</td><td>71</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>開発部</td><td>2023Q3</td><td>75</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>開発部</td><td>2023Q4</td><td>80</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>開発部</td><td>2024Q1</td><td>83</td></tr>
+        <tr><td>3</td><td>山田</td><td>営業部</td><td>2023Q3</td><td>90</td></tr>
+        <tr><td>3</td><td>山田</td><td>営業部</td><td>2023Q4</td><td>85</td></tr>
+        <tr><td>3</td><td>山田</td><td>営業部</td><td>2024Q1</td><td>79</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>dept_name</th><th>eval_period</th><th>score</th><th>prev1</th><th>prev2</th><th>risk_flag</th></tr>
+<tr><td>田中</td><td>営業部</td><td>2024Q1</td><td>71</td><td>78</td><td>82</td><td>高リスク</td></tr>
+<tr><td>山田</td><td>営業部</td><td>2024Q1</td><td>79</td><td>85</td><td>90</td><td>高リスク</td></tr>
+<tr><td>佐藤</td><td>開発部</td><td>2024Q1</td><td>83</td><td>80</td><td>75</td><td>正常</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 過去2期分の評価スコアを付与</span>
+scored <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    emp_id,
+    emp_name,
+    dept_name,
+    eval_period,
+    score,
+    <span class="cmt">-- 同社員の1期前（1行前）のスコアを取得</span>
+    <span class="fn">LAG</span>(score, <span class="num">1</span>) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id
+      <span class="kw">ORDER BY</span>    eval_period
+    ) <span class="kw">AS</span> prev1_score,
+    <span class="cmt">-- 同社員の2期前（2行前）のスコアを取得</span>
+    <span class="fn">LAG</span>(score, <span class="num">2</span>) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id
+      <span class="kw">ORDER BY</span>    eval_period
+    ) <span class="kw">AS</span> prev2_score
+  <span class="kw">FROM</span> <span class="tbl">performance_reviews</span>
+)
+
+<span class="cmt">-- ② 最新期を抽出し、リスクフラグを判定</span>
+<span class="kw">SELECT</span>
+  emp_name,
+  dept_name,
+  eval_period,
+  score,
+  prev1_score,
+  prev2_score,
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> score <span class="op">&lt;</span> prev1_score <span class="kw">AND</span> prev1_score <span class="op">&lt;</span> prev2_score <span class="kw">THEN</span> <span class="str">'高リスク'</span> <span class="cmt">-- 3期連続下降</span>
+    <span class="kw">WHEN</span> score <span class="op">&lt;</span> prev1_score                               <span class="kw">THEN</span> <span class="str">'要観察'</span>   <span class="cmt">-- 1期下降</span>
+    <span class="kw">ELSE</span>                                                        <span class="str">'正常'</span>
+  <span class="kw">END</span> <span class="kw">AS</span> risk_flag
+<span class="kw">FROM</span>  scored
+<span class="kw">WHERE</span> eval_period <span class="op">=</span> <span class="str">'2024Q1'</span>  <span class="cmt">-- 最新期のみ対象</span>
+<span class="kw">ORDER BY</span>
+  <span class="kw">CASE</span> risk_flag <span class="kw">WHEN</span> <span class="str">'高リスク'</span> <span class="kw">THEN</span> <span class="num">1</span> <span class="kw">WHEN</span> <span class="str">'要観察'</span> <span class="kw">THEN</span> <span class="num">2</span> <span class="kw">ELSE</span> <span class="num">3</span> <span class="kw">END</span>,
+  emp_name;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM performance_reviews    → 評価データを読み込み
+  2. LAG(...) OVER(...)          → 1期前・2期前スコアを取得 (scored)
+  3. WHERE eval_period = ...     → 最新期の行のみに絞り込み
+  4. CASE ...                    → スコア下降の連続性でリスク判定
+  5. ORDER BY CASE ...           → リスク度が高い順に並び替え
+*/</span></pre>`,
+    viz: {
+      steps: [
+        { id: 'from', badge: '① FROM', bc: 'badge-blue',
+          label: 'FROM performance_reviews',
+          desc: '社員ごとの評価データ全体を読み込みます。時系列で並んでいるため、これをもとに過去のスコアを引き込みます。',
+          type: 'base',
+          cols: ['emp_name', 'dept_name', 'eval_period', 'score'],
+          ch:   ['col-base', 'col-base', 'col-base', 'col-base'],
+          rows: [
+            { v: ['田中', '営業部', '2023Q3', 82] },
+            { v: ['田中', '営業部', '2023Q4', 78] },
+            { v: ['田中', '営業部', '2024Q1', 71] },
+            { v: ['佐藤', '開発部', '2023Q3', 75] },
+            { v: ['佐藤', '開発部', '2023Q4', 80] },
+            { v: ['佐藤', '開発部', '2024Q1', 83] },
+            { v: ['山田', '営業部', '2023Q3', 90] },
+            { v: ['山田', '営業部', '2023Q4', 85] },
+            { v: ['山田', '営業部', '2024Q1', 79] }
+          ], cnt: '全 9行 読込' },
+
+        { id: 'agg', badge: '② LAG(score, 1/2)', bc: 'badge-orange',
+          label: 'PARTITION BY emp_id  ORDER BY eval_period',
+          desc: '社員ごとにウィンドウを分割し、LAG関数で1行前・2行前のスコアを取得します。過去データが足りない最初の行は NULL になります。',
+          type: 'group',
+          cols: ['emp_name', 'eval_period', 'score', 'prev1_score', 'prev2_score'],
+          ch:   ['col-eval', '', '', 'col-eval', 'col-eval'],
+          rows: [
+            { c: 'row-dimmed', v: ['田中', '2023Q3', 82, 'NULL', 'NULL'] },
+            { c: 'row-dimmed', v: ['田中', '2023Q4', 78, 82, 'NULL'] },
+            { c: 'row-grp-3',  v: ['田中', '2024Q1', 71, 78, 82] },
+            { c: 'row-dimmed', v: ['佐藤', '2023Q3', 75, 'NULL', 'NULL'] },
+            { c: 'row-dimmed', v: ['佐藤', '2023Q4', 80, 75, 'NULL'] },
+            { c: 'row-grp-1',  v: ['佐藤', '2024Q1', 83, 80, 75] },
+            { c: 'row-dimmed', v: ['山田', '2023Q3', 90, 'NULL', 'NULL'] },
+            { c: 'row-dimmed', v: ['山田', '2023Q4', 85, 90, 'NULL'] },
+            { c: 'row-grp-2',  v: ['山田', '2024Q1', 79, 85, 90] }
+          ], cnt: 'scored CTE 完成（9行）' },
+
+        { id: 'where_latest', badge: '③ WHERE (最新期抽出)', bc: 'badge-blue',
+          label: "WHERE eval_period = '2024Q1'",
+          desc: "過去の履歴を含む全データから、評価対象である最新期 ('2024Q1') の行のみに絞り込みます。",
+          type: 'base',
+          cols: ['emp_name', 'eval_period', 'score', 'prev1_score', 'prev2_score'],
+          ch:   ['', 'col-eval', 'col-base', 'col-base', 'col-base'],
+          rows: [
+            { v: ['田中', '2024Q1', 71, 78, 82] },
+            { v: ['佐藤', '2024Q1', 83, 80, 75] },
+            { v: ['山田', '2024Q1', 79, 85, 90] }
+          ], cnt: '9行 → 3行（最新期のみ）' },
+
+        { id: 'case_risk', badge: '④ CASE WHEN (リスク判定)', bc: 'badge-orange',
+          label: "CASE ... THEN '高リスク'",
+          desc: "今期・1期前・2期前のスコアを比較し、リスク状態を判定します。連続下降なら「高リスク」、1期下降なら「要観察」とします。",
+          type: 'eval',
+          cols: ['emp_name', 'score（今）', 'prev1', 'prev2', 'risk_flag'],
+          ch:   ['', 'col-eval', 'col-eval', 'col-eval', 'col-eval'],
+          rows: [
+            { v: ['田中', 71, 78, 82, '高リスク'], cc: ['', '', '', '', 'tc-r'] },
+            { v: ['佐藤', 83, 80, 75, '正常'],     cc: ['', '', '', '', ''] },
+            { v: ['山田', 79, 85, 90, '高リスク'], cc: ['', '', '', '', 'tc-r'] }
+          ], cnt: 'リスクフラグ付与完了' },
+
+        { id: 'select', badge: '⑤ ORDER BY', bc: 'badge-green',
+          label: 'ORDER BY CASE risk_flag ...',
+          desc: 'リスクフラグをカスタムソート（高リスク=1, 要観察=2, 正常=3）し、高い順に並べ替えて出力します。',
+          type: 'select',
+          cols: ['emp_name', 'dept_name', 'eval_period', 'score', 'prev1_score', 'prev2_score', 'risk_flag'],
+          ch:   ['col-select','col-select','col-select','col-select','col-select','col-select','col-select'],
+          rows: [
+            { v: ['田中', '営業部', '2024Q1', 71, 78, 82, '高リスク'] },
+            { v: ['山田', '営業部', '2024Q1', 79, 85, 90, '高リスク'] },
+            { v: ['佐藤', '開発部', '2024Q1', 83, 80, 75, '正常'] }
+          ], cnt: '結果: 3行 × 7列' }
+      ],
+      sql: [
+        { t: 'WITH\n',         k: 'sql-kw', h: 'from'   },
+        { t: 'scored ',         k: '',        h: 'agg'    },
+        { t: 'AS',              k: 'sql-kw', h: 'agg'    },
+        { t: ' (\n  ',         k: '',        h: 'agg'    },
+        { t: 'SELECT\n',       k: 'sql-kw', h: 'agg'    },
+        { t: '    emp_id, emp_name, dept_name, eval_period, score,\n', k: '', h: 'agg' },
+        { t: '    LAG(score, 1) ', k: '',     h: 'agg'    },
+        { t: 'OVER',            k: 'sql-kw', h: 'agg'    },
+        { t: ' (\n      ',     k: '',        h: 'agg'    },
+        { t: 'PARTITION BY',    k: 'sql-kw', h: 'agg'    },
+        { t: ' emp_id\n      ', k: '',       h: 'agg'    },
+        { t: 'ORDER BY',        k: 'sql-kw', h: 'agg'    },
+        { t: ' eval_period\n    ) ', k: '',  h: 'agg'    },
+        { t: 'AS',              k: 'sql-kw', h: 'agg'    },
+        { t: ' prev1_score,\n    LAG(score, 2) ', k: '', h: 'agg' },
+        { t: 'OVER',            k: 'sql-kw', h: 'agg'    },
+        { t: ' (\n      ',     k: '',        h: 'agg'    },
+        { t: 'PARTITION BY',    k: 'sql-kw', h: 'agg'    },
+        { t: ' emp_id\n      ', k: '',       h: 'agg'    },
+        { t: 'ORDER BY',        k: 'sql-kw', h: 'agg'    },
+        { t: ' eval_period\n    ) ', k: '',  h: 'agg'    },
+        { t: 'AS',              k: 'sql-kw', h: 'agg'    },
+        { t: ' prev2_score\n  ', k: '',      h: 'agg'    },
+        { t: 'FROM ',           k: 'sql-kw', h: 'from'   },
+        { t: 'performance_reviews\n)\n', k: '', h: 'from' },
+        { t: 'SELECT\n',       k: 'sql-kw', h: 'select' },
+        { t: '  emp_name, dept_name, eval_period, score,\n  prev1_score, prev2_score,\n  ', k: '', h: 'select' },
+        { t: 'CASE\n    ',     k: 'sql-kw', h: 'case_risk' },
+        { t: 'WHEN ',           k: 'sql-kw', h: 'case_risk' },
+        { t: 'score < prev1_score ', k: '',   h: 'case_risk' },
+        { t: 'AND',             k: 'sql-kw', h: 'case_risk' },
+        { t: ' prev1_score < prev2_score ', k: '', h: 'case_risk' },
+        { t: 'THEN',            k: 'sql-kw', h: 'case_risk' },
+        { t: " '高リスク'\n    ", k: '',     h: 'case_risk' },
+        { t: 'WHEN ',           k: 'sql-kw', h: 'case_risk' },
+        { t: 'score < prev1_score ', k: '',   h: 'case_risk' },
+        { t: 'THEN',            k: 'sql-kw', h: 'case_risk' },
+        { t: " '要観察'\n    ", k: '',       h: 'case_risk' },
+        { t: 'ELSE',            k: 'sql-kw', h: 'case_risk' },
+        { t: " '正常'\n  ",    k: '',        h: 'case_risk' },
+        { t: 'END',             k: 'sql-kw', h: 'case_risk' },
+        { t: ' ',               k: '',        h: 'case_risk' },
+        { t: 'AS',              k: 'sql-kw', h: 'case_risk' },
+        { t: ' risk_flag\n',   k: '',        h: 'case_risk' },
+        { t: 'FROM  ',          k: 'sql-kw', h: 'select' },
+        { t: 'scored\n',       k: '',        h: 'select' },
+        { t: 'WHERE ',          k: 'sql-kw', h: 'where_latest' },
+        { t: "eval_period = '2024Q1'\n", k: '', h: 'where_latest' },
+        { t: 'ORDER BY\n  ',   k: 'sql-kw', h: 'select' },
+        { t: 'CASE',            k: 'sql-kw', h: 'select' },
+        { t: " risk_flag ",     k: '',        h: 'select' },
+        { t: 'WHEN',            k: 'sql-kw', h: 'select' },
+        { t: " '高リスク' ",    k: '',        h: 'select' },
+        { t: 'THEN',            k: 'sql-kw', h: 'select' },
+        { t: ' 1 ',             k: '',        h: 'select' },
+        { t: 'WHEN',            k: 'sql-kw', h: 'select' },
+        { t: " '要観察' ",      k: '',        h: 'select' },
+        { t: 'THEN',            k: 'sql-kw', h: 'select' },
+        { t: ' 2 ',             k: '',        h: 'select' },
+        { t: 'ELSE',            k: 'sql-kw', h: 'select' },
+        { t: ' 3 ',             k: '',        h: 'select' },
+        { t: 'END',             k: 'sql-kw', h: 'select' },
+        { t: ', emp_name;',     k: '',        h: 'select' }
+      ]
+    },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>AND</code> は「A かつ B」を表す論理演算子です。両方の条件が成り立つときだけ TRUE となります。また、<code>=</code> ではなく <code>&lt;</code> などの比較演算子で大小を比較しています。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAG(col, N) の N 引数：</strong>N=1で「1行前」、N=2で「2行前」。ORDER BY の並び順に依存するため、時系列として正しい列でORDER BYすることが必須です。</div></div>
+<div class="insight-row"><span class="insight-icon">🔑</span><div class="insight-body"><strong>NULL の三値論理：</strong>CASE の比較 <code>NULL &lt; 数値</code> は UNKNOWN（TRUEでもFALSEでもない）のため「高リスク」にはならず、意図通り「要観察」か「正常」に分類されます。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>PARTITION BY なしでLAGを使う：</strong>省略すると全社員が1つのウィンドウになり、「田中の前の行が佐藤」という意味不明なLAG値になります。必ず PARTITION BY emp_id を指定します。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">HRアナリティクスにおける「退職予測モデル」の基礎となるアプローチです。実務では、評価スコアの下降だけでなく、「残業時間の急増（過去3ヶ月平均との比較）」「有給消化率の低下」など複数のトレンド指標を <code>LAG</code> や移動平均で算出し、複合的にリスクスコアを判定して人事介入のトリガーとします。</div>
+</div>`
+},
+
+/* ══════════════════════════════════════════════════
+   Q5  FIRST_VALUE / LAST_VALUE — 役職変遷
+══════════════════════════════════════════════════ */
+{
+  num: 5,
+  title: "FIRST_VALUE / LAST_VALUE — 入社時と最新の役職を1行で比較",
+  tags: [["r","FIRST_VALUE"],["o","LAST_VALUE"],["g","ウィンドウ関数"],["p","キャリア分析"]],
+  premise: `<p><strong>FIRST_VALUE(col)</strong> はウィンドウ内の最初の行の値、<strong>LAST_VALUE(col)</strong> は最後の行の値を返すウィンドウ関数です。社員の入社時役職と最新役職を1行で比較するキャリア分析に最適です。</p>
+<pre><span class="fn">FIRST_VALUE</span>(job_title) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> emp_id
+  <span class="kw">ORDER BY</span>    changed_at  <span class="cmt">-- 時系列順 → 先頭行 = 入社時</span>
+)
+
+<span class="fn">LAST_VALUE</span>(job_title) <span class="kw">OVER</span> (
+  <span class="kw">PARTITION BY</span> emp_id
+  <span class="kw">ORDER BY</span>    changed_at
+  <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</span>  <span class="cmt">-- フレーム全体 = 必須！</span>
+)</pre>
+<div class="callout danger"><strong>LAST_VALUE の落とし穴：</strong>デフォルトのフレームは <code>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code>（現在行まで）のため、フレーム指定なしでは「現在行の値」を返してしまいます。</div>`,
+  question: `<p>job_history テーブルを使い、<em>各社員の入社時の役職と現在の役職を1行で比較</em>してください。</p>
+<p>役職が変わった社員には <code>true</code> フラグを立て、昇進までの日数も出力します。</p>
+
+<div class="data-section">
+  <div class="data-label">使用テーブル（サンプルデータ）</div>
+  <div class="data-tables">
+    <div class="data-tbl-wrap">
+      <div class="data-tbl-name">▸ job_history（役職変更履歴）</div>
+      <div class="tbl-wrap"><table class="vtbl">
+        <tr><th>emp_id</th><th>emp_name</th><th>job_title</th><th>changed_at</th></tr>
+        <tr><td>1</td><td>田中</td><td>担当</td><td>2020-04-01</td></tr>
+        <tr><td>1</td><td>田中</td><td>主任</td><td>2022-04-01</td></tr>
+        <tr><td>1</td><td>田中</td><td>課長</td><td>2024-01-01</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>担当</td><td>2021-07-01</td></tr>
+        <tr><td>2</td><td>佐藤</td><td>担当</td><td>2024-01-01</td></tr>
+        <tr><td>3</td><td>山田</td><td>部長</td><td>2019-04-01</td></tr>
+        <tr><td>3</td><td>山田</td><td>本部長</td><td>2023-04-01</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>`,
+  output: `<div class="tbl-wrap"><table class="vtbl">
+<tr><th>emp_name</th><th>first_title</th><th>current_title</th><th>first_date</th><th>current_date</th><th>days_to_promote</th><th>is_promoted</th></tr>
+<tr><td>田中</td><td>担当</td><td>課長</td><td>2020-04-01</td><td>2024-01-01</td><td>1371</td><td>true</td></tr>
+<tr><td>佐藤</td><td>担当</td><td>担当</td><td>2021-07-01</td><td>2024-01-01</td><td class="null">NULL</td><td>false</td></tr>
+<tr><td>山田</td><td>部長</td><td>本部長</td><td>2019-04-01</td><td>2023-04-01</td><td>1461</td><td>true</td></tr>
+</table></div>`,
+  answer: `<pre><span class="kw">WITH</span>
+
+<span class="cmt">-- ① 入社時と最新の役職情報を全行に付与</span>
+career <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    emp_id,
+    emp_name,
+
+    <span class="cmt">-- 先頭行の値（入社時役職）</span>
+    <span class="fn">FIRST_VALUE</span>(job_title)  <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id <span class="kw">ORDER BY</span> changed_at
+    ) <span class="kw">AS</span> first_title,
+
+    <span class="cmt">-- 先頭行の値（入社日）</span>
+    <span class="fn">FIRST_VALUE</span>(changed_at) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id <span class="kw">ORDER BY</span> changed_at
+    ) <span class="kw">AS</span> first_date,
+
+    <span class="cmt">-- 末尾行の値（最新役職） ※フレーム指定が必須</span>
+    <span class="fn">LAST_VALUE</span>(job_title)  <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id <span class="kw">ORDER BY</span> changed_at
+      <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</span>
+    ) <span class="kw">AS</span> current_title,
+
+    <span class="cmt">-- 末尾行の値（最新変更日）</span>
+    <span class="fn">LAST_VALUE</span>(changed_at) <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id <span class="kw">ORDER BY</span> changed_at
+      <span class="kw">ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</span>
+    ) <span class="kw">AS</span> current_date,
+
+    <span class="cmt">-- 重複排除のための行番号</span>
+    <span class="fn">ROW_NUMBER</span>() <span class="kw">OVER</span> (
+      <span class="kw">PARTITION BY</span> emp_id <span class="kw">ORDER BY</span> changed_at
+    ) <span class="kw">AS</span> rn
+  <span class="kw">FROM</span> <span class="tbl">job_history</span>
+)
+
+<span class="cmt">-- ② 1社員1行に絞り、昇進日数とフラグを計算</span>
+<span class="kw">SELECT</span>
+  emp_name,
+  first_title,
+  current_title,
+  first_date,
+  current_date,
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> first_title <span class="op">&lt;&gt;</span> current_title <span class="kw">THEN</span> (current_date <span class="op">-</span> first_date)
+    <span class="kw">ELSE</span> <span class="kw">NULL</span>
+  <span class="kw">END</span> <span class="kw">AS</span> days_to_promote,
+  (first_title <span class="op">&lt;&gt;</span> current_title) <span class="kw">AS</span> is_promoted
+<span class="kw">FROM</span>  career
+<span class="kw">WHERE</span> rn <span class="op">=</span> <span class="num">1</span>  <span class="cmt">-- 各社員の最初の行のみ残す</span>
+<span class="kw">ORDER BY</span> emp_name;
+
+<span class="cmt">/*
+  SQL実行順序:
+  1. FROM job_history         → 役職履歴を読み込み
+  2. FIRST_VALUE / LAST_VALUE → 入社時・最新値を各行に付与
+  3. ROW_NUMBER()             → 各社員の履歴に連番を振る (career)
+  4. WHERE rn = 1             → 各社員1行に絞り込み
+  5. CASE / 比較演算          → 昇進フラグと昇進日数を算出
+  6. ORDER BY emp_name        → 社員名順に出力
+*/</span></pre>`,
+    viz: {
+      steps: [
+        { id: 'from', badge: '① FROM', bc: 'badge-blue',
+          label: 'FROM job_history',
+          desc: '役職変更履歴の全データを読み込みます。このデータから、社員ごとに最初（入社時）と最後（最新）の情報を抽出します。',
+          type: 'base',
+          cols: ['emp_name', 'job_title', 'changed_at'],
+          ch:   ['col-base', 'col-base', 'col-base'],
+          rows: [
+            { v: ['田中', '担当',   '2020-04-01'] },
+            { v: ['田中', '主任',   '2022-04-01'] },
+            { v: ['田中', '課長',   '2024-01-01'] },
+            { v: ['佐藤', '担当',   '2021-07-01'] },
+            { v: ['佐藤', '担当',   '2024-01-01'] },
+            { v: ['山田', '部長',   '2019-04-01'] },
+            { v: ['山田', '本部長', '2023-04-01'] }
+          ], cnt: '全 7行 読込' },
+
+        { id: 'agg', badge: '② FIRST/LAST_VALUE + ROW_NUMBER', bc: 'badge-orange',
+          label: 'PARTITION BY emp_id  ORDER BY changed_at',
+          desc: 'FIRST_VALUEで先頭行、LAST_VALUEでフレーム全体の末尾行を取得します。LAST_VALUEにはフレームの全体指定（UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING）が必須です。',
+          type: 'group',
+          cols: ['emp_name', 'job_title（現行）', 'FIRST_VALUE', 'LAST_VALUE[フレーム指定]', 'rn'],
+          ch:   ['col-eval', '', 'col-eval', 'col-eval', 'col-eval'],
+          rows: [
+            { c: 'row-grp-1',  v: ['田中', '担当',   '担当', '課長',   '1 → 残る'] },
+            { c: 'row-dimmed', v: ['田中', '主任',   '担当', '課長',   2] },
+            { c: 'row-dimmed', v: ['田中', '課長',   '担当', '課長',   3] },
+            { c: 'row-grp-2',  v: ['佐藤', '担当',   '担当', '担当',   '1 → 残る'] },
+            { c: 'row-dimmed', v: ['佐藤', '担当',   '担当', '担当',   2] },
+            { c: 'row-grp-3',  v: ['山田', '部長',   '部長', '本部長', '1 → 残る'] },
+            { c: 'row-dimmed', v: ['山田', '本部長', '部長', '本部長', 2] }
+          ], cnt: 'career CTE 完成（7行）' },
+
+        { id: 'where', badge: '③ WHERE rn = 1', bc: 'badge-orange',
+          label: 'WHERE rn = 1  → 1社員1行に絞る',
+          desc: '全行に同じ「最初と最後」の情報が付与されたため、ROW_NUMBER (rn) が 1 の行だけを残すことで、1社員1行のデータに圧縮します。',
+          type: 'eval',
+          cols: ['emp_name', 'first_title', 'current_title', 'first_date', 'current_date'],
+          ch:   ['', 'col-eval', 'col-eval', '', ''],
+          rows: [
+            { v: ['田中', '担当', '課長',   '2020-04-01', '2024-01-01'],
+              cc: ['', 'val-pass', 'val-pass', '', ''] },
+            { v: ['佐藤', '担当', '担当',   '2021-07-01', '2024-01-01'],
+              cc: ['', 'val-dimmed', 'val-dimmed', '', ''] },
+            { v: ['山田', '部長', '本部長', '2019-04-01', '2023-04-01'],
+              cc: ['', 'val-pass', 'val-pass', '', ''] }
+          ], cnt: '7行 → 3行（1社員1行）' },
+
+        { id: 'select', badge: '④ SELECT / CASE', bc: 'badge-green',
+          label: 'CASE first_title <> current_title',
+          desc: '入社時の役職と最新の役職を比較し、変化があれば is_promoted = true とし、経過日数を計算します。',
+          type: 'select',
+          cols: ['emp_name', 'first_title', 'current_title', 'first_date', 'current_date', 'days_to_promote', 'is_promoted'],
+          ch:   ['col-select','col-select','col-select','col-select','col-select','col-select','col-select'],
+          rows: [
+            { v: ['田中', '担当', '課長',   '2020-04-01', '2024-01-01', 1371, 'true'] },
+            { v: ['佐藤', '担当', '担当',   '2021-07-01', '2024-01-01', 'NULL', 'false'] },
+            { v: ['山田', '部長', '本部長', '2019-04-01', '2023-04-01', 1461, 'true'] }
+          ], cnt: '結果: 3行 × 7列' }
+      ],
+      sql: [
+        { t: 'WITH\n',           k: 'sql-kw', h: 'from'   },
+        { t: 'career ',           k: '',        h: 'agg'    },
+        { t: 'AS',                k: 'sql-kw', h: 'agg'    },
+        { t: ' (\n  ',           k: '',        h: 'agg'    },
+        { t: 'SELECT\n',         k: 'sql-kw', h: 'agg'    },
+        { t: '    emp_id, emp_name,\n', k: '', h: 'agg'   },
+        { t: '    FIRST_VALUE(job_title) ', k: '', h: 'agg' },
+        { t: 'OVER',              k: 'sql-kw', h: 'agg'    },
+        { t: ' (\n      ',       k: '',        h: 'agg'    },
+        { t: 'PARTITION BY',      k: 'sql-kw', h: 'agg'    },
+        { t: ' emp_id ',          k: '',        h: 'agg'    },
+        { t: 'ORDER BY',          k: 'sql-kw', h: 'agg'    },
+        { t: ' changed_at\n    ) ', k: '',     h: 'agg'    },
+        { t: 'AS',                k: 'sql-kw', h: 'agg'    },
+        { t: ' first_title,\n    FIRST_VALUE(changed_at) ', k: '', h: 'agg' },
+        { t: 'OVER',              k: 'sql-kw', h: 'agg'    },
+        { t: ' (',                k: '',        h: 'agg'    },
+        { t: 'PARTITION BY',      k: 'sql-kw', h: 'agg'    },
+        { t: ' emp_id ',          k: '',        h: 'agg'    },
+        { t: 'ORDER BY',          k: 'sql-kw', h: 'agg'    },
+        { t: ' changed_at) ',     k: '',        h: 'agg'    },
+        { t: 'AS',                k: 'sql-kw', h: 'agg'    },
+        { t: ' first_date,\n    LAST_VALUE(job_title) ', k: '', h: 'agg' },
+        { t: 'OVER',              k: 'sql-kw', h: 'agg'    },
+        { t: ' (\n      ',       k: '',        h: 'agg'    },
+        { t: 'PARTITION BY',      k: 'sql-kw', h: 'agg'    },
+        { t: ' emp_id ',          k: '',        h: 'agg'    },
+        { t: 'ORDER BY',          k: 'sql-kw', h: 'agg'    },
+        { t: ' changed_at\n      ', k: '',     h: 'agg'    },
+        { t: 'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING', k: 'sql-kw', h: 'agg' },
+        { t: '\n    ) ',         k: '',        h: 'agg'    },
+        { t: 'AS',                k: 'sql-kw', h: 'agg'    },
+        { t: ' current_title,\n    LAST_VALUE(changed_at) ', k: '', h: 'agg' },
+        { t: 'OVER',              k: 'sql-kw', h: 'agg'    },
+        { t: ' (\n      ',       k: '',        h: 'agg'    },
+        { t: 'PARTITION BY',      k: 'sql-kw', h: 'agg'    },
+        { t: ' emp_id ',          k: '',        h: 'agg'    },
+        { t: 'ORDER BY',          k: 'sql-kw', h: 'agg'    },
+        { t: ' changed_at\n      ', k: '',     h: 'agg'    },
+        { t: 'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING', k: 'sql-kw', h: 'agg' },
+        { t: ') ',                k: '',        h: 'agg'    },
+        { t: 'AS',                k: 'sql-kw', h: 'agg'    },
+        { t: ' current_date,\n    ROW_NUMBER() ', k: '',   h: 'agg' },
+        { t: 'OVER',              k: 'sql-kw', h: 'agg'    },
+        { t: ' (',                k: '',        h: 'agg'    },
+        { t: 'PARTITION BY',      k: 'sql-kw', h: 'agg'    },
+        { t: ' emp_id ',          k: '',        h: 'agg'    },
+        { t: 'ORDER BY',          k: 'sql-kw', h: 'agg'    },
+        { t: ' changed_at) ',     k: '',        h: 'agg'    },
+        { t: 'AS',                k: 'sql-kw', h: 'agg'    },
+        { t: ' rn\n  ',          k: '',        h: 'agg'    },
+        { t: 'FROM ',             k: 'sql-kw', h: 'from'   },
+        { t: 'job_history\n)\n',k: '',        h: 'from'   },
+        { t: 'SELECT\n',         k: 'sql-kw', h: 'select' },
+        { t: '  emp_name, first_title, current_title, first_date, current_date,\n  ', k: '', h: 'select' },
+        { t: 'CASE\n    ',       k: 'sql-kw', h: 'select' },
+        { t: 'WHEN',              k: 'sql-kw', h: 'select' },
+        { t: ' first_title <> current_title ', k: '', h: 'select' },
+        { t: 'THEN',              k: 'sql-kw', h: 'select' },
+        { t: ' (current_date - first_date)\n    ', k: '',  h: 'select' },
+        { t: 'ELSE',              k: 'sql-kw', h: 'select' },
+        { t: ' NULL\n  ',        k: '',        h: 'select' },
+        { t: 'END',               k: 'sql-kw', h: 'select' },
+        { t: ' ',                 k: '',        h: 'select' },
+        { t: 'AS',                k: 'sql-kw', h: 'select' },
+        { t: ' days_to_promote,\n  (first_title <> current_title) ', k: '', h: 'select' },
+        { t: 'AS',                k: 'sql-kw', h: 'select' },
+        { t: ' is_promoted\n',   k: '',        h: 'select' },
+        { t: 'FROM  ',            k: 'sql-kw', h: 'select' },
+        { t: 'career\n',         k: '',        h: 'select' },
+        { t: 'WHERE ',            k: 'sql-kw', h: 'where'  },
+        { t: 'rn = 1\n',         k: '',        h: 'where'  },
+        { t: 'ORDER BY ',         k: 'sql-kw', h: 'select' },
+        { t: 'emp_name;',         k: '',        h: 'select' }
+      ]
+    },
+  explain: `
+<div class="insight-box">
+<div class="insight-title">💡 LEARNING POINTS</div>
+<div class="insight-row"><span class="insight-icon">🔰</span><div class="insight-body"><strong>超基礎補足：</strong><code>&lt;&gt;</code> や <code>!=</code> は「左右の値が等しくない」ことを意味する演算子です。また、PostgreSQL等では日付同士を引き算すると、その間の「日数」が整数で返ってきます。</div></div>
+<div class="insight-row"><span class="insight-icon">🎯</span><div class="insight-body"><strong>LAST_VALUE のフレーム指定を覚える：</strong>デフォルトフレームは <code>CURRENT ROW</code> まで。LAST_VALUE を使うときは必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> をセットで書くクセをつけましょう。</div></div>
+<div class="insight-row"><span class="insight-icon">⚡</span><div class="insight-body"><strong>代替パターン：</strong><code>MAX(changed_at) OVER (PARTITION BY emp_id)</code> で最大日付を取り WHERE で絞る方法もあります。フレーム指定が覚えられない場合の実用的な回避策です。</div></div>
+</div>
+<div class="anti-box">
+<div class="anti-title">⚠️ ANTI-PATTERNS</div>
+<div class="anti-row"><span class="insight-icon">❌</span><div class="anti-body"><strong>LAST_VALUE をフレーム指定なしで使う：</strong>最も多い落とし穴。デフォルトでは各行が「自分自身の値」を返します。必ず <code>ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING</code> を指定します。</div></div>
+</div>
+<div class="column-box">
+  <div class="column-title">実務での活用シーン（BI/HRコラム）</div>
+  <div class="column-body">社員のキャリア変遷や、顧客のステータス変更履歴など、時系列のログデータから「最初と最後」を抽出する要件は頻出します。データエンジニアリングの世界では、これを <strong>SCD Type 2（ゆっくり変化する次元）</strong> と呼び、最新の役職フラグ（is_current）を持たせたデータマートを構築することで、BIツール側でのクエリを簡略化することが一般的です。</div>
+</div>`
+}
+
+];
+
+function acc(icon, pillClass, pillText, title, content) {
+  return `<div class="acc closed">
+    <div class="acc-head" onclick="this.parentElement.classList.toggle('closed')">
+      <span class="acc-icon">${icon}</span>
+      <span class="acc-title">${title}</span>
+      <span class="acc-pill ${pillClass}">${pillText}</span>
+      <span class="acc-chevron">▼</span>
+    </div>
+    <div class="acc-body">${content}</div>
+  </div>`;
+}
+
+function tagHTML(tags) {
+  const cls = {r:'tag-r', g:'tag-g', o:'tag-o', p:'tag-p', y:'tag-o'};
+  return tags.map(([c,t]) => `<span class="q-tag ${cls[c]}">${t}</span>`).join('');
+}
+
+function buildAll() {
+  document.getElementById('tabRow').innerHTML = QS.map((q, i) =>
+    `<button class="tab-btn" onclick="go(${i})"><span class="tab-num">Q${q.num}</span>${q.title.split('—')[0].trim()}</button>`
+  ).join('');
+
+  document.getElementById('mainContent').innerHTML = QS.map((q, i) => `
+    <div class="panel" id="panel${i}">
+      <div class="q-header">
+        <div class="q-number">QUESTION ${q.num} / ${QS.length}</div>
+        <div class="q-title">${q.title}</div>
+        <div class="q-tags">${tagHTML(q.tags)}</div>
+      </div>
+      ${acc('📘','pill-blue','前提','前提知識',q.premise)}
+      ${acc('❓','pill-green','問題','問題',q.question)}
+      ${acc('📊','pill-orange','出力例','期待出力',q.output)}
+      ${acc('✅','pill-red','模範回答','模範解答コード',q.answer)}
+      ${acc('🔍','pill-purple','解説','解説（テーブル変化・ポイント）',
+        (Array.isArray(q.viz)
+          ? q.viz.map((_, vIdx) => `<div class="sql-viz-wrapper" id="viz-${i}-${vIdx}" tabindex="-1" style="margin-bottom:24px;"></div>`).join('')
+          : `<div class="sql-viz-wrapper" id="viz-${i}" tabindex="-1"></div>`
+        ) + q.explain)}
+      <div class="nav-bar">
+        <button class="nav-btn" onclick="go(${i-1})" ${i === 0 ? 'disabled' : ''}>← 前の問題</button>
+        <div class="nav-info">${i+1} / ${QS.length}<br><span style="font-size:10px;opacity:.5">タップで切替</span></div>
+        <button class="nav-btn" onclick="go(${i+1})" ${i === QS.length-1 ? 'disabled' : ''}>次の問題 →</button>
+      </div>
+    </div>
+  `).join('');
+
+  QS.forEach((q, i) => {
+    if (q.viz) {
+      if (Array.isArray(q.viz)) {
+        q.viz.forEach((v, vIdx) => initVisualizer(document.getElementById(`viz-${i}-${vIdx}`), v));
+      } else {
+        initVisualizer(document.getElementById('viz-' + i), q.viz);
+      }
+    }
+  });
+  go(0);
+}
+
+function go(i) {
+  if (i < 0 || i >= QS.length) return;
+  document.querySelectorAll('.panel').forEach((p, j) => p.classList.toggle('active', j === i));
+  document.querySelectorAll('.tab-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  const activeTab = document.getElementById('tabRow').children[i];
+  if (activeTab) activeTab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+  document.getElementById('progFill').style.width = ((i + 1) / QS.length * 100) + '%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+buildAll();
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const wrap = document.activeElement && document.activeElement.closest('.sql-viz-wrapper');
+  if (!wrap || !wrap.__viz) return;
+  e.preventDefault();
+  (e.key === 'ArrowRight' ? wrap.__viz.next : wrap.__viz.prev)();
+});
+let wasMobile = window.innerWidth <= 640;
+document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !wasMobile);
+window.addEventListener('resize', () => {
+  const isMobile = window.innerWidth <= 640;
+  if (wasMobile !== isMobile) {
+    wasMobile = isMobile;
+    document.querySelectorAll('.sv-mobile-collapse').forEach(el => el.open = !isMobile);
+  }
+});
+</script>
+</body>
+</html>
